@@ -1,6 +1,6 @@
 use crate::config::protocol::ProtocolSpecificSettings;
 use crate::{
-    config::GadgetConfiguration, events_watcher::evm::get_provider_http, info, keystore::BackendExt,
+    config::GadgetConfiguration, event_utils::evm::get_provider_http, info, keystore::BackendExt,
 };
 use alloy_primitives::{Bytes, FixedBytes, U256};
 use eigensdk::{

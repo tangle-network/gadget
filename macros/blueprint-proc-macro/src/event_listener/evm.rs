@@ -11,7 +11,7 @@ pub(crate) fn get_evm_instance_data(
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::TH, T::PH, alloy_network::Ethereum> };
+    let instance = quote! { #instance_base::#instance_name<gadget_sdk::event_listener::evm::contracts::BoxTransport, gadget_sdk::event_listener::evm::contracts::AlloyRootProvider, gadget_sdk::event_listener::evm::contracts::Ethereum> };
 
     (
         instance_base,
@@ -24,24 +24,7 @@ pub(crate) fn get_evm_instance_data(
 pub(crate) fn generate_evm_event_handler(
     struct_name: &Ident,
     event_handler: &EventListenerArgs,
-    params_tokens: &[TokenStream],
-    fn_call: &TokenStream,
 ) -> TokenStream {
-    let event = event_handler
-        .get_event_listener()
-        .event
-        .as_ref()
-        .expect("Event type must be specified");
-    let event_converter = event_handler
-        .get_event_listener()
-        .pre_processor
-        .as_ref()
-        .unwrap();
-    let _callback = event_handler
-        .get_event_listener()
-        .post_processor
-        .as_ref()
-        .unwrap();
     let abi_string = event_handler
         .get_event_listener()
         .evm_args
@@ -50,9 +33,9 @@ pub(crate) fn generate_evm_event_handler(
         .expect("ABI String must exist");
 
     quote! {
-        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> Deref for #struct_name <T>
+        impl Deref for #struct_name
         {
-            type Target = alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>;
+            type Target = gadget_sdk::event_listener::evm::contracts::AlloyContractInstance;
             fn deref(&self) -> &Self::Target {
                 self.contract_instance.get_or_init(|| {
                     let abi_location = alloy_contract::Interface::new(alloy_json_abi::JsonAbi::from_json_str(&#abi_string).unwrap());
@@ -64,10 +47,10 @@ pub(crate) fn generate_evm_event_handler(
         /*
         #[automatically_derived]
         #[gadget_sdk::async_trait::async_trait]
-        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
+        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::event_utils::evm::EvmEventHandler<T> for #struct_name <T>
         {
             type Event = #event;
-            async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
+            async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::event_utils::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
@@ -83,7 +66,7 @@ pub(crate) fn generate_evm_event_handler(
             }
         }*/
 
-        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
+        impl gadget_sdk::event_listener::markers::IsEvm for #struct_name {}
     }
 }
 
@@ -113,8 +96,15 @@ pub(crate) fn get_evm_job_processor_wrapper(
         }
     };
 
+    // We must type annotate param0 below as such: (_, _, _, ... ) using underscores for each input to
+    // allow the rust type inferencer to count the number of inputs and correctly index them in the function call
+
+    let inner_param_type = (0..params_tokens.len())
+        .map(|_| quote!(_,))
+        .collect::<Vec<_>>();
+
     quote! {
-        move |param0| async move {
+        move |param0: (#(#inner_param_type)*)| async move {
             #job_processor_call
         }
     }

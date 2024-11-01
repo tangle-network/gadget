@@ -1,4 +1,4 @@
-use crate::events_watcher::InitializableEventHandler;
+use crate::event_utils::InitializableEventHandler;
 
 /// A builder for blueprint jobs
 pub struct JobBuilder<T>

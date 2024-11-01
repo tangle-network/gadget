@@ -1,7 +1,7 @@
 use crate::{
     config::{GadgetConfiguration, ProtocolSpecificSettings},
     error,
-    events_watcher::evm::{get_provider_http, get_wallet_provider_http},
+    event_utils::evm::{get_provider_http, get_wallet_provider_http},
     info,
     keystore::BackendExt,
 };
@@ -10,7 +10,7 @@ use symbiotic_rs::OperatorRegistry;
 
 use super::{BlueprintConfig, RunnerError};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct SymbioticConfig {}
 
 #[async_trait::async_trait]

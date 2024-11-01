@@ -1,63 +1,35 @@
 use crate::event_listener::EventListener;
 use crate::store::LocalDatabase;
 use crate::{error, Error};
-use alloy_contract::{ContractInstance, Event};
+pub use alloy_contract::ContractInstance;
+use alloy_contract::Event;
+pub use alloy_network::Ethereum;
 use alloy_provider::Provider;
+pub use alloy_provider::RootProvider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
+pub use alloy_transport::BoxTransport;
 use std::collections::VecDeque;
 use std::time::Duration;
 use uuid::Uuid;
 
-pub trait EthereumContractBound:
-    Clone
-    + Send
-    + Sync
-    + crate::events_watcher::evm::Config<
-        TH: alloy_transport::Transport + Clone + Send + Sync + 'static,
-        PH: alloy_provider::Provider<<Self as crate::events_watcher::evm::Config>::TH>
-                + Clone
-                + Send
-                + Sync
-                + 'static,
-    > + 'static
-{
-}
+pub type AlloyRootProvider = RootProvider<BoxTransport>;
+pub type AlloyContractInstance = ContractInstance<BoxTransport, AlloyRootProvider, Ethereum>;
 
-// Impl EthereumContractBound for any T satisfying the bounds
-impl<T> EthereumContractBound for T where
-    T: Clone
-        + Send
-        + Sync
-        + crate::events_watcher::evm::Config<
-            TH: alloy_transport::Transport + Clone + Send + Sync + 'static,
-            PH: alloy_provider::Provider<<T as crate::events_watcher::evm::Config>::TH>
-                    + Clone
-                    + Send
-                    + Sync
-                    + 'static,
-        > + 'static
-{
-}
-
-pub struct EthereumHandlerWrapper<T: EthereumContractBound, E: SolEvent + Send + 'static> {
-    instance: ContractInstance<T::TH, T::PH>,
+pub struct EvmContractEventListener<E: SolEvent + Send + 'static> {
+    instance: AlloyContractInstance,
     chain_id: u64,
     local_db: LocalDatabase<u64>,
     should_cooldown: bool,
     enqueued_events: VecDeque<(E, alloy_rpc_types::Log)>,
-    _phantom: std::marker::PhantomData<T>,
 }
 
-pub type EvmContractEventListener<T, E> = EthereumHandlerWrapper<T, E>;
-pub type EvmWatcherWrapperContext<T, P> = ContractInstance<T, P>;
-
 #[async_trait::async_trait]
-impl<T: EthereumContractBound, E: SolEvent + Send + Sync + 'static>
-    EventListener<(E, alloy_rpc_types::Log), EvmWatcherWrapperContext<T::TH, T::PH>>
-    for EthereumHandlerWrapper<T, E>
+impl<E: SolEvent + Send + Sync + 'static>
+    EventListener<(E, alloy_rpc_types::Log), AlloyContractInstance>
+    for EvmContractEventListener<E>
 {
-    async fn new(context: &EvmWatcherWrapperContext<T::TH, T::PH>) -> Result<Self, Error>
+    async fn new(context: &AlloyContractInstance) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -75,7 +47,6 @@ impl<T: EthereumContractBound, E: SolEvent + Send + Sync + 'static>
             enqueued_events: VecDeque::new(),
             local_db,
             instance: context.clone(),
-            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -146,25 +117,5 @@ impl<T: EthereumContractBound, E: SolEvent + Send + Sync + 'static>
                 None
             }
         }
-    }
-
-    async fn handle_event(
-        &mut self,
-        (_event, _log): (E, alloy_rpc_types::Log),
-    ) -> Result<(), Error> {
-        unimplemented!("placeholder; will be removed");
-        /*const MAX_RETRIES: usize = 5;
-        let backoff = get_exponential_backoff::<MAX_RETRIES>();
-        // TODO: Move logic into EventFlows
-
-        let handler = self.instance.clone();
-
-        let task = async move {
-            Retry::spawn(backoff, || async { handler.handle(&log, &event).await }).await
-        };
-
-        if let Err(e) = task.await {
-            error!(?e, %self.chain_id, "Error while handling the event");
-        }*/
     }
 }

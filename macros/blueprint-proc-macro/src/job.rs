@@ -77,7 +77,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         proc_macro2::TokenStream::default()
     } else {
         // Specialized code for the event workflow or otherwise
-        generate_additional_logic(input, args, &param_map, &params_type, SUFFIX)
+        generate_additional_logic(input, args, SUFFIX)
     };
 
     let autogen_struct = if args.skip_codegen {
@@ -241,23 +241,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 idx,
                 suffix.to_lowercase()
             );
-            let is_not_evm = !matches!(listener_meta.listener_type, ListenerType::Evm);
+
             // convert the listener var, which is just a struct name, to an ident
             let listener = listener_meta.listener.to_token_stream();
-
-            let type_args = if is_not_evm {
-                proc_macro2::TokenStream::default()
-            } else {
-                quote! { <T> }
-            };
-
-            let bounded_type_args = if is_not_evm {
-                proc_macro2::TokenStream::default()
-            } else {
-                quote! { <T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> }
-            };
-
-            let autogen_struct_name = quote! { #struct_name #type_args };
 
             // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
             // We assume the first supplied event handler arg is the context we are injecting into the event listener
@@ -288,7 +274,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 })
                 .expect("No context found");
 
-            let autogen_struct_name = quote! { #struct_name #type_args };
+            let autogen_struct_name = quote! { #struct_name };
 
             /*
             let context_ty = event_handler_arg_types
@@ -399,7 +385,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             };
 
             let next_listener = quote! {
-                async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                     static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                     if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                         ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -538,8 +524,6 @@ pub fn generate_autogen_struct(
     }
 
     let mut required_fields = vec![];
-    let mut type_params_bounds = proc_macro2::TokenStream::default();
-    let mut type_params = proc_macro2::TokenStream::default();
 
     // Even if multiple tangle listeners, we only need this once
     if event_listener_args.has_tangle() {
@@ -556,12 +540,8 @@ pub fn generate_autogen_struct(
 
         required_fields.push(quote! {
             pub contract: #instance_name,
-            pub contract_instance: std::sync::OnceLock<alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
+            pub contract_instance: std::sync::OnceLock<gadget_sdk::event_listener::evm::contracts::AlloyContractInstance>,
         });
-
-        type_params = quote! { <T> };
-        type_params_bounds =
-            quote! { <T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> };
     }
 
     let combined_event_listener = generate_combined_event_listener_selector(&struct_name);
@@ -572,13 +552,13 @@ pub fn generate_autogen_struct(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         #[derive(Clone)]
-        pub struct #struct_name #type_params_bounds {
+        pub struct #struct_name {
             #(#required_fields)*
             #(#additional_params)*
         }
 
         #[gadget_sdk::async_trait::async_trait]
-        impl #type_params_bounds gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
+        impl gadget_sdk::event_utils::InitializableEventHandler for #struct_name {
             async fn init_event_handler(
                 &self,
             ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
@@ -642,41 +622,18 @@ fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {
     }
 }
 
-/// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
+/// Generates the [`EventHandler`](gadget_sdk::event_utils::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
 pub fn generate_additional_logic(
     input: &ItemFn,
     job_args: &JobArgs,
-    param_types: &IndexMap<Ident, Type>,
-    params: &[FieldType],
     suffix: &str,
 ) -> proc_macro2::TokenStream {
-    let (fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
+    let (_fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
     let event_listener_args = &job_args.event_listener;
-    let params_tokens = job_args
-        .event_listener
-        .get_param_name_tokenstream(params, false);
-    let fn_call_ordered = get_fn_call_ordered(param_types, &job_args.params, None);
-
-    let asyncness = get_asyncness(input);
-
-    let fn_call = quote! {
-        let job_result = match #fn_name(
-            #(#fn_call_ordered)*
-        )#asyncness {
-            Ok(r) => r,
-            Err(e) => {
-                ::gadget_sdk::error!("Error in job: {e}");
-                let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
-                return Err(error);
-            }
-        };
-    };
 
     match job_args.event_listener.get_event_listener().listener_type {
-        ListenerType::Evm => {
-            generate_evm_event_handler(&struct_name, event_listener_args, &params_tokens, &fn_call)
-        }
+        ListenerType::Evm => generate_evm_event_handler(&struct_name, event_listener_args),
 
         ListenerType::Tangle => generate_additional_tangle_logic(&struct_name),
 
@@ -876,7 +833,6 @@ pub(crate) struct SingleListener {
     pub listener: Type,
     pub evm_args: Option<EvmArgs>,
     pub listener_type: ListenerType,
-    pub event: Option<Type>,
     pub post_processor: Option<Type>,
     pub pre_processor: Option<Type>,
 }
@@ -925,10 +881,9 @@ impl Parse for EventListenerArgs {
         syn::parenthesized!(content in input);
 
         let mut listeners = Vec::new();
-        // Parse a TypePath instead of a LitStr
+
         while !content.is_empty() {
             let mut listener = None;
-            let mut event = None;
             let mut pre_processor = None;
             let mut post_processor = None;
             let mut is_evm = false;
@@ -950,8 +905,6 @@ impl Parse for EventListenerArgs {
                     }
 
                     listener = Some(listener_found)
-                } else if content.peek(kw::event) {
-                    event = extract_x_equals_y::<kw::event, Type>(&content, false, "event")?
                 } else if content.peek(kw::pre_processor) {
                     pre_processor = extract_x_equals_y::<kw::pre_processor, Type>(
                         &content,
@@ -990,7 +943,6 @@ impl Parse for EventListenerArgs {
                     listener,
                     evm_args: Some(EvmArgs { instance, abi }),
                     listener_type: ListenerType::Evm,
-                    event,
                     post_processor,
                     pre_processor,
                 }
@@ -1005,7 +957,6 @@ impl Parse for EventListenerArgs {
                     listener,
                     evm_args: None,
                     listener_type,
-                    event,
                     post_processor,
                     pre_processor,
                 }

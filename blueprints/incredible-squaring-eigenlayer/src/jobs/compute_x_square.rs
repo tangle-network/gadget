@@ -10,7 +10,6 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::events_watcher::evm::DefaultNodeConfig;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -21,10 +20,9 @@ use IncredibleSquaringTaskManager::TaskResponse;
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     result(_),
     event_listener(
-        listener = EvmContractEventListener<_, IncredibleSquaringTaskManager::NewTaskCreated>,
+        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        event = IncredibleSquaringTaskManager::NewTaskCreated,
         pre_processor = convert_event_to_inputs,
         post_processor = crate::noop,
     ),
@@ -81,7 +79,7 @@ pub async fn xsquare_eigen(
 /// the macro will index all values in the #[job] function
 /// and parse the return type by the index.
 pub async fn convert_event_to_inputs(
-    (event, log): (
+    (event, _log): (
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),

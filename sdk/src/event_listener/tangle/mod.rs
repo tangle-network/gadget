@@ -183,10 +183,6 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
             self.enqueued_events = events;
         }
     }
-
-    async fn handle_event(&mut self, _event: TangleEvent<C, E>) -> Result<(), Error> {
-        unimplemented!("placeholder; will be removed")
-    }
 }
 
 pub trait FieldTypeIntoValue: Sized {

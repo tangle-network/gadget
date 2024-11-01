@@ -74,9 +74,4 @@ impl EventListener<serde_json::Value, reqwest::Client> for WebPoller {
             None
         }
     }
-
-    /// Implement any handler logic when an event is received
-    async fn handle_event(&mut self, _event: serde_json::Value) -> Result<(), gadget_sdk::Error> {
-        unreachable!("Not called here")
-    }
 }
