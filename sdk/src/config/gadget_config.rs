@@ -108,7 +108,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             protocol: Protocol::Tangle,
             protocol_specific: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
                 blueprint_id: 0,
-                service_id: 0,
+                service_id: Some(0),
             }),
             bind_port: 0,
             bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
@@ -213,6 +213,6 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn service_id(&self) -> Option<u64> {
         let tangle_settings = self.protocol_specific.tangle().ok()?;
         let TangleInstanceSettings { service_id, .. } = tangle_settings;
-        Some(*service_id)
+        *service_id
     }
 }

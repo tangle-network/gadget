@@ -56,13 +56,6 @@ impl BlueprintConfig for TangleConfig {
             }
         };
 
-        // Ensure blueprint_id is set
-        if blueprint_id == 0 {
-            return Err(RunnerError::ConfigError(
-                crate::config::Error::MissingBlueprintId,
-            ));
-        }
-
         // Check if the operator is already registered
         let client = env.client().await?;
         let signer = env.first_sr25519_signer()?;
@@ -100,13 +93,6 @@ impl BlueprintConfig for TangleConfig {
             ));
         };
         let blueprint_id = blueprint_settings.blueprint_id;
-
-        // Ensure blueprint_id is set
-        if blueprint_id == 0 {
-            return Err(RunnerError::ConfigError(
-                crate::config::Error::MissingBlueprintId,
-            ));
-        }
 
         let xt = api::tx().services().register(
             blueprint_id,
