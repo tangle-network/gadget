@@ -939,6 +939,16 @@ impl Parse for EventListenerArgs {
             // In the case of tangle and everything other listener type, we don't pass evm_args
             let ty_str = quote! { #listener }.to_string();
             let this_listener = if is_evm {
+                if instance.is_none() {
+                    return Err(
+                        content.error("Expected `instance` argument for EVM event listener")
+                    );
+                }
+
+                if abi.is_none() {
+                    return Err(content.error("Expected `abi` argument for EVM event listener"));
+                }
+
                 SingleListener {
                     listener,
                     evm_args: Some(EvmArgs { instance, abi }),

@@ -18,13 +18,11 @@ use IncredibleSquaringTaskManager::TaskResponse;
 #[job(
     id = 0,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
-    result(_),
     event_listener(
         listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,
-        post_processor = crate::noop,
     ),
 )]
 pub async fn xsquare_eigen(

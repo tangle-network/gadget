@@ -44,28 +44,6 @@ pub(crate) fn generate_evm_event_handler(
             }
         }
 
-        /*
-        #[automatically_derived]
-        #[gadget_sdk::async_trait::async_trait]
-        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::event_utils::evm::EvmEventHandler<T> for #struct_name <T>
-        {
-            type Event = #event;
-            async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::event_utils::Error> {
-                use alloy_provider::Provider;
-                use alloy_sol_types::SolEvent;
-                use alloy_sol_types::SolInterface;
-                let contract = &self.contract;
-                let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
-                let (_, index) = decoded.topics();
-                let inputs = #event_converter(decoded.data, index);
-
-                // Apply the function
-                #(#params_tokens)*
-                #fn_call;
-                Ok(())
-            }
-        }*/
-
         impl gadget_sdk::event_listener::markers::IsEvm for #struct_name {}
     }
 }
