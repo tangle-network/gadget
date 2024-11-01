@@ -67,8 +67,7 @@ impl<E: SolEvent + Send + Sync + 'static>
             .get_block_number()
             .await
             .unwrap_or_default();
-        // loop {
-        // Get the latest block number
+
         let block = self
             .local_db
             .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))

@@ -14,13 +14,11 @@ const BLOCK_TIME_SECONDS: u32 = 12;
 #[job(
     id = 1,
     params(task, task_index),
-    result(_),
     event_listener(
         listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,
-        post_processor = crate::noop,
     ),
 )]
 pub async fn initialize_bls_task(

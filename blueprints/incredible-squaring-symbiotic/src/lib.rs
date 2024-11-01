@@ -18,11 +18,6 @@ load_abi!(
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
 
-pub async fn noop(_: U256) -> Result<(), gadget_sdk::Error> {
-    // This function intentionally does nothing
-    Ok(())
-}
-
 #[derive(Clone)]
 pub struct MyContext;
 
@@ -33,9 +28,8 @@ pub struct MyContext;
     event_listener(
         listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
-        pre_processor = convert_event_to_inputs,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        post_processor = noop,
+        pre_processor = convert_event_to_inputs,
     ),
 )]
 pub fn xsquare(x: U256, context: MyContext) -> Result<U256, gadget_sdk::Error> {
