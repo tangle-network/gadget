@@ -5,10 +5,28 @@ use serde::de;
 use serde::de::IntoDeserializer;
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
 
 /// Wrapper from `Field<AccountId32>`, since it's an external type.
 pub struct Deserializer(pub(crate) Field<AccountId32>);
+
+macro_rules! deserialize_primitive {
+    ($($t:ty => $pat:pat),+ $(,)?) => {
+        $(
+        paste::paste! {
+            fn [<deserialize_ $t>]<V>(self, visitor: V) -> Result<V::Value>
+            where
+                V: de::Visitor<'de>,
+            {
+                match self.0 {
+                    $pat(value) => visitor.[<visit_ $t>](value),
+                    _ => Err(self.invalid_type(&visitor))
+                }
+            }
+        }
+        )+
+    }
+}
 
 impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = Error;
@@ -34,73 +52,22 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             }
             Field::Bytes(b) => visitor.visit_bytes(b.0.as_slice()),
             Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
-            Field::Struct(_, _) => todo!(),
-            Field::AccountId(_) => todo!(),
+            Field::Struct(_, fields) => visit_struct(*fields, visitor),
+            Field::AccountId(a) => visitor.visit_bytes(a.0.as_slice()),
         }
     }
 
-    fn deserialize_bool<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_bool(self.strip_bool()?)
-    }
-
-    fn deserialize_i8<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_i8(self.strip_i8()?)
-    }
-
-    fn deserialize_i16<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_i16(self.strip_i16()?)
-    }
-
-    fn deserialize_i32<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_i32(self.strip_i32()?)
-    }
-
-    fn deserialize_i64<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_i64(self.strip_i64()?)
-    }
-
-    fn deserialize_u8<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_u8(self.strip_u8()?)
-    }
-
-    fn deserialize_u16<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_u16(self.strip_u16()?)
-    }
-
-    fn deserialize_u32<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_u32(self.strip_u32()?)
-    }
-
-    fn deserialize_u64<V>(mut self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_u64(self.strip_u64()?)
-    }
+    deserialize_primitive!(
+        bool => Field::Bool,
+        i8 => Field::Int8,
+        i16 => Field::Int16,
+        i32 => Field::Int32,
+        i64 => Field::Int64,
+        u8 => Field::Uint8,
+        u16 => Field::Uint16,
+        u32 => Field::Uint32,
+        u64 => Field::Uint64,
+    );
 
     fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
     where
@@ -255,15 +222,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Field::Struct(_name, f) => {
-                let mut fields = BTreeMap::new();
-                for (name, value) in f.0 {
-                    let name = String::from_utf8(name.0 .0)?;
-                    fields.insert(name, value);
-                }
-
-                visit_struct(fields, visitor)
-            }
+            Field::Struct(_name, fields) => visit_struct(*fields, visitor),
             _ => Err(self.invalid_type(&visitor)),
         }
     }
@@ -293,11 +252,23 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
+        drop(self);
         visitor.visit_unit()
     }
 }
 
 impl Deserializer {
+    fn strip_string(&mut self) -> Result<String> {
+        let val = core::mem::replace(&mut self.0, Field::None);
+        match val {
+            Field::String(bound_string) => String::from_utf8(bound_string.0 .0).map_err(Into::into),
+            _ => Err(Error::UnexpectedType {
+                expected: FieldType::String,
+                actual: field_type_for_field(&val),
+            }),
+        }
+    }
+
     #[cold]
     fn invalid_type<E>(&self, exp: &dyn de::Expected) -> E
     where
@@ -327,51 +298,6 @@ impl Deserializer {
             Field::Array(_) | Field::List(_) => de::Unexpected::Seq,
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),
-        }
-    }
-}
-
-macro_rules! define_strip_methods {
-    ($([$fn:ident, $ty:ty, $expected_field_ty:path, $pat:pat]),+ $(,)?) => {
-        $(
-            paste::paste! {
-                fn $fn(&mut self) -> Result<$ty> {
-                    match self.0 {
-                        $pat(v) => {
-                            Ok(v)
-                        },
-                        ref v => Err(Error::UnexpectedType {
-                            expected: $expected_field_ty,
-                            actual: field_type_for_field(v)
-                        })
-                    }
-                }
-            }
-        )+
-    }
-}
-
-impl Deserializer {
-    define_strip_methods! {
-        [strip_bool, bool, FieldType::Bool, Field::Bool],
-        [strip_i8,   i8,   FieldType::Int8,   Field::Int8],
-        [strip_i16,  i16,  FieldType::Int16,  Field::Int16],
-        [strip_i32,  i32,  FieldType::Int32,  Field::Int32],
-        [strip_i64,  i64,  FieldType::Int64,  Field::Int64],
-        [strip_u8,   u8,   FieldType::Uint8,   Field::Uint8],
-        [strip_u16,  u16,  FieldType::Uint16,  Field::Uint16],
-        [strip_u32,  u32,  FieldType::Uint32,  Field::Uint32],
-        [strip_u64,  u64,  FieldType::Uint64,  Field::Uint64],
-    }
-
-    fn strip_string(&mut self) -> Result<String> {
-        let val = core::mem::replace(&mut self.0, Field::None);
-        match val {
-            Field::String(bound_string) => String::from_utf8(bound_string.0 .0).map_err(Into::into),
-            _ => Err(Error::UnexpectedType {
-                expected: FieldType::String,
-                actual: field_type_for_field(&val),
-            }),
         }
     }
 }
@@ -471,12 +397,21 @@ impl<'de> de::MapAccess<'de> for StructDeserializer {
     }
 }
 
-fn visit_struct<'de, V>(s: BTreeMap<String, Field<AccountId32>>, visitor: V) -> Result<V::Value>
+fn visit_struct<'de, V>(
+    serialized_fields: BoundedVec<(BoundedString, Field<AccountId32>)>,
+    visitor: V,
+) -> Result<V::Value>
 where
     V: de::Visitor<'de>,
 {
-    let len = s.len();
-    let mut de = StructDeserializer::new(s);
+    let mut fields = BTreeMap::new();
+    for (name, value) in serialized_fields.0 {
+        let name = String::from_utf8(name.0 .0)?;
+        fields.insert(name, value);
+    }
+
+    let len = fields.len();
+    let mut de = StructDeserializer::new(fields);
     let seq = visitor.visit_map(&mut de)?;
     let remaining = de.iter.len();
     if remaining == 0 {
