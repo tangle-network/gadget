@@ -1,8 +1,12 @@
 use crate::error::{Result, UnsupportedType};
 use crate::Field;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::fmt::Display;
 use serde::ser;
 use serde::Serialize;
-use std::fmt::Display;
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
@@ -127,10 +131,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 
-    fn serialize_seq(
-        self,
-        len: Option<usize>,
-    ) -> std::result::Result<Self::SerializeSeq, Self::Error> {
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         let vec;
         match len {
             Some(len) => vec = Vec::with_capacity(len),
@@ -140,7 +141,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Ok(SerializeSeq { ser: self, vec })
     }
 
-    fn serialize_tuple(self, len: usize) -> std::result::Result<Self::SerializeTuple, Self::Error> {
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
@@ -148,7 +149,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         self,
         name: &'static str,
         len: usize,
-    ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
+    ) -> Result<Self::SerializeTupleStruct> {
         let ser = SerializeTupleStruct {
             ser: self,
             name,
@@ -163,22 +164,15 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant_index: u32,
         _variant: &'static str,
         _len: usize,
-    ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
+    ) -> Result<Self::SerializeTupleVariant> {
         Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 
-    fn serialize_map(
-        self,
-        _len: Option<usize>,
-    ) -> std::result::Result<Self::SerializeMap, Self::Error> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Err(Self::Error::UnsupportedType(UnsupportedType::Map))
     }
 
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        len: usize,
-    ) -> std::result::Result<Self::SerializeStruct, Self::Error> {
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         let ser = SerializeStruct {
             ser: self,
             name,
@@ -193,7 +187,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant_index: u32,
         _variant: &'static str,
         _len: usize,
-    ) -> std::result::Result<Self::SerializeStructVariant, Self::Error> {
+    ) -> Result<Self::SerializeStructVariant> {
         Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 
@@ -214,7 +208,7 @@ pub struct SerializeSeq<'a> {
     vec: Vec<Field<AccountId32>>,
 }
 
-impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
+impl ser::SerializeSeq for SerializeSeq<'_> {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -232,7 +226,7 @@ impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
     }
 }
 
-impl<'a> ser::SerializeTuple for SerializeSeq<'a> {
+impl ser::SerializeTuple for SerializeSeq<'_> {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -256,7 +250,7 @@ pub struct SerializeTupleStruct<'a> {
     fields: Vec<(BoundedString, Field<AccountId32>)>,
 }
 
-impl<'a> ser::SerializeTupleStruct for SerializeTupleStruct<'a> {
+impl ser::SerializeTupleStruct for SerializeTupleStruct<'_> {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -285,7 +279,7 @@ pub struct SerializeStruct<'a> {
     fields: Vec<(BoundedString, Field<AccountId32>)>,
 }
 
-impl<'a> ser::SerializeStruct for SerializeStruct<'a> {
+impl ser::SerializeStruct for SerializeStruct<'_> {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -308,7 +302,7 @@ impl<'a> ser::SerializeStruct for SerializeStruct<'a> {
 
 // === UNSUPPORTED TYPES ===
 
-impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
+impl ser::SerializeTupleVariant for &mut Serializer {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -324,7 +318,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeMap for &'a mut Serializer {
+impl ser::SerializeMap for &mut Serializer {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 
@@ -347,7 +341,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 }
 
-impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
+impl ser::SerializeStructVariant for &mut Serializer {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
 

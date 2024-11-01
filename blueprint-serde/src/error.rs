@@ -1,3 +1,4 @@
+use alloc::string::{String, ToString};
 use core::fmt::Display;
 use core::fmt::Formatter;
 use serde::{de, ser};

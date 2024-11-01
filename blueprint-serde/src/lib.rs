@@ -1,3 +1,5 @@
+#![no_std]
+
 mod de;
 pub mod error;
 mod ser;
