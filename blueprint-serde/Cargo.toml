@@ -1,0 +1,17 @@
+[package]
+name = "gadget-blueprint-serde"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+paste.workspace = true
+serde.workspace = true
+serde_test.workspace = true
+tangle-subxt.workspace = true
+
+[lints]
+workspace = true

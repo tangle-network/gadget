@@ -11,6 +11,7 @@ members = [
     "gadget-io",
     "blueprint-test-utils",
     "blueprint-manager",
+    "blueprint-serde",
     "sdk",
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
@@ -36,6 +37,7 @@ unused_import_braces = "deny"
 pedantic = { level = "deny", priority = -1 }
 all = { level = "deny", priority = -1 }
 single_match_else = "allow"
+uninlined_format_args = "allow"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
@@ -43,6 +45,7 @@ broken_intra_doc_links = "deny"
 [workspace.dependencies]
 gadget-io = { version = "0.0.4", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
+blueprint-serde = { version = "0.1.0", path = "./blueprint-serde" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.2.3" }
 
@@ -59,7 +62,7 @@ cargo-tangle = { path = "./cli", version = "0.2.1" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.4.0", default-features = false }
+tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
@@ -115,6 +118,7 @@ multiaddr = { version = "0.18.1", default-features = false }
 nix = { version = "0.29.0", features = ["process", "signal"] }
 num-bigint = "0.4.6"
 parking_lot = "0.12.3"
+paste = "1.0.15"
 proc-macro2 = "1.0"
 prometheus = { version = "0.13.4", default-features = false }
 quote = "1.0"
@@ -124,6 +128,7 @@ rustdoc-types = "0.31.0"
 schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
 serde = { version = "1.0.208", default-features = false }
 serde_json = "1.0"
+serde_test = "1.0.177"
 sha2 = "0.10.8"
 sqlx = "=0.7.3"
 syn = "2.0.75"
