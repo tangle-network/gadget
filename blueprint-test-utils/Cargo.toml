@@ -53,6 +53,7 @@ alloy-transport = { workspace = true }
 # Utility
 testcontainers = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
+tempfile = { workspace = true }
 
 [dev-dependencies]
 cargo_metadata = { workspace = true }

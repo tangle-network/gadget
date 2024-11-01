@@ -65,7 +65,7 @@ async fn main() {
         client: aggregator_client,
         env: env.clone(),
     };
-    let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
+    let x_square_eigen = XsquareEigenEventHandler {
         ctx,
         contract: contract.clone(),
         contract_instance: Default::default(),

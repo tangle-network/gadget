@@ -11,6 +11,7 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
+use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -20,7 +21,7 @@ use IncredibleSquaringTaskManager::TaskResponse;
     id = 0,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     event_listener(
-        listener = EvmContractEventListener<EigenSquareContext, IncredibleSquaringTaskManager::NewTaskCreated>,
+        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,
