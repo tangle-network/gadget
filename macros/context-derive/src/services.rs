@@ -94,13 +94,17 @@ pub fn generate_context_impl(
                         gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
                         _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
                     };
-                    let service_instance = api::storage().services().instances(service_instance_id);
+                    let service_id = match service_instance_id {
+                      Some(service_instance_id) => service_instance_id,
+                      None => return Err(subxt::Error::Other("Service instance id is not set. Running in Registration mode?".to_string())),
+                    };
+                    let service_instance = api::storage().services().instances(service_id);
                     let storage = client.storage().at_latest().await?;
                     let result = storage.fetch(&service_instance).await?;
                     match result {
                         Some(instance) => Ok(instance.operators.0),
                         None => Err(subxt::Error::Other(format!(
-                            "Service instance {service_instance_id} is not created, yet"
+                            "Service instance {service_id} is not created, yet"
                         ))),
                     }
                 }

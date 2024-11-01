@@ -168,7 +168,12 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         }),
         Protocol::Tangle => ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
             blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
-            service_id: service_id.ok_or(Error::MissingServiceId)?,
+            // If we are in registration mode, we don't need a service id
+            service_id: if !is_registration {
+                Some(service_id.ok_or(Error::MissingServiceId)?)
+            } else {
+                None
+            },
         }),
     };
 
