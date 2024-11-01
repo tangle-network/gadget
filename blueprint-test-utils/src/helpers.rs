@@ -97,7 +97,6 @@ impl BlueprintProcessManager {
             NAME_IDS[instance_id].to_lowercase(),
             uuid::Uuid::new_v4()
         ));
-        crate::info!("CREATING KEYSTORES AT {keystore_uri:?}");
         assert!(
             !keystore_uri.exists(),
             "Keystore URI cannot exist: {:?}",
