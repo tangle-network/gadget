@@ -1,9 +1,8 @@
 use crate::{
     config::{GadgetConfiguration, ProtocolSpecificSettings},
-    error,
-    events_watcher::evm::{get_provider_http, get_wallet_provider_http},
-    info,
+    error, info,
     keystore::BackendExt,
+    utils::evm::{get_provider_http, get_wallet_provider_http},
 };
 use alloy_network::EthereumWallet;
 use symbiotic_rs::OperatorRegistry;
@@ -19,6 +18,10 @@ impl BlueprintConfig for SymbioticConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
+        if env.skip_registration {
+            return Ok(false);
+        }
+
         let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
             return Err(RunnerError::InvalidProtocol(
                 "Expected Symbiotic protocol".into(),

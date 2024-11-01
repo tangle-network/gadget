@@ -1,4 +1,5 @@
 use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_primitives::hex;
 use alloy_rpc_types::TransactionReceipt;
 use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use gadget_sdk::error;
@@ -7,18 +8,18 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
+use crate::{inject_test_keys, KeyGenType};
 use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
-use gadget_sdk::config::Protocol;
 
-use crate::{inject_test_keys, KeyGenType};
-use thiserror::Error;
+use gadget_sdk::config::Protocol;
 
 #[derive(Error, Debug)]
 pub enum BlueprintError {
@@ -89,14 +90,15 @@ impl BlueprintProcessManager {
         ws_endpoint: &str,
         protocol: Protocol,
     ) -> Result<BlueprintProcess, std::io::Error> {
-        let tmp_store = uuid::Uuid::new_v4().to_string();
-        let keystore_uri = format!(
-            "./target/keystores/{}/{tmp_store}/",
-            NAME_IDS[instance_id].to_lowercase()
-        );
+        let tmp_dir = tempfile::TempDir::new()?;
+        let keystore_uri = tmp_dir.path().join(format!(
+            "keystores/{}/{}",
+            NAME_IDS[instance_id].to_lowercase(),
+            uuid::Uuid::new_v4()
+        ));
         assert!(
-            !std::path::Path::new(&keystore_uri).exists(),
-            "Keystore URI cannot exist: {}",
+            !keystore_uri.exists(),
+            "Keystore URI cannot exist: {:?}",
             keystore_uri
         );
 

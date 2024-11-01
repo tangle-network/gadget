@@ -1,6 +1,7 @@
 use super::error::Error;
 use crate::executor::process::utils::*;
 use crate::executor::OS_COMMAND;
+use crate::info;
 use crate::{craft_child_process, run_command};
 use nix::libc::pid_t;
 use nix::sys::signal;
@@ -13,12 +14,12 @@ use sysinfo::ProcessStatus::{
     Wakekill, Waking, Zombie,
 };
 use sysinfo::{Pid, ProcessStatus, System};
-use tokio::io::{BufReader, Lines};
 pub use tokio::process::Child;
+use tokio::sync::broadcast;
 
-const DEFAULT_READ_TIMEOUT: u64 = 1000;
+const DEFAULT_READ_TIMEOUT: u64 = 60; // seconds
 
-/// A Process spawned by gadget-executor, running some service or command(s)
+/// A process spawned by gadget-executor, running some service or command(s)
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GadgetProcess {
     /// The command executed
@@ -30,9 +31,9 @@ pub struct GadgetProcess {
     pub pid: Pid,
     /// History of output from process for reviewing/tracking progress
     pub output: Vec<String>,
-    /// Stream for output from child process
+    /// [Stream](broadcast::Receiver) for output from child process
     #[serde(skip_serializing, skip_deserializing)]
-    pub stream: Option<Lines<BufReader<tokio::process::ChildStdout>>>,
+    pub stream: Option<broadcast::Receiver<String>>,
 }
 
 fn serialize_pid<S>(pid: &Pid, serializer: S) -> Result<S::Ok, S::Error>
@@ -55,7 +56,7 @@ impl GadgetProcess {
         command: String,
         pid: u32,
         output: Vec<String>,
-        stream: Lines<BufReader<tokio::process::ChildStdout>>,
+        stream: broadcast::Receiver<String>,
     ) -> Result<GadgetProcess, Error> {
         let s = System::new_all();
         let pid = Pid::from_u32(pid);
@@ -73,61 +74,74 @@ impl GadgetProcess {
         })
     }
 
-    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Resubscribe to this [GadgetProcess]'s output [stream](broadcast::Receiver).
+    ///
+    /// Essentially clones the output stream of this [GadgetProcess].
+    ///
+    /// # Errors
+    /// - If the [stream](broadcast::Receiver) has died
+    /// - If the [GadgetProcess] has been deserialized and the [stream](broadcast::Receiver) is None
+    pub fn resubscribe(&self) -> Result<broadcast::Receiver<String>, Error> {
+        match &self.stream {
+            Some(stream) => Ok(stream.resubscribe()),
+            None => Err(Error::StreamError(self.pid)),
+        }
+    }
+
+    /// Continually reads output from this [GadgetProcess], eventually returning a [ProcessOutput].
+    ///
     /// Will loop and wait for output from the process, returning upon timeout or completion
-    /// of output stream.
+    /// of output [stream](broadcast::Receiver).
     pub async fn read_until_timeout(&mut self, timeout: u64) -> ProcessOutput {
         let mut messages = Vec::new();
         if let Some(stream) = &mut self.stream {
             // Read lines until we time out, meaning we are still waiting for output - continue for now
             loop {
                 let read_result =
-                    tokio::time::timeout(Duration::from_millis(timeout), stream.next_line()).await;
+                    tokio::time::timeout(Duration::from_secs(timeout), stream.recv()).await;
                 match read_result {
                     Ok(output) => {
-                        if output.is_err() {
-                            // TODO: Error logging
-                            println!(
-                                "{} encountered read error",
-                                self.process_name.to_string_lossy()
-                            );
-                        } else {
-                            let inbound_message = output.unwrap();
-                            match inbound_message {
-                                None => {
+                        match output {
+                            Err(e) => {
+                                crate::debug!(
+                                    "{} ended with: {}",
+                                    self.process_name.to_string_lossy(),
+                                    e
+                                );
+                                return ProcessOutput::Exhausted(messages);
+                            }
+                            Ok(inbound_message) => {
+                                if inbound_message.is_empty() {
                                     // Stream is completed - process is finished
-                                    println!(
+                                    crate::debug!(
                                         "{} : STREAM COMPLETED - ENDING",
                                         self.process_name.to_string_lossy()
                                     );
-                                    // TODO: Log
                                     return ProcessOutput::Exhausted(messages);
-                                }
-                                Some(streamed_output) => {
+                                } else {
                                     // We received output from child process
-                                    // TODO: Log
-                                    println!(
+                                    crate::debug!(
                                         "{} : MESSAGE LOG : {}",
                                         self.process_name.to_string_lossy(),
-                                        streamed_output.clone()
+                                        inbound_message
                                     );
-                                    messages.push(streamed_output.clone());
-                                    self.output.push(streamed_output);
+                                    messages.push(inbound_message.clone());
+                                    self.output.push(inbound_message);
                                 }
                             }
                         }
                     }
                     Err(_timeout) => {
-                        // TODO: Log
-                        // println!(
-                        //     "{} read attempt timed out after {}, continuing...",
-                        //     self.process_name.clone(),
-                        //     timeout
-                        // );
+                        info!(
+                            "{:?} read attempt timed out after {} second(s), continuing...",
+                            self.process_name.clone(),
+                            timeout
+                        );
                         break;
                     }
                 }
             }
+            crate::debug!("EXECUTOR READ LOOP ENDED");
 
             if messages.is_empty() {
                 ProcessOutput::Waiting
@@ -135,8 +149,7 @@ impl GadgetProcess {
                 ProcessOutput::Output(messages)
             }
         } else {
-            // TODO: Error logging
-            println!(
+            crate::warn!(
                 "{} encountered read error",
                 self.process_name.to_string_lossy()
             );
@@ -144,52 +157,48 @@ impl GadgetProcess {
         }
     }
 
-    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Continually reads output from this [GadgetProcess], eventually returning a [ProcessOutput].
     /// Will loop and wait for output from the process, returns early if no output is received
     /// for a default timeout period of 1 second.
     pub(crate) async fn read_until_default_timeout(&mut self) -> ProcessOutput {
         self.read_until_timeout(DEFAULT_READ_TIMEOUT).await
     }
 
-    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Continually reads output from this [GadgetProcess], eventually returning a [ProcessOutput].
     /// Will loop and wait for output to contain the specified substring.
     pub async fn read_until_receiving_string(&mut self, substring: String) -> ProcessOutput {
         let mut messages = Vec::new();
         if let Some(stream) = &mut self.stream {
             // Read lines until we receive the desired substring
             loop {
-                let read_result = stream.next_line().await;
+                let read_result = stream.recv().await;
                 match read_result {
                     Ok(output) => {
-                        match output {
-                            None => {
-                                // Stream is completed - process is finished
-                                println!(
-                                    "{} : STREAM COMPLETED - ENDING",
-                                    self.process_name.to_string_lossy()
-                                );
-                                return ProcessOutput::Exhausted(messages);
-                            }
-                            Some(streamed_output) => {
-                                // We received output from child process
-                                // TODO: Log
-                                println!(
-                                    "{} : MESSAGE LOG : {}",
-                                    self.process_name.to_string_lossy(),
-                                    streamed_output.clone()
-                                );
-                                messages.push(streamed_output.clone());
-                                self.output.push(streamed_output.clone());
-                                if streamed_output.contains(&substring) {
-                                    // We should now return with the output
-                                    return ProcessOutput::Output(messages);
-                                }
+                        let inbound_message = output;
+                        if inbound_message.is_empty() {
+                            // Stream is completed - process is finished
+                            crate::debug!(
+                                "{} : STREAM COMPLETED - ENDING",
+                                self.process_name.to_string_lossy()
+                            );
+                            return ProcessOutput::Exhausted(messages);
+                        } else {
+                            // We received output from child process
+                            crate::debug!(
+                                "{} : MESSAGE LOG : {}",
+                                self.process_name.to_string_lossy(),
+                                inbound_message.clone()
+                            );
+                            messages.push(inbound_message.clone());
+                            self.output.push(inbound_message.clone());
+                            if inbound_message.contains(&substring) {
+                                // We should now return with the output
+                                return ProcessOutput::Output(messages);
                             }
                         }
                     }
                     Err(err) => {
-                        // TODO: Log
-                        println!(
+                        crate::warn!(
                             "{} read attempt failed: {}",
                             self.process_name.to_string_lossy(),
                             err
@@ -200,15 +209,14 @@ impl GadgetProcess {
             }
         }
         // Reaching this point means there was some sort of error - we never got the substring
-        // TODO: Error logging
-        println!(
+        crate::warn!(
             "{} encountered read error",
             self.process_name.to_string_lossy()
         );
         ProcessOutput::Waiting
     }
 
-    /// Restart a GadgetProcess, killing the previously running process if it exists. Returns the new GadgetProcess
+    /// Restart a [GadgetProcess], killing the previously running process if it exists. Returns the new [GadgetProcess]
     pub(crate) async fn restart_process(&mut self) -> Result<GadgetProcess, Error> {
         // Kill current process running this command
         let s = System::new_all();
@@ -220,9 +228,8 @@ impl GadgetProcess {
             }
             None => {
                 // No need to worry, the previously running process died
-                // TODO: Log
-                println!(
-                    "LOG : Process restart attempt found no process for PID {:?}",
+                crate::warn!(
+                    "Process restart attempt found no process for PID {:?}",
                     self.pid
                 );
             }
@@ -230,14 +237,14 @@ impl GadgetProcess {
         run_command!(&self.command.clone())
     }
 
-    /// Checks the status of this GadgetProcess
-    pub(crate) fn status(&self) -> Status {
+    /// Checks the status of this [GadgetProcess]
+    pub(crate) fn status(&self) -> Result<Status, Error> {
         let s = System::new_all();
         match s.process(self.pid) {
-            Some(process) => Status::from(process.status()),
+            Some(process) => Ok(Status::from(process.status())),
             None => {
                 // If it isn't found, then the process died
-                Status::Dead
+                Ok(Status::Dead)
             }
         }
     }
@@ -253,7 +260,7 @@ impl GadgetProcess {
         Ok(name.into())
     }
 
-    /// Terminates the process depicted by this GadgetProcess - will fail if the PID is now being reused
+    /// Terminates the process depicted by this [GadgetProcess] - will fail if the PID is now being reused
     pub(crate) fn kill(&self) -> Result<(), Error> {
         let running_process = self.get_name()?;
         if running_process != self.process_name {

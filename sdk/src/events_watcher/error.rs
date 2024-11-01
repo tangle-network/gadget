@@ -26,4 +26,13 @@ pub enum Error {
     /// An error occurred in the event handler.
     #[error(transparent)]
     Handler(#[from] Box<dyn core::error::Error + Send + Sync>),
+    /// An error occurred in handling keys.
+    #[error(transparent)]
+    Keys(#[from] crate::keystore::Error),
+    /// An error occurred in an EigenLayer Contract.
+    #[error(transparent)]
+    ElContract(#[from] eigensdk::client_elcontracts::error::ElContractsError),
+    /// An error occurred in an AvsRegistry method.
+    #[error(transparent)]
+    AvsRegistry(#[from] eigensdk::client_avsregistry::error::AvsRegistryError),
 }

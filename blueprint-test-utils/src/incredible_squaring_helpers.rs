@@ -1,15 +1,17 @@
 use futures::StreamExt;
-use gadget_sdk::events_watcher::evm::{get_provider_http, get_provider_ws};
+use gadget_sdk::utils::evm::{get_provider_http, get_provider_ws};
 use gadget_sdk::{error, info};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
+#[cfg(feature = "eigenlayer_test")]
 use crate::eigenlayer_test_env::{IncredibleSquaringTaskManager, RegistryCoordinator};
 use crate::helpers::get_receipt;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 
+#[cfg(feature = "eigenlayer_test")]
 pub async fn deploy_task_manager(
     http_endpoint: &str,
     registry_coordinator_address: Address,
@@ -60,6 +62,7 @@ pub async fn deploy_task_manager(
     task_manager_address
 }
 
+#[cfg(feature = "eigenlayer_test")]
 pub async fn setup_task_spawner(
     task_manager_address: Address,
     registry_coordinator_address: Address,
@@ -115,6 +118,7 @@ pub async fn setup_task_spawner(
     }
 }
 
+#[cfg(feature = "eigenlayer_test")]
 pub async fn setup_task_response_listener(
     task_manager_address: Address,
     ws_endpoint: String,
