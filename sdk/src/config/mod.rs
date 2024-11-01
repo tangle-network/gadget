@@ -106,8 +106,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     let ContextConfig {
         gadget_core_settings:
             GadgetCLICoreSettings::Run {
-                bind_addr,
-                bind_port,
+                target_addr: bind_addr,
+                target_port: bind_port,
                 use_secure_url,
                 test_mode,
                 log_id,
@@ -180,8 +180,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     };
 
     Ok(GadgetConfiguration {
-        bind_addr,
-        bind_port,
+        target_addr: bind_addr,
+        target_port: bind_port,
         use_secure_url,
         test_mode,
         span,

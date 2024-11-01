@@ -49,9 +49,9 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// Protocol-specific settings
     pub protocol_specific: ProtocolSpecificSettings,
     /// The Port of the Network that will be interacted with
-    pub bind_port: u16,
+    pub target_port: u16,
     /// The Address of the Network that will be interacted with
-    pub bind_addr: IpAddr,
+    pub target_addr: IpAddr,
     /// Whether the network being targeted uses a secure URL
     pub use_secure_url: bool,
     /// Specifies custom tracing span for the gadget
@@ -73,8 +73,8 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("skip_registration", &self.skip_registration)
             .field("protocol", &self.protocol)
             .field("protocol_specific", &self.protocol_specific)
-            .field("bind_port", &self.bind_port)
-            .field("bind_addr", &self.bind_addr)
+            .field("bind_port", &self.target_port)
+            .field("bind_addr", &self.target_addr)
             .field("test_mode", &self.test_mode)
             .finish()
     }
@@ -92,8 +92,8 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             skip_registration: self.skip_registration,
             protocol: self.protocol,
             protocol_specific: self.protocol_specific,
-            bind_port: self.bind_port,
-            bind_addr: self.bind_addr,
+            target_port: self.target_port,
+            target_addr: self.target_addr,
             use_secure_url: self.use_secure_url,
             span: self.span.clone(),
             test_mode: self.test_mode,
@@ -118,8 +118,8 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
                 blueprint_id: 0,
                 service_id: Some(0),
             }),
-            bind_port: 0,
-            bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            target_port: 0,
+            target_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
             use_secure_url: false,
             span: tracing::Span::current(),
             test_mode: true,
@@ -242,7 +242,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
             true => "https",
             false => "http",
         };
-        format!("{base}://{}:{}", self.bind_addr, self.bind_port)
+        format!("{base}://{}:{}", self.target_addr, self.target_port)
     }
 
     /// Returns the WS endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
@@ -255,7 +255,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
             true => "wss",
             false => "ws",
         };
-        format!("{base}://{}:{}", self.bind_addr, self.bind_port)
+        format!("{base}://{}:{}", self.target_addr, self.target_port)
     }
 
     /// Only relevant if this is a Tangle protocol.

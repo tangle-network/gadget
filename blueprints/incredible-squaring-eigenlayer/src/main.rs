@@ -61,7 +61,7 @@ async fn main() {
         env.protocol_specific.eigenlayer()?.avs_directory_address
     );
 
-    let server_address = format!("{}:{}", env.bind_addr, 8081);
+    let server_address = format!("{}:{}", env.target_addr, 8081);
     let aggregator_client = AggregatorClient::new(&server_address)?;
     let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
         ctx: aggregator_client,

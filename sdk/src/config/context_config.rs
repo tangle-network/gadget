@@ -23,9 +23,9 @@ pub enum GadgetCLICoreSettings {
     #[command(name = "run")]
     Run {
         #[arg(long, short = 'b', env)]
-        bind_addr: IpAddr,
+        target_addr: IpAddr,
         #[arg(long, short = 'p', env)]
-        bind_port: u16,
+        target_port: u16,
         #[arg(long, short = 's', env)]
         use_secure_url: bool,
         #[arg(long, short = 't', env)]
@@ -177,8 +177,8 @@ pub enum GadgetCLICoreSettings {
 impl Default for GadgetCLICoreSettings {
     fn default() -> Self {
         Self::Run {
-            bind_addr: "127.0.0.1".parse().unwrap(),
-            bind_port: 8080,
+            target_addr: "127.0.0.1".parse().unwrap(),
+            target_port: 8080,
             use_secure_url: false,
             test_mode: false,
             log_id: None,
