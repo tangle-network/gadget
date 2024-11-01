@@ -5,9 +5,13 @@ use serde::de;
 use serde::de::IntoDeserializer;
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 
-/// Wrapper from `Field<AccountId32>`, since it's an external type.
+/// A deserializer for [`Field`]
+///
+/// This is simply a wrapper over an owned `Field<AccountId32>`, since it's an external type.
+///
+/// See [`crate::from_field`].
 pub struct Deserializer(pub(crate) Field<AccountId32>);
 
 macro_rules! deserialize_primitive {
@@ -59,14 +63,14 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     deserialize_primitive!(
         bool => Field::Bool,
-        i8 => Field::Int8,
-        i16 => Field::Int16,
-        i32 => Field::Int32,
-        i64 => Field::Int64,
-        u8 => Field::Uint8,
-        u16 => Field::Uint16,
-        u32 => Field::Uint32,
-        u64 => Field::Uint64,
+        i8   => Field::Int8,
+        i16  => Field::Int16,
+        i32  => Field::Int32,
+        i64  => Field::Int64,
+        u8   => Field::Uint8,
+        u16  => Field::Uint16,
+        u32  => Field::Uint32,
+        u64  => Field::Uint64,
     );
 
     fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
@@ -83,11 +87,16 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         Err(Error::UnsupportedType(UnsupportedType::f64))
     }
 
-    fn deserialize_char<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        let string = self.strip_string()?;
+        let string;
+        match self.0 {
+            Field::String(bound_string) => string = String::from_utf8(bound_string.0 .0)?,
+            _ => return Err(self.invalid_type(&visitor)),
+        };
+
         let mut chars = string.chars();
         let Some(ch) = chars.next() else {
             return Err(Error::BadCharLength(0));
@@ -107,11 +116,16 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         self.deserialize_string(visitor)
     }
 
-    fn deserialize_string<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_string(self.strip_string()?)
+        match self.0 {
+            Field::String(bound_string) => {
+                visitor.visit_string(String::from_utf8(bound_string.0 .0)?)
+            }
+            _ => Err(self.invalid_type(&visitor)),
+        }
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
@@ -228,7 +242,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     fn deserialize_enum<V>(
-        mut self,
+        self,
         _name: &'static str,
         _variants: &'static [&'static str],
         visitor: V,
@@ -237,8 +251,12 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: de::Visitor<'de>,
     {
         // Only accept unit variants
-        let variant = self.strip_string()?;
-        visitor.visit_enum(variant.into_deserializer())
+        match self.0 {
+            Field::String(bound_string) => {
+                visitor.visit_enum(String::from_utf8(bound_string.0 .0)?.into_deserializer())
+            }
+            _ => Err(self.invalid_type(&visitor)),
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -258,17 +276,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 }
 
 impl Deserializer {
-    fn strip_string(&mut self) -> Result<String> {
-        let val = core::mem::replace(&mut self.0, Field::None);
-        match val {
-            Field::String(bound_string) => String::from_utf8(bound_string.0 .0).map_err(Into::into),
-            _ => Err(Error::UnexpectedType {
-                expected: FieldType::String,
-                actual: field_type_for_field(&val),
-            }),
-        }
-    }
-
     #[cold]
     fn invalid_type<E>(&self, exp: &dyn de::Expected) -> E
     where
@@ -299,53 +306,6 @@ impl Deserializer {
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),
         }
-    }
-}
-
-fn field_type_for_field(field: &Field<AccountId32>) -> Option<FieldType> {
-    match field {
-        Field::None => None,
-        Field::Bool(_) => Some(FieldType::Bool),
-        Field::Uint8(_) => Some(FieldType::Uint8),
-        Field::Int8(_) => Some(FieldType::Int8),
-        Field::Uint16(_) => Some(FieldType::Uint16),
-        Field::Int16(_) => Some(FieldType::Int16),
-        Field::Uint32(_) => Some(FieldType::Uint32),
-        Field::Int32(_) => Some(FieldType::Int32),
-        Field::Uint64(_) => Some(FieldType::Uint64),
-        Field::Int64(_) => Some(FieldType::Int64),
-        Field::String(_) => Some(FieldType::String),
-        Field::Bytes(_) => Some(FieldType::Bytes),
-        Field::Array(v) => {
-            let len = v.0.len() as u64;
-            if len == 0 {
-                return None;
-            }
-
-            let ty = field_type_for_field(&v.0[0])?;
-            Some(FieldType::Array(len, Box::new(ty)))
-        }
-        Field::List(v) => {
-            if v.0.is_empty() {
-                return None;
-            }
-
-            let ty = field_type_for_field(&v.0[0])?;
-            Some(FieldType::List(Box::new(ty)))
-        }
-        Field::Struct(_, f) => {
-            let mut fields = Vec::with_capacity(f.0.len());
-            for (_, field_value) in &f.0 {
-                let ty = field_type_for_field(field_value)?;
-                fields.push((FieldType::String, ty));
-            }
-
-            Some(FieldType::Struct(
-                Box::new(FieldType::String),
-                Box::new(BoundedVec(fields)),
-            ))
-        }
-        Field::AccountId(_) => Some(FieldType::AccountId),
     }
 }
 

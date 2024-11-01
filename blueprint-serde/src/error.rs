@@ -1,26 +1,51 @@
 use core::fmt::Display;
 use core::fmt::Formatter;
 use serde::{de, ser};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
+/// Types that cannot be represented as a [`Field`](crate::Field)
+///
+/// Attempting to de/serialize any of these types will cause an error.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum UnsupportedType {
     f32,
     f64,
     Map,
+    /// Any enum that is not a simple unit enum
+    ///
+    /// ## Valid
+    ///
+    /// ```rust
+    /// enum Foo {
+    ///     Bar,
+    ///     Baz,
+    /// }
+    /// ```
+    ///
+    /// ## Invalid
+    ///
+    /// ```rust
+    /// enum Foo {
+    ///     Bar(String),
+    /// }
+    /// ```
+    ///
+    /// Or
+    ///
+    /// ```rust
+    /// enum Foo {
+    ///     Baz { a: String },
+    /// }
+    /// ```
     NonUnitEnum,
 }
 
 #[derive(Debug)]
 pub enum Error {
     UnsupportedType(UnsupportedType),
-    UnexpectedType {
-        expected: FieldType,
-        actual: Option<FieldType>,
-    },
+    /// Attempting to deserialize a [`char`] from a [`Field::String`](crate::Field::String)
     BadCharLength(usize),
     FromUtf8Error(alloc::string::FromUtf8Error),
     Other(String),
@@ -49,13 +74,6 @@ impl Display for Error {
         match self {
             Error::UnsupportedType(unsupported_type) => {
                 write!(f, "Type `{:?}` unsupported", unsupported_type)
-            }
-            Error::UnexpectedType { expected, actual } => {
-                write!(
-                    f,
-                    "Expected field of type `{:?}`, got `{:?}`",
-                    expected, actual
-                )
             }
             Error::BadCharLength(len) => {
                 write!(f, "String contains {len} characters, expected 1")

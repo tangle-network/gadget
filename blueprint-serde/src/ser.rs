@@ -7,6 +7,9 @@ use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 
+/// A serializer for [`Field`]
+///
+/// See [`crate::into_field`].
 pub struct Serializer;
 
 impl<'a> serde::Serializer for &'a mut Serializer {
@@ -360,7 +363,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     }
 }
 
-pub(crate) fn new_bounded_string<S>(s: S) -> BoundedString
+pub fn new_bounded_string<S>(s: S) -> BoundedString
 where
     S: Into<String>,
 {
