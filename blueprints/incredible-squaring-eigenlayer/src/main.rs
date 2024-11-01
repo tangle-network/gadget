@@ -15,6 +15,7 @@ use incredible_squaring_blueprint_eigenlayer::{
     },
     IncredibleSquaringTaskManager,
 };
+use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 
 #[gadget_sdk::main(env)]
 async fn main() {
@@ -63,8 +64,12 @@ async fn main() {
 
     let server_address = format!("{}:{}", env.bind_addr, 8081);
     let aggregator_client = AggregatorClient::new(&server_address)?;
+    let ctx = EigenSquareContext {
+        client: aggregator_client,
+        env: env.clone(),
+    };
     let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
-        ctx: aggregator_client,
+        ctx,
         contract: contract.clone(),
         contract_instance: Default::default(),
     };
