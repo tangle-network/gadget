@@ -9,6 +9,8 @@ use ark_ff::{BigInteger, PrimeField};
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
+use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
+use gadget_sdk::events_watcher::evm::DefaultNodeConfig;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -19,13 +21,12 @@ use IncredibleSquaringTaskManager::TaskResponse;
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     result(_),
     event_listener(
-        listener = EvmContractEventListener(
-            instance = IncredibleSquaringTaskManager,
-            abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        ),
+        listener = EvmContractEventListener<_, IncredibleSquaringTaskManager::NewTaskCreated>,
+        instance = IncredibleSquaringTaskManager,
+        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         pre_processor = convert_event_to_inputs,
-        post_processor = noop,
+        post_processor = crate::noop,
     ),
 )]
 pub async fn xsquare_eigen(
@@ -35,7 +36,7 @@ pub async fn xsquare_eigen(
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u8,
     task_index: u32,
-) -> Result<u32, Infallible> {
+) -> std::result::Result<u32, Infallible> {
     // Calculate our response to job
     let task_response = TaskResponse {
         referenceTaskIndex: task_index,
@@ -79,22 +80,24 @@ pub async fn xsquare_eigen(
 /// Uses a tuple to represent the return type because
 /// the macro will index all values in the #[job] function
 /// and parse the return type by the index.
-pub fn convert_event_to_inputs(
-    event: IncredibleSquaringTaskManager::NewTaskCreated,
-    _index: u32,
-) -> (U256, u32, Bytes, u8, u32) {
+pub async fn convert_event_to_inputs(
+    (event, log): (
+        IncredibleSquaringTaskManager::NewTaskCreated,
+        alloy_rpc_types::Log,
+    ),
+) -> Result<(U256, u32, Bytes, u8, u32), gadget_sdk::Error> {
     let task_index = event.taskIndex;
     let number_to_be_squared = event.task.numberToBeSquared;
     let task_created_block = event.task.taskCreatedBlock;
     let quorum_numbers = event.task.quorumNumbers;
     let quorum_threshold_percentage = event.task.quorumThresholdPercentage.try_into().unwrap();
-    (
+    Ok((
         number_to_be_squared,
         task_created_block,
         quorum_numbers,
         quorum_threshold_percentage,
         task_index,
-    )
+    ))
 }
 
 /// Helper for converting a PrimeField to its U256 representation for Ethereum compatibility

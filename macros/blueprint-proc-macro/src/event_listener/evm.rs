@@ -1,8 +1,9 @@
+use indexmap::IndexMap;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{Ident, Type};
 
-use crate::job::EventListenerArgs;
+use crate::job::{declared_params_to_field_types, EventListenerArgs};
 
 pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
@@ -49,13 +50,7 @@ pub(crate) fn generate_evm_event_handler(
         .expect("ABI String must exist");
 
     quote! {
-        impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> gadget_sdk::event_listener::evm_contracts::EvmContractInstance<T> for #struct_name <T> {
-            fn get_instance(&self) -> &alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum> {
-                self.deref()
-            }
-        }
-
-        impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> Deref for #struct_name <T>
+        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> Deref for #struct_name <T>
         {
             type Target = alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>;
             fn deref(&self) -> &Self::Target {
@@ -66,9 +61,10 @@ pub(crate) fn generate_evm_event_handler(
             }
         }
 
+        /*
         #[automatically_derived]
         #[gadget_sdk::async_trait::async_trait]
-        impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
+        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         {
             type Event = #event;
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
@@ -85,8 +81,41 @@ pub(crate) fn generate_evm_event_handler(
                 #fn_call;
                 Ok(())
             }
-        }
+        }*/
 
-        impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
+        impl<T: gadget_sdk::event_listener::evm::contracts::EthereumContractBound> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
+    }
+}
+
+pub(crate) fn get_evm_job_processor_wrapper(
+    params: &[Ident],
+    param_types: &IndexMap<Ident, Type>,
+    event_listeners: &EventListenerArgs,
+    ordered_inputs: &mut Vec<TokenStream>,
+    fn_name_ident: &Ident,
+    asyncness: &TokenStream,
+) -> TokenStream {
+    let params =
+        declared_params_to_field_types(params, param_types).expect("Failed to generate params");
+    let params_tokens = event_listeners.get_param_name_tokenstream(&params, true);
+
+    let job_processor_call = if params_tokens.is_empty() {
+        let second_param = ordered_inputs.pop().expect("Expected a context");
+        quote! {
+            // If no args are specified, assume this job has no parameters and thus takes in the raw event
+            #fn_name_ident (param0, #second_param) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+        }
+    } else {
+        quote! {
+            let inputs = param0;
+            #(#params_tokens)*
+            #fn_name_ident (#(#ordered_inputs)*) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+        }
+    };
+
+    quote! {
+        move |param0| async move {
+            #job_processor_call
+        }
     }
 }

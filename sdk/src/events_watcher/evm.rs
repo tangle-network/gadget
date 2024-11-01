@@ -1,6 +1,7 @@
 //! EVM Event Watcher Module
 
 use crate::events_watcher::error::Error;
+use alloy_contract::ContractInstance;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_provider::{
     fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
@@ -57,7 +58,9 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
+pub trait EvmEventHandler<T: Config>:
+    Send + Sync + Deref<Target = ContractInstance<T::TH, T::PH>> + 'static
+{
     /// The type of event this handler is for.
     type Event: EvmEvent;
     /// Handle a log event.

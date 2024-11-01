@@ -21,6 +21,7 @@ load_abi!(
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
 
-pub fn noop(_: u32) {
+pub async fn noop(_: u32) -> Result<(), gadget_sdk::Error> {
     // This function intentionally does nothing
+    Ok(())
 }
