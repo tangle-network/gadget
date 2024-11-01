@@ -77,7 +77,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        Ok(Field::None)
+        self.serialize_unit()
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
@@ -88,7 +88,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        todo!()
+        Ok(Field::None)
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
