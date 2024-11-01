@@ -4,7 +4,7 @@ use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
-use crate::utils::get_client;
+use crate::utils::test_utils::get_client;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
@@ -20,9 +20,9 @@ pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
 /// Gadget environment.
 #[non_exhaustive]
 pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
-    /// Tangle HTTP RPC endpoint.
+    /// HTTP RPC endpoint for host network.
     pub http_rpc_endpoint: String,
-    /// Tangle WS RPC endpoint.
+    /// WS RPC endpoint for host network.
     pub ws_rpc_endpoint: String,
     /// Keystore URI
     ///
@@ -42,14 +42,18 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     ///
     /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
     pub is_registration: bool,
+    /// Whether to skip the registration process
+    pub skip_registration: bool,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
     /// Protocol-specific settings
     pub protocol_specific: ProtocolSpecificSettings,
     /// The Port of the Network that will be interacted with
-    pub bind_port: u16,
+    pub target_port: u16,
     /// The Address of the Network that will be interacted with
-    pub bind_addr: IpAddr,
+    pub target_addr: IpAddr,
+    /// Whether the network being targeted uses a secure URL
+    pub use_secure_url: bool,
     /// Specifies custom tracing span for the gadget
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
@@ -66,10 +70,11 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("data_dir", &self.data_dir)
             .field("bootnodes", &self.bootnodes)
             .field("is_registration", &self.is_registration)
+            .field("skip_registration", &self.skip_registration)
             .field("protocol", &self.protocol)
             .field("protocol_specific", &self.protocol_specific)
-            .field("bind_port", &self.bind_port)
-            .field("bind_addr", &self.bind_addr)
+            .field("bind_port", &self.target_port)
+            .field("bind_addr", &self.target_addr)
             .field("test_mode", &self.test_mode)
             .finish()
     }
@@ -84,10 +89,12 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             data_dir: self.data_dir.clone(),
             bootnodes: self.bootnodes.clone(),
             is_registration: self.is_registration,
+            skip_registration: self.skip_registration,
             protocol: self.protocol,
             protocol_specific: self.protocol_specific,
-            bind_port: self.bind_port,
-            bind_addr: self.bind_addr,
+            target_port: self.target_port,
+            target_addr: self.target_addr,
+            use_secure_url: self.use_secure_url,
             span: self.span.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -105,13 +112,15 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             data_dir: None,
             bootnodes: Vec::new(),
             is_registration: false,
+            skip_registration: false,
             protocol: Protocol::Tangle,
             protocol_specific: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
                 blueprint_id: 0,
                 service_id: Some(0),
             }),
-            bind_port: 0,
-            bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            target_port: 0,
+            target_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            use_secure_url: false,
             span: tracing::Span::current(),
             test_mode: true,
             _lock: core::marker::PhantomData,
@@ -198,15 +207,55 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
         self.is_registration
     }
 
-    /// Returns a new [`subxt::OnlineClient`] for the Tangle.
+    /// Returns a new [`subxt::OnlineClient`] for Tangle.
+    ///
+    /// When the [`Protocol`] field of the [`GadgetConfiguration`] is:
+    /// - `Tangle`: Creates a [`TangleClient`](crate::clients::tangle::runtime::TangleClient) from
+    ///   the RPC endpoints provided in the [`GadgetConfiguration`].
+    /// - Any other protocol: Creates a [`TangleClient`](crate::clients::tangle::runtime::TangleClient) from
+    ///   the provided bind address and port (assuming that address targets Tangle - fails otherwise).
     ///
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     #[cfg(any(feature = "std", feature = "wasm"))]
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
-        get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
-            .await
-            .map_err(|err| Error::BadRpcConnection(err.to_string()))
+        match self.protocol {
+            Protocol::Tangle => get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
+                .await
+                .map_err(|err| Error::BadRpcConnection(err.to_string())),
+            _ => {
+                // If not using the Tangle protocol, attempt to create client with target endpoint
+                get_client(&self.target_endpoint_ws(), &self.target_endpoint_http())
+                    .await
+                    .map_err(|err| Error::BadRpcConnection(err.to_string()))
+            }
+        }
+    }
+
+    /// Returns the HTTP endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
+    ///
+    /// # Note
+    /// This endpoint is *not* the same as the WS RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
+    /// rather than the endpoint for the network that matches the specified [`Protocol`].
+    pub fn target_endpoint_http(&self) -> String {
+        let base = match self.use_secure_url {
+            true => "https",
+            false => "http",
+        };
+        format!("{base}://{}:{}", self.target_addr, self.target_port)
+    }
+
+    /// Returns the WS endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
+    ///
+    /// # Note
+    /// This endpoint is *not* the same as the HTTP RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
+    /// rather than the endpoint for the network that matches the specified [`Protocol`].
+    pub fn target_endpoint_ws(&self) -> String {
+        let base = match self.use_secure_url {
+            true => "wss",
+            false => "ws",
+        };
+        format!("{base}://{}:{}", self.target_addr, self.target_port)
     }
 
     /// Only relevant if this is a Tangle protocol.

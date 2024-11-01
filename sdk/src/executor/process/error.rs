@@ -12,4 +12,6 @@ pub enum Error {
     ProcessMismatch(String, String),
     #[error("Failed to kill process, errno: {0}")]
     KillFailed(nix::errno::Errno),
+    #[error("Output stream error for {0}")]
+    StreamError(sysinfo::Pid),
 }

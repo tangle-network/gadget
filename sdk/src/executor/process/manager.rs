@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use sysinfo::System;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::broadcast;
 
 /// Manager for gadget-executor process. The processes are recorded to be controlled by their Service name.
 /// This Manager can be reconstructed from a file to recover a gadget-executor.
@@ -55,8 +56,22 @@ impl GadgetProcessManager {
         Ok(identifier)
     }
 
-    /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a
-    /// ProcessOutput with its output (if there is any).
+    /// Runs the given command and returns a [stream](broadcast::Receiver) of its output
+    #[allow(unused_results)]
+    pub async fn start_process_and_get_output(
+        &mut self,
+        identifier: String,
+        command: &str,
+    ) -> Result<broadcast::Receiver<String>, Error> {
+        self.run(identifier.clone(), command).await?;
+        let process = self
+            .children
+            .get_mut(&identifier)
+            .ok_or(Error::ServiceNotFound(identifier))?;
+        process.resubscribe()
+    }
+
+    /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion.
     pub async fn focus_service_to_completion(&mut self, service: String) -> Result<String, Error> {
         let process = self
             .children
@@ -133,7 +148,7 @@ impl GadgetProcessManager {
         let mut to_remove = Vec::new();
         // Find dead processes and restart them
         for (key, value) in self.children.iter_mut() {
-            match value.status() {
+            match value.status()? {
                 Status::Active | Status::Sleeping => {
                     // TODO: Metrics + Logs for these living processes
                     // Check if this process is still running what is expected

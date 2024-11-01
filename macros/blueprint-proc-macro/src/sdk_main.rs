@@ -48,7 +48,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
             // Load the environment and create the gadget runner
             let config: gadget_sdk::config::ContextConfig = gadget_sdk::clap::Parser::parse();
             let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
-            gadget_sdk::utils::check_for_test(&config).expect("Failed to check for test");
+            gadget_sdk::utils::test_utils::check_for_test(&config).expect("Failed to check for test");
         }
     } else {
         proc_macro2::TokenStream::default()
