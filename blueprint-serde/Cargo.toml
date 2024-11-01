@@ -10,8 +10,10 @@ repository.workspace = true
 [dependencies]
 paste.workspace = true
 serde.workspace = true
-serde_test.workspace = true
 tangle-subxt.workspace = true
+
+[dev-dependencies]
+serde_test.workspace = true
 
 [lints]
 workspace = true
