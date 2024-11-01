@@ -1,4 +1,5 @@
-use crate::test_ext::NAME_IDS;
+#![allow(unused_imports)]
+use crate::test_ext::{ANVIL_PRIVATE_KEYS, NAME_IDS};
 use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
@@ -21,6 +22,8 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use alloy_primitives::hex;
+use color_eyre::eyre::eyre;
 use subxt::tx::{Signer, TxProgress};
 use subxt::utils::AccountId32;
 use url::Url;
@@ -29,7 +32,6 @@ use gadget_sdk::{info, error};
 
 pub use gadget_sdk::logging::setup_log;
 
-#[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -40,6 +42,7 @@ pub mod helpers;
 pub mod sync;
 pub mod test_ext;
 
+#[cfg(feature = "eigenlayer_test")]
 pub mod eigenlayer_test_env;
 pub mod incredible_squaring_helpers;
 pub mod symbiotic_test_env;
@@ -82,9 +85,12 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-    inject_test_keys(&keystore_uri_normalized, input.instance_id as usize)
-        .await
-        .expect("Failed to inject testing-related SR25519 keys");
+    inject_test_keys(
+        &keystore_uri_normalized,
+        KeyGenType::Tangle(input.instance_id as usize),
+    )
+    .await
+    .expect("Failed to inject testing-related SR25519 keys");
 
     // Canonicalize to prove the directory exists
     let _ = keystore_uri_normalized
@@ -131,16 +137,90 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     }
 }
 
+/// The possible keys to be generated when injecting keys in a keystore for testing.
+///
+/// - `Random`: A random key will be generated
+/// - `Anvil`: Injects one of the premade Anvil key of the given index where that index is 0-9
+/// - `Tangle`: Injects the premade Tangle key of the given index where that index is 0-4
+///
+/// # Errors
+///
+/// - If the given index is out of bounds for the specified type
+/// - Random Key Generation Failure
+/// - Generated Key Sanity Check Error
+#[derive(Debug, Clone, Copy)]
+pub enum KeyGenType {
+    Random,
+    Anvil(usize),
+    Tangle(usize),
+}
+
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
+///
+/// Accepted `node_index` values:
+/// - 0-4: Pre-made Tangle accounts (SR25519 and ECDSA are predetermined while BLS is random)
+/// - 5+: Randomly generated keys (All key types are generated randomly)
+///
+/// # Errors
+///
+/// - If the keystore path cannot be created
+/// - If key generation fails for any reason `Invalid Seed` or `Random Key Generation Failed` Error
+/// - If the sanity checks for the generated keys fail
+///
 pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
-    node_index: usize,
+    key_gen_type: KeyGenType,
 ) -> color_eyre::Result<()> {
     let path = keystore_path.as_ref();
-    let name = NAME_IDS[node_index];
     tokio::fs::create_dir_all(path).await?;
 
+    match key_gen_type {
+        KeyGenType::Random => {
+            inject_random_key(&keystore_path)?;
+        }
+        KeyGenType::Anvil(index) => {
+            let private_key = ANVIL_PRIVATE_KEYS[index];
+            inject_anvil_key(&keystore_path, private_key)?;
+        }
+        KeyGenType::Tangle(index) => {
+            inject_tangle_key(&keystore_path, NAME_IDS[index])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Injects the pre-made Anvil key of the given index where that index is 0-9
+///
+/// # Errors
+/// - Fails if the given index is out of bounds
+/// - May fail if the keystore path cannot be created or accessed
+///
+fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre::Result<()> {
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
+
+    let seed_bytes = hex::decode(&seed[2..]).expect("Invalid hex seed");
+    keystore
+        .ecdsa_generate_new(Some(&seed_bytes))
+        .map_err(|e| eyre!(e))?;
+
+    keystore
+        .bls_bn254_generate_new(None)
+        .map_err(|e| eyre!(e))?;
+
+    Ok(())
+}
+
+/// Injects the pre-made Tangle key of the given index where that index is 0-4
+///
+/// # Errors
+/// - Fails if the given index is out of bounds
+/// - May fail if the keystore path cannot be created or accessed
+///
+fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre::Result<()> {
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),
     )?);
@@ -148,7 +228,6 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
 
     let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
     let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");
@@ -157,33 +236,30 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 
     let ecdsa =
         sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ecdsa_seed = ecdsa.seed();
 
     keystore
         .sr25519_generate_new(Some(sr_seed))
-        .expect("Should be valid SR25519 seed");
+        .expect("Invalid SR25519 seed");
     keystore
         .ed25519_generate_new(Some(ed_seed))
         .expect("Should be valid ED25519 seed");
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
-        .expect("Should be valid ECDSA seed");
+        .expect("Invalid ECDSA seed");
     keystore
-        .bls_bn254_generate_from_string(
-            "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
-                .to_string(),
-        )
-        .expect("Should be valid BLS seed");
+        .bls_bn254_generate_new(None)
+        .expect("Random BLS Key Generation Failed");
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
     let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
-    let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
+    let secret_key_again =
+        keystore::sr25519::secret_from_bytes(&bytes).expect("Invalid SR25519 Bytes");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
     let sr2 = TanglePairSigner::new(
-        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
+        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Invalid SR25519 keypair"),
     );
 
     let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
@@ -219,7 +295,27 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
             panic!("Failed to load ed25519 key: {err}");
         }
     }
+    Ok(())
+}
 
+/// Injects a random key into the keystore at the given path
+///
+/// # Errors
+/// - May fail if the keystore path cannot be created or accessed
+///
+pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result<()> {
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
+    keystore
+        .sr25519_generate_new(None)
+        .expect("Random SR25519 Key Generation Failed");
+    keystore
+        .ecdsa_generate_new(None)
+        .expect("Random ECDSA Key Generation Failed");
+    keystore
+        .bls_bn254_generate_new(None)
+        .expect("Random BLS Key Generation Failed");
     Ok(())
 }
 
@@ -537,19 +633,21 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
 
     use cargo_tangle::deploy::Opts;
-
+    #[cfg(feature = "eigenlayer_test")]
     use eigenlayer_test_env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
     use gadget_sdk::config::protocol::EigenlayerContractAddresses;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use helpers::BlueprintProcessManager;
+    #[cfg(feature = "eigenlayer_test")]
     use incredible_squaring_helpers::{
         deploy_task_manager, setup_task_response_listener, setup_task_spawner, wait_for_responses,
     };
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
+    #[cfg(feature = "eigenlayer_test")]
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
@@ -637,6 +735,7 @@ mod tests_standard {
 
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
+    #[cfg(feature = "eigenlayer_test")]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
 

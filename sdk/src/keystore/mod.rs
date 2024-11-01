@@ -172,6 +172,11 @@ impl TanglePairSigner<sp_core::ecdsa::Pair> {
             .map_err(|err| Error::Alloy(err.to_string()))?;
         Ok(res)
     }
+
+    /// Returns the Alloy Address for the ECDSA key pair.
+    pub fn alloy_address(&self) -> Result<alloy_primitives::Address, Error> {
+        Ok(self.alloy_key()?.address())
+    }
 }
 
 /// The Keystore [`Backend`] trait.

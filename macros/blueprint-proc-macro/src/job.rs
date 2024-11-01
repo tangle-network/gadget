@@ -1092,7 +1092,7 @@ pub(crate) fn generate_combined_event_listener_selector(
                 futures.push(listener);
             }
             if let Some(res) = gadget_sdk::futures::stream::StreamExt::next(&mut futures).await {
-                gadget_sdk::error!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+                gadget_sdk::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
                 let res = match res {
                     Ok(res) => {
                         res

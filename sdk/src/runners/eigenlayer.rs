@@ -1,6 +1,6 @@
 use crate::config::protocol::ProtocolSpecificSettings;
 use crate::{
-    config::GadgetConfiguration, event_utils::evm::get_provider_http, info, keystore::BackendExt,
+    config::GadgetConfiguration, info, keystore::BackendExt, utils::evm::get_provider_http,
 };
 use alloy_primitives::{Bytes, FixedBytes, U256};
 use eigensdk::{
@@ -21,6 +21,10 @@ impl BlueprintConfig for EigenlayerConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
+        if env.skip_registration {
+            return Ok(false);
+        }
+
         let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific
         else {
             return Err(RunnerError::InvalidProtocol(

@@ -127,7 +127,7 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
 
         let background_task = async move {
             let _ = rx.await;
-            has_stopped_clone.store(false, Ordering::SeqCst);
+            has_stopped_clone.store(true, Ordering::SeqCst);
         };
 
         drop(tokio::task::spawn(background_task));
@@ -218,13 +218,28 @@ impl_value_to_field_type!(
     AccountId32 => Field::AccountId
 );
 
-impl<T: ValueIntoFieldType> ValueIntoFieldType for Vec<T> {
+impl<T: ValueIntoFieldType + 'static> ValueIntoFieldType for Vec<T> {
     fn into_field_type(self) -> Field<AccountId32> {
-        Field::Array(BoundedVec(
-            self.into_iter()
-                .map(ValueIntoFieldType::into_field_type)
-                .collect(),
-        ))
+        if core::any::TypeId::of::<T>() == core::any::TypeId::of::<u8>() {
+            let (ptr, length, capacity) = {
+                let mut me = core::mem::ManuallyDrop::new(self);
+                (me.as_mut_ptr() as *mut u8, me.len(), me.capacity())
+            };
+            // SAFETY: We are converting a Vec<T> to Vec<u8> only when T is u8.
+            // This is safe because the memory layout of Vec<u8> is the same as Vec<T> when T is u8.
+            // We use ManuallyDrop to prevent double-freeing the memory.
+            // Vec::from_raw_parts takes ownership of the raw parts, ensuring proper deallocation.
+            #[allow(unsafe_code)]
+            Field::Bytes(BoundedVec(unsafe {
+                Vec::from_raw_parts(ptr, length, capacity)
+            }))
+        } else {
+            Field::List(BoundedVec(
+                self.into_iter()
+                    .map(ValueIntoFieldType::into_field_type)
+                    .collect(),
+            ))
+        }
     }
 }
 

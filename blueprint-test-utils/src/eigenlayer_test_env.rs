@@ -1,9 +1,7 @@
 use alloy_primitives::{address, Address};
 use alloy_provider::Provider;
 use gadget_sdk::info;
-use gadget_sdk::{
-    config::protocol::EigenlayerContractAddresses, event_utils::evm::get_provider_http,
-};
+use gadget_sdk::{config::protocol::EigenlayerContractAddresses, utils::evm::get_provider_http};
 
 use crate::helpers::get_receipt;
 

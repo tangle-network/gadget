@@ -6,7 +6,7 @@ use gadget_sdk::{info, keystore::BackendExt};
 use incredible_squaring_blueprint_symbiotic::{self as blueprint, IncredibleSquaringTaskManager};
 
 use alloy_primitives::{address, Address};
-use gadget_sdk::event_utils::evm::get_wallet_provider_http;
+use gadget_sdk::utils::evm::get_wallet_provider_http;
 use lazy_static::lazy_static;
 use std::env;
 

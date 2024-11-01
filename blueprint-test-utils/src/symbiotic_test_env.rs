@@ -1,9 +1,7 @@
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use gadget_sdk::info;
-use gadget_sdk::{
-    config::protocol::SymbioticContractAddresses, event_utils::evm::get_provider_http,
-};
+use gadget_sdk::{config::protocol::SymbioticContractAddresses, utils::evm::get_provider_http};
 
 pub struct SymbioticTestEnvironment {
     pub http_endpoint: String,

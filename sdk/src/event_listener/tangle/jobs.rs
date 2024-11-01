@@ -5,28 +5,46 @@ use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};
 
 pub async fn services_pre_processor<C, E: EventMatcher<Output: Clone>>(
-    mut event: TangleEvent<C, E>,
+    event: TangleEvent<C, E>,
 ) -> Result<TangleEvent<C, E>, Error> {
-    let boxed_item = Box::new(event.evt.clone()) as Box<dyn Any>;
+    let TangleEvent {
+        evt,
+        context,
+        block_number,
+        signer,
+        client,
+        job_id,
+        service_id,
+        stopper,
+        ..
+    } = event;
+    let boxed_item = Box::new(evt) as Box<dyn Any>;
 
-    let (job, service_id, call_id, args) = if let Some(res) = boxed_item.downcast_ref::<JobCalled>()
-    {
-        (res.job, res.service_id, res.call_id, res.args.clone())
-    } else if let Some(res) = boxed_item.downcast_ref::<JobResultSubmitted>() {
-        (res.job, res.service_id, res.call_id, vec![])
-    } else {
-        return Err(Error::SkipPreProcessedType);
-    };
+    let (event_job_id, event_service_id, event_call_id, args) =
+        if let Some(res) = boxed_item.downcast_ref::<JobCalled>() {
+            (res.job, res.service_id, res.call_id, res.args.clone())
+        } else if let Some(res) = boxed_item.downcast_ref::<JobResultSubmitted>() {
+            (res.job, res.service_id, res.call_id, vec![])
+        } else {
+            return Err(Error::SkipPreProcessedType);
+        };
 
-    let this_service_id = event.service_id;
-    let this_job_id = event.job_id;
-    crate::info!("Pre-processing event for sid/bid = {this_service_id}/{this_job_id} ...");
+    crate::info!("Pre-processing event for sid/bid = {service_id}/{job_id} ...");
 
-    if job == this_job_id && service_id == this_service_id {
-        crate::info!("Found actionable event for sid/bid = {service_id}/{job} ...");
-        event.call_id = Some(call_id);
-        event.args = args;
-        return Ok(event);
+    if event_job_id == job_id && event_service_id == service_id {
+        crate::info!("Found actionable event for sid/bid = {event_service_id}/{event_job_id} ...");
+        return Ok(TangleEvent {
+            evt: *boxed_item.downcast().unwrap(),
+            context,
+            call_id: Some(event_call_id),
+            args,
+            block_number,
+            signer,
+            client,
+            job_id: event_job_id,
+            service_id: event_service_id,
+            stopper,
+        });
     }
 
     Err(Error::SkipPreProcessedType)
