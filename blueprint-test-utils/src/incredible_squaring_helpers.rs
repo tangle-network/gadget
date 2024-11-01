@@ -76,7 +76,7 @@ pub async fn setup_task_spawner(
     let quorums = Bytes::from(vec![0]);
     async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
             info!("Creating a new task...");
             if get_receipt(

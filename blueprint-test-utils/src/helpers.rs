@@ -11,7 +11,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::test_ext::{find_open_tcp_bind_port, ANVIL_PRIVATE_KEYS, NAME_IDS};
+use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
@@ -104,10 +104,22 @@ impl BlueprintProcessManager {
             std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
         let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-        for key in 0..ANVIL_PRIVATE_KEYS.len() {
-            inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Anvil(key))
-                .await
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        match protocol {
+            Protocol::Tangle => {
+                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Tangle(0))
+                    .await
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
+            Protocol::Eigenlayer => {
+                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Anvil(0))
+                    .await
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
+            Protocol::Symbiotic => {
+                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Anvil(0))
+                    .await
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
         }
 
         let mut arguments = vec![

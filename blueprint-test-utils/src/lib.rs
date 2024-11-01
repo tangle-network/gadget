@@ -154,19 +154,30 @@ pub enum KeyGenType {
     Tangle(usize),
 }
 
-/// Adds keys relevant for the test to the keystore, and performs some necessary
-/// cross-compatability tests to ensure key use consistency between different parts of the codebase
+/// Adds keys for testing to the keystore.
 ///
-/// Accepted `node_index` values:
-/// - 0-4: Pre-made Tangle accounts (SR25519 and ECDSA are predetermined while BLS is random)
-/// - 5+: Randomly generated keys (All key types are generated randomly)
+/// # Arguments
+///
+/// - `keystore_path`: The path for the keystore.
+/// - `key_gen_type`: The type of key to generate, specified by the [`KeyGenType`] enum.
+///
+/// # Key Generation
+///
+/// Depending on the [`KeyGenType`] provided:
+/// - `Random`: Generates all random keys.
+/// - `Anvil(index)`: Injects the pre-made Anvil ECDSA key from the 10 Anvil dev keys based on the provided index (0-9) and generates a random keys for each other key type
+/// - `Tangle(index)`: Injects the pre-made Tangle ED25519, ECDSA, and SR25519 keys based on the provided index (0-4). Randomly generates BLS keys
 ///
 /// # Errors
 ///
-/// - If the keystore path cannot be created
-/// - If key generation fails for any reason `Invalid Seed` or `Random Key Generation Failed` Error
-/// - If the sanity checks for the generated keys fail
+/// This function will return an error if:
+/// - The keystore path cannot be created.
+/// - Key generation fails for any reason (e.g., invalid seed, random generation failure).
+/// - The given index is out of bounds for Anvil or Tangle key types.
 ///
+/// # Returns
+///
+/// Returns `Ok(())` if the keys were successfully injected, otherwise returns an `Err`.
 pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     key_gen_type: KeyGenType,
@@ -192,6 +203,13 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 
 /// Injects the pre-made Anvil key of the given index where that index is 0-9
 ///
+/// # Keys Generated
+/// - `SR25519`: Random
+/// - `ED25519`: Random
+/// - `ECDSA`: Anvil Dev Key
+/// - `BLS BN254`: Random
+/// - `BLS381`: Random
+///
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
@@ -205,15 +223,31 @@ fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre:
     keystore
         .ecdsa_generate_new(Some(&seed_bytes))
         .map_err(|e| eyre!(e))?;
-
     keystore
         .bls_bn254_generate_new(None)
         .map_err(|e| eyre!(e))?;
+    keystore.sr25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ed25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
 
     Ok(())
 }
 
-/// Injects the pre-made Tangle key of the given index where that index is 0-4
+/// Injects the pre-made Tangle keys of the given index where that index is 0-4
+///
+/// # Keys Generated
+/// - `SR25519`: Tangle Dev Key
+/// - `ED25519`: Tangle Dev Key
+/// - `ECDSA`: Tangle Dev Key
+/// - `BLS BN254`: Random
+/// - `BLS381`: Random
+///
+/// # Indices
+/// - 0: Alice
+/// - 1: Bob
+/// - 2: Charlie
+/// - 3:Dave
+/// - 4: Eve
 ///
 /// # Errors
 /// - Fails if the given index is out of bounds
@@ -224,13 +258,12 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
         keystore_path.as_ref(),
     )?);
 
-    let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
+    let suri = format!("//{name}");
 
     let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
     let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ed_seed = &ed.seed();
 
     let ecdsa =
@@ -239,16 +272,17 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
 
     keystore
         .sr25519_generate_new(Some(sr_seed))
-        .expect("Invalid SR25519 seed");
+        .map_err(|e| eyre!(e))?;
     keystore
         .ed25519_generate_new(Some(ed_seed))
-        .expect("Should be valid ED25519 seed");
+        .map_err(|e| eyre!(e))?;
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
-        .expect("Invalid ECDSA seed");
+        .map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
     keystore
         .bls_bn254_generate_new(None)
-        .expect("Random BLS Key Generation Failed");
+        .map_err(|e| eyre!(e))?;
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
@@ -298,7 +332,14 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
     Ok(())
 }
 
-/// Injects a random key into the keystore at the given path
+/// Injects randomly generated keys into the keystore at the given path
+///
+/// # Keys Generated
+/// - `SR25519` - Random
+/// - `ED25519` - Random
+/// - `ECDSA` - Random
+/// - `BLS BN254` - Random
+/// - `BLS381` - Random
 ///
 /// # Errors
 /// - May fail if the keystore path cannot be created or accessed
@@ -307,15 +348,13 @@ pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),
     )?);
-    keystore
-        .sr25519_generate_new(None)
-        .expect("Random SR25519 Key Generation Failed");
-    keystore
-        .ecdsa_generate_new(None)
-        .expect("Random ECDSA Key Generation Failed");
+    keystore.sr25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ed25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ecdsa_generate_new(None).map_err(|e| eyre!(e))?;
     keystore
         .bls_bn254_generate_new(None)
-        .expect("Random BLS Key Generation Failed");
+        .map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
     Ok(())
 }
 
