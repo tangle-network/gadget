@@ -19,8 +19,8 @@ pub trait BinarySourceFetcher: Send + Sync {
     fn name(&self) -> String;
 }
 
-pub async fn handle<'a>(
-    blueprint: &VerifiedBlueprint<'a>,
+pub async fn handle(
+    blueprint: &VerifiedBlueprint<'_>,
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,

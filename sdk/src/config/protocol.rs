@@ -74,7 +74,9 @@ pub struct TangleInstanceSettings {
     /// The blueprint ID for the Tangle blueprint
     pub blueprint_id: u64,
     /// The service ID for the Tangle blueprint instance
-    pub service_id: u64,
+    ///
+    /// Note: This will be `None` in case this gadget is running in Registration Mode.
+    pub service_id: Option<u64>,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
