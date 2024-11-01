@@ -18,6 +18,10 @@ impl BlueprintConfig for SymbioticConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
+        if env.skip_registration {
+            return Ok(false);
+        }
+
         let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
             return Err(RunnerError::InvalidProtocol(
                 "Expected Symbiotic protocol".into(),

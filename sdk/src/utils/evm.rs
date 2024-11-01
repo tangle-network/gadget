@@ -3,12 +3,9 @@ use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider, WsConnect};
 use alloy_transport::BoxTransport;
-use lazy_static::lazy_static;
 
-lazy_static! {
-    /// 1 day
-    pub static ref SIGNATURE_EXPIRY: U256 = U256::from(86400);
-}
+/// 1 day
+pub const SIGNATURE_EXPIRY: U256 = U256::from_limbs([86400, 0, 0, 0]);
 
 /// Get the provider for a http endpoint
 ///

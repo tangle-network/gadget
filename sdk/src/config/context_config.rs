@@ -26,6 +26,8 @@ pub enum GadgetCLICoreSettings {
         bind_addr: IpAddr,
         #[arg(long, short = 'p', env)]
         bind_port: u16,
+        #[arg(long, short = 's', env)]
+        use_secure_url: bool,
         #[arg(long, short = 't', env)]
         test_mode: bool,
         #[arg(long, short = 'l', env)]
@@ -72,7 +74,7 @@ pub enum GadgetCLICoreSettings {
         service_id: Option<u64>,
         /// Whether to skip the registration process for a Blueprint
         #[arg(long, env = "SKIP_REGISTRATION")]
-        skip_registration: Option<bool>,
+        skip_registration: bool,
         /// The address of the registry coordinator
         #[arg(
             long,
@@ -177,6 +179,7 @@ impl Default for GadgetCLICoreSettings {
         Self::Run {
             bind_addr: "127.0.0.1".parse().unwrap(),
             bind_port: 8080,
+            use_secure_url: false,
             test_mode: false,
             log_id: None,
             http_rpc_url: gadget_io::defaults::http_rpc_url(),
@@ -190,7 +193,7 @@ impl Default for GadgetCLICoreSettings {
             protocol: Protocol::default(),
             blueprint_id: Some(1),
             service_id: Some(1),
-            skip_registration: None,
+            skip_registration: false,
             registry_coordinator: None,
             operator_state_retriever: None,
             delegation_manager: None,

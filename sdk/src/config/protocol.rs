@@ -77,8 +77,6 @@ pub struct TangleInstanceSettings {
     ///
     /// Note: This will be `None` in case this gadget is running in Registration Mode.
     pub service_id: Option<u64>,
-    /// Whether to skip the registration process
-    pub skip_registration: bool,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]

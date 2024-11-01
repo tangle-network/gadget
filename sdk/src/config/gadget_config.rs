@@ -42,6 +42,8 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     ///
     /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
     pub is_registration: bool,
+    /// Whether to skip the registration process
+    pub skip_registration: bool,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
     /// Protocol-specific settings
@@ -50,6 +52,8 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
+    /// Whether the network being targeted uses a secure URL
+    pub use_secure_url: bool,
     /// Specifies custom tracing span for the gadget
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
@@ -66,6 +70,7 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("data_dir", &self.data_dir)
             .field("bootnodes", &self.bootnodes)
             .field("is_registration", &self.is_registration)
+            .field("skip_registration", &self.skip_registration)
             .field("protocol", &self.protocol)
             .field("protocol_specific", &self.protocol_specific)
             .field("bind_port", &self.bind_port)
@@ -84,10 +89,12 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             data_dir: self.data_dir.clone(),
             bootnodes: self.bootnodes.clone(),
             is_registration: self.is_registration,
+            skip_registration: self.skip_registration,
             protocol: self.protocol,
             protocol_specific: self.protocol_specific,
             bind_port: self.bind_port,
             bind_addr: self.bind_addr,
+            use_secure_url: self.use_secure_url,
             span: self.span.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -105,14 +112,15 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             data_dir: None,
             bootnodes: Vec::new(),
             is_registration: false,
+            skip_registration: false,
             protocol: Protocol::Tangle,
             protocol_specific: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
                 blueprint_id: 0,
                 service_id: Some(0),
-                skip_registration: false,
             }),
             bind_port: 0,
             bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            use_secure_url: false,
             span: tracing::Span::current(),
             test_mode: true,
             _lock: core::marker::PhantomData,
@@ -230,7 +238,11 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This endpoint is *not* the same as the WS RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
     /// rather than the endpoint for the network that matches the specified [`Protocol`].
     pub fn target_endpoint_http(&self) -> String {
-        format!("http://{}:{}", self.bind_addr, self.bind_port)
+        let base = match self.use_secure_url {
+            true => "https",
+            false => "http",
+        };
+        format!("{base}://{}:{}", self.bind_addr, self.bind_port)
     }
 
     /// Returns the WS endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
@@ -239,7 +251,11 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This endpoint is *not* the same as the HTTP RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
     /// rather than the endpoint for the network that matches the specified [`Protocol`].
     pub fn target_endpoint_ws(&self) -> String {
-        format!("ws://{}:{}", self.bind_addr, self.bind_port)
+        let base = match self.use_secure_url {
+            true => "wss",
+            false => "ws",
+        };
+        format!("{base}://{}:{}", self.bind_addr, self.bind_port)
     }
 
     /// Only relevant if this is a Tangle protocol.

@@ -108,6 +108,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             GadgetCLICoreSettings::Run {
                 bind_addr,
                 bind_port,
+                use_secure_url,
                 test_mode,
                 log_id,
                 http_rpc_url,
@@ -175,13 +176,13 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             } else {
                 None
             },
-            skip_registration: skip_registration.unwrap_or(false),
         }),
     };
 
     Ok(GadgetConfiguration {
         bind_addr,
         bind_port,
+        use_secure_url,
         test_mode,
         span,
         http_rpc_endpoint: http_rpc_url.to_string(),
@@ -190,6 +191,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
         bootnodes: bootnodes.unwrap_or_default(),
         is_registration,
+        skip_registration,
         protocol,
         protocol_specific,
         _lock: core::marker::PhantomData,

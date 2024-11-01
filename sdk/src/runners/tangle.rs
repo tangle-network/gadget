@@ -46,14 +46,13 @@ impl BlueprintConfig for TangleConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
+        if env.skip_registration {
+            return Ok(false);
+        }
+
         // Get the blueprint_id from the Tangle protocol specific settings
         let blueprint_id = match &env.protocol_specific {
-            ProtocolSpecificSettings::Tangle(settings) => {
-                if settings.skip_registration {
-                    return Ok(false);
-                }
-                settings.blueprint_id
-            }
+            ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
             _ => {
                 return Err(RunnerError::InvalidProtocol(
                     "Expected Tangle protocol".into(),
