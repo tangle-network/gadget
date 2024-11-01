@@ -7,6 +7,7 @@ use gadget_sdk::{
     info,
     runners::{eigenlayer::EigenlayerConfig, BlueprintRunner},
 };
+use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 use incredible_squaring_blueprint_eigenlayer::{
     constants::{AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS},
     contexts::{aggregator::AggregatorContext, client::AggregatorClient},
@@ -15,7 +16,6 @@ use incredible_squaring_blueprint_eigenlayer::{
     },
     IncredibleSquaringTaskManager,
 };
-use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 
 #[gadget_sdk::main(env)]
 async fn main() {

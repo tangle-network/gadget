@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::contexts::client::SignedTaskResponse;
+use crate::contexts::x_square::EigenSquareContext;
 use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::keccak256;
 use alloy_primitives::{Bytes, U256};
@@ -8,11 +9,10 @@ use ark_bn254::Fq;
 use ark_ff::{BigInteger, PrimeField};
 use color_eyre::Result;
 use eigensdk::crypto_bls::{BlsKeyPair, OperatorId};
+use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
-use gadget_sdk::keystore::BackendExt;
 use IncredibleSquaringTaskManager::TaskResponse;
-use crate::contexts::x_square::EigenSquareContext;
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
@@ -98,7 +98,6 @@ pub fn operator_id_from_key(key: BlsKeyPair) -> OperatorId {
 
     keccak256([x_bytes, y_bytes].concat())
 }
-
 
 /// Converts the event to inputs.
 ///
