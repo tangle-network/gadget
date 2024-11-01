@@ -19,6 +19,7 @@ use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
 use std::error::Error;
+use std::ffi::OsStr;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -64,13 +65,15 @@ pub struct PerTestNodeInput<T> {
 
 /// Runs a test node using a top-down approach and invoking the blueprint manager to auto manage
 /// execution of blueprints and their associated services for the test node.
-pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
+pub async fn run_test_blueprint_manager<T: Send + Clone + AsRef<OsStr> + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
     let name_lower = NAME_IDS[input.instance_id as usize].to_lowercase();
 
+    let keystore_path = Path::new(&input.extra_input);
+
     let tmp_store = Uuid::new_v4().to_string();
-    let keystore_uri = PathBuf::from(format!("./target/keystores/{name_lower}/{tmp_store}/",));
+    let keystore_uri = keystore_path.join(format!("keystores/{name_lower}/{tmp_store}/"));
 
     assert!(
         !keystore_uri.exists(),
@@ -82,11 +85,11 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         .expect("Failed to get current directory");
 
     let keystore_uri_normalized =
-        std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+        std::path::absolute(keystore_uri.clone()).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
     inject_test_keys(
-        &keystore_uri_normalized,
+        &keystore_uri,
         KeyGenType::Tangle(input.instance_id as usize),
     )
     .await
@@ -582,6 +585,9 @@ macro_rules! test_blueprint {
             setup_log();
             let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
+            let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
+            let tmp_dir_path = format!("{}", tmp_dir.path().display());
+
             base_path.push($blueprint_path);
             base_path
                 .canonicalize()
@@ -602,8 +608,8 @@ macro_rules! test_blueprint {
                 signer_evm: None,
             };
 
-            new_test_ext_blueprint_manager::<$N, 1, (), _, _>(
-                (),
+            new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
+                tmp_dir_path,
                 opts,
                 run_test_blueprint_manager,
             )
@@ -700,6 +706,8 @@ mod tests_standard {
     async fn test_externalities_gadget_starts() {
         setup_log();
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+        let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
+        let tmp_dir_path = format!("{}", tmp_dir.path().display());
 
         base_path.push("../blueprints/incredible-squaring");
         base_path
@@ -720,57 +728,61 @@ mod tests_standard {
         const INPUT: u64 = 10;
         const OUTPUT: u64 = INPUT.pow(2);
 
-        new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
-            .await
-            .execute_with_async(move |client, handles, blueprint| async move {
-                // At this point, blueprint has been deployed, every node has registered
-                // as an operator for the relevant services, and, all gadgets are running
+        new_test_ext_blueprint_manager::<5, 1, String, _, _>(
+            tmp_dir_path,
+            opts,
+            run_test_blueprint_manager,
+        )
+        .await
+        .execute_with_async(move |client, handles, blueprint| async move {
+            // At this point, blueprint has been deployed, every node has registered
+            // as an operator for the relevant services, and, all gadgets are running
 
-                // What's left: Submit a job, wait for the job to finish, then assert the job results
-                let keypair = handles[0].sr25519_id().clone();
-                let selected_service = &blueprint.services[0];
-                let service_id = selected_service.id;
-                let call_id = get_next_call_id(client)
-                    .await
-                    .expect("Failed to get next job id")
-                    .saturating_sub(1);
-
-                info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
-
-                // Pass the arguments
-                let mut job_args = Args::new();
-                let input =
-                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
-                job_args.push(input);
-
-                // Next step: submit a job under that service/job id
-                if let Err(err) = submit_job(
-                    client,
-                    &keypair,
-                    service_id,
-                    Job::from(call_id as u8),
-                    job_args,
-                )
+            // What's left: Submit a job, wait for the job to finish, then assert the job results
+            let keypair = handles[0].sr25519_id().clone();
+            let selected_service = &blueprint.services[0];
+            let service_id = selected_service.id;
+            let call_id = get_next_call_id(client)
                 .await
-                {
-                    error!("Failed to submit job: {err}");
-                    panic!("Failed to submit job: {err}");
-                }
+                .expect("Failed to get next job id")
+                .saturating_sub(1);
 
-                // Step 2: wait for the job to complete
-                let job_results =
-                    wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
-                        .await
-                        .expect("Failed to wait for job completion");
+            info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
 
-                // Step 3: Get the job results, compare to expected value(s)
-                let expected_result =
-                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
-                assert_eq!(job_results.service_id, service_id);
-                assert_eq!(job_results.call_id, call_id);
-                assert_eq!(job_results.result[0], expected_result);
-            })
+            // Pass the arguments
+            let mut job_args = Args::new();
+            let input =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
+            job_args.push(input);
+
+            // Next step: submit a job under that service/job id
+            if let Err(err) = submit_job(
+                client,
+                &keypair,
+                service_id,
+                Job::from(call_id as u8),
+                job_args,
+            )
             .await
+            {
+                error!("Failed to submit job: {err}");
+                panic!("Failed to submit job: {err}");
+            }
+
+            // Step 2: wait for the job to complete
+            let job_results =
+                wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
+                    .await
+                    .expect("Failed to wait for job completion");
+
+            // Step 3: Get the job results, compare to expected value(s)
+            let expected_result =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
+            assert_eq!(job_results.service_id, service_id);
+            assert_eq!(job_results.call_id, call_id);
+            assert_eq!(job_results.result[0], expected_result);
+        })
+        .await
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -853,12 +865,16 @@ mod tests_standard {
         .canonicalize()
         .unwrap();
 
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let keystore_path = &format!("{}", tmp_dir.path().display());
+
         blueprint_process_manager
             .start_blueprints(
                 vec![xsquare_task_program_path],
                 &http_endpoint,
                 ws_endpoint.as_ref(),
                 Protocol::Eigenlayer,
+                keystore_path,
             )
             .await
             .unwrap();

@@ -5,7 +5,7 @@ use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContrac
 use gadget_sdk::error;
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
@@ -13,8 +13,8 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::{inject_test_keys, KeyGenType};
 use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
+use crate::{inject_test_keys, KeyGenType};
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
@@ -89,13 +89,15 @@ impl BlueprintProcessManager {
         http_endpoint: &str,
         ws_endpoint: &str,
         protocol: Protocol,
+        keystore_path: &str,
     ) -> Result<BlueprintProcess, std::io::Error> {
-        let tmp_dir = tempfile::TempDir::new()?;
-        let keystore_uri = tmp_dir.path().join(format!(
+        let keystore_path = Path::new(&keystore_path);
+        let keystore_uri = keystore_path.join(format!(
             "keystores/{}/{}",
             NAME_IDS[instance_id].to_lowercase(),
             uuid::Uuid::new_v4()
         ));
+        crate::info!("CREATING KEYSTORES AT {keystore_uri:?}");
         assert!(
             !keystore_uri.exists(),
             "Keystore URI cannot exist: {:?}",
@@ -108,17 +110,17 @@ impl BlueprintProcessManager {
 
         match protocol {
             Protocol::Tangle => {
-                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Tangle(0))
+                inject_test_keys(&keystore_uri.clone(), KeyGenType::Tangle(0))
                     .await
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             }
             Protocol::Eigenlayer => {
-                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Anvil(0))
+                inject_test_keys(&keystore_uri.clone(), KeyGenType::Anvil(0))
                     .await
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             }
             Protocol::Symbiotic => {
-                inject_test_keys(&keystore_uri_str.clone(), KeyGenType::Anvil(0))
+                inject_test_keys(&keystore_uri.clone(), KeyGenType::Anvil(0))
                     .await
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             }
@@ -126,8 +128,8 @@ impl BlueprintProcessManager {
 
         let mut arguments = vec![
             "run".to_string(),
-            format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
-            format!("--bind-port={}", find_open_tcp_bind_port()),
+            format!("--target-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
+            format!("--target-port={}", find_open_tcp_bind_port()),
             format!("--http-rpc-url={}", Url::parse(http_endpoint).unwrap()),
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
@@ -215,6 +217,7 @@ impl BlueprintProcessManager {
         http_endpoint: &str,
         ws_endpoint: &str,
         protocol: Protocol,
+        keystore_path: &str,
     ) -> Result<(), std::io::Error> {
         for (index, program_path) in blueprint_paths.into_iter().enumerate() {
             let process = Self::start_blueprint_process(
@@ -223,6 +226,7 @@ impl BlueprintProcessManager {
                 http_endpoint,
                 ws_endpoint,
                 protocol,
+                keystore_path,
             )
             .await?;
             self.processes.lock().await.push(process);

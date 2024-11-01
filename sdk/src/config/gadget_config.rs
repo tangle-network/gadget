@@ -145,6 +145,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
             }
             #[cfg(feature = "std")]
             uri if uri.starts_with("file:") || uri.starts_with("file://") => {
+                crate::info!("OPENING KEYSTORE AT {uri}");
                 let path = uri
                     .trim_start_matches("file://")
                     .trim_start_matches("file:");
