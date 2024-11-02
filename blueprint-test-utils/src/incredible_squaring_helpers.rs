@@ -81,6 +81,7 @@ pub async fn setup_task_spawner(
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
+            info!("Creating a new task...");
             if get_receipt(
                 task_manager
                     .createNewTask(U256::from(2), 100u32, quorums.clone())

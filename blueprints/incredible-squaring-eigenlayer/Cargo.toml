@@ -53,6 +53,7 @@ bip39 = { workspace = true }
 thiserror = { workspace = true }
 jsonrpc-core = { workspace = true }
 jsonrpc-http-server = { workspace = true }
+num-bigint = { workspace = true }
 
 [dev-dependencies]
 blueprint-test-utils = { workspace = true }

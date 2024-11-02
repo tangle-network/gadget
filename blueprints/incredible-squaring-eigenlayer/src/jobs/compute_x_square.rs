@@ -1,8 +1,9 @@
 #![allow(dead_code)]
-use crate::contexts::client::{AggregatorClient, SignedTaskResponse};
+use crate::contexts::client::SignedTaskResponse;
+use crate::contexts::x_square::EigenSquareContext;
 use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::keccak256;
-use alloy_primitives::{hex, Bytes, U256};
+use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::SolType;
 use ark_bn254::Fq;
 use ark_ff::{BigInteger, PrimeField};
@@ -10,6 +11,7 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
+use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -26,30 +28,40 @@ use IncredibleSquaringTaskManager::TaskResponse;
     ),
 )]
 pub async fn xsquare_eigen(
-    ctx: AggregatorClient,
+    ctx: EigenSquareContext,
     number_to_be_squared: U256,
     task_created_block: u32,
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u8,
     task_index: u32,
 ) -> std::result::Result<u32, Infallible> {
+    let client = ctx.client.clone();
+    let env = ctx.env.clone();
+
     // Calculate our response to job
     let task_response = TaskResponse {
         referenceTaskIndex: task_index,
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    let bls_key_pair = BlsKeyPair::new(
-        "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
-            .to_string(),
-    )
-    .unwrap();
+    let bls_key_pair = match env.keystore() {
+        Ok(keystore) => {
+            let pair = keystore.bls_bn254_key();
+            match pair {
+                Ok(pair) => pair,
+                Err(e) => {
+                    error!("Failed to get BLS key pair: {:#?}", e);
+                    return Ok(1);
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to get keystore: {:#?}", e);
+            return Ok(1);
+        }
+    };
 
-    let operator_id = alloy_primitives::FixedBytes(
-        eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap(),
-    );
-    let operator_id: OperatorId =
-        hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
+    let operator_id: OperatorId = operator_id_from_key(bls_key_pair.clone());
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let msg_hash = keccak256(<TaskResponse as SolType>::abi_encode(&task_response));
@@ -63,12 +75,26 @@ pub async fn xsquare_eigen(
         "Sending signed task response to BLS Aggregator: {:#?}",
         signed_response
     );
-    if let Err(e) = ctx.send_signed_task_response(signed_response).await {
+    if let Err(e) = client.send_signed_task_response(signed_response).await {
         error!("Failed to send signed task response: {:?}", e);
         return Ok(0);
     }
 
     Ok(1)
+}
+
+/// Generate the Operator ID from the BLS Keypair
+pub fn operator_id_from_key(key: BlsKeyPair) -> OperatorId {
+    let pub_key = key.public_key();
+    let pub_key_affine = pub_key.g1();
+
+    let x_int: num_bigint::BigUint = pub_key_affine.x.into();
+    let y_int: num_bigint::BigUint = pub_key_affine.y.into();
+
+    let x_bytes = x_int.to_bytes_be();
+    let y_bytes = y_int.to_bytes_be();
+
+    keccak256([x_bytes, y_bytes].concat())
 }
 
 /// Converts the event to inputs.

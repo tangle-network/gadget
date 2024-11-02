@@ -19,6 +19,7 @@ use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
 use std::error::Error;
+use std::ffi::OsStr;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -64,13 +65,15 @@ pub struct PerTestNodeInput<T> {
 
 /// Runs a test node using a top-down approach and invoking the blueprint manager to auto manage
 /// execution of blueprints and their associated services for the test node.
-pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
+pub async fn run_test_blueprint_manager<T: Send + Clone + AsRef<OsStr> + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
     let name_lower = NAME_IDS[input.instance_id as usize].to_lowercase();
 
+    let keystore_path = Path::new(&input.extra_input);
+
     let tmp_store = Uuid::new_v4().to_string();
-    let keystore_uri = PathBuf::from(format!("./target/keystores/{name_lower}/{tmp_store}/",));
+    let keystore_uri = keystore_path.join(format!("keystores/{name_lower}/{tmp_store}/"));
 
     assert!(
         !keystore_uri.exists(),
@@ -82,11 +85,11 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         .expect("Failed to get current directory");
 
     let keystore_uri_normalized =
-        std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+        std::path::absolute(keystore_uri.clone()).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
     inject_test_keys(
-        &keystore_uri_normalized,
+        &keystore_uri,
         KeyGenType::Tangle(input.instance_id as usize),
     )
     .await
@@ -155,19 +158,30 @@ pub enum KeyGenType {
     Tangle(usize),
 }
 
-/// Adds keys relevant for the test to the keystore, and performs some necessary
-/// cross-compatability tests to ensure key use consistency between different parts of the codebase
+/// Adds keys for testing to the keystore.
 ///
-/// Accepted `node_index` values:
-/// - 0-4: Pre-made Tangle accounts (SR25519 and ECDSA are predetermined while BLS is random)
-/// - 5+: Randomly generated keys (All key types are generated randomly)
+/// # Arguments
+///
+/// - `keystore_path`: The path for the keystore.
+/// - `key_gen_type`: The type of key to generate, specified by the [`KeyGenType`] enum.
+///
+/// # Key Generation
+///
+/// Depending on the [`KeyGenType`] provided:
+/// - `Random`: Generates all random keys.
+/// - `Anvil(index)`: Injects the pre-made Anvil ECDSA key from the 10 Anvil dev keys based on the provided index (0-9) and generates a random keys for each other key type
+/// - `Tangle(index)`: Injects the pre-made Tangle ED25519, ECDSA, and SR25519 keys based on the provided index (0-4). Randomly generates BLS keys
 ///
 /// # Errors
 ///
-/// - If the keystore path cannot be created
-/// - If key generation fails for any reason `Invalid Seed` or `Random Key Generation Failed` Error
-/// - If the sanity checks for the generated keys fail
+/// This function will return an error if:
+/// - The keystore path cannot be created.
+/// - Key generation fails for any reason (e.g., invalid seed, random generation failure).
+/// - The given index is out of bounds for Anvil or Tangle key types.
 ///
+/// # Returns
+///
+/// Returns `Ok(())` if the keys were successfully injected, otherwise returns an `Err`.
 pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     key_gen_type: KeyGenType,
@@ -193,6 +207,13 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 
 /// Injects the pre-made Anvil key of the given index where that index is 0-9
 ///
+/// # Keys Generated
+/// - `SR25519`: Random
+/// - `ED25519`: Random
+/// - `ECDSA`: Anvil Dev Key
+/// - `BLS BN254`: Random
+/// - `BLS381`: Random
+///
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
@@ -206,15 +227,31 @@ fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre:
     keystore
         .ecdsa_generate_new(Some(&seed_bytes))
         .map_err(|e| eyre!(e))?;
-
     keystore
         .bls_bn254_generate_new(None)
         .map_err(|e| eyre!(e))?;
+    keystore.sr25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ed25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
 
     Ok(())
 }
 
-/// Injects the pre-made Tangle key of the given index where that index is 0-4
+/// Injects the pre-made Tangle keys of the given index where that index is 0-4
+///
+/// # Keys Generated
+/// - `SR25519`: Tangle Dev Key
+/// - `ED25519`: Tangle Dev Key
+/// - `ECDSA`: Tangle Dev Key
+/// - `BLS BN254`: Random
+/// - `BLS381`: Random
+///
+/// # Indices
+/// - 0: Alice
+/// - 1: Bob
+/// - 2: Charlie
+/// - 3:Dave
+/// - 4: Eve
 ///
 /// # Errors
 /// - Fails if the given index is out of bounds
@@ -225,13 +262,12 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
         keystore_path.as_ref(),
     )?);
 
-    let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
+    let suri = format!("//{name}");
 
     let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
     let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ed_seed = &ed.seed();
 
     let ecdsa =
@@ -240,16 +276,17 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
 
     keystore
         .sr25519_generate_new(Some(sr_seed))
-        .expect("Invalid SR25519 seed");
+        .map_err(|e| eyre!(e))?;
     keystore
         .ed25519_generate_new(Some(ed_seed))
-        .expect("Should be valid ED25519 seed");
+        .map_err(|e| eyre!(e))?;
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
-        .expect("Invalid ECDSA seed");
+        .map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
     keystore
         .bls_bn254_generate_new(None)
-        .expect("Random BLS Key Generation Failed");
+        .map_err(|e| eyre!(e))?;
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
@@ -295,10 +332,18 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
             panic!("Failed to load ed25519 key: {err}");
         }
     }
+
     Ok(())
 }
 
-/// Injects a random key into the keystore at the given path
+/// Injects randomly generated keys into the keystore at the given path
+///
+/// # Keys Generated
+/// - `SR25519` - Random
+/// - `ED25519` - Random
+/// - `ECDSA` - Random
+/// - `BLS BN254` - Random
+/// - `BLS381` - Random
 ///
 /// # Errors
 /// - May fail if the keystore path cannot be created or accessed
@@ -307,15 +352,13 @@ pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),
     )?);
-    keystore
-        .sr25519_generate_new(None)
-        .expect("Random SR25519 Key Generation Failed");
-    keystore
-        .ecdsa_generate_new(None)
-        .expect("Random ECDSA Key Generation Failed");
+    keystore.sr25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ed25519_generate_new(None).map_err(|e| eyre!(e))?;
+    keystore.ecdsa_generate_new(None).map_err(|e| eyre!(e))?;
     keystore
         .bls_bn254_generate_new(None)
-        .expect("Random BLS Key Generation Failed");
+        .map_err(|e| eyre!(e))?;
+    keystore.bls381_generate_new(None).map_err(|e| eyre!(e))?;
     Ok(())
 }
 
@@ -542,6 +585,9 @@ macro_rules! test_blueprint {
             setup_log();
             let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
+            let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
+            let tmp_dir_path = format!("{}", tmp_dir.path().display());
+
             base_path.push($blueprint_path);
             base_path
                 .canonicalize()
@@ -562,8 +608,8 @@ macro_rules! test_blueprint {
                 signer_evm: None,
             };
 
-            new_test_ext_blueprint_manager::<$N, 1, (), _, _>(
-                (),
+            new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
+                tmp_dir_path,
                 opts,
                 run_test_blueprint_manager,
             )
@@ -660,6 +706,8 @@ mod tests_standard {
     async fn test_externalities_gadget_starts() {
         setup_log();
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+        let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
+        let tmp_dir_path = format!("{}", tmp_dir.path().display());
 
         base_path.push("../blueprints/incredible-squaring");
         base_path
@@ -680,57 +728,61 @@ mod tests_standard {
         const INPUT: u64 = 10;
         const OUTPUT: u64 = INPUT.pow(2);
 
-        new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
-            .await
-            .execute_with_async(move |client, handles, blueprint| async move {
-                // At this point, blueprint has been deployed, every node has registered
-                // as an operator for the relevant services, and, all gadgets are running
+        new_test_ext_blueprint_manager::<5, 1, String, _, _>(
+            tmp_dir_path,
+            opts,
+            run_test_blueprint_manager,
+        )
+        .await
+        .execute_with_async(move |client, handles, blueprint| async move {
+            // At this point, blueprint has been deployed, every node has registered
+            // as an operator for the relevant services, and, all gadgets are running
 
-                // What's left: Submit a job, wait for the job to finish, then assert the job results
-                let keypair = handles[0].sr25519_id().clone();
-                let selected_service = &blueprint.services[0];
-                let service_id = selected_service.id;
-                let call_id = get_next_call_id(client)
-                    .await
-                    .expect("Failed to get next job id")
-                    .saturating_sub(1);
-
-                info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
-
-                // Pass the arguments
-                let mut job_args = Args::new();
-                let input =
-                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
-                job_args.push(input);
-
-                // Next step: submit a job under that service/job id
-                if let Err(err) = submit_job(
-                    client,
-                    &keypair,
-                    service_id,
-                    Job::from(call_id as u8),
-                    job_args,
-                )
+            // What's left: Submit a job, wait for the job to finish, then assert the job results
+            let keypair = handles[0].sr25519_id().clone();
+            let selected_service = &blueprint.services[0];
+            let service_id = selected_service.id;
+            let call_id = get_next_call_id(client)
                 .await
-                {
-                    error!("Failed to submit job: {err}");
-                    panic!("Failed to submit job: {err}");
-                }
+                .expect("Failed to get next job id")
+                .saturating_sub(1);
 
-                // Step 2: wait for the job to complete
-                let job_results =
-                    wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
-                        .await
-                        .expect("Failed to wait for job completion");
+            info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
 
-                // Step 3: Get the job results, compare to expected value(s)
-                let expected_result =
-                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
-                assert_eq!(job_results.service_id, service_id);
-                assert_eq!(job_results.call_id, call_id);
-                assert_eq!(job_results.result[0], expected_result);
-            })
+            // Pass the arguments
+            let mut job_args = Args::new();
+            let input =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
+            job_args.push(input);
+
+            // Next step: submit a job under that service/job id
+            if let Err(err) = submit_job(
+                client,
+                &keypair,
+                service_id,
+                Job::from(call_id as u8),
+                job_args,
+            )
             .await
+            {
+                error!("Failed to submit job: {err}");
+                panic!("Failed to submit job: {err}");
+            }
+
+            // Step 2: wait for the job to complete
+            let job_results =
+                wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
+                    .await
+                    .expect("Failed to wait for job completion");
+
+            // Step 3: Get the job results, compare to expected value(s)
+            let expected_result =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
+            assert_eq!(job_results.service_id, service_id);
+            assert_eq!(job_results.call_id, call_id);
+            assert_eq!(job_results.result[0], expected_result);
+        })
+        .await
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -813,12 +865,16 @@ mod tests_standard {
         .canonicalize()
         .unwrap();
 
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let keystore_path = &format!("{}", tmp_dir.path().display());
+
         blueprint_process_manager
             .start_blueprints(
                 vec![xsquare_task_program_path],
                 &http_endpoint,
                 ws_endpoint.as_ref(),
                 Protocol::Eigenlayer,
+                keystore_path,
             )
             .await
             .unwrap();

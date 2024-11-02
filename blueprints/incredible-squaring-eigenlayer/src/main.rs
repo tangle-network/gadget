@@ -6,6 +6,7 @@ use gadget_sdk::{
     info,
     runners::{eigenlayer::EigenlayerConfig, BlueprintRunner},
 };
+use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 use incredible_squaring_blueprint_eigenlayer::{
     constants::{AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS},
     contexts::{aggregator::AggregatorContext, client::AggregatorClient},
@@ -60,8 +61,12 @@ async fn main() {
 
     let server_address = format!("{}:{}", env.target_addr, 8081);
     let aggregator_client = AggregatorClient::new(&server_address)?;
+    let ctx = EigenSquareContext {
+        client: aggregator_client,
+        env: env.clone(),
+    };
     let x_square_eigen = XsquareEigenEventHandler {
-        ctx: aggregator_client,
+        ctx,
         contract: contract.clone(),
         contract_instance: Default::default(),
     };
