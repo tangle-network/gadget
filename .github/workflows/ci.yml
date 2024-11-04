@@ -142,17 +142,16 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: Install Colima
-        run: brew install colima docker
+      # Replace Colima setup with Docker Desktop
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
-      - name: Start Colima
-        run: colima start
+      - name: Verify Docker installation
+        run: docker ps
 
-      - name: Verify Docker installation and service
-        run: |
-          docker --version
-          docker ps
-
+      # Rest of the steps remain the same
       - name: Run anvil in background
         run: anvil --version && anvil &
 
