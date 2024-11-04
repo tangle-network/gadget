@@ -142,7 +142,6 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      # Replace Colima setup with Docker Desktop
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
         with:
