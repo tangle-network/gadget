@@ -7,7 +7,6 @@ use std::convert::Infallible;
 #[job(
     id = 0,
     params(value),
-
     event_listener(
         listener = PeriodicEventListener<2000, WebPoller, serde_json::Value, reqwest::Client>,
         pre_processor = pre_process,
