@@ -155,18 +155,3 @@ impl BlueprintConfig for EigenlayerConfig {
         Ok(())
     }
 }
-
-pub fn derive_operator_id(
-    pub_key: eigensdk::crypto_bls::BlsG1Point,
-) -> alloy_primitives::FixedBytes<32> {
-    let pub_key_affine = pub_key.g1();
-
-    let x_int: num_bigint::BigUint = pub_key_affine.x.into();
-    let y_int: num_bigint::BigUint = pub_key_affine.y.into();
-
-    let x_bytes = x_int.to_bytes_be();
-    let y_bytes = y_int.to_bytes_be();
-
-    let hash = alloy_primitives::keccak256([x_bytes, y_bytes].concat());
-    hash
-}
