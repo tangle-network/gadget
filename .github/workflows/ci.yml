@@ -142,11 +142,16 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: setup-docker
-        run: brew install docker
+      - name: Install Colima
+        run: brew install colima docker
 
-      - name: Verify Forge and Docker installation
-        run: forge --version && docker --version
+      - name: Start Colima
+        run: colima start
+
+      - name: Verify Docker installation and service
+        run: |
+          docker --version
+          docker ps
 
       - name: Run anvil in background
         run: anvil --version && anvil &
@@ -176,4 +181,3 @@ jobs:
 
       - name: tests
         run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
-
