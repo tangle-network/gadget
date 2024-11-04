@@ -145,7 +145,10 @@ jobs:
       - name: Install and Start Docker
         run: |
           brew install --cask docker
-          open -a /Applications/Docker
+          # Wait for Docker.app to be registered
+          sleep 10
+          # Try to start Docker using full path
+          open /Applications/Docker.app
           # Wait for Docker to start
           for i in {1..30}; do
             if ! docker system info > /dev/null 2>&1; then
