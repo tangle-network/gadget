@@ -280,6 +280,124 @@ mod structs {
     }
 }
 
+mod enums {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+    use serde_test::{assert_ser_tokens, Token};
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
+    enum Availability {
+        Available,
+        #[default]
+        NotAvailable,
+    }
+
+    impl Availability {
+        fn as_field(&self) -> Field<AccountId32> {
+            match self {
+                Availability::Available => Field::String(new_bounded_string("Available")),
+                Availability::NotAvailable => Field::String(new_bounded_string("NotAvailable")),
+            }
+        }
+    }
+
+    #[test]
+    fn test_ser_enum() {
+        let availability = Availability::default();
+
+        assert_ser_tokens(
+            &availability,
+            &[
+                Token::Enum {
+                    name: "Availability",
+                },
+                Token::Str("NotAvailable"),
+                Token::Unit,
+            ],
+        );
+
+        let field = to_field(&availability).unwrap();
+        assert_eq!(field, availability.as_field());
+    }
+
+    #[test]
+    fn test_de_enum() {
+        let availability = Availability::default();
+
+        assert_de_tokens(
+            &availability,
+            &[
+                Token::Enum {
+                    name: "Availability",
+                },
+                Token::UnitVariant {
+                    name: "Availability",
+                    variant: "NotAvailable",
+                },
+            ],
+        );
+
+        let availability_de: Availability = from_field(availability.as_field()).unwrap();
+        assert_eq!(availability_de, availability);
+    }
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    enum InvalidAvailability {
+        Available { days: u8 },
+        NotAvailable(String),
+    }
+
+    impl Default for InvalidAvailability {
+        fn default() -> Self {
+            Self::Available { days: 5 }
+        }
+    }
+
+    #[test]
+    fn test_ser_invalid_enum() {
+        let invalid_availability = InvalidAvailability::default();
+
+        assert_ser_tokens(
+            &invalid_availability,
+            &[
+                Token::StructVariant {
+                    name: "InvalidAvailability",
+                    variant: "Available",
+                    len: 1,
+                },
+                Token::Str("days"),
+                Token::U8(5),
+                Token::StructVariantEnd,
+            ],
+        );
+
+        let err = to_field(&invalid_availability).unwrap_err();
+        assert!(matches!(err, crate::error::Error::UnsupportedType(_)));
+    }
+
+    #[test]
+    fn test_de_invalid_enum() {
+        let invalid_availability = InvalidAvailability::default();
+
+        assert_ser_tokens(
+            &invalid_availability,
+            &[
+                Token::StructVariant {
+                    name: "InvalidAvailability",
+                    variant: "Available",
+                    len: 1,
+                },
+                Token::Str("days"),
+                Token::U8(5),
+                Token::StructVariantEnd,
+            ],
+        );
+
+        let _ = from_field::<InvalidAvailability>(Field::String(new_bounded_string("Available")))
+            .expect_err("should fail");
+    }
+}
+
 mod primitives {
     use super::*;
 
