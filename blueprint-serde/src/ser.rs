@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::fmt::Display;
 use serde::ser;
 use serde::Serialize;
 use tangle_subxt::subxt_core::utils::AccountId32;
@@ -165,7 +164,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
+        Ok(self)
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -188,14 +187,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
-    }
-
-    fn collect_str<T>(self, _value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + Display,
-    {
-        todo!()
+        Ok(self)
     }
 
     fn is_human_readable(&self) -> bool {
