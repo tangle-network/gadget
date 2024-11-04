@@ -149,16 +149,6 @@ jobs:
           sleep 10
           # Try to start Docker using full path
           open /Applications/Docker.app
-          # Wait for Docker to start
-          for i in {1..30}; do
-            if ! docker system info > /dev/null 2>&1; then
-              echo "Waiting for Docker to start..."
-              sleep 10
-            else
-              echo "Docker is running"
-              break
-            fi
-          done
           # Verify Docker is running
           docker version
           docker system info
