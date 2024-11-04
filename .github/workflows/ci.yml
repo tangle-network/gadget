@@ -142,8 +142,9 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: Start Docker Desktop
+      - name: Install and Start Docker
         run: |
+          brew install --cask docker
           sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
           open -a Docker
           while ! docker system info > /dev/null 2>&1; do
