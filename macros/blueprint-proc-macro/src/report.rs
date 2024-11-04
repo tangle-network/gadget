@@ -121,7 +121,6 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
             args.skip_codegen,
             &param_types,
             &args.params,
-            &result_type,
         );
 
     let autogen_struct = generate_autogen_struct(
@@ -297,8 +296,7 @@ impl Parse for ReportArgs {
             return Err(input.error("Missing `params` argument in report attribute"));
         }
 
-        let result =
-            result.ok_or_else(|| input.error("Missing `result` argument in report attribute"))?;
+        let result = result.unwrap_or(ResultsKind::Infered);
 
         match report_type {
             ReportType::Job => {
@@ -374,10 +372,6 @@ fn generate_qos_report_event_handler(
     let fn_name_string = fn_name.to_string();
     const SUFFIX: &str = "QoSReportEventHandler";
 
-    let syn::ReturnType::Type(_, result) = &input.sig.output else {
-        panic!("Report function must have a return type of Result<T, E> where T is a tuple of the result fields");
-    };
-
     let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
     let job_id = quote! { 0 }; // We don't care about job ID's for QOS
     let param_types =
@@ -385,8 +379,6 @@ fn generate_qos_report_event_handler(
     // TODO: Allow passing all events, use a dummy value here that satisfies the trait bounds. For now QOS will
     // trigger only once a singular JobCalled event is received.
     let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
-    let result_type = crate::job::declared_result_type_to_field_types(&args.result, result)
-        .expect("Failed to generate result types for job report");
 
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_workflow_tokenstream(
@@ -397,7 +389,6 @@ fn generate_qos_report_event_handler(
             args.skip_codegen,
             &param_types,
             &args.params,
-            &result_type,
         );
 
     let interval = args
@@ -412,9 +403,9 @@ fn generate_qos_report_event_handler(
         #(#event_listener_gen)*
 
         #[automatically_derived]
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
+        #[gadget_sdk::async_trait::async_trait]
+        impl gadget_sdk::event_utils::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::event_utils::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
 
@@ -426,10 +417,10 @@ fn generate_qos_report_event_handler(
                 loop {
                     if std::time::Instant::now() >= next_check {
                         let metrics = reporter.collect_metrics().await
-                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e.into()))?;
+                            .map_err(|e| gadget_sdk::event_utils::Error::Handler(e.into()))?;
 
                         let report_result = reporter.report(&metrics).await
-                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e.into()))?;
+                            .map_err(|e| gadget_sdk::event_utils::Error::Handler(e.into()))?;
 
                         next_check = std::time::Instant::now() + interval;
                     }
@@ -452,8 +443,8 @@ fn generate_qos_report_event_handler(
             }
         }
 
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
+        #[gadget_sdk::async_trait::async_trait]
+        impl gadget_sdk::event_utils::InitializableEventHandler for #struct_name {
             async fn init_event_handler(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener

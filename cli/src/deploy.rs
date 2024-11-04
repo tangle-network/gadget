@@ -1,9 +1,11 @@
 use alloy_provider::network::TransactionBuilder;
-use alloy_provider::Provider;
+use alloy_provider::{Provider, WsConnect};
 pub use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
+#[cfg(test)]
+use gadget_sdk::tx::tangle::TxProgressExt;
 pub use k256;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -45,7 +47,7 @@ impl Debug for Opts {
 pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
-    http_rpc_url: T,
+    rpc_url: T,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<types::create_blueprint::Blueprint> {
     let manifest_path = manifest_metadata_path.into();
@@ -60,13 +62,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let mut blueprint =
         tokio::task::spawn_blocking(move || load_blueprint_metadata(&package)).await??;
     build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(
-        http_rpc_url.as_ref(),
-        package_clone,
-        &mut blueprint,
-        signer_evm,
-    )
-    .await?;
+    deploy_contracts_to_tangle(rpc_url.as_ref(), package_clone, &mut blueprint, signer_evm).await?;
 
     bake_blueprint(blueprint)
 }
@@ -74,7 +70,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 pub async fn deploy_to_tangle(
     Opts {
         pkg_name,
-        http_rpc_url,
+        http_rpc_url: _,
         ws_rpc_url,
         manifest_path,
         signer,
@@ -83,7 +79,7 @@ pub async fn deploy_to_tangle(
 ) -> Result<u64> {
     // Load the manifest file into cargo metadata
     let blueprint =
-        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &http_rpc_url, signer_evm)
+        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &ws_rpc_url, signer_evm)
             .await?;
 
     let signer = if let Some(signer) = signer {
@@ -101,6 +97,9 @@ pub async fn deploy_to_tangle(
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
+    #[cfg(test)]
+    let result = progress.wait_for_in_block_success().await?;
+    #[cfg(not(test))]
     let result = progress.wait_for_finalized_success().await?;
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
@@ -149,7 +148,7 @@ pub fn load_blueprint_metadata(
 }
 
 async fn deploy_contracts_to_tangle(
-    http_rpc_url: &str,
+    rpc_url: &str,
     package: &cargo_metadata::Package,
     blueprint: &mut ServiceBlueprint<'_>,
     signer_evm: Option<PrivateKeySigner>,
@@ -198,10 +197,13 @@ async fn deploy_contracts_to_tangle(
     };
 
     let wallet = alloy_provider::network::EthereumWallet::from(signer);
+    assert!(rpc_url.starts_with("ws:"));
+
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(wallet)
-        .on_http(http_rpc_url.parse()?);
+        .on_ws(WsConnect::new(rpc_url))
+        .await?;
 
     let chain_id = provider.get_chain_id().await?;
     eprintln!("Chain ID: {chain_id}");

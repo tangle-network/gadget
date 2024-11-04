@@ -25,7 +25,7 @@ pub mod error;
 pub mod event_listener;
 /// Blockchain Events Watcher Module
 #[cfg(any(feature = "std", feature = "wasm"))]
-pub mod events_watcher;
+pub mod event_utils;
 /// Command execution module
 #[cfg(feature = "std")]
 pub mod executor;
@@ -70,6 +70,7 @@ pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
+pub use async_trait;
 pub use clap;
 pub use error::Error;
 pub use futures;

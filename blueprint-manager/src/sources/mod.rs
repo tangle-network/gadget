@@ -19,8 +19,8 @@ pub trait BinarySourceFetcher: Send + Sync {
     fn name(&self) -> String;
 }
 
-pub async fn handle<'a>(
-    blueprint: &VerifiedBlueprint<'a>,
+pub async fn handle(
+    blueprint: &VerifiedBlueprint<'_>,
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
@@ -138,7 +138,11 @@ pub fn generate_process_arguments(
     arguments.push("run".to_string());
 
     if opt.test_mode {
-        arguments.push("--test-mode=true".to_string());
+        arguments.push("--test-mode".to_string());
+    }
+
+    if opt.pretty {
+        arguments.push("--pretty".to_string());
     }
 
     for bootnode in &gadget_config.bootnodes {
@@ -146,16 +150,12 @@ pub fn generate_process_arguments(
     }
 
     arguments.extend([
-        format!("--bind-addr={}", gadget_config.bind_addr),
-        format!("--bind-port={}", gadget_config.bind_port),
+        format!("--target-addr={}", gadget_config.bind_addr),
+        format!("--target-port={}", gadget_config.bind_port),
         format!("--http-rpc-url={}", gadget_config.http_rpc_url),
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
-        format!("--verbose={}", opt.verbose),
-        format!("--pretty={}", opt.pretty),
-        format!("--blueprint-id={}", blueprint_id),
-        format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),
         format!(
             "--log-id=Blueprint-{blueprint_id}-Service-{service_id}-{}",
@@ -168,6 +168,11 @@ pub fn generate_process_arguments(
 
     if let Some(keystore_password) = &gadget_config.keystore_password {
         arguments.push(format!("--keystore-password={}", keystore_password));
+    }
+
+    // Uses occurrences of clap short -v
+    if opt.verbose > 0 {
+        arguments.push(format!("-{}", "v".repeat(opt.verbose as usize)));
     }
 
     Ok(arguments)

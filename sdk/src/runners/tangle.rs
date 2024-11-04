@@ -46,6 +46,10 @@ impl BlueprintConfig for TangleConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
+        if env.skip_registration {
+            return Ok(false);
+        }
+
         // Get the blueprint_id from the Tangle protocol specific settings
         let blueprint_id = match &env.protocol_specific {
             ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
@@ -55,13 +59,6 @@ impl BlueprintConfig for TangleConfig {
                 ))
             }
         };
-
-        // Ensure blueprint_id is set
-        if blueprint_id == 0 {
-            return Err(RunnerError::ConfigError(
-                crate::config::Error::MissingBlueprintId,
-            ));
-        }
 
         // Check if the operator is already registered
         let client = env.client().await?;
@@ -100,13 +97,6 @@ impl BlueprintConfig for TangleConfig {
             ));
         };
         let blueprint_id = blueprint_settings.blueprint_id;
-
-        // Ensure blueprint_id is set
-        if blueprint_id == 0 {
-            return Err(RunnerError::ConfigError(
-                crate::config::Error::MissingBlueprintId,
-            ));
-        }
 
         let xt = api::tx().services().register(
             blueprint_id,

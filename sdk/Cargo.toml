@@ -10,6 +10,7 @@ license.workspace = true
 
 
 [dependencies]
+itertools = { workspace = true }
 auto_impl = { workspace = true }
 bollard = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
@@ -93,6 +94,7 @@ gadget-blueprint-proc-macro-core = { workspace = true, default-features = false 
 
 # Benchmarking deps
 sysinfo = { workspace = true }
+lazy_static = "1.5.0"
 
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]

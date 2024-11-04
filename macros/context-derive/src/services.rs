@@ -22,7 +22,6 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics gadget_sdk::ctx::ServicesContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
-            /// Get the current blueprint information from the context.
             fn current_blueprint(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
@@ -52,7 +51,6 @@ pub fn generate_context_impl(
                 }
             }
 
-            /// Query the current blueprint owner from the context.
             fn current_blueprint_owner(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
@@ -76,9 +74,6 @@ pub fn generate_context_impl(
                 }
             }
 
-            /// Get the current service operators from the context.
-            /// This function will return a list of service operators that are selected to run this service
-            /// instance.
             fn current_service_operators(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
@@ -99,13 +94,17 @@ pub fn generate_context_impl(
                         gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
                         _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
                     };
-                    let service_instance = api::storage().services().instances(service_instance_id);
+                    let service_id = match service_instance_id {
+                      Some(service_instance_id) => service_instance_id,
+                      None => return Err(subxt::Error::Other("Service instance id is not set. Running in Registration mode?".to_string())),
+                    };
+                    let service_instance = api::storage().services().instances(service_id);
                     let storage = client.storage().at_latest().await?;
                     let result = storage.fetch(&service_instance).await?;
                     match result {
                         Some(instance) => Ok(instance.operators.0),
                         None => Err(subxt::Error::Other(format!(
-                            "Service instance {service_instance_id} is not created, yet"
+                            "Service instance {service_id} is not created, yet"
                         ))),
                     }
                 }

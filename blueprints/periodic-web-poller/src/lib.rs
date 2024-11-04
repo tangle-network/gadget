@@ -7,7 +7,7 @@ use std::convert::Infallible;
 #[job(
     id = 0,
     params(value),
-    result(_),
+
     event_listener(
         listener = PeriodicEventListener<2000, WebPoller, serde_json::Value, reqwest::Client>,
         pre_processor = pre_process,
@@ -73,10 +73,5 @@ impl EventListener<serde_json::Value, reqwest::Client> for WebPoller {
         } else {
             None
         }
-    }
-
-    /// Implement any handler logic when an event is received
-    async fn handle_event(&mut self, _event: serde_json::Value) -> Result<(), gadget_sdk::Error> {
-        unreachable!("Not called here")
     }
 }

@@ -6,17 +6,16 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::Job
 #[derive(Clone)]
 pub struct MyContext;
 
-/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 0,
     params(x),
-    result(_),
     event_listener(
-        listener = TangleEventListener<JobCalled, MyContext>,
+        listener = TangleEventListener<MyContext, JobCalled>,
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
 )]
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 pub fn xsquare(x: u64, context: MyContext) -> Result<u64, gadget_sdk::Error> {
     Ok(x.saturating_pow(2))
 }

@@ -3,6 +3,7 @@ allow_dirty = true         # allow updating repositories with uncommitted change
 publish_allow_dirty = true # add `--allow-dirty` to `cargo publish`
 publish_timeout = "10m"    # set a timeout for `cargo publish`
 
+[changelog]
 commit_preprocessors = [
     # Allow shortened crate names
     { pattern = '^(\w+!?)\(sdk\):', replace = "$1(gadget-sdk):" },

@@ -73,7 +73,7 @@ pub struct NetworkService<'a> {
     pub span: &'a tracing::Span,
 }
 
-impl<'a> NetworkService<'a> {
+impl NetworkService<'_> {
     /// Handle local requests that are meant to be sent to the network.
     pub(crate) fn handle_intra_node_payload(&mut self, msg: IntraNodePayload) {
         let _enter = self.span.enter();

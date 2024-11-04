@@ -1,5 +1,4 @@
 use color_eyre::{eyre::eyre, Result};
-use gadget_sdk::config::protocol::TangleInstanceSettings;
 use gadget_sdk::info;
 use gadget_sdk::runners::tangle::TangleConfig;
 use gadget_sdk::runners::BlueprintRunner;
@@ -13,10 +12,8 @@ async fn main() {
 
     info!("Starting the event watcher for {} ...", signer.account_id());
 
-    let tangle_settings = env.protocol_specific.tangle()?;
-    let TangleInstanceSettings { service_id, .. } = tangle_settings;
     let x_square = blueprint::XsquareEventHandler {
-        service_id: *service_id,
+        service_id: env.service_id().expect("No service ID found"),
         context: blueprint::MyContext,
         client,
         signer,

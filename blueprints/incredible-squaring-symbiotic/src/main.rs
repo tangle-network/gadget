@@ -1,12 +1,12 @@
 use alloy_network::EthereumWallet;
 use color_eyre::Result;
-use gadget_sdk::events_watcher::evm::get_wallet_provider_http;
 use gadget_sdk::runners::symbiotic::SymbioticConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::{info, keystore::BackendExt};
 use incredible_squaring_blueprint_symbiotic::{self as blueprint, IncredibleSquaringTaskManager};
 
 use alloy_primitives::{address, Address};
+use gadget_sdk::utils::evm::get_wallet_provider_http;
 use lazy_static::lazy_static;
 use std::env;
 
@@ -30,11 +30,12 @@ async fn main() {
 
     let x_square = blueprint::XsquareEventHandler {
         context: blueprint::MyContext {},
-        contract: contract.into(),
+        contract: contract.clone(),
+        contract_instance: Default::default(),
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let symb_config = SymbioticConfig {};
+    let symb_config = SymbioticConfig::default();
     BlueprintRunner::new(symb_config, env)
         .job(x_square)
         .run()

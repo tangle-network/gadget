@@ -6,6 +6,7 @@ members = [
     "blueprints/incredible-squaring-eigenlayer",
     "blueprints/incredible-squaring-symbiotic",
     "blueprints/periodic-web-poller",
+    "blueprints/tangle-raw-event-listener",
     "cli",
     "gadget-io",
     "blueprint-test-utils",
@@ -49,6 +50,7 @@ incredible-squaring-blueprint = { path = "./blueprints/incredible-squaring", def
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
 incredible-squaring-blueprint-symbiotic = { path = "./blueprints/incredible-squaring-symbiotic", default-features = false, version = "0.1.1" }
 periodic-web-poller-blueprint = { path = "./blueprints/periodic-web-poller", default-features = false, version = "0.1.1" }
+tangle-raw-event-listener-blueprint = { path = "./blueprints/tangle-raw-event-listener", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.2.3" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.5" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.3" }
@@ -145,6 +147,7 @@ indexmap = "2.5.0"
 lazy_static = "1.5.0"
 jsonrpc-core = "18.0.0"
 jsonrpc-http-server = "18.0.0"
+tempfile = "3.10.1"
 
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"
