@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.4...gadget-io-v0.0.5) - 2024-11-05
+
+### Fixed
+
+- *(cargo-tangle)* CLI bugs ([#409](https://github.com/tangle-network/gadget/pull/409))
+
 ## [0.0.4](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.3...gadget-io-v0.0.4) - 2024-10-25
 
 ### Other
