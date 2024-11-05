@@ -14,14 +14,7 @@
 	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 
-# For the ecdsa-threshold-mpc blueprint
-[submodule "blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std"]
-	path = blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std
-	url = https://github.com/foundry-rs/forge-std
-[submodule "blueprints/ecdsa-threshold-mpc/contracts/lib/tnt-core"]
-	path = blueprints/ecdsa-threshold-mpc/contracts/lib/tnt-core
-	url = https://github.com/tangle-network/tnt-core
-	branch = main
+# For the incredible-squaring-symbiotic blueprint
 [submodule "blueprints/incredible-squaring-symbiotic/contracts/lib/forge-std"]
 	path = blueprints/incredible-squaring-symbiotic/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
