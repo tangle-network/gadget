@@ -1,14 +1,4 @@
-use alloy_contract::ContractInstance;
-use alloy_contract::Event;
-use alloy_provider::Provider;
-use alloy_rpc_types::{BlockNumberOrTag, Filter, Log};
 use alloy_sol_types::SolEvent;
-use std::collections::{HashMap, VecDeque};
-use std::marker::PhantomData;
-use std::time::Duration;
-use uuid::Uuid;
-
-const EXPIRY_BLOCKS: u64 = 1000;
 
 /// Trait for correlating sequential events
 pub trait EventCorrelation<E1: SolEvent, E2: SolEvent> {
@@ -230,6 +220,7 @@ macro_rules! sequential_event_listener {
             }
 
             fn cleanup_expired_sequences(&mut self, current_block: u64) {
+                const EXPIRY_BLOCKS: u64 = 1000;
                 self.pending_sequences.retain(|_, seq| {
                     current_block - seq.last_update < EXPIRY_BLOCKS
                 });
@@ -242,3 +233,179 @@ macro_rules! sequential_event_listener {
 // sequential_event_listener!(ThreeEventListener, Event1, Event2, Event3);
 // sequential_event_listener!(TwoEventListener, Event1, Event2);
 // sequential_event_listener!(FourEventListener, Event1, Event2, Event3, Event4);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::U256;
+    use alloy_sol_types::{sol, SolEvent}; 
+    use alloy_provider::{Provider, ProviderBuilder};
+    use alloy_signer_local::PrivateKeySigner;
+    use alloy_contract::ContractInstance;
+    use std::str::FromStr;
+
+    // Define Counter events
+    sol! {
+        event Number1Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+        event Number2Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+        event Number3Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+    }
+
+    sequential_event_listener!(CounterEventListener, Number1Incremented, Number2Incremented, Number3Incremented);
+
+    struct CounterEventCorrelator;
+    impl EventCorrelation<Number1Incremented, Number2Incremented> for CounterEventCorrelator {
+        fn are_correlated(&self, n1: &Number1Incremented, n2: &Number2Incremented) -> bool {
+            // Correlate if they have the same identifier
+            n1.id == n2.id
+        }
+    }
+
+    impl EventCorrelation<Number2Incremented, Number3Incremented> for CounterEventCorrelator {
+        fn are_correlated(&self, n2: &Number2Incremented, n3: &Number3Incremented) -> bool {
+            // Correlate if they have the same identifier
+            n2.id == n3.id
+        }
+    }
+
+    const CONTRACT_SOURCE: &str = r#"
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.0;
+
+        contract ComplexCounter {
+            struct CounterSet {
+                uint256 number1;
+                uint256 number2;
+                uint256 number3;
+            }
+
+            mapping(bytes32 => CounterSet) public counters;
+
+            event Number1Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+            event Number2Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+            event Number3Incremented(bytes32 indexed id, uint256 indexed oldValue, uint256 indexed newValue);
+
+            function incrementNumber1(bytes32 id) public {
+                uint256 oldValue = counters[id].number1;
+                counters[id].number1++;
+                emit Number1Incremented(id, oldValue, counters[id].number1);
+            }
+
+            function incrementNumber2(bytes32 id) public {
+                uint256 oldValue = counters[id].number2;
+                counters[id].number2++;
+                emit Number2Incremented(id, oldValue, counters[id].number2);
+            }
+
+            function incrementNumber3(bytes32 id) public {
+                uint256 oldValue = counters[id].number3;
+                counters[id].number3++;
+                emit Number3Incremented(id, oldValue, counters[id].number3);
+            }
+
+            function getCounterSet(bytes32 id) public view returns (uint256, uint256, uint256) {
+                CounterSet memory set = counters[id];
+                return (set.number1, set.number2, set.number3);
+            }
+        }
+    "#;
+
+    #[tokio::test]
+    async fn test_complex_counter_sequence() {
+        // Start anvil node
+        let provider = ProviderBuilder::new()
+            .on_http("http://localhost:8545")
+            .boxed()
+            .root();
+
+        // Get test account
+        let owner = PrivateKeySigner::from_bytes(&[1; 32].into()).unwrap();
+
+        // Deploy contract
+        let contract = Contract::new(
+            CONTRACT_SOURCE.to_string(),
+            "ComplexCounter".to_string(), 
+            provider.clone(),
+        )
+        .unwrap();
+
+        let contract_addr = contract.deploy().await.unwrap();
+        let contract = ContractInstance::new(contract_addr, contract.abi().clone(), provider.clone());
+
+        // Create event listener
+        let mut listener = CounterEventListener::new();
+        listener.add_correlator(Box::new(CounterEventCorrelator));
+
+        // Test sequence of events for multiple IDs
+        let id1 = [1u8; 32];
+        let id2 = [2u8; 32];
+
+        // Increment numbers for id1
+        contract
+            .call("incrementNumber1", (id1,))
+            .sign_with(owner.clone())
+            .send()
+            .await
+            .unwrap();
+
+        contract
+            .call("incrementNumber2", (id1,))
+            .sign_with(owner.clone())
+            .send()
+            .await
+            .unwrap();
+
+        contract
+            .call("incrementNumber3", (id1,))
+            .sign_with(owner.clone())
+            .send()
+            .await
+            .unwrap();
+
+        // Increment some numbers for id2 (but not all)
+        contract
+            .call("incrementNumber1", (id2,))
+            .sign_with(owner.clone())
+            .send()
+            .await
+            .unwrap();
+
+        contract
+            .call("incrementNumber2", (id2,))
+            .sign_with(owner.clone())
+            .send()
+            .await
+            .unwrap();
+
+        // Get logs and process events
+        let logs = contract.get_logs(0..=provider.get_block_number().await.unwrap()).await.unwrap();
+        
+        for log in logs {
+            let topics = log.topics();
+            let data = log.data();
+            
+            if let Ok(event) = Number1Incremented::decode_log(topics, data) {
+                listener.process_event(event, log.clone());
+            } else if let Ok(event) = Number2Incremented::decode_log(topics, data) {
+                listener.process_event(event, log.clone());
+            } else if let Ok(event) = Number3Incremented::decode_log(topics, data) {
+                listener.process_event(event, log.clone());
+            }
+        }
+
+        // Verify sequences were detected
+        // Should have one complete sequence for id1 but not for id2
+        assert_eq!(listener.completed_sequences.len(), 1);
+        
+        // Verify counter values
+        let (n1, n2, n3) = contract.call("getCounterSet", (id1,)).call().await.unwrap();
+        assert_eq!(n1, U256::from(1));
+        assert_eq!(n2, U256::from(1));
+        assert_eq!(n3, U256::from(1));
+
+        let (n1, n2, n3) = contract.call("getCounterSet", (id2,)).call().await.unwrap();
+        assert_eq!(n1, U256::from(1));
+        assert_eq!(n2, U256::from(1));
+        assert_eq!(n3, U256::from(0));
+    }
+}

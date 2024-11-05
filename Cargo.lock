@@ -1948,6 +1948,7 @@ dependencies = [
  "gadget-sdk",
  "reqwest 0.12.9",
  "serde_json",
+ "tokio",
  "tracing",
  "uuid 1.11.0",
 ]

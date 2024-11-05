@@ -14,6 +14,7 @@ gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
@@ -23,7 +24,7 @@ alloy-sol-types = "0.7.2"
 alloy-rpc-client = "0.4.2"
 alloy-rpc-types = { version = "0.1" }
 alloy-rpc-types-eth = { version = "0.1" }
-alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
+alloy-provider = { version = "0.1", features = ["reqwest", "ws"] }
 alloy-pubsub = { version = "0.1" }
 alloy-signer = { version = "0.1" }
 alloy-signer-local = { version = "0.1" }
