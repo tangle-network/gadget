@@ -163,14 +163,10 @@ impl BlueprintRunner {
 
         while !all_futures.is_empty() {
             let (result, _index, remaining) = futures::future::select_all(all_futures).await;
-            match result {
-                Ok(_) => {
-                    // Job or background service completed successfully
-                }
-                Err(e) => {
-                    eprintln!("Job or background service failed: {:?}", e);
-                }
+            if let Err(e) = result {
+                crate::error!("Job or background service failed: {:?}", e);
             }
+
             all_futures = remaining;
         }
 
