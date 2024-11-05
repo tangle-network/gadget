@@ -5911,6 +5911,7 @@ dependencies = [
  "serde_json",
  "sp-core",
  "subxt-signer",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-util 0.7.12",

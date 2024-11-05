@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub mod constants;
 pub mod contexts;
 pub mod jobs;
+#[cfg(test)]
+mod tests;
 
 sol!(
     #[allow(missing_docs)]
