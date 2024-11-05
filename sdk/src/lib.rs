@@ -84,6 +84,7 @@ pub use uuid;
 // External modules usually used in proc-macro codegen.
 #[doc(hidden)]
 pub mod ext {
+    pub use blueprint_serde;
     pub use lock_api;
     #[cfg(feature = "std")]
     pub use parking_lot;
