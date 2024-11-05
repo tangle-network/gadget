@@ -49,6 +49,7 @@ lazy_static = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }
+blueprint-build-utils = { workspace = true }
 
 [features]
 default = ["std"]

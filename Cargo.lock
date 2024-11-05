@@ -1881,6 +1881,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-build-utils"
+version = "0.1.0"
+
+[[package]]
 name = "blueprint-manager"
 version = "0.1.1"
 dependencies = [
@@ -2174,7 +2178,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -4625,7 +4629,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "gadget-blueprint-proc-macro-core",
@@ -4664,8 +4668,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-blueprint-serde"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "serde",
+ "serde_test",
+ "tangle-subxt",
+]
+
+[[package]]
 name = "gadget-context-derive"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "alloy-network",
  "alloy-provider",
@@ -4679,7 +4693,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-io"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "cfg-if 1.0.0",
  "clap",
@@ -4706,7 +4720,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -5903,6 +5917,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "async-trait",
  "bip39",
+ "blueprint-build-utils",
  "blueprint-test-utils",
  "clap",
  "color-eyre",
@@ -5954,6 +5969,7 @@ dependencies = [
  "ark-ec",
  "ark-ff 0.4.2",
  "async-trait",
+ "blueprint-build-utils",
  "blueprint-metadata",
  "color-eyre",
  "ed25519-zebra 4.0.3",
@@ -10407,6 +10423,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_test"
+version = "1.0.177"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f901ee573cab6b3060453d2d5f0bae4e6d628c23c0a962ff9b5f1d7c8d4f1ed"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11877,9 +11902,9 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20bf7f8d29cfdb72ea840a6d58d9191b3573dc0309f1b94eee25848498f89c1a"
+checksum = "5fd92b3c29823ab4db09ed7030222dbcdf94d5edbb384b5fca4eb76f646ead9c"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.2.3...gadget-blueprint-proc-macro-v0.3.0) - 2024-11-05
+
+### Added
+
+- [**breaking**] Refactor EventFlows for EVM and Remove EventWatchers ([#423](https://github.com/tangle-network/gadget/pull/423))
+- symbiotic initial integration ([#411](https://github.com/tangle-network/gadget/pull/411))
+
+### Fixed
+
+- *(gadget-sdk)* update sdk and utilities for tangle avs ([#355](https://github.com/tangle-network/gadget/pull/355))
+- *(blueprint-proc-macro)* resolve dependency cycle with gadget-sdk
+- *(cargo-tangle)* CLI bugs ([#409](https://github.com/tangle-network/gadget/pull/409))
+
+### Other
+
+- Continue Improving Event Flows ([#399](https://github.com/tangle-network/gadget/pull/399))
+
 ## [0.2.3](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.2.2...gadget-blueprint-proc-macro-v0.2.3) - 2024-10-25
 
 ### Other
