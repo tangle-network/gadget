@@ -41,13 +41,13 @@ async fn main() {
 
     let initialize_task = InitializeBlsTaskEventHandler {
         ctx: aggregator_context.clone(),
-        contract: contract.clone().into(),
+        contract: contract.clone(),
         contract_instance: Default::default(),
     };
 
     let x_square_eigen = XsquareEigenEventHandler {
         ctx: eigen_client_context,
-        contract: contract.clone().into(),
+        contract: contract.clone(),
         contract_instance: Default::default(),
     };
 

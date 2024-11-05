@@ -1885,6 +1885,18 @@ name = "blueprint-build-utils"
 version = "0.1.0"
 
 [[package]]
+name = "blueprint-examples"
+version = "0.1.1"
+dependencies = [
+ "blueprint-metadata",
+ "color-eyre",
+ "gadget-sdk",
+ "reqwest 0.12.9",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "blueprint-manager"
 version = "0.1.1"
 dependencies = [
@@ -4177,18 +4189,6 @@ checksum = "0f214dc438f977e6d4e3500aaa277f5ad94ca83fbbd9b1a15713ce2344ccc5a1"
 dependencies = [
  "event-listener 5.3.1",
  "pin-project-lite",
-]
-
-[[package]]
-name = "examples"
-version = "0.1.1"
-dependencies = [
- "blueprint-metadata",
- "color-eyre",
- "gadget-sdk",
- "reqwest 0.12.9",
- "serde_json",
- "tracing",
 ]
 
 [[package]]
