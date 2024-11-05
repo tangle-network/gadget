@@ -65,11 +65,8 @@ async fn main() {
         client: aggregator_client,
         env: env.clone(),
     };
-    let x_square_eigen = XsquareEigenEventHandler {
-        ctx,
-        contract: contract.clone(),
-        contract_instance: Default::default(),
-    };
+
+    let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), ctx);
 
     let aggregator_context = AggregatorContext::new(
         server_address,

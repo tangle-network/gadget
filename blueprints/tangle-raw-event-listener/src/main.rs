@@ -11,12 +11,7 @@ async fn main() {
 
     info!("Starting the event watcher for {} ...", signer.account_id());
 
-    let x_square = blueprint::RawEventHandler {
-        service_id: env.service_id().expect("No service ID found"),
-        context: blueprint::MyContext,
-        client,
-        signer,
-    };
+    let x_square = blueprint::RawEventHandler::new(&env, blueprint::MyContext).await?;
 
     let tangle_config = TangleConfig::default();
 

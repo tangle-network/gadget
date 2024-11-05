@@ -4,6 +4,7 @@ use quote::{format_ident, quote};
 use syn::{Ident, Type};
 
 use crate::job::{declared_params_to_field_types, EventListenerArgs};
+use crate::shared::get_non_job_arguments;
 
 pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
@@ -21,18 +22,52 @@ pub(crate) fn get_evm_instance_data(
     )
 }
 
-pub(crate) fn generate_evm_event_handler(
+pub(crate) fn generate_evm_specific_impl(
     struct_name: &Ident,
-    event_handler: &EventListenerArgs,
+    event_listener_args: &EventListenerArgs,
+    param_map: &IndexMap<Ident, Type>,
+    job_params: &[Ident],
 ) -> TokenStream {
-    let abi_string = event_handler
+    let abi_string = event_listener_args
         .get_event_listener()
         .evm_args
         .as_ref()
         .and_then(|r| r.abi.clone())
         .expect("ABI String must exist");
 
+    let non_job_param_map = get_non_job_arguments(param_map, job_params);
+    let mut new_function_signature = vec![];
+    let mut constructor_args = vec![];
+
+    let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args);
+
+    // Push in the contract
+    new_function_signature.push(quote! {
+        contract: #instance_name,
+    });
+    constructor_args.push(quote! {
+        contract,
+        contract_instance: Default::default(),
+    });
+
+    for (field_name, ty) in non_job_param_map {
+        new_function_signature.push(quote! {
+            #field_name: #ty,
+        });
+        constructor_args.push(quote! {
+            #field_name,
+        })
+    }
+
     quote! {
+        impl #struct_name {
+            pub fn new(#(#new_function_signature)*) -> Self {
+                Self {
+                    #(#constructor_args)*
+                }
+            }
+        }
+
         impl Deref for #struct_name
         {
             type Target = gadget_sdk::event_listener::evm::contracts::AlloyContractInstance;

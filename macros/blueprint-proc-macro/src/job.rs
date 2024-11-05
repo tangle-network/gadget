@@ -1,10 +1,10 @@
-use crate::event_listener::evm::{
-    generate_evm_event_handler, get_evm_instance_data, get_evm_job_processor_wrapper,
-};
-use crate::event_listener::tangle::{
-    generate_additional_tangle_logic, get_tangle_job_processor_wrapper,
-};
 use crate::shared::{pascal_case, type_to_field_type};
+use crate::special_impls::evm::{
+    generate_evm_specific_impl, get_evm_instance_data, get_evm_job_processor_wrapper,
+};
+use crate::special_impls::tangle::{
+    generate_tangle_specific_impl, get_tangle_job_processor_wrapper,
+};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
 use proc_macro::TokenStream;
@@ -77,7 +77,13 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         proc_macro2::TokenStream::default()
     } else {
         // Specialized code for the event workflow or otherwise
-        generate_additional_logic(input, args, SUFFIX)
+        generate_additional_logic(
+            input,
+            &args.event_listener,
+            SUFFIX,
+            &param_map,
+            &args.params,
+        )
     };
 
     let autogen_struct = if args.skip_codegen {
@@ -626,16 +632,21 @@ fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {
 #[allow(clippy::too_many_lines)]
 pub fn generate_additional_logic(
     input: &ItemFn,
-    job_args: &JobArgs,
+    event_listener_args: &EventListenerArgs,
     suffix: &str,
+    param_map: &IndexMap<Ident, Type>,
+    job_params: &[Ident],
 ) -> proc_macro2::TokenStream {
     let (_fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
-    let event_listener_args = &job_args.event_listener;
 
-    match job_args.event_listener.get_event_listener().listener_type {
-        ListenerType::Evm => generate_evm_event_handler(&struct_name, event_listener_args),
+    match event_listener_args.get_event_listener().listener_type {
+        ListenerType::Evm => {
+            generate_evm_specific_impl(&struct_name, event_listener_args, param_map, job_params)
+        }
 
-        ListenerType::Tangle => generate_additional_tangle_logic(&struct_name),
+        ListenerType::Tangle => {
+            generate_tangle_specific_impl(&struct_name, param_map, job_params, event_listener_args)
+        }
 
         ListenerType::Custom => proc_macro2::TokenStream::default(),
     }

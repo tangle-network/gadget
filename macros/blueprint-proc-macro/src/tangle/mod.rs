@@ -131,7 +131,7 @@ pub fn field_type_to_param_token(
                 .collect();
 
             quote! {
-                let Some(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field::Struct(#ident)) = args_iter.next() else { #else_block };
+                let Some(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field::Struct(#ident, ..)) = args_iter.next() else { #else_block };
                 let mut #ident = #ident.into_iter();
                 #(#field_tokens)*
                 let #ident = #struct_ident {
