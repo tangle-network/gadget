@@ -59,8 +59,15 @@ pub(crate) fn generate_evm_specific_impl(
         })
     }
 
+    let struct_name_as_literal = struct_name.to_string();
+
     quote! {
         impl #struct_name {
+            /// Create a new
+            #[doc = "["]
+            #[doc = #struct_name_as_literal]
+            #[doc = "`]"]
+            /// instance
             pub fn new(#(#new_function_signature)*) -> Self {
                 Self {
                     #(#constructor_args)*

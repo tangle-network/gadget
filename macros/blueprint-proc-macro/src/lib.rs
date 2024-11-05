@@ -28,9 +28,6 @@ mod shared;
 
 mod special_impls;
 
-/// Utilities for Tangle Blueprint macro generation
-mod tangle;
-
 mod sdk_main;
 
 /// A procedural macro that annotates a function as a job.

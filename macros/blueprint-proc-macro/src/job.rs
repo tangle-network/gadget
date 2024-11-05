@@ -1025,7 +1025,11 @@ impl EventListenerArgs {
                 let index = Index::from(i);
                 match self.get_event_listener().listener_type {
                     ListenerType::Tangle => {
-                        crate::tangle::field_type_to_param_token(&ident, t, panic_on_decode_fail)
+                        crate::special_impls::tangle::field_type_to_param_token(
+                            &ident,
+                            t,
+                            panic_on_decode_fail,
+                        )
                     }
                     ListenerType::Evm => {
                         quote! {
