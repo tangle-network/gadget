@@ -149,14 +149,6 @@ jobs:
           username: "runner"
           env: "{}"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          install: true
-
-      - name: Verify Docker installation
-        run: docker ps
-
       # Rest of the steps remain the same
       - name: Run anvil in background
         run: anvil --version && anvil &

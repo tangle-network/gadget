@@ -6,7 +6,7 @@ members = [
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
     "blueprints/incredible-squaring-symbiotic",
-    "blueprints/example-blueprint",
+    "blueprints/examples",
     "cli",
     "gadget-io",
     "blueprint-test-utils",
@@ -51,9 +51,9 @@ blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.3.0" }
 
 incredible-squaring-blueprint = { path = "./blueprints/incredible-squaring", default-features = false, version = "0.1.1" }
-incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
+incredible-squaring-blueprint-eigenlayer = { path = s"./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
 incredible-squaring-blueprint-symbiotic = { path = "./blueprints/incredible-squaring-symbiotic", default-features = false, version = "0.1.1" }
-example-blueprint = { path = "./blueprints/example-blueprint", default-features = false, version = "0.1.1" }
+examples = { path = "./blueprints/examples", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.3.0" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.5" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.2.0" }

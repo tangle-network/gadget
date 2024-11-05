@@ -1,5 +1,5 @@
 [package]
-name = "example-blueprint"
+name = "examples"
 version = "0.1.1"
 description = "A variety of example blueprint jobs, event listeners, contexts, and more."
 authors.workspace = true

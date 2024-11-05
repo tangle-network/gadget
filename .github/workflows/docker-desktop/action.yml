@@ -150,6 +150,9 @@ runs:
     - name: Wait for Docker to be up and running
       shell: bash
       run: |
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          export DOCKER_HOST="unix://${HOME}/.docker/desktop/docker.sock"
+        fi
         until docker ps; do echo "docker not ready, sleep 10 s and try again"; sleep 10; done
         echo "Docker started and ready"
         docker version
