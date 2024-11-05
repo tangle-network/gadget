@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "tnt-core/BlueprintServiceManagerBase.sol";
-import "./IncredibleSquaringInstance.sol";
+import "incredible-squaring/IncredibleSquaringInstance.sol";
 
 /**
  * @title IncredibleSquaringBlueprint
@@ -10,7 +10,6 @@ import "./IncredibleSquaringInstance.sol";
  * service to square a number. It demonstrates the lifecycle hooks that can be
  * implemented in a service blueprint.
  */
-
 contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
     /**
      * @dev A mapping of all service operators registered with the blueprint.
@@ -27,24 +26,19 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
      * @dev Hook for service instance requests. Called when a user requests a service
      * instance from the blueprint.
      * @param serviceId The ID of the requested service.
-     * @param operators The operators involved in the service in bytes array format.
+     * @param operatorsOfService The operators involved in the service in bytes array format.
      * @param requestInputs Inputs required for the service request in bytes format.
      */
-    function onRequest(
-        uint64 serviceId,
-        bytes[] calldata operators,
-        bytes calldata requestInputs
-    )
+    function onRequest(uint64 serviceId, bytes[] calldata operatorsOfService, bytes calldata requestInputs)
         public
         payable
         virtual
         override
         onlyFromRootChain
     {
-        address deployed = new IncredibleSquaringInstance(serviceId);
-        serviceInstances[serviceId] = deployed;
+        IncredibleSquaringInstance deployed = new IncredibleSquaringInstance(serviceId);
+        serviceInstances[serviceId] = address(deployed);
     }
-
 
     /**
      * @dev Verifies the result of a job call. This function is used to validate the
@@ -55,8 +49,6 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
      * @param participant The participant (operator) whose result is being verified.
      * @param inputs Inputs used for the job execution.
      * @param outputs Outputs resulting from the job execution.
-     * @return bool Returns true if the job call result is verified successfully,
-     * otherwise false.
      */
     function onJobResult(
         uint64 serviceId,
@@ -65,7 +57,7 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
         bytes calldata participant,
         bytes calldata inputs,
         bytes calldata outputs
-    ) override public pure {
+    ) public payable override {
         // Decode the inputs and outputs
         uint256 input = abi.decode(inputs, (uint256));
         uint256 output = abi.decode(outputs, (uint256));
@@ -74,4 +66,3 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
         require(isValid, "Invalid result");
     }
 }
-
