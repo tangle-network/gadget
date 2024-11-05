@@ -1,6 +1,3 @@
-use crate::event_listener::EventListener;
-use crate::store::LocalDatabase;
-use crate::{error, Error};
 use alloy_contract::ContractInstance;
 use alloy_contract::Event;
 use alloy_provider::Provider;

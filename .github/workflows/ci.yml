@@ -125,7 +125,7 @@ jobs:
 
   integration-test-eigenlayer:
     timeout-minutes: 90
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -142,14 +142,9 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: Start Docker Desktop
-        uses: ./.github/workflows/docker-desktop
-        with:
-          docker-desktop-build-url: "https://desktop.docker.com/mac/main/arm64/122432/Docker.dmg"
-          username: "runner"
-          env: "{}"
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@v3
 
-      # Rest of the steps remain the same
       - name: Run anvil in background
         run: anvil --version && anvil &
 
