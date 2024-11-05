@@ -22,7 +22,7 @@ proc-macro2 = { workspace = true }
 
 [dev-dependencies]
 trybuild = { workspace = true }
-gadget-sdk = { workspace = true, features = ["std"] }
+gadget-sdk = { path = "../../sdk", features = ["std"] }
 # EVM Stuff
 alloy-network = { workspace = true }
 alloy-provider = { workspace = true }
