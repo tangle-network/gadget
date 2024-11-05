@@ -46,7 +46,7 @@ pub async fn xsquare_eigen(
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    let bls_key_pair = match ctx.keystore().and_then(|ks| Ok(ks.bls_bn254_key())) {
+    let bls_key_pair = match ctx.keystore().map(|ks| ks.bls_bn254_key()) {
         Ok(kp) => match kp {
             Ok(k) => k,
             Err(e) => return Ok(0),
