@@ -1881,6 +1881,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-build-utils"
+version = "0.1.0"
+
+[[package]]
 name = "blueprint-manager"
 version = "0.1.1"
 dependencies = [
@@ -5890,6 +5894,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "async-trait",
  "bip39",
+ "blueprint-build-utils",
  "blueprint-test-utils",
  "clap",
  "color-eyre",
@@ -5941,6 +5946,7 @@ dependencies = [
  "ark-ec",
  "ark-ff 0.4.2",
  "async-trait",
+ "blueprint-build-utils",
  "blueprint-metadata",
  "color-eyre",
  "ed25519-zebra 4.0.3",
