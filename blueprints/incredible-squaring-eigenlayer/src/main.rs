@@ -41,7 +41,7 @@ async fn main() {
 
     let initialize_task = InitializeBlsTaskEventHandler {
         ctx: aggregator_context.clone(),
-        contract,
+        contract: contract.clone().into(),
         contract_instance: Default::default(),
     };
 

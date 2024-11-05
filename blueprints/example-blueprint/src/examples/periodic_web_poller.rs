@@ -1,8 +1,15 @@
-use async_trait::async_trait;
+use gadget_sdk::async_trait::async_trait;
 use gadget_sdk::event_listener::periodic::PeriodicEventListener;
 use gadget_sdk::event_listener::EventListener;
+use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::job;
 use std::convert::Infallible;
+
+pub fn constructor() -> impl InitializableEventHandler {
+    WebPollerEventHandler {
+        client: reqwest::Client::new(),
+    }
+}
 
 #[job(
     id = 0,

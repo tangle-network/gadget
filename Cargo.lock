@@ -4176,6 +4176,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-blueprint"
+version = "0.1.1"
+dependencies = [
+ "blueprint-metadata",
+ "color-eyre",
+ "gadget-sdk",
+ "reqwest 0.12.9",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "expander"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8512,28 +8524,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
-name = "periodic-web-poller-blueprint"
-version = "0.1.1"
-dependencies = [
- "async-trait",
- "blueprint-metadata",
- "color-eyre",
- "ed25519-zebra 4.0.3",
- "gadget-sdk",
- "hex",
- "k256",
- "lock_api",
- "parking_lot 0.12.3",
- "reqwest 0.12.9",
- "serde_json",
- "sp-core",
- "subxt-signer",
- "tokio",
- "tokio-util 0.7.12",
- "tracing",
-]
-
-[[package]]
 name = "pest"
 version = "2.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11883,16 +11873,6 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "tangle-raw-event-listener-blueprint"
-version = "0.1.1"
-dependencies = [
- "blueprint-metadata",
- "color-eyre",
- "gadget-sdk",
- "tracing",
 ]
 
 [[package]]
