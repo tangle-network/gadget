@@ -64,7 +64,7 @@ pub(crate) fn generate_evm_specific_impl(
     quote! {
         impl #struct_name {
             /// Create a new
-            #[doc = "["]
+            #[doc = "[`"]
             #[doc = #struct_name_as_literal]
             #[doc = "`]"]
             /// instance

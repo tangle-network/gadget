@@ -49,7 +49,7 @@ pub(crate) fn generate_tangle_specific_impl(
     quote! {
         impl #struct_name {
             /// Create a new
-            #[doc = "["]
+            #[doc = "[`"]
             #[doc = #struct_name_as_literal]
             #[doc = "`]"]
             /// instance
