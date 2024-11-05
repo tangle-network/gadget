@@ -125,7 +125,7 @@ jobs:
 
   integration-test-eigenlayer:
     timeout-minutes: 90
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -142,16 +142,11 @@ jobs:
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: Install and Start Docker
-        run: |
-          brew install --cask docker
-          # Wait for Docker.app to be registered
-          sleep 10
-          # Try to start Docker using full path
-          open /Applications/Docker.app
-          # Verify Docker is running
-          docker version
-          docker system info
+      - name: Install and Start Docker Desktop
+        uses: docker/desktop-action@v1
+        with:
+          version: latest
+          install-only: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
