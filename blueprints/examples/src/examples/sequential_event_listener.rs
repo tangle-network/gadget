@@ -195,7 +195,7 @@ macro_rules! sequential_event_listener {
                             if self.events_correlate(&sequence, &event) {
                                 sequence.$event = Some((event.clone(), log.clone()));
                                 sequence.last_update = log.block_number.unwrap_or_default();
-                                
+
                                 if sequence.is_complete() {
                                     if let Some(seq) = self.pending_sequences.remove(&sequence.sequence_id) {
                                         let completed = (
