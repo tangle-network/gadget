@@ -21,3 +21,6 @@
 [submodule "blueprints/incredible-squaring-symbiotic/contracts/lib/core"]
 	path = blueprints/incredible-squaring-symbiotic/contracts/lib/core
 	url = https://github.com/symbioticfi/core
+[submodule "blueprints/examples/contracts/lib/forge-std"]
+	path = blueprints/examples/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
