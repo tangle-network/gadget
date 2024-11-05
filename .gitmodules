@@ -1,23 +1,23 @@
 # For the incredible-squaring blueprint
-[submodule "blueprints/incredible-squaring/contracts/lib/forge-std"]
-	path = blueprints/incredible-squaring/contracts/lib/forge-std
+[submodule "examples/incredible-squaring/contracts/lib/forge-std"]
+	path = examples/incredible-squaring/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "blueprints/incredible-squaring/contracts/lib/tnt-core"]
-	path = blueprints/incredible-squaring/contracts/lib/tnt-core
+[submodule "examples/incredible-squaring/contracts/lib/tnt-core"]
+	path = examples/incredible-squaring/contracts/lib/tnt-core
 	url = https://github.com/tangle-network/tnt-core
 
 # For the incredible-squaring-eigenlayer blueprint
-[submodule "blueprints/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware"]
-	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware
+[submodule "examples/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware"]
+	path = examples/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
-[submodule "blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std"]
-	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std
+[submodule "examples/incredible-squaring-eigenlayer/contracts/lib/forge-std"]
+	path = examples/incredible-squaring-eigenlayer/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 
 # For the incredible-squaring-symbiotic blueprint
-[submodule "blueprints/incredible-squaring-symbiotic/contracts/lib/forge-std"]
-	path = blueprints/incredible-squaring-symbiotic/contracts/lib/forge-std
+[submodule "examples/incredible-squaring-symbiotic/contracts/lib/forge-std"]
+	path = examples/incredible-squaring-symbiotic/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "blueprints/incredible-squaring-symbiotic/contracts/lib/core"]
-	path = blueprints/incredible-squaring-symbiotic/contracts/lib/core
+[submodule "examples/incredible-squaring-symbiotic/contracts/lib/core"]
+	path = examples/incredible-squaring-symbiotic/contracts/lib/core
 	url = https://github.com/symbioticfi/core
