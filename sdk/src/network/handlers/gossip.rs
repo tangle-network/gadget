@@ -2,7 +2,7 @@
 
 use crate::network::gossip::{GossipMessage, NetworkService};
 
-use crate::{debug, error, trace};
+use crate::{error, trace};
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
 use std::sync::atomic::AtomicU32;
@@ -78,7 +78,7 @@ impl NetworkService<'_> {
             error!("Got message from unknown peer");
             return;
         };
-        debug!("Got message from peer: {origin}");
+        trace!("Got message from peer: {origin}");
         match bincode::deserialize::<GossipMessage>(&message.data) {
             Ok(GossipMessage { topic, raw_payload }) => {
                 if let Some((_, tx, _)) = self
