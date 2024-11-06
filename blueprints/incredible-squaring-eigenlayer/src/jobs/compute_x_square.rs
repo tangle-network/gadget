@@ -16,6 +16,7 @@ use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
 
 /// Sends a signed task response to the BLS Aggregator.
+///
 /// This job is triggered by the `NewTaskCreated` event emitted by the `IncredibleSquaringTaskManager`.
 /// The job calculates the square of the number to be squared and sends the signed task response to the BLS Aggregator.
 /// The job returns 1 if the task response was sent successfully.

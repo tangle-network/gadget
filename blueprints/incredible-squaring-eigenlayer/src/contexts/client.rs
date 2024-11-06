@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_new_client() {
-        let client = AggregatorClient::new("127.0.0.1:8545", Default::default());
+        let client = AggregatorClient::new("127.0.0.1:8545");
         assert!(client.is_ok());
     }
 
