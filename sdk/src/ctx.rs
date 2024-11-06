@@ -35,8 +35,7 @@
 use crate::keystore::backend::GenericKeyStore;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use core::future::Future;
-use eigensdk::types::operator::OperatorPubKeys;
-use eigensdk::utils::binding::DelegationManager::OperatorDetails;
+use eigensdk::types::operator::{Operator, OperatorPubKeys};
 use eigensdk::utils::binding::OperatorStateRetriever;
 use eigensdk::utils::binding::StakeRegistry::StakeUpdate;
 use eigensdk::{
@@ -45,6 +44,7 @@ use eigensdk::{
     services_blsaggregation::bls_agg::BlsAggregatorService,
     services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
 };
+pub use num_bigint::BigInt;
 use std::collections::HashMap;
 // derives
 pub use gadget_context_derive::*;
@@ -154,10 +154,10 @@ pub trait EigenlayerContext {
     async fn get_operator_stake_in_quorums_at_current_block(
         &self,
         operator_id: FixedBytes<32>,
-    ) -> Result<HashMap<u8, U256>, std::io::Error>;
+    ) -> Result<HashMap<u8, BigInt>, std::io::Error>;
 
     /// Get an Operator by ID.
-    async fn get_operator_by_id(&self) -> Result<OperatorStateRetriever::Operator, std::io::Error>;
+    async fn get_operator_by_id(&self, operator_id: [u8; 32]) -> Result<Address, std::io::Error>;
 
     /// Get an Operator stake history.
     async fn get_operator_stake_history(
@@ -169,8 +169,8 @@ pub trait EigenlayerContext {
     /// Get an Operator stake update at a given index.
     async fn get_operator_stake_update_at_index(
         &self,
-        operator_id: FixedBytes<32>,
         quorum_number: u8,
+        operator_id: FixedBytes<32>,
         index: U256,
     ) -> Result<StakeUpdate, std::io::Error>;
 
@@ -180,13 +180,13 @@ pub trait EigenlayerContext {
         operator_id: FixedBytes<32>,
         quorum_number: u8,
         block_number: u32,
-    ) -> Result<U256, std::io::Error>;
+    ) -> Result<u128, std::io::Error>;
 
     /// Get an Operator's [`details`](OperatorDetails).
     async fn get_operator_details(
         &self,
         operator_addr: Address,
-    ) -> Result<OperatorDetails, std::io::Error>;
+    ) -> Result<Operator, std::io::Error>;
 
     /// Get an Operator's latest stake update.
     async fn get_latest_stake_update(
@@ -207,7 +207,7 @@ pub trait EigenlayerContext {
         quorum_number: u8,
         block_number: u32,
         index: U256,
-    ) -> Result<U256, std::io::Error>;
+    ) -> Result<u128, std::io::Error>;
 
     /// Get the total stake history length of a given quorum.
     async fn get_total_stake_history_length(
@@ -218,7 +218,7 @@ pub trait EigenlayerContext {
     /// Provides the public keys of existing registered operators within the provided block range.
     async fn query_existing_registered_operator_pub_keys(
         &self,
-        start_block: u32,
-        to_block: u32,
-    ) -> Result<Vec<OperatorPubKeys>, std::io::Error>;
+        start_block: u64,
+        to_block: u64,
+    ) -> Result<(Vec<Address>, Vec<OperatorPubKeys>), std::io::Error>;
 }
