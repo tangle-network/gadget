@@ -19,6 +19,9 @@ pub enum RunnerError {
     #[error("Job already initialized")]
     AlreadyInitialized,
 
+    #[error("You are currently not an active operator\nPlease checkout the docs here: https://docs.tangle.tools/restake/join_operator/join")]
+    NotActiveOperator,
+
     #[error(transparent)]
     Recv(#[from] tokio::sync::oneshot::error::RecvError),
 
