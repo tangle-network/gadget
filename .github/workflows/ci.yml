@@ -130,7 +130,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
 
-            - name: Install Foundry
+      - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
           ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
@@ -140,6 +140,7 @@ jobs:
 
       - name: Add Foundry to PATH
         run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
+
 
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
