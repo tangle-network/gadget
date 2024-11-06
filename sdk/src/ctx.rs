@@ -12,6 +12,7 @@
 //! use gadget_sdk::config::StdGadgetConfiguration;
 //! use gadget_sdk::ctx::KeystoreContext;
 //! use gadget_sdk::job;
+//! use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 //!
 //! // This your struct that encapsulates all the things you need from outside world.
 //! // By deriving KeystoreContext, you can now access the keystore client from your struct.
