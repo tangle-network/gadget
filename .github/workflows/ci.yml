@@ -133,11 +133,10 @@ jobs:
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          source /home/runner/.bashrc
+          export PATH="$PATH:/home/runner/.foundry/bin"
+          source ~/.bashrc
           foundryup
-
-      - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
