@@ -36,13 +36,15 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// // We can now start our container
-    /// container.start(true).await?;
-    /// # Ok(()) }
+    ///     // We can now start our container
+    ///     container.start(true).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn new<T>(connection: &'a Docker, image: T) -> Self
     where
@@ -65,15 +67,17 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// container.env(["FOO=BAR", "BAZ=QUX"]);
+    ///     container.env(["FOO=BAR", "BAZ=QUX"]);
     ///
-    /// // We can now start our container, and the "FOO" and "BAZ" env vars will be set
-    /// container.start(true).await?;
-    /// # Ok(()) }
+    ///     // We can now start our container, and the "FOO" and "BAZ" env vars will be set
+    ///     container.start(true).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn env(&mut self, env: impl IntoIterator<Item = impl Into<String>>) -> &mut Self {
         self.options.env = Some(env.into_iter().map(Into::into).collect());
@@ -91,15 +95,17 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// container.cmd(["echo", "Hello!"]);
+    ///     container.cmd(["echo", "Hello!"]);
     ///
-    /// // We can now start our container, and the command "echo Hello!" will run
-    /// container.start(true).await?;
-    /// # Ok(()) }
+    ///     // We can now start our container, and the command "echo Hello!" will run
+    ///     container.start(true).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn cmd(&mut self, cmd: impl IntoIterator<Item = impl Into<String>>) -> &mut Self {
         self.options.cmd = Some(cmd.into_iter().map(Into::into).collect());
@@ -116,16 +122,18 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// // Mount './my-host-dir' at '/some/container/dir' and make it read-only
-    /// container.binds(["./my-host-dir:/some/container/dir:ro"]);
+    ///     // Mount './my-host-dir' at '/some/container/dir' and make it read-only
+    ///     container.binds(["./my-host-dir:/some/container/dir:ro"]);
     ///
-    /// // We can now start our container
-    /// container.start(true).await?;
-    /// # Ok(()) }
+    ///     // We can now start our container
+    ///     container.start(true).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn binds(&mut self, binds: impl IntoIterator<Item = impl Into<String>>) -> &mut Self {
         self.options.binds = Some(binds.into_iter().map(Into::into).collect());
@@ -155,20 +163,22 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// container.env(["FOO=BAR", "BAZ=QUX"]);
-    /// container.cmd(["echo", "Hello!"]);
-    /// container.binds(["./host-data:/container-data"]);
+    ///     container.env(["FOO=BAR", "BAZ=QUX"]);
+    ///     container.cmd(["echo", "Hello!"]);
+    ///     container.binds(["./host-data:/container-data"]);
     ///
-    /// // The container is created using the above settings
-    /// container.create().await?;
+    ///     // The container is created using the above settings
+    ///     container.create().await?;
     ///
-    /// // Now it can be started
-    /// container.start(true).await?;
-    /// # Ok(()) }
+    ///     // Now it can be started
+    ///     container.start(true).await?;
+    ///     Ok(())
+    /// }
     /// ```
     #[tracing::instrument]
     pub async fn create(&mut self) -> Result<(), bollard::errors::Error> {
@@ -208,20 +218,22 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// container.cmd(["echo", "Hello!"]);
+    ///     container.cmd(["echo", "Hello!"]);
     ///
-    /// // We can now start our container, and the command "echo Hello!" will run.
-    /// let wait_for_exit = true;
-    /// container.start(wait_for_exit).await?;
+    ///     // We can now start our container, and the command "echo Hello!" will run.
+    ///     let wait_for_exit = true;
+    ///     container.start(wait_for_exit).await?;
     ///
-    /// // Since we waited for the container to exit, we don't have to stop it.
-    /// // It can now just be removed.
-    /// container.remove(None).await?;
-    /// # Ok(()) }
+    ///     // Since we waited for the container to exit, we don't have to stop it.
+    ///     // It can now just be removed.
+    ///     container.remove(None).await?;
+    ///     Ok(())
+    /// }
     /// ```
     #[tracing::instrument]
     pub async fn start(&mut self, wait_for_exit: bool) -> Result<(), bollard::errors::Error> {
@@ -252,18 +264,20 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
     ///
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// // Does nothing, the container isn't started
-    /// container.stop().await?;
+    ///     // Does nothing, the container isn't started
+    ///     container.stop().await?;
     ///
-    /// // Stops the running container
-    /// container.start(false).await?;
-    /// container.stop().await?;
-    /// # Ok(()) }
+    ///     // Stops the running container
+    ///     container.start(false).await?;
+    ///     container.stop().await?;
+    ///     Ok(())
+    /// }
     /// ```
     #[tracing::instrument]
     pub async fn stop(&mut self) -> Result<(), bollard::errors::Error> {
@@ -291,22 +305,24 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{bollard, connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
     ///
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// // Start our container
-    /// container.start(false).await?;
+    ///     // Start our container
+    ///     container.start(false).await?;
     ///
-    /// let remove_container_options = bollard::container::RemoveContainerOptions {
-    ///     force: true,
-    ///     ..Default::default()
-    /// };
+    ///     let remove_container_options = bollard::container::RemoveContainerOptions {
+    ///         force: true,
+    ///         ..Default::default()
+    ///     };
     ///
-    /// // Kills the container and removes it
-    /// container.remove(Some(remove_container_options)).await?;
-    /// # Ok(()) }
+    ///     // Kills the container and removes it
+    ///     container.remove(Some(remove_container_options)).await?;
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// [`RemoveContainerOptions::force`]: bollard::container::RemoveContainerOptions::force
@@ -334,17 +350,19 @@ impl<'a> Container<'a> {
     /// ```rust,no_run
     /// use gadget_sdk::docker::{bollard, connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
     ///
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// // Start our container
-    /// container.start(false).await?;
+    ///     // Start our container
+    ///     container.start(false).await?;
     ///
-    /// // Once this returns, we know that the container has exited.
-    /// container.wait().await?;
-    /// # Ok(()) }
+    ///     // Once this returns, we know that the container has exited.
+    ///     container.wait().await?;
+    ///     Ok(())
+    /// }
     /// ```
     #[tracing::instrument]
     pub async fn wait(&self) -> Result<(), bollard::errors::Error> {
@@ -373,34 +391,35 @@ impl<'a> Container<'a> {
     /// use futures::StreamExt;
     /// use gadget_sdk::docker::{bollard, connect_to_docker, Container};
     ///
-    /// # async fn main() -> Result<(), gadget_sdk::Error> {
-    /// let connection = connect_to_docker(None).await?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
     ///
-    /// let mut container = Container::new(&connection, "rustlang/rust");
+    ///     // Start our container and wait for it to exit
+    ///     container.start(true).await?;
     ///
-    /// // Start our container and wait for it to exit
-    /// container.start(true).await?;
+    ///     // We want to collect logs from stderr
+    ///     let logs_options = bollard::container::LogsOptions {
+    ///         stderr: true,
+    ///         follow: true,
+    ///         ..Default::default()
+    ///     };
     ///
-    /// // We want to collect logs from stderr
-    /// let logs_options = bollard::container::LogsOptions {
-    ///     stderr: true,
-    ///     follow: true,
-    ///     ..Default::default()
-    /// };
+    ///     // Get our log stream
+    ///     let mut logs = container
+    ///         .logs(Some(logs_options))
+    ///         .await
+    ///         .expect("logs should be present");
     ///
-    /// // Get our log stream
-    /// let mut logs = container
-    ///     .logs(Some(logs_options))
-    ///     .await
-    ///     .expect("logs should be present");
-    ///
-    /// // Now we want to print anything from stderr
-    /// while let Some(Ok(out)) = logs.next().await {
-    ///     if let bollard::container::LogOutput::StdErr { message } = out {
-    ///         eprintln!("Uh oh! Something was wirtten to stderr: {message}");
+    ///     // Now we want to print anything from stderr
+    ///     while let Some(Ok(out)) = logs.next().await {
+    ///         if let bollard::container::LogOutput::StdErr { message } = out {
+    ///             eprintln!("Uh oh! Something was written to stderr: {:?}", message);
+    ///         }
     ///     }
+    ///     Ok(())
     /// }
-    /// # Ok(()) }
     /// ```
     #[tracing::instrument]
     pub async fn logs(
@@ -426,11 +445,13 @@ impl<'a> Container<'a> {
 /// ```rust,no_run
 /// use gadget_sdk::docker::connect_to_docker;
 ///
-/// # async fn main() -> Result<(), gadget_sdk::Error> {
-/// let connection = connect_to_docker(None).await?;
-///
-/// // I now have a handle to my local Docker server!
-/// # Ok(()) }
+/// #[tokio::main]
+/// async fn main() -> Result<(), gadget_sdk::Error> {
+///     let connection = connect_to_docker(None).await?;
+///     
+///     // I now have a handle to my local Docker server!
+///     Ok(())
+/// }
 /// ```
 ///
 /// [Docker]: https://en.wikipedia.org/wiki/Docker_(software)

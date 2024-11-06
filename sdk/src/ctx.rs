@@ -8,6 +8,7 @@
 //! # Example
 //!
 //! ```rust,no_run
+//! use gadget_sdk::event_listener::tangle::TangleEventListener;
 //! use gadget_sdk::config::StdGadgetConfiguration;
 //! use gadget_sdk::ctx::KeystoreContext;
 //! use gadget_sdk::job;
@@ -31,7 +32,7 @@
 //!         event = JobCalled,
 //!     )
 //! )]
-//! async fn my_job(ctx: &MyContext, who: String) -> Result<String, std::convert::Infallible> {
+//! async fn my_job(who: String, ctx: MyContext) -> Result<String, std::convert::Infallible> {
 //!     // Access the keystore client from the context.
 //!     let keystore = ctx.keystore();
 //!     // Do something with the keystore client.
