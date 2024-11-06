@@ -64,11 +64,15 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
 
     // Next, we need to consider the input. It should be in the form "async fn main() { ... }"
     // We must remove all the async fn main() and keep everything else
+    let main_ret = match &input.sig.output {
+        syn::ReturnType::Default => quote! { Result<(), Box<dyn std::error::Error>> },
+        syn::ReturnType::Type(_, ty) => quote! { #ty },
+    };
+    let input_attrs = input.attrs.iter();
     let input = input.block.clone();
 
     let tokens = quote! {
-        use gadget_sdk::tokio;
-        #[tokio::main #tokio_args]
+        #[gadget_sdk::tokio::main #tokio_args]
         async fn main() -> Result<(), Box<dyn std::error::Error>> {
             #logger
             #standard_setup
@@ -76,7 +80,8 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
             Ok(())
         }
 
-        async fn inner_main(#env_function_signature) -> Result<(), Box<dyn std::error::Error>> {
+        #(#input_attrs)*
+        async fn inner_main(#env_function_signature) -> #main_ret {
             #input
         }
     };
