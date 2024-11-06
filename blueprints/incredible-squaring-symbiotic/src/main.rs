@@ -19,10 +19,8 @@ lazy_static! {
 
 #[gadget_sdk::main(env)]
 async fn main() {
-    // Get the ECDSA key from the private key seed using alloy
     let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
     let wallet = EthereumWallet::new(operator_signer);
-
     let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
 
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
@@ -30,11 +28,7 @@ async fn main() {
         provider,
     );
 
-    let x_square = blueprint::XsquareEventHandler {
-        context: blueprint::MyContext {},
-        contract: contract.clone(),
-        contract_instance: Default::default(),
-    };
+    let x_square = blueprint::XsquareEventHandler::new(contract, blueprint::MyContext {});
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let symb_config = SymbioticConfig::default();

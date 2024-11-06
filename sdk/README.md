@@ -4,11 +4,13 @@ Development tools for Gadgets targeting Tangle or EigenLayer.
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Installation](#installation)
-3. [Features](#features)
-4. [Examples](#examples)
-5. [Building and Deploying Blueprints](#building-and-deploying-blueprints)
+- [Gadget SDK](#gadget-sdk)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [Examples](#examples)
+  - [Building and Deploying Blueprints](#building-and-deploying-blueprints)
 
 ## Overview
 
@@ -41,8 +43,8 @@ gadget-sdk = { git = "https://github.com/tangle-network/gadget" }
 Example Blueprints can be found [here](./../blueprints):
 
 - [Incredible Squaring](./../blueprints/incredible-squaring)
-- [ECDSA Threshold MPC](./../blueprints/ecdsa-threshold-mpc)
-- [Tangle AVS](./../blueprints/tangle-avs-blueprint)
+- [Incredible Squaring Eigenlayer](./../blueprints/incredible-squaring-eigenlayer)
+- [Incredible Squaring Symbiotic](./../blueprints/incredible-squaring-symbiotic)
 
 ## Building and Deploying Blueprints
 

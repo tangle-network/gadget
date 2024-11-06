@@ -1,6 +1,7 @@
 use crate::job::{
-    declared_params_to_field_types, generate_autogen_struct, get_current_call_id_field_name,
-    get_job_id_field_name, get_result_type, EventListenerArgs, ResultsKind,
+    declared_params_to_field_types, generate_additional_logic, generate_autogen_struct,
+    get_current_call_id_field_name, get_job_id_field_name, get_result_type, EventListenerArgs,
+    ResultsKind,
 };
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
@@ -131,15 +132,20 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         suffix,
         &event_listener_calls,
     );
-    /*let event_handler_gen = if args.skip_codegen {
-        proc_macro2::TokenStream::new()
+
+    // Generate Event Workflow, if not being skipped
+    let additional_specific_logic = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
     } else {
-        if let ReportType::QoS = args.report_type {
-            generate_qos_report_event_handler(args, input, &params_type, &result_type)
-        } else {
-            proc_macro2::TokenStream::new()
-        }
-    };*/
+        // Specialized code for the event workflow or otherwise
+        generate_additional_logic(
+            input,
+            &args.event_listeners,
+            suffix,
+            &param_types,
+            &args.params,
+        )
+    };
 
     let call_id_static_name = get_current_call_id_field_name(input);
     let job_id = if let Some(job_id) = job_id {
@@ -170,6 +176,8 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
 
         #[allow(unused_variables)]
         #input
+
+        #additional_specific_logic
 
         #(#event_listener_gen)*
     };
@@ -203,7 +211,6 @@ pub(crate) struct ReportArgs {
     verifier: Verifier,
     /// Optional: Event handler type for the report.
     /// `#[report(event_handler_type = "tangle")]`
-    #[allow(dead_code)]
     pub(crate) event_listeners: EventListenerArgs,
     /// Optional: Skip code generation for this report.
     /// `#[report(skip_codegen)]`

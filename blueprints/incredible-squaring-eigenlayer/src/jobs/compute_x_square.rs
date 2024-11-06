@@ -5,18 +5,22 @@ use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_
 use alloy_primitives::keccak256;
 use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::SolType;
-use ark_bn254::Fq;
-use ark_ff::{BigInteger, PrimeField};
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
+use gadget_sdk::ctx::KeystoreContext;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
 
-/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+/// Sends a signed task response to the BLS Aggregator.
+///
+/// This job is triggered by the `NewTaskCreated` event emitted by the `IncredibleSquaringTaskManager`.
+/// The job calculates the square of the number to be squared and sends the signed task response to the BLS Aggregator.
+/// The job returns 1 if the task response was sent successfully.
+/// The job returns 0 if the task response failed to send or failed to get the BLS key.
 #[job(
     id = 0,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
@@ -36,7 +40,6 @@ pub async fn xsquare_eigen(
     task_index: u32,
 ) -> std::result::Result<u32, Infallible> {
     let client = ctx.client.clone();
-    let env = ctx.env.clone();
 
     // Calculate our response to job
     let task_response = TaskResponse {
@@ -44,23 +47,13 @@ pub async fn xsquare_eigen(
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    let bls_key_pair = match env.keystore() {
-        Ok(keystore) => {
-            let pair = keystore.bls_bn254_key();
-            match pair {
-                Ok(pair) => pair,
-                Err(e) => {
-                    error!("Failed to get BLS key pair: {:#?}", e);
-                    return Ok(1);
-                }
-            }
-        }
-        Err(e) => {
-            error!("Failed to get keystore: {:#?}", e);
-            return Ok(1);
-        }
+    let bls_key_pair = match ctx.keystore().map(|ks| ks.bls_bn254_key()) {
+        Ok(kp) => match kp {
+            Ok(k) => k,
+            Err(e) => return Ok(0),
+        },
+        Err(e) => return Ok(0),
     };
-
     let operator_id: OperatorId = operator_id_from_key(bls_key_pair.clone());
 
     // Sign the Hashed Message and send it to the BLS Aggregator
@@ -120,12 +113,4 @@ pub async fn convert_event_to_inputs(
         quorum_threshold_percentage,
         task_index,
     ))
-}
-
-/// Helper for converting a PrimeField to its U256 representation for Ethereum compatibility
-/// (U256 reads data as big endian)
-pub fn point_to_u256(point: Fq) -> U256 {
-    let point = point.into_bigint();
-    let point_bytes = point.to_bytes_be();
-    U256::from_be_slice(&point_bytes[..])
 }

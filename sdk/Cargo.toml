@@ -28,6 +28,7 @@ clap = { workspace = true, features = ["derive", "wrap_help"] }
 url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true }
 failure = { workspace = true }
+num-bigint = { workspace = true }
 
 # Keystore deps
 ed25519-zebra = { workspace = true }

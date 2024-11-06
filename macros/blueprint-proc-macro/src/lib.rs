@@ -26,10 +26,7 @@ mod report;
 /// Shared utilities for the Blueprint Macros
 mod shared;
 
-mod event_listener;
-
-/// Utilities for Tangle Blueprint macro generation
-mod tangle;
+mod special_impls;
 
 mod sdk_main;
 
