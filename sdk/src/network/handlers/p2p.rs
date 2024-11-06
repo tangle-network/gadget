@@ -1,7 +1,7 @@
 #![allow(unused_results)]
 
 use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
-use crate::{debug, error, warn};
+use crate::{debug, error, trace, warn};
 
 use libp2p::gossipsub::IdentTopic;
 use libp2p::{request_response, PeerId};
@@ -17,7 +17,7 @@ impl NetworkService<'_> {
         use request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
         match event {
             Message { peer, message } => {
-                debug!("Received P2P message from: {peer}");
+                trace!("Received P2P message from: {peer}");
                 self.handle_p2p_message(peer, message).await;
             }
             OutboundFailure {
@@ -53,7 +53,7 @@ impl NetworkService<'_> {
                 channel,
                 request_id,
             } => {
-                debug!("Received request with request_id: {request_id} from peer: {peer}");
+                trace!("Received request with request_id: {request_id} from peer: {peer}");
                 self.handle_p2p_request(peer, request_id, request, channel)
                     .await;
             }
@@ -61,7 +61,7 @@ impl NetworkService<'_> {
                 response,
                 request_id,
             } => {
-                debug!("Received response from peer: {peer} with request_id: {request_id}");
+                trace!("Received response from peer: {peer} with request_id: {request_id}");
                 self.handle_p2p_response(peer, request_id, response).await;
             }
         }
@@ -116,7 +116,7 @@ impl NetworkService<'_> {
                 ecdsa_public_key,
                 signature,
             } => {
-                debug!("Received handshake from peer: {peer}");
+                trace!("Received handshake from peer: {peer}");
                 // Verify the signature
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);

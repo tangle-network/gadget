@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.2.3...gadget-sdk-v0.3.0) - 2024-11-05
+
+### Added
+
+- [**breaking**] Refactor EventFlows for EVM and Remove EventWatchers ([#423](https://github.com/tangle-network/gadget/pull/423))
+- *(gadget-sdk)* add TxProgressExt trait ([#425](https://github.com/tangle-network/gadget/pull/425))
+- feat!(gadget-sdk): add an Error type for executor module ([#420](https://github.com/tangle-network/gadget/pull/420))
+- symbiotic initial integration ([#411](https://github.com/tangle-network/gadget/pull/411))
+
+### Fixed
+
+- *(gadget-sdk)* update sdk and utilities for tangle avs ([#355](https://github.com/tangle-network/gadget/pull/355))
+- *(gadget-sdk)* Return `Bytes` when using `Vec<u8>` in params and result ([#428](https://github.com/tangle-network/gadget/pull/428))
+- *(sdk)* [**breaking**] allow for zero-based `blueprint_id` ([#426](https://github.com/tangle-network/gadget/pull/426))
+- *(cargo-tangle)* CLI bugs ([#409](https://github.com/tangle-network/gadget/pull/409))
+
+### Other
+
+- Continue Improving Event Flows ([#399](https://github.com/tangle-network/gadget/pull/399))
+
 ## [0.2.3](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.2.2...gadget-sdk-v0.2.3) - 2024-10-25
 
 ### Added

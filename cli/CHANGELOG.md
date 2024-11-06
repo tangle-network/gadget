@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.2.1...cargo-tangle-v0.2.2) - 2024-11-05
+
+### Added
+
+- *(gadget-sdk)* add TxProgressExt trait ([#425](https://github.com/tangle-network/gadget/pull/425))
+
+### Fixed
+
+- *(cargo-tangle)* CLI bugs ([#409](https://github.com/tangle-network/gadget/pull/409))
+
+### Other
+
+- Continue Improving Event Flows ([#399](https://github.com/tangle-network/gadget/pull/399))
+
 ## [0.2.1](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.2.0...cargo-tangle-v0.2.1) - 2024-10-25
 
 ### Added

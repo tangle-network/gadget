@@ -469,10 +469,15 @@ pub async fn wait_for_completion_of_tangle_job(
     required_count: usize,
 ) -> Result<JobResultSubmitted, Box<dyn Error>> {
     let mut count = 0;
-    loop {
-        let events = client.events().at_latest().await?;
+    let mut blocks = client.blocks().subscribe_best().await?;
+    while let Some(Ok(block)) = blocks.next().await {
+        let events = block.events().await?;
         let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
         info!(
+            %service_id,
+            %call_id,
+            %required_count,
+            %count,
             "Waiting for job completion. Found {} results ...",
             results.len()
         );
@@ -491,9 +496,8 @@ pub async fn wait_for_completion_of_tangle_job(
                 }
             }
         }
-
-        tokio::time::sleep(Duration::from_millis(4000)).await;
     }
+    Err("Failed to get job result".into())
 }
 
 pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
