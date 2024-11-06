@@ -60,7 +60,6 @@ impl AggregatorContext {
     pub async fn new(
         port_address: String,
         task_manager_address: Address,
-        http_rpc_url: String,
         wallet: EthereumWallet,
         sdk_config: StdGadgetConfiguration,
     ) -> Result<Self, std::io::Error> {
@@ -70,7 +69,7 @@ impl AggregatorContext {
             tasks: Arc::new(Mutex::new(HashMap::new())),
             tasks_responses: Arc::new(Mutex::new(HashMap::new())),
             bls_aggregation_service: None,
-            http_rpc_url,
+            http_rpc_url: sdk_config.http_rpc_endpoint.clone(),
             wallet,
             response_cache: Arc::new(Mutex::new(VecDeque::new())),
             sdk_config,

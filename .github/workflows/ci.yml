@@ -125,7 +125,7 @@ jobs:
 
   integration-test-eigenlayer:
     timeout-minutes: 90
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -133,20 +133,20 @@ jobs:
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          source /Users/runner/.bashrc
-          foundryup
+          ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
+        env:
+          FOUNDRY_DIR: ${{ runner.temp }}/foundry
+        shell: bash
 
       - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+        run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
+
 
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: setup-docker
-        run: brew install docker
-
-      - name: Verify Forge and Docker installation
-        run: forge --version && docker --version
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@v3
 
       - name: Run anvil in background
         run: anvil --version && anvil &
@@ -160,13 +160,10 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf gmp
-
-      - name: Set Relevant M1 env vars
+      - name: install protobuf and gmp
         run: |
-          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
@@ -176,4 +173,3 @@ jobs:
 
       - name: tests
         run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
-

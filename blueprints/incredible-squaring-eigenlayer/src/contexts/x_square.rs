@@ -1,9 +1,9 @@
 use crate::contexts::client::AggregatorClient;
-use gadget_sdk::config::GadgetConfiguration;
-use parking_lot::RawRwLock;
+use gadget_sdk::{config::StdGadgetConfiguration, ctx::KeystoreContext};
 
-#[derive(Clone)]
+#[derive(Clone, KeystoreContext)]
 pub struct EigenSquareContext {
     pub client: AggregatorClient,
-    pub env: GadgetConfiguration<RawRwLock>,
+    #[config]
+    pub std_config: StdGadgetConfiguration,
 }

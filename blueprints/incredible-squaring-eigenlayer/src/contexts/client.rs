@@ -19,7 +19,7 @@ pub struct SignedTaskResponse {
     pub operator_id: OperatorId,
 }
 
-/// Client for interacting with the Aggregator RPC
+/// Client for interacting with the Aggregator RPC server
 #[derive(Debug, Clone)]
 pub struct AggregatorClient {
     client: ReqwestClient,
