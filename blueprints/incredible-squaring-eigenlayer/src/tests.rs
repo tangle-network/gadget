@@ -1,37 +1,23 @@
-use blueprint_test_utils::anvil;
-// use blueprint_test_utils::eigenlayer_test_env::{
-//     setup_eigenlayer_test_environment, EigenlayerTestEnvironment,
-// };
+use alloy_provider::Provider;
 use blueprint_test_utils::helpers::BlueprintProcessManager;
-// use blueprint_test_utils::incredible_squaring_helpers::{
-//     deploy_task_manager, setup_task_response_listener, setup_task_spawner, wait_for_responses,
-// };
-// use gadget_sdk::config::protocol::EigenlayerContractAddresses;
+use blueprint_test_utils::incredible_squaring_helpers::{start_anvil_testnet, wait_for_responses};
 use gadget_sdk::config::Protocol;
 use gadget_sdk::logging::setup_log;
-// use gadget_sdk::{error, info};
 use std::path::PathBuf;
-// use std::sync::Arc;
-// use std::time::Duration;
-// use tokio::sync::Mutex;
 
+use blueprint_test_utils::eigenlayer_test_env::*;
 blueprint_test_utils::define_eigenlayer_test_env!();
 
 const ANVIL_STATE_PATH: &str =
-    "./../blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
+    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::needless_return)]
-async fn test_eigenlayer_incredible_squaring_blueprint() {
+async fn test_eigenlayer_incredible_squaring_blueprint_from_binary() {
     setup_log();
 
     let (_container, http_endpoint, ws_endpoint) =
-        anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
-
-    std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
-    std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
-    // Sleep to give the testnet time to spin up
-    tokio::time::sleep(Duration::from_secs(1)).await;
+        start_anvil_testnet(ANVIL_STATE_PATH, true).await;
 
     let EigenlayerTestEnvironment {
         accounts,
@@ -93,7 +79,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let blueprint_process_manager = BlueprintProcessManager::new();
     let current_dir = std::env::current_dir().unwrap();
     let xsquare_task_program_path = PathBuf::from(format!(
-        "{}/../target/release/incredible-squaring-blueprint-eigenlayer",
+        "{}/../../target/release/incredible-squaring-blueprint-eigenlayer",
         current_dir.display()
     ))
     .canonicalize()

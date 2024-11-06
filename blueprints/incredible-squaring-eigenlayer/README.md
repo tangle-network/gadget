@@ -36,5 +36,5 @@ cargo build --release -p incredible-squaring-blueprint-eigenlayer
 - We have a test for running this AVS Blueprint on a local Anvil Testnet. You can run the test with the following:
 
 ```bash
-RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
+cargo build --release && RUST_LOG=gadget=trace cargo test test_eigenlayer_incredible_squaring_blueprint -- --nocapture
 ```

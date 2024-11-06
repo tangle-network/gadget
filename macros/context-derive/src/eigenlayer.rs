@@ -4,6 +4,7 @@ use syn::DeriveInput;
 use crate::cfg::FieldInfo;
 
 /// Generate the `EigenlayerContext` implementation for the given struct.
+#[allow(clippy::too_many_lines)]
 pub fn generate_context_impl(
     DeriveInput {
         ident: name,
@@ -21,6 +22,7 @@ pub fn generate_context_impl(
 
     quote! {
         use alloy_provider::Provider;
+        use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 
         #[async_trait::async_trait]
         impl #impl_generics gadget_sdk::ctx::EigenlayerContext for #name #ty_generics #where_clause {
@@ -108,6 +110,149 @@ pub fn generate_context_impl(
                 let avs_registry_service = self.avs_registry_service_chain_caller_in_memory().await?;
                 Ok(eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService::new(avs_registry_service))
             }
+
+            async fn get_operator_stake_in_quorums_at_block(
+                &self,
+                block_number: u32,
+                quorum_numbers: Bytes,
+            ) -> Result<Vec<Vec<eigensdk::utils::bindings::OperatorStateRetriever::Operator>>, std::io::Error> {
+                let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+                self.avs_registry_reader().await?.get_operators_stake_in_quorums_at_block(
+                    block_number,
+                    quorum_numbers,
+                ).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            }
+
+            // async fn get_operator_stake_in_quorums_at_current_block(
+            //     &self,
+            //     operator_id: FixedBytes<32>,
+            // ) -> Result<HashMap<u8, U256>, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_stake_in_quorums_at_current_block(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_id,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_by_id(
+            //     &self
+            // ) -> Result<OperatorStateRetriever::Operator, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_by_id(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_stake_history(
+            //     &self,
+            //     operator_id: FixedBytes<32>,
+            //     quorum_number: u8,
+            // ) -> Result<Vec<StakeUpdate>, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_stake_history(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_id,
+            //         quorum_number,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_stake_update_at_index(
+            //     &self,
+            //     operator_id: FixedBytes<32>,
+            //     quorum_number: u8,
+            //     index: U256,
+            // ) -> Result<StakeUpdate, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_stake_update_at_index(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_id,
+            //         quorum_number,
+            //         index,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_stake_at_block_number(
+            //     &self,
+            //     operator_id: FixedBytes<32>,
+            //     quorum_number: u8,
+            //     block_number: u32,
+            // ) -> Result<U256, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_stake_at_block_number(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_id,
+            //         quorum_number,
+            //         block_number,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_details(
+            //     &self,
+            //     operator_addr: Address
+            // ) -> Result<OperatorDetails, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_details(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_addr,
+            //     ).await
+            // }
+            //
+            // async fn get_latest_stake_update(
+            //     &self,
+            //     operator_id: FixedBytes<32>,
+            //     quorum_number: u8,
+            // ) -> Result<StakeUpdate, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_latest_stake_update(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_id,
+            //         quorum_number,
+            //     ).await
+            // }
+            //
+            // async fn get_operator_id(
+            //     &self,
+            //     operator_addr: Address,
+            // ) -> Result<FixedBytes<32>, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_operator_id(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         operator_addr,
+            //     ).await
+            // }
+            //
+            // async fn get_total_stake_at_block_number_from_index(
+            //     &self,
+            //     quorum_number: u8,
+            //     block_number: u32,
+            //     index: U256,
+            // ) -> Result<U256, std::io::Error> {
+            //     let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
+            //     let contract_addresses = &gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer.contract_addresses;
+            //     eigensdk::client_avsregistry::reader::get_total_stake_at_block_number_from_index(
+            //         http_rpc_endpoint,
+            //         contract_addresses,
+            //         quorum_number,
+            //         block_number,
+            //         index,
+            //     ).await
+            // }
         }
     }
 }

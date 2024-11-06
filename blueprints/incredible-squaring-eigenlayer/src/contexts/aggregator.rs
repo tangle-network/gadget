@@ -30,7 +30,7 @@ use tokio::{
 
 use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, Bytes};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
 use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
@@ -280,76 +280,6 @@ impl AggregatorContext {
         }
         Ok(())
     }
-
-    // async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
-    //     let SignedTaskResponse {
-    //         task_response,
-    //         signature,
-    //         operator_id,
-    //     } = resp.clone();
-    //     let task_index = task_response.referenceTaskIndex;
-    //     let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
-
-    //     info!(
-    //         "Processing signed task response for task index: {}, task response digest: {}",
-    //         task_index, task_response_digest
-    //     );
-
-    //     if self
-    //         .tasks_responses
-    //         .lock()
-    //         .await
-    //         .entry(task_index)
-    //         .or_default()
-    //         .contains_key(&task_response_digest)
-    //     {
-    //         info!(
-    //             "Task response digest already processed for task index: {}",
-    //             task_index
-    //         );
-    //         return Ok(());
-    //     }
-
-    //     if let Some(tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
-    //         tasks_responses.insert(task_response_digest, task_response.clone());
-    //     }
-
-    //     debug!(
-    //         "Inserted task response for task index: {}, {:?}",
-    //         task_index, resp
-    //     );
-
-    //     if let Err(e) = self
-    //         .bls_aggregation_service_in_memory()
-    //         .await?
-    //         .process_new_signature(task_index, task_response_digest, signature, operator_id)
-    //         .await
-    //     {
-    //         error!(
-    //             "Failed to process new signature for task index: {}. Error: {:?}",
-    //             task_index, e
-    //         );
-    //     } else {
-    //         debug!(
-    //             "Successfully processed new signature for task index: {}",
-    //             task_index
-    //         );
-    //     }
-
-    //     if let Some(aggregated_response) = self
-    //         .bls_aggregation_service_in_memory()
-    //         .await?
-    //         .aggregated_response_receiver
-    //         .lock()
-    //         .await
-    //         .recv()
-    //         .await
-    //     {
-    //         self.send_aggregated_response_to_contract(aggregated_response?)
-    //             .await?;
-    //     }
-    //     Ok(())
-    // }
 
     async fn send_aggregated_response_to_contract(
         &self,
