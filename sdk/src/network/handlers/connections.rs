@@ -1,7 +1,7 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
 use crate::network::gossip::{MyBehaviourRequest, NetworkService};
-use crate::{debug, error};
+use crate::{error, trace};
 use libp2p::PeerId;
 use sp_core::{keccak_256, Pair};
 
@@ -12,7 +12,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         num_established: u32,
     ) {
-        debug!("Connection established");
+        trace!("Connection established");
         if num_established == 1 {
             let my_peer_id = self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
@@ -40,7 +40,7 @@ impl NetworkService<'_> {
         num_established: u32,
         _cause: Option<libp2p::swarm::ConnectionError>,
     ) {
-        debug!("Connection closed");
+        trace!("Connection closed");
         if num_established == 0 {
             self.swarm
                 .behaviour_mut()
@@ -56,7 +56,7 @@ impl NetworkService<'_> {
         _local_addr: libp2p::Multiaddr,
         _send_back_addr: libp2p::Multiaddr,
     ) {
-        debug!("Incoming connection");
+        trace!("Incoming connection");
     }
 
     #[tracing::instrument(skip(self))]
@@ -65,7 +65,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         _connection_id: libp2p::swarm::ConnectionId,
     ) {
-        debug!("Outgoing connection to peer: {peer_id}");
+        trace!("Outgoing connection to peer: {peer_id}");
     }
 
     #[tracing::instrument(skip(self, error))]

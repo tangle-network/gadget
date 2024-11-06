@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use crate::error::Error;
-use crate::{debug, error, trace, warn};
+use crate::{error, trace, warn};
 
 use super::{Network, ParticipantInfo, ProtocolMessage};
 
@@ -157,7 +157,7 @@ impl NetworkService<'_> {
                 address,
                 listener_id,
             } => {
-                debug!("{listener_id} has a new address: {address}");
+                trace!("{listener_id} has a new address: {address}");
             }
             ConnectionEstablished {
                 peer_id,
@@ -226,7 +226,7 @@ impl NetworkService<'_> {
                 peer_id,
                 connection_id,
             } => {
-                debug!("Dialing peer: {peer_id:?} with connection_id: {connection_id}");
+                trace!("Dialing peer: {peer_id:?} with connection_id: {connection_id}");
             }
             NewExternalAddrCandidate { address } => {
                 trace!("New external address candidate: {address}");

@@ -28,11 +28,7 @@ async fn main() {
         provider,
     );
 
-    let x_square = blueprint::XsquareEventHandler {
-        context: blueprint::MyContext {},
-        contract: contract.clone(),
-        contract_instance: Default::default(),
-    };
+    let x_square = blueprint::XsquareEventHandler::new(contract, blueprint::MyContext {});
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let symb_config = SymbioticConfig::default();
