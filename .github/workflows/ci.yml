@@ -160,13 +160,10 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf gmp
-
-      - name: Set Relevant M1 env vars
+      - name: install protobuf and gmp
         run: |
-          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
