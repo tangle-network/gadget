@@ -129,7 +129,7 @@ pub struct NetworkMultiplexer {
 
 type ActiveStreams = Arc<DashMap<StreamKey, tokio::sync::mpsc::UnboundedSender<ProtocolMessage>>>;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Default, Serialize, Deserialize)]
 pub struct StreamKey {
     pub job_id: u8,
     pub task_hash: [u8; 32],
@@ -146,7 +146,7 @@ pub struct MultiplexedReceiver {
 #[derive(Clone)]
 pub struct MultiplexedSender {
     inner: tokio::sync::mpsc::UnboundedSender<(StreamKey, ProtocolMessage)>,
-    stream_id: StreamKey,
+    pub(crate) stream_id: StreamKey,
 }
 
 impl MultiplexedSender {
@@ -158,10 +158,10 @@ impl MultiplexedSender {
 }
 
 impl Stream for MultiplexedReceiver {
-    type Item = <tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage> as Stream>::Item;
+    type Item = ProtocolMessage;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(&mut self.get_mut().inner).poll_next(cx)
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.get_mut().inner).poll_recv(cx)
     }
 }
 
@@ -201,7 +201,7 @@ impl NetworkMultiplexer {
         let active_streams = this.to_receiving_streams.clone();
         let unclaimed_streams = this.unclaimed_receiving_streams.clone();
         let tx_to_networking_layer = this.tx_to_networking_layer.clone();
-        tokio::spawn(async move {
+        drop(tokio::spawn(async move {
             let network_clone = &network.clone();
             let task0 = network.run();
 
@@ -268,7 +268,7 @@ impl NetworkMultiplexer {
                     crate::error!("Task 2 exited");
                 }
             }
-        });
+        }));
 
         this
     }
@@ -287,12 +287,18 @@ impl NetworkMultiplexer {
     }
 
     fn create_multiplexed_stream_inner(
-        tx_to_networking_layer: MultiplexedSender,
+        mut tx_to_networking_layer: MultiplexedSender,
         active_streams: &ActiveStreams,
         stream_id: StreamKey,
     ) -> (MultiplexedSender, MultiplexedReceiver) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        active_streams.insert(stream_id, tx);
+        if active_streams.insert(stream_id, tx).is_some() {
+            crate::warn!(
+                "Stream ID {stream_id:?} already exists! Existing stream will be replaced"
+            );
+        }
+        tx_to_networking_layer.stream_id = stream_id;
+
         (
             tx_to_networking_layer,
             MultiplexedReceiver {
