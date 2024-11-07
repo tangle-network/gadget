@@ -448,7 +448,7 @@ impl<'a> Container<'a> {
 /// #[tokio::main]
 /// async fn main() -> Result<(), gadget_sdk::Error> {
 ///     let connection = connect_to_docker(None).await?;
-///     
+///
 ///     // I now have a handle to my local Docker server!
 ///     Ok(())
 /// }

@@ -8,9 +8,12 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use gadget_sdk::event_listener::tangle::TangleEventListener;
 //! use gadget_sdk::config::StdGadgetConfiguration;
 //! use gadget_sdk::ctx::KeystoreContext;
+//! use gadget_sdk::event_listener::tangle::jobs::{
+//!     services_post_processor, services_pre_processor,
+//! };
+//! use gadget_sdk::event_listener::tangle::TangleEventListener;
 //! use gadget_sdk::job;
 //! use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 //!
@@ -29,8 +32,9 @@
 //!     params(who),
 //!     result(_),
 //!     event_listener(
-//!         listener = TangleEventListener,
-//!         event = JobCalled,
+//!         listener = TangleEventListener<MyContext, JobCalled>,
+//!         pre_processor = services_pre_processor,
+//!         post_processor = services_post_processor,
 //!     )
 //! )]
 //! async fn my_job(who: String, ctx: MyContext) -> Result<String, std::convert::Infallible> {
