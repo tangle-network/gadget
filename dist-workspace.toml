@@ -1,0 +1,35 @@
+[workspace]
+members = ["cargo:."]
+
+# Config for 'dist'
+[dist]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.25.1"
+# CI backends to support
+ci = "github"
+# Whether dist should create a Github Release or use an existing draft
+create-release = false
+github-build-setup = "build-setup.yml"
+# The installers to generate for each app
+installers = ["shell"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = true
+bin-aliases = { cargo-tangle = ["tangle", "tg"] }
+members = ["cargo:/cli"]
+# This setting determines to what extent we run your Release CI on pull-requests:
+# - "skip": don't check the release process in PRs
+# - "plan": run 'dist plan' on PRs (recommended, also the default)
+# - "upload": build and upload an artifacts to the PR (expensive)
+#
+# Using "upload" here could be useful if you are testing the release process
+pr-run-mode = "upload"
+
+[dist.github-custom-runners]
+# Custom runners to use for each target platform
+aarch64-apple-darwin = "macos-15"
+x86_64-apple-darwin = "macos-13"
+x86_64-unknown-linux-gnu = "ubuntu-24.04"
