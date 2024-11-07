@@ -20,12 +20,7 @@ install-path = "CARGO_HOME"
 install-updater = true
 bin-aliases = { cargo-tangle = ["tangle", "tg"] }
 members = ["cargo:/cli"]
-# This setting determines to what extent we run your Release CI on pull-requests:
-# - "skip": don't check the release process in PRs
-# - "plan": run 'dist plan' on PRs (recommended, also the default)
-# - "upload": build and upload an artifacts to the PR (expensive)
-#
-# Using "upload" here could be useful if you are testing the release process
+# Which actions to run on pull requests
 pr-run-mode = "upload"
 
 [dist.github-custom-runners]

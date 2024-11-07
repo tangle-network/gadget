@@ -121,6 +121,10 @@ jobs:
         uses: "foundry-rs/foundry-toolchain@v1"
       - name: "Verify Forge installation"
         run: "forge --version"
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ join(matrix.targets, '-') }}
+          cache-provider: ${{ matrix.cache_provider }}
       - name: Install dist
         run: ${{ matrix.install_dist }}
       # Get the dist-manifest
