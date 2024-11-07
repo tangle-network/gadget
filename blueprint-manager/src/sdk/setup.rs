@@ -65,7 +65,6 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
         libp2p_key,
         ecdsa_key,
         config.bootnodes.clone(),
-        config.bind_ip,
         config.bind_port,
         network_ids.clone(),
     );

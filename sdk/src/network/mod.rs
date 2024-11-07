@@ -1,15 +1,15 @@
+use crate::error::Error;
 use async_trait::async_trait;
 use core::fmt::Display;
 use dashmap::DashMap;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
+use sp_core::{ecdsa, sha2_256};
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-
-use crate::error::Error;
+use tokio::sync::Mutex;
 
 use self::channels::UserID;
 
@@ -86,15 +86,9 @@ impl Display for ProtocolMessage {
 }
 
 #[async_trait]
-pub trait Network: Send + Sync + Clone + 'static {
+pub trait Network: Send + Sync + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
-
-    /// If the network implementation requires a custom runtime, this function
-    /// should be manually implemented to keep the network alive
-    async fn run(self) -> Result<(), Error> {
-        futures::future::pending().await
-    }
 
     fn build_protocol_message<Payload: Serialize>(
         identifier_info: IdentifierInfo,
@@ -131,9 +125,19 @@ type ActiveStreams = Arc<DashMap<StreamKey, tokio::sync::mpsc::UnboundedSender<P
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Default, Serialize, Deserialize)]
 pub struct StreamKey {
-    pub job_id: u8,
     pub task_hash: [u8; 32],
-    pub round_id: u16,
+    pub round_id: i32,
+}
+
+impl From<IdentifierInfo> for StreamKey {
+    fn from(identifier_info: IdentifierInfo) -> Self {
+        let str_repr = identifier_info.to_string();
+        let task_hash = sha2_256(str_repr.as_bytes());
+        Self {
+            task_hash,
+            round_id: -1,
+        }
+    }
 }
 
 pub struct MultiplexedReceiver {
@@ -202,8 +206,7 @@ impl NetworkMultiplexer {
         let unclaimed_streams = this.unclaimed_receiving_streams.clone();
         let tx_to_networking_layer = this.tx_to_networking_layer.clone();
         drop(tokio::spawn(async move {
-            let network_clone = &network.clone();
-            let task0 = network.run();
+            let network_clone = &network;
 
             let task1 = async move {
                 while let Some((stream_id, proto_message)) = rx_from_substreams.recv().await {
@@ -258,9 +261,6 @@ impl NetworkMultiplexer {
             };
 
             tokio::select! {
-                _ = task0 => {
-                    crate::error!("Network task exited");
-                },
                 _ = task1 => {
                     crate::error!("Task 1 exited");
                 },
@@ -273,18 +273,24 @@ impl NetworkMultiplexer {
         this
     }
 
-    pub fn multiplex(&self, id: StreamKey) -> (MultiplexedSender, MultiplexedReceiver) {
+    pub fn multiplex(&self, id: impl Into<StreamKey>) -> SubNetwork {
+        let id = id.into();
         let mut tx_to_networking_layer = self.tx_to_networking_layer.clone();
         if let Some(unclaimed) = self.unclaimed_receiving_streams.remove(&id) {
             tx_to_networking_layer.stream_id = id;
-            return (tx_to_networking_layer, unclaimed.1);
+            return SubNetwork {
+                tx: tx_to_networking_layer,
+                rx: unclaimed.1.into(),
+            };
         }
 
-        Self::create_multiplexed_stream_inner(
+        let (tx, rx) = Self::create_multiplexed_stream_inner(
             tx_to_networking_layer,
             &self.to_receiving_streams,
             id,
-        )
+        );
+
+        SubNetwork { tx, rx: rx.into() }
     }
 
     fn create_multiplexed_stream_inner(
@@ -311,6 +317,40 @@ impl NetworkMultiplexer {
     }
 }
 
+pub struct SubNetwork {
+    tx: MultiplexedSender,
+    rx: Mutex<MultiplexedReceiver>,
+}
+
+impl SubNetwork {
+    pub fn send(&self, message: ProtocolMessage) -> Result<(), Error> {
+        self.tx.send(message)
+    }
+
+    pub async fn recv(&self) -> Option<ProtocolMessage> {
+        self.rx.lock().await.next().await
+    }
+}
+
+#[async_trait]
+impl Network for SubNetwork {
+    async fn next_message(&self) -> Option<ProtocolMessage> {
+        self.recv().await
+    }
+
+    async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
+        self.send(message)
+    }
+}
+
+impl Stream for SubNetwork {
+    type Item = ProtocolMessage;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(self.rx.get_mut()).poll_next(cx)
+    }
+}
+
 pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, serde_json::Error>
 where
     T: Deserialize<'a>,
@@ -330,7 +370,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use sp_core::Pair;
     use std::collections::BTreeMap;
-    use std::time::Duration;
+    use tokio::sync::Barrier;
 
     const TOPIC: &str = "/gadget/test/1.0.0";
 
@@ -363,7 +403,7 @@ mod tests {
     }
 
     // NOTE: if you lower the number of nodes to 2, this test passes without issues.
-    const NODE_COUNT: u16 = 3;
+    const NODE_COUNT: u16 = 10;
 
     pub fn setup_log() {
         use tracing_subscriber::util::SubscriberInitExt;
@@ -383,7 +423,7 @@ mod tests {
             .try_init();
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[tokio::test(flavor = "multi_thread")]
     async fn p2p() {
         setup_log();
         let nodes = stream::iter(0..NODE_COUNT)
@@ -403,7 +443,7 @@ mod tests {
             let all_connected = connected
                 .iter()
                 .enumerate()
-                .inspect(|(node, peers)| crate::debug!(%node, %peers, "Connected peers"))
+                .inspect(|(node, peers)| crate::debug!("Node {node} has {peers} connected peers"))
                 .all(|(_, &peers)| peers == usize::from(NODE_COUNT) - 1);
             if all_connected {
                 break;
@@ -416,8 +456,10 @@ mod tests {
         }
         crate::debug!("All nodes are connected to each other");
         let mut tasks = Vec::new();
+        let barrier = Arc::new(Barrier::new(NODE_COUNT as usize));
         for (i, node) in nodes.into_iter().enumerate() {
-            let task = tokio::spawn(run_protocol(node, i as u16));
+            let barrier = barrier.clone();
+            let task = tokio::spawn(run_protocol(node, i as u16, barrier));
             tasks.push(task);
         }
         // Wait for all tasks to finish
@@ -431,20 +473,32 @@ mod tests {
         );
     }
 
-    async fn run_protocol<N: Network>(node: N, i: u16) -> Result<(), crate::Error> {
+    async fn run_protocol<N: Network>(
+        node: N,
+        i: u16,
+        barrier: Arc<Barrier>,
+    ) -> Result<(), crate::Error> {
         let task_hash = [0u8; 32];
         // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
         // used throughout the program must also use the multiplexer to prevent mixed messages.
         let multiplexer = NetworkMultiplexer::new(node);
-        let (round1_tx, mut round1_rx) = multiplexer.multiplex(StreamKey {
-            job_id: 0,   // To differentiate between different jobs
-            task_hash, // To differentiate between different instances of a running job (i.e., a task)
+
+        let mut round1_network = multiplexer.multiplex(StreamKey {
+            task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 0, // To differentiate between different subsets of a running task
         });
 
+        let mut round2_network = multiplexer.multiplex(StreamKey {
+            task_hash, // To differentiate between different instances of a running program (i.e., a task)
+            round_id: 1, // To differentiate between different subsets of a running task
+        });
+
+        let mut round3_network = multiplexer.multiplex(StreamKey {
+            task_hash, // To differentiate between different instances of a running program (i.e., a task)
+            round_id: 2, // To differentiate between different subsets of a running task
+        });
+
         //let (round1_tx, round1_rx) = node.
-        let round1_span = tracing::debug_span!(target: "gadget", "Round 1", node = %i);
-        let round1_guard = round1_span.enter();
         // Round 1 (broadcast)
         let msg = {
             let round = Round1Msg {
@@ -470,13 +524,13 @@ mod tests {
         };
 
         crate::debug!("Broadcast Message");
-        round1_tx
+        round1_network
             .send(msg)
             .map_err(|_| crate::Error::Other("Failed to send message".into()))?;
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round1_rx.next().await {
+        while let Some(msg) = round1_network.next().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round1 message
@@ -497,18 +551,8 @@ mod tests {
                 break;
             }
         }
-        crate::debug!("Done");
-        drop(round1_guard);
-        drop(round1_span);
+        crate::debug!("Done r1 w/ {i}");
 
-        let (round2_tx, mut round2_rx) = multiplexer.multiplex(StreamKey {
-            job_id: 0,   // To differentiate between different jobs
-            task_hash, // To differentiate between different instances of a running job (i.e., a task)
-            round_id: 1, // To differentiate between different subsets of a running task
-        });
-
-        let round2_span = tracing::debug_span!(target: "gadget", "Round 2", node = %i);
-        let round2_guard = round2_span.enter();
         // Round 2 (P2P)
         let msg = Round2Msg {
             x: i * 10,
@@ -538,12 +582,12 @@ mod tests {
                 "Recipient should be present for P2P message. This is a bug in the test code",
             );
             crate::debug!(%to, "Send P2P Message");
-            round2_tx.send(msg)?;
+            round2_network.send(msg)?;
         }
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round2_rx.next().await {
+        while let Some(msg) = round2_network.next().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round2 message
@@ -565,19 +609,9 @@ mod tests {
                 break;
             }
         }
-        crate::debug!("Done");
-        drop(round2_guard);
-        drop(round2_span);
-
-        let (round3_tx, mut round3_rx) = multiplexer.multiplex(StreamKey {
-            job_id: 0,   // To differentiate between different jobs
-            task_hash, // To differentiate between different instances of a running job (i.e., a task)
-            round_id: 2, // To differentiate between different subsets of a running task
-        });
+        crate::debug!("Done r2 w/ {i}");
 
         // Round 3 (broadcast)
-        let round3_span = tracing::debug_span!(target: "gadget", "Round 3", node = %i);
-        let round3_guard = round3_span.enter();
 
         let msg = {
             let round = Round3Msg {
@@ -600,11 +634,11 @@ mod tests {
         };
 
         crate::debug!("Broadcast Message");
-        round3_tx.send(msg)?;
+        round3_network.send(msg)?;
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round3_rx.next().await {
+        while let Some(msg) = round3_network.next().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round3 message
@@ -626,9 +660,8 @@ mod tests {
                 break;
             }
         }
-        crate::debug!("Done");
-        drop(round3_guard);
-        drop(round3_span);
+        crate::debug!("Done r3 w/ {i}");
+        let _ = barrier.wait().await;
 
         crate::info!(node = i, "Protocol completed");
 
@@ -639,12 +672,10 @@ mod tests {
         let identity = libp2p::identity::Keypair::generate_ed25519();
         let ecdsa_key = sp_core::ecdsa::Pair::generate().0;
         let bind_port = 0;
-        let bind_ip = [0, 0, 0, 0].into();
         setup::start_p2p_network(setup::NetworkConfig::new_service_network(
             identity,
             ecdsa_key,
             Default::default(),
-            bind_ip,
             bind_port,
             TOPIC,
         ))
