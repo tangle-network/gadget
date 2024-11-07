@@ -21,7 +21,7 @@ install-updater = true
 bin-aliases = { cargo-tangle = ["tangle", "tg"] }
 members = ["cargo:/cli"]
 # Which actions to run on pull requests
-pr-run-mode = "upload"
+pr-run-mode = "plan"
 
 [dist.github-custom-runners]
 # Custom runners to use for each target platform
