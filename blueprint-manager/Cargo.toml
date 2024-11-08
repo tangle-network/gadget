@@ -38,3 +38,6 @@ failure = { workspace = true }
 [features]
 default = ["std"]
 std = ["gadget-io/std", "gadget-sdk/std", "tangle-subxt/std"]
+
+[package.metadata.dist]
+dist = false
