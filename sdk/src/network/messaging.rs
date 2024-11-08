@@ -37,7 +37,7 @@ pub trait MessageMetadata {
 }
 
 #[async_trait]
-pub trait Network {
+pub trait MessagingNetwork {
     type Message: MessageMetadata + Send + Sync + 'static;
 
     async fn next_message(&self) -> Option<Payload<Self::Message>>;
@@ -133,7 +133,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: Network<Message = M> + Send + Sync + 'static,
+    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
 {
     backend: Arc<B>,
     local_delivery: Arc<L>,
@@ -147,7 +147,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: Network<Message = M> + Send + Sync + 'static,
+    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -165,7 +165,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: Network<Message = M> + Send + Sync + 'static,
+    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
 {
     pub fn new(backend: B, local_delivery: L, network: N) -> Self {
         let this = Self {

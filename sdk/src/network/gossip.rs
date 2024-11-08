@@ -4,6 +4,8 @@
     clippy::module_name_repetitions,
     clippy::exhaustive_enums
 )]
+use crate::error::Error;
+use crate::{error, trace, warn};
 use async_trait::async_trait;
 use ecdsa::Public;
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
@@ -13,14 +15,12 @@ use libp2p::kad::store::MemoryStore;
 use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
 };
+use lru_mem::LruCache;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
+use sp_core::{ecdsa, sha2_256};
 use std::collections::BTreeMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
-
-use crate::error::Error;
-use crate::{error, trace, warn};
 
 use super::{Network, ParticipantInfo, ProtocolMessage};
 
@@ -48,6 +48,7 @@ pub struct NetworkServiceWithoutSwarm<'a> {
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
     pub span: tracing::Span,
+    pub my_id: PeerId,
 }
 
 impl<'a> NetworkServiceWithoutSwarm<'a> {
@@ -61,6 +62,7 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
             ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
             ecdsa_key: self.ecdsa_key,
             span: &self.span,
+            my_id: self.my_id,
         }
     }
 }
@@ -71,6 +73,7 @@ pub struct NetworkService<'a> {
     pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
+    pub my_id: PeerId,
 }
 
 impl NetworkService<'_> {
@@ -247,13 +250,14 @@ impl NetworkService<'_> {
     }
 }
 
-#[derive(Clone)]
 pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicU32>,
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
+    pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
+    pub my_id: PeerId,
 }
 
 impl GossipHandle {
@@ -338,18 +342,29 @@ enum MessageType {
 #[async_trait]
 impl Network for GossipHandle {
     async fn next_message(&self) -> Option<ProtocolMessage> {
-        let mut lock = self
-            .rx_from_inbound
-            .try_lock()
-            .expect("There should be only a single caller for `next_message`");
+        loop {
+            let mut lock = self
+                .rx_from_inbound
+                .try_lock()
+                .expect("There should be only a single caller for `next_message`");
 
-        let message = lock.recv().await?;
-        match bincode::deserialize(&message) {
-            Ok(message) => Some(message),
-            Err(e) => {
-                error!("Failed to deserialize message: {e}");
-                drop(lock);
-                Network::next_message(self).await
+            let message_bytes = lock.recv().await?;
+            drop(lock);
+            match bincode::deserialize::<ProtocolMessage>(&message_bytes) {
+                Ok(message) => {
+                    let hash = sha2_256(&message.payload);
+                    let mut map = self.recent_messages.lock();
+                    if map
+                        .insert(hash, ())
+                        .expect("Should not exceed memory limit (rx)")
+                        .is_none()
+                    {
+                        return Some(message);
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to deserialize message: {e}");
+                }
             }
         }
     }
@@ -377,14 +392,17 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
+        let raw_payload = bincode::serialize(&message).map_err(|e| Error::Network {
+            reason: format!("Failed to serialize message: {e}"),
+        })?;
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),
-                raw_payload: bincode::serialize(&message).expect("Should serialize"),
+                raw_payload,
             }),
             MessageType::P2P(_) => GossipOrRequestResponse::Request(MyBehaviourRequest::Message {
                 topic: self.topic.to_string(),
-                raw_payload: bincode::serialize(&message).expect("Should serialize"),
+                raw_payload,
             }),
         };
 

@@ -29,7 +29,6 @@ url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true }
 failure = { workspace = true }
 num-bigint = { workspace = true }
-
 # Keystore deps
 ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
@@ -91,6 +90,8 @@ tokio-retry = { workspace = true }
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }
 gadget-context-derive = { workspace = true, default-features = false }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
+
+lru-mem = { workspace = true }
 
 # Benchmarking deps
 sysinfo = { workspace = true }

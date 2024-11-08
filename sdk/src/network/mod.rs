@@ -86,6 +86,7 @@ impl Display for ProtocolMessage {
 }
 
 #[async_trait]
+#[auto_impl::auto_impl(&, Box, Arc)]
 pub trait Network: Send + Sync + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
@@ -376,7 +377,6 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use sp_core::Pair;
     use std::collections::BTreeMap;
-    use tokio::sync::Barrier;
 
     const TOPIC: &str = "/gadget/test/1.0.0";
 
@@ -460,7 +460,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn p2p() {
+    async fn test_p2p() {
         setup_log();
         let nodes = stream::iter(0..NODE_COUNT)
             .map(|_| node())
@@ -470,10 +470,8 @@ mod tests {
         wait_for_nodes_connected(&nodes).await;
 
         let mut tasks = Vec::new();
-        let barrier = Arc::new(Barrier::new(NODE_COUNT as usize));
         for (i, node) in nodes.into_iter().enumerate() {
-            let barrier = barrier.clone();
-            let task = tokio::spawn(run_protocol(node, i as u16, barrier));
+            let task = tokio::spawn(run_protocol(node, i as u16));
             tasks.push(task);
         }
         // Wait for all tasks to finish
@@ -487,11 +485,7 @@ mod tests {
         );
     }
 
-    async fn run_protocol<N: Network>(
-        node: N,
-        i: u16,
-        barrier: Arc<Barrier>,
-    ) -> Result<(), crate::Error> {
+    async fn run_protocol<N: Network>(node: N, i: u16) -> Result<(), crate::Error> {
         let task_hash = [0u8; 32];
         // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
         // used throughout the program must also use the multiplexer to prevent mixed messages.
@@ -554,12 +548,12 @@ mod tests {
                 m,
                 msg.sender.user_id,
             );
-            let _old = msgs.insert(msg.sender.user_id, m);
-            /*assert!(
+            let old = msgs.insert(msg.sender.user_id, m);
+            assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
                 msg.sender.user_id
-            );*/
+            );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
                 break;
@@ -611,13 +605,12 @@ mod tests {
                 m,
                 msg.sender.user_id,
             );
-            let _old = msgs.insert(msg.sender.user_id, m);
-            /*
+            let old = msgs.insert(msg.sender.user_id, m);
             assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
                 msg.sender.user_id
-            );*/
+            );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
                 break;
@@ -662,20 +655,18 @@ mod tests {
                 m,
                 msg.sender.user_id,
             );
-            let _old = msgs.insert(msg.sender.user_id, m);
-            /*
+            let old = msgs.insert(msg.sender.user_id, m);
             assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
                 msg.sender.user_id
-            );*/
+            );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
                 break;
             }
         }
         crate::debug!("Done r3 w/ {i}");
-        let _ = barrier.wait().await;
 
         crate::info!(node = i, "Protocol completed");
 
@@ -761,6 +752,7 @@ mod tests {
 
             let received_msg = subnetwork0.recv().await.unwrap();
             assert_eq!(received_msg.payload, msg.payload);
+            tracing::info!("Done nested depth = {cur_depth}/{max_depth}");
 
             Box::pin(nested_multiplex(
                 cur_depth + 1,

@@ -78,6 +78,12 @@ impl NetworkService<'_> {
             error!("Got message from unknown peer");
             return;
         };
+
+        // Reject messages from self
+        if origin == self.my_id {
+            return;
+        }
+
         trace!("Got message from peer: {origin}");
         match bincode::deserialize::<GossipMessage>(&message.data) {
             Ok(GossipMessage { topic, raw_payload }) => {

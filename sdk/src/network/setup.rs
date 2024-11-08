@@ -15,6 +15,7 @@ use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::{spawn, JoinHandle};
 use libp2p::Multiaddr;
+use lru_mem::LruCache;
 use sp_core::ecdsa;
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -159,6 +160,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
 
     let networks = topics;
 
+    let my_id = identity.public().to_peer_id();
+
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
         .with_tcp(
@@ -266,15 +269,16 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 tx_to_outbound: tx_to_outbound.clone(),
                 rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
                 ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
+                // Each key is 32 bytes, therefore 512 messages hashes can be stored in the set
+                recent_messages: LruCache::new(16 * 1024).into(),
+                my_id,
             },
         );
     }
 
     let ips_to_bind_to = vec![
-        IpAddr::from_str("127.0.0.1").unwrap(),
         IpAddr::from_str("0.0.0.0").unwrap(),
         IpAddr::from_str("::1").unwrap(),
-        IpAddr::from_str("::").unwrap(),
     ];
 
     for addr in ips_to_bind_to {
@@ -300,7 +304,9 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             ecdsa_peer_id_to_libp2p_id,
             ecdsa_key: &ecdsa_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
+            my_id,
         };
+
         loop {
             select! {
                 // Setup outbound channel
