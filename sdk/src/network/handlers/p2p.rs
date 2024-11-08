@@ -144,7 +144,7 @@ impl NetworkService<'_> {
                 )
             }
             Message { topic, raw_payload } => {
-                // Reject messages to self
+                // Reject messages from self
                 if peer == self.my_id {
                     return;
                 }
