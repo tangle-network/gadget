@@ -276,7 +276,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
-    let ips_to_bind_to = vec![
+    let ips_to_bind_to = [
         IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
         IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
     ];
