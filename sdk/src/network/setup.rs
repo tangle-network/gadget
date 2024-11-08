@@ -276,17 +276,9 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
-    // Bind to all possible addrs to allow peer discovery on localhost (loopback)
-    // and on public-facing interfaces for external peers for both IPv4 and IPv6.
-    // This increases the probability of successful NAT traversal, and supports
-    // testing natively while also allowing for external peers to connect with
-    // a higher success rate. LibP2P will take care of any OS-specific issues
-    // automatically for us, and will use the best transport available.
     let ips_to_bind_to = vec![
-        IpAddr::from_str("127.0.0.1").unwrap(), // IN_ADDR_LOOPBACK_V4
-        IpAddr::from_str("::1").unwrap(),       // IN_ADDR_LOOPBACK_V6
-        IpAddr::from_str("0.0.0.0").unwrap(),   // IN_ADDR_ANY_V4
-        IpAddr::from_str("::").unwrap(),        // IN_ADDR_ANY_V6
+        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
     ];
 
     for addr in ips_to_bind_to {
