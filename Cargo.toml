@@ -86,6 +86,7 @@ parity-scale-codec = { version = "3.6.12", default-features = false }
 scale-info = { version = "2.11.3", default-features = false }
 
 tokio-retry = "0.3.0"
+anyhow = "1.0.93"
 async-trait = "0.1.82"
 auto_impl = "1.2.0"
 backon = { version = "1.2.0", default-features = false }
