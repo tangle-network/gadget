@@ -126,16 +126,14 @@ pub async fn wait_for_connection_to_bootnodes(
     Ok(())
 }
 
-async fn wait_for_peers(handle: &GossipHandle, n_required: usize) {
+async fn wait_for_peers(handle: &GossipHandle, required: usize) {
     loop {
         let n_connected = handle.connected_peers();
-        if n_connected >= n_required {
+        if n_connected >= required {
             return;
         }
         let topic = handle.topic();
-        debug!(
-            "`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"
-        );
+        debug!("`{topic}`: We currently have {n_connected}/{required} peers connected to network");
         gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 }
