@@ -1,8 +1,12 @@
 [package]
 name = "blueprint-manager"
 version = "0.1.1"
-edition = "2021"
-publish = false
+description = "Tangle Blueprint manager and Runner"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
 
 [[bin]]
 name = "blueprint-manager"
