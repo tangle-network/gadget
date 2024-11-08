@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.2.2...cargo-tangle-v0.2.3) - 2024-11-08
+
+### Added
+
+- *(cargo-tangle)* force initialize git submodules ([#457](https://github.com/tangle-network/gadget/pull/457))
+
 ## [0.2.2](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.2.1...cargo-tangle-v0.2.2) - 2024-11-05
 
 ### Added
