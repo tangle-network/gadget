@@ -1,0 +1,386 @@
+// Original: https://github.com/paritytech/subxt/blob/3219659f12a36fe6b7408bf4ac1db184414c6c0c/testing/substrate-runner/src/lib.rs
+#![allow(unused)]
+
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::ffi::OsString;
+use std::io::{self, BufRead, BufReader, Read};
+use std::process::{self, Child, Command};
+
+/// Environment variable to set the path to the binary.
+pub const TANGLE_NODE_ENV: &str = "TANGLE_NODE";
+
+#[derive(Debug)]
+pub enum Error {
+    Io(std::io::Error),
+    CouldNotExtractPort(String),
+    CouldNotExtractP2pAddress(String),
+    CouldNotExtractP2pPort(String),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Io(err) => write!(f, "IO error: {err}"),
+            Error::CouldNotExtractPort(log) => write!(
+                f,
+                "could not extract port from running substrate node's stdout: {log}"
+            ),
+            Error::CouldNotExtractP2pAddress(log) => write!(
+                f,
+                "could not extract p2p address from running substrate node's stdout: {log}"
+            ),
+            Error::CouldNotExtractP2pPort(log) => write!(
+                f,
+                "could not extract p2p port from running substrate node's stdout: {log}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+type CowStr = Cow<'static, str>;
+
+#[derive(Debug, Clone)]
+pub struct SubstrateNodeBuilder {
+    binary_paths: Vec<OsString>,
+    custom_flags: HashMap<CowStr, Option<CowStr>>,
+}
+
+impl Default for SubstrateNodeBuilder {
+    fn default() -> Self {
+        SubstrateNodeBuilder::new()
+    }
+}
+
+impl SubstrateNodeBuilder {
+    /// Configure a new Substrate node.
+    pub fn new() -> Self {
+        SubstrateNodeBuilder {
+            binary_paths: vec![],
+            custom_flags: Default::default(),
+        }
+    }
+
+    /// Provide "tangle" as binary path.
+    pub fn tangle(&mut self) -> &mut Self {
+        self.binary_paths = vec!["tangle".into()];
+        self
+    }
+
+    /// Set the path to the `substrate` binary; defaults to "substrate-node"
+    /// or "substrate".
+    pub fn binary_paths<Paths, S>(&mut self, paths: Paths) -> &mut Self
+    where
+        Paths: IntoIterator<Item = S>,
+        S: Into<OsString>,
+    {
+        self.binary_paths = paths.into_iter().map(|p| p.into()).collect();
+        self
+    }
+
+    /// Provide a boolean argument like `--alice`
+    pub fn arg(&mut self, s: impl Into<CowStr>) -> &mut Self {
+        self.custom_flags.insert(s.into(), None);
+        self
+    }
+
+    /// Provide an argument with a value.
+    pub fn arg_val(&mut self, key: impl Into<CowStr>, val: impl Into<CowStr>) -> &mut Self {
+        self.custom_flags.insert(key.into(), Some(val.into()));
+        self
+    }
+
+    /// Spawn the node, handing back an object which, when dropped, will stop it.
+    pub fn spawn(mut self) -> Result<SubstrateNode, Error> {
+        // Try to spawn the binary at each path, returning the
+        // first "ok" or last error that we encountered.
+        let mut res = Err(io::Error::new(
+            io::ErrorKind::Other,
+            "No binary path provided",
+        ));
+
+        let path = Command::new("mktemp")
+            .arg("-d")
+            .output()
+            .expect("failed to create base dir");
+        let path = String::from_utf8(path.stdout).expect("bad path");
+        let mut bin_path = OsString::new();
+        for binary_path in &self.binary_paths {
+            self.custom_flags
+                .insert("base-path".into(), Some(path.clone().into()));
+
+            res = SubstrateNodeBuilder::try_spawn(binary_path, &self.custom_flags);
+            if res.is_ok() {
+                bin_path.clone_from(binary_path);
+                break;
+            }
+        }
+
+        let mut proc = match res {
+            Ok(proc) => proc,
+            Err(e) => return Err(Error::Io(e)),
+        };
+
+        // Wait for RPC port to be logged (it's logged to stderr).
+        let stderr = proc.stderr.take().unwrap();
+        let running_node = try_find_substrate_port_from_output(stderr);
+
+        let ws_port = running_node.ws_port()?;
+        let p2p_address = running_node.p2p_address()?;
+        let p2p_port = running_node.p2p_port()?;
+
+        Ok(SubstrateNode {
+            binary_path: bin_path,
+            custom_flags: self.custom_flags,
+            proc,
+            ws_port,
+            p2p_address,
+            p2p_port,
+            base_path: path,
+        })
+    }
+
+    // Attempt to spawn a binary with the path/flags given.
+    fn try_spawn(
+        binary_path: &OsString,
+        custom_flags: &HashMap<CowStr, Option<CowStr>>,
+    ) -> Result<Child, std::io::Error> {
+        let mut cmd = Command::new(binary_path);
+
+        cmd.env("RUST_LOG", "info,libp2p_tcp=debug")
+            .stdout(process::Stdio::piped())
+            .stderr(process::Stdio::piped())
+            .arg("--dev")
+            .arg("--port=0");
+
+        for (key, val) in custom_flags {
+            let arg = match val {
+                Some(val) => format!("--{key}={val}"),
+                None => format!("--{key}"),
+            };
+            cmd.arg(arg);
+        }
+
+        cmd.spawn()
+    }
+}
+
+pub struct SubstrateNode {
+    binary_path: OsString,
+    custom_flags: HashMap<CowStr, Option<CowStr>>,
+    proc: process::Child,
+    ws_port: u16,
+    p2p_address: String,
+    p2p_port: u32,
+    base_path: String,
+}
+
+impl SubstrateNode {
+    /// Configure and spawn a new [`SubstrateNode`].
+    pub fn builder() -> SubstrateNodeBuilder {
+        SubstrateNodeBuilder::new()
+    }
+
+    /// Return the ID of the running process.
+    pub fn id(&self) -> u32 {
+        self.proc.id()
+    }
+
+    /// Return the port that WS connections are accepted on.
+    pub fn ws_port(&self) -> u16 {
+        self.ws_port
+    }
+
+    /// Return the libp2p address of the running node.
+    pub fn p2p_address(&self) -> String {
+        self.p2p_address.clone()
+    }
+
+    /// Return the libp2p port of the running node.
+    pub fn p2p_port(&self) -> u32 {
+        self.p2p_port
+    }
+
+    /// Kill the process.
+    pub fn kill(&mut self) -> std::io::Result<()> {
+        self.proc.kill()
+    }
+
+    /// restart the node, handing back an object which, when dropped, will stop it.
+    pub fn restart(&mut self) -> Result<(), std::io::Error> {
+        let res: Result<(), io::Error> = self.kill();
+
+        match res {
+            Ok(_) => (),
+            Err(e) => {
+                self.cleanup();
+                return Err(e);
+            }
+        }
+
+        let proc = self.try_spawn()?;
+
+        self.proc = proc;
+        // Wait for RPC port to be logged (it's logged to stderr).
+
+        Ok(())
+    }
+
+    // Attempt to spawn a binary with the path/flags given.
+    fn try_spawn(&mut self) -> Result<Child, std::io::Error> {
+        let mut cmd = Command::new(&self.binary_path);
+
+        cmd.env("RUST_LOG", "info,libp2p_tcp=debug")
+            .stdout(process::Stdio::piped())
+            .stderr(process::Stdio::piped())
+            .arg("--dev");
+
+        for (key, val) in &self.custom_flags {
+            let arg = match val {
+                Some(val) => format!("--{key}={val}"),
+                None => format!("--{key}"),
+            };
+            cmd.arg(arg);
+        }
+
+        cmd.arg(format!("--rpc-port={}", self.ws_port));
+        cmd.arg(format!("--port={}", self.p2p_port));
+        cmd.spawn()
+    }
+
+    fn cleanup(&self) {
+        let _ = Command::new("rm")
+            .args(["-rf", &self.base_path])
+            .output()
+            .expect("success");
+    }
+}
+
+impl Drop for SubstrateNode {
+    fn drop(&mut self) {
+        let _ = self.kill();
+        self.cleanup()
+    }
+}
+
+// Consume a stderr reader from a spawned substrate command and
+// locate the port number that is logged out to it.
+fn try_find_substrate_port_from_output(r: impl Read + Send + 'static) -> SubstrateNodeInfo {
+    let mut port = None;
+    let mut p2p_address = None;
+    let mut p2p_port = None;
+
+    let mut log = String::new();
+
+    for line in BufReader::new(r).lines().take(100) {
+        let line = line.expect("failed to obtain next line from stdout for port discovery");
+
+        log.push_str(&line);
+        log.push('\n');
+
+        // Parse the port lines
+        let line_port = line
+            // oldest message:
+            .rsplit_once("Listening for new connections on 127.0.0.1:")
+            // slightly newer message:
+            .or_else(|| line.rsplit_once("Running JSON-RPC WS server: addr=127.0.0.1:"))
+            // newest message (jsonrpsee merging http and ws servers):
+            .or_else(|| line.rsplit_once("Running JSON-RPC server: addr=127.0.0.1:"))
+            // Sometimes the addr is 0.0.0.0
+            .or_else(|| line.rsplit_once("Running JSON-RPC server: addr=0.0.0.0:"))
+            .map(|(_, port_str)| port_str);
+
+        if let Some(ports) = line_port {
+            // If more than one rpc server is started the log will capture multiple ports
+            // such as `addr=127.0.0.1:9944,[::1]:9944`
+            let port_str: String = ports.chars().take_while(|c| c.is_numeric()).collect();
+
+            // expect to have a number here (the chars after '127.0.0.1:') and parse them into a u16.
+            let port_num = port_str
+                .parse()
+                .unwrap_or_else(|_| panic!("valid port expected for log line, got '{port_str}'"));
+            port = Some(port_num);
+        }
+
+        // Parse the p2p address line
+        let line_address = line
+            .rsplit_once("Local node identity is: ")
+            .map(|(_, address_str)| address_str);
+
+        if let Some(line_address) = line_address {
+            let address = line_address.trim_end_matches(|b: char| b.is_ascii_whitespace());
+            p2p_address = Some(address.into());
+        }
+
+        // Parse the p2p port line (present in debug logs)
+        let p2p_port_line = line
+            .rsplit_once("New listen address: /ip4/127.0.0.1/tcp/")
+            .map(|(_, address_str)| address_str);
+
+        if let Some(line_port) = p2p_port_line {
+            // trim non-numeric chars from the end of the port part of the line.
+            let port_str = line_port.trim_end_matches(|b: char| !b.is_ascii_digit());
+
+            // expect to have a number here (the chars after '127.0.0.1:') and parse them into a u16.
+            let port_num = port_str
+                .parse()
+                .unwrap_or_else(|_| panic!("valid port expected for log line, got '{port_str}'"));
+            p2p_port = Some(port_num);
+        }
+
+        if port.is_some() && p2p_address.is_some() && p2p_port.is_some() {
+            break;
+        }
+    }
+
+    SubstrateNodeInfo {
+        ws_port: port,
+        p2p_address,
+        p2p_port,
+        log,
+    }
+}
+
+/// Data extracted from the running node's stdout.
+#[derive(Debug)]
+pub struct SubstrateNodeInfo {
+    ws_port: Option<u16>,
+    p2p_address: Option<String>,
+    p2p_port: Option<u32>,
+    log: String,
+}
+
+impl SubstrateNodeInfo {
+    pub fn ws_port(&self) -> Result<u16, Error> {
+        self.ws_port
+            .ok_or_else(|| Error::CouldNotExtractPort(self.log.clone()))
+    }
+
+    pub fn p2p_address(&self) -> Result<String, Error> {
+        self.p2p_address
+            .clone()
+            .ok_or_else(|| Error::CouldNotExtractP2pAddress(self.log.clone()))
+    }
+
+    pub fn p2p_port(&self) -> Result<u32, Error> {
+        self.p2p_port
+            .ok_or_else(|| Error::CouldNotExtractP2pPort(self.log.clone()))
+    }
+}
+
+/// Run a Tangle node with the default settings.
+/// The node will shut down when the returned handle is dropped.
+pub fn run() -> Result<SubstrateNode, Error> {
+    let tangle_from_env = std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
+    let builder = SubstrateNode::builder()
+        .binary_paths(["../tangle/target/release/tangle", &tangle_from_env])
+        .arg("validator")
+        .arg_val("rpc-cors", "all")
+        .arg_val("rpc-methods", "unsafe")
+        .arg("rpc-external")
+        .arg_val("sealing", "manual")
+        .clone();
+    builder.spawn()
+}

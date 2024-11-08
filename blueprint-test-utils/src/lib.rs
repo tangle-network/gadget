@@ -41,6 +41,7 @@ pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<
 pub mod anvil;
 pub mod helpers;
 pub mod sync;
+pub mod tangle;
 pub mod test_ext;
 
 #[cfg(feature = "eigenlayer_test")]
