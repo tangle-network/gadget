@@ -277,10 +277,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     }
 
     let ips_to_bind_to = vec![
-        IpAddr::from_str("127.0.0.1").unwrap(),
         IpAddr::from_str("0.0.0.0").unwrap(),
         IpAddr::from_str("::1").unwrap(),
-        IpAddr::from_str("::").unwrap(),
     ];
 
     for addr in ips_to_bind_to {

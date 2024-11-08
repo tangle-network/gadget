@@ -1,6 +1,5 @@
 use crate::error::Error;
 use async_trait::async_trait;
-use auto_impl::auto_impl;
 use core::fmt::Display;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
@@ -87,7 +86,7 @@ impl Display for ProtocolMessage {
 }
 
 #[async_trait]
-#[auto_impl(&, Arc)]
+#[auto_impl::auto_impl(&, Box, Arc)]
 pub trait Network: Send + Sync + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
@@ -753,6 +752,7 @@ mod tests {
 
             let received_msg = subnetwork0.recv().await.unwrap();
             assert_eq!(received_msg.payload, msg.payload);
+            tracing::info!("Done nested depth = {cur_depth}/{max_depth}");
 
             Box::pin(nested_multiplex(
                 cur_depth + 1,
