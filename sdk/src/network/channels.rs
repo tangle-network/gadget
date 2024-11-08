@@ -1,4 +1,4 @@
-use crate::network::{deserialize, IdentifierInfo, Network, ProtocolMessage};
+use crate::network::{deserialize, IdentifierInfo, Network, NetworkMultiplexer, ProtocolMessage};
 use futures::StreamExt;
 use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
@@ -98,7 +98,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<C1>();
     let (tx_to_outbound_2, mut rx_to_outbound_2) =
         gadget_io::tokio::sync::mpsc::unbounded_channel::<C2>();
-    let network_clone = network.clone();
+    let multiplexed_network = NetworkMultiplexer::new(network);
+    let network = multiplexed_network.multiplex(identifier_info);
     let user_id_mapping_clone = user_id_mapping.clone();
     let my_user_id = user_id_mapping
         .iter()
@@ -113,11 +114,12 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
     let _ = gadget_io::tokio::task::spawn(async move {
+        let network = &network;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
                     msg,
-                    &network,
+                    network,
                     &user_id_mapping,
                     my_user_id,
                     identifier_info,
@@ -134,7 +136,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
             while let Some(msg) = rx_to_outbound_2.recv().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
                     msg,
-                    &network_clone,
+                    network,
                     &user_id_mapping_clone,
                     my_user_id,
                     identifier_info,
@@ -505,16 +507,18 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 
     let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<O>();
     let (tx_to_outbound_2, mut rx_to_outbound_2) = futures::channel::mpsc::unbounded::<C2>();
-    let network_clone = network.clone();
+    let multiplexed_network = NetworkMultiplexer::new(network);
+    let network = multiplexed_network.multiplex(identifier_info);
     let user_id_mapping_clone = user_id_mapping.clone();
 
     // Take the messages from the async protocol and send them to the gadget
     let _ = gadget_io::tokio::task::spawn(async move {
+        let network = &network;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, O::Inner, C2, (), _>(
                     msg,
-                    &network,
+                    network,
                     &user_id_mapping,
                     my_user_id,
                     identifier_info,
@@ -533,7 +537,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
             while let Some(msg) = rx_to_outbound_2.next().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, O::Inner, C2, (), _>(
                     msg,
-                    &network_clone,
+                    network,
                     &user_id_mapping_clone,
                     my_user_id,
                     identifier_info,

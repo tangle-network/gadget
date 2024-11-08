@@ -194,6 +194,8 @@ testcontainers = { version = "0.20.1" }
 
 # Symbiotic
 symbiotic-rs = { version = "0.1.0" }
+dashmap = "6.1.0"
+bincode2 = "2.0.1"
 
 [profile.dev.package.backtrace]
 opt-level = 3
