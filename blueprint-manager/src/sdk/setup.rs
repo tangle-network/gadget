@@ -1,12 +1,13 @@
-use std::collections::BTreeMap;
-use std::time::Duration;
-
+use futures::stream::FuturesOrdered;
+use futures::StreamExt;
 use gadget_io::tokio::task::JoinHandle;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
 use gadget_sdk::network::Network;
 use gadget_sdk::prometheus::PrometheusConfig;
 use gadget_sdk::store::{ECDSAKeyStore, KeyValueStoreBackend};
 use sp_core::{keccak_256, sr25519, Pair};
+use std::collections::BTreeMap;
+use std::time::Duration;
 
 use crate::sdk::config::SingleGadgetConfig;
 pub use gadget_io::KeystoreContainer;
@@ -110,28 +111,31 @@ pub async fn wait_for_connection_to_bootnodes(
 
     debug!("Waiting for {n_required} peers to show up across {n_networks} networks");
 
-    let mut tasks = gadget_io::tokio::task::JoinSet::new();
+    let mut tasks = FuturesOrdered::new();
 
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
 
-    let wait_for_peers = |handle: GossipHandle, n_required| async move {
-        'inner: loop {
-            let n_connected = handle.connected_peers();
-            if n_connected >= n_required {
-                break 'inner;
-            }
-            let topic = handle.topic();
-            debug!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network");
-            gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
-        }
-    };
-
     for handle in handles.values() {
-        tasks.spawn(wait_for_peers(handle.clone(), n_required));
+        tasks.push_back(wait_for_peers(handle, n_required));
     }
+
     // Wait for all tasks to finish
-    while tasks.join_next().await.is_some() {}
+    tasks.collect::<()>().await;
 
     Ok(())
+}
+
+async fn wait_for_peers(handle: &GossipHandle, n_required: usize) {
+    loop {
+        let n_connected = handle.connected_peers();
+        if n_connected >= n_required {
+            return;
+        }
+        let topic = handle.topic();
+        debug!(
+            "`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"
+        );
+        gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
+    }
 }

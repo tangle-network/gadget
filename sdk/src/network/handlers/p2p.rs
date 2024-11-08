@@ -144,6 +144,11 @@ impl NetworkService<'_> {
                 )
             }
             Message { topic, raw_payload } => {
+                // Reject messages to self
+                if peer == self.my_id {
+                    return;
+                }
+
                 let topic = IdentTopic::new(topic);
                 if let Some((_, tx, _)) = self
                     .inbound_mapping

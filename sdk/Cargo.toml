@@ -92,6 +92,8 @@ gadget-blueprint-proc-macro = { workspace = true, default-features = false }
 gadget-context-derive = { workspace = true, default-features = false }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 
+lru-mem = { workspace = true }
+
 # Benchmarking deps
 sysinfo = { workspace = true }
 dashmap = { workspace = true }
