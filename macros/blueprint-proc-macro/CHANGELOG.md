@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.3.0...gadget-blueprint-proc-macro-v0.3.1) - 2024-11-08
+
+### Added
+
+- constructors for Tangle and EVM ([#447](https://github.com/tangle-network/gadget/pull/447))
+
+### Fixed
+
+- handle edge cases during registration ([#452](https://github.com/tangle-network/gadget/pull/452))
+
 ## [0.3.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.2.3...gadget-blueprint-proc-macro-v0.3.0) - 2024-11-05
 
 ### Added

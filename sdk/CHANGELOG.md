@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.3.0...gadget-sdk-v0.4.0) - 2024-11-08
+
+### Fixed
+
+- *(gadget-sdk)* [**breaking**] prevent duplicate and self-referential messages ([#458](https://github.com/tangle-network/gadget/pull/458))
+- *(ci)* add doc tests to CI ([#383](https://github.com/tangle-network/gadget/pull/383))
+- handle edge cases during registration ([#452](https://github.com/tangle-network/gadget/pull/452))
+
+### Other
+
+- add a p2p test for testing the networking layer ([#450](https://github.com/tangle-network/gadget/pull/450))
+- Improve code for next documentation update. ([#434](https://github.com/tangle-network/gadget/pull/434))
+- improve test-utils and lower networking log level ([#448](https://github.com/tangle-network/gadget/pull/448))
+
 ## [0.3.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.2.3...gadget-sdk-v0.3.0) - 2024-11-05
 
 ### Added

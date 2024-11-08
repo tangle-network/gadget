@@ -2257,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -4712,7 +4712,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "gadget-blueprint-proc-macro-core",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-serde"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "paste",
  "serde",
@@ -4803,7 +4803,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-contract",
  "alloy-network",
