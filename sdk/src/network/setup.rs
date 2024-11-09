@@ -276,13 +276,15 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
-    let ips_to_bind_to = vec![
-        IpAddr::from_str("0.0.0.0").unwrap(),
-        IpAddr::from_str("::1").unwrap(),
+    let ips_to_bind_to = [
+        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
     ];
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
+        // Bind to both UDP and TCP to increase probability of successful NAT traversal.
+        // Use QUIC over UDP to have reliable ordered transport like TCP.
         swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
         swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
     }
