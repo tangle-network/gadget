@@ -1,42 +1,71 @@
-use crate::examples::eigen_context::IncredibleSquaringTaskManager::NewTaskCreated;
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{address, Address, Bytes};
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
+use gadget_sdk::event_utils::InitializableEventHandler;
+use gadget_sdk::utils::evm::get_provider_http;
 use gadget_sdk::{config::StdGadgetConfiguration, ctx::EigenlayerContext, job, load_abi};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
 use std::ops::Deref;
 
 alloy_sol_types::sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
-    IncredibleSquaringTaskManager,
-    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+    ContextExampleTaskManager,
+    "contracts/out/ContextExampleTaskManager.sol/ContextExampleTaskManager.json"
 );
+
 load_abi!(
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+    CONTEXT_EXAMPLE_TASK_MANAGER_ABI_STRING,
+    "contracts/out/ContextExampleTaskManager.sol/ContextExampleTaskManager.json"
 );
 
 #[derive(Clone, EigenlayerContext)]
 pub struct ExampleEigenContext {
     #[config]
     pub std_config: StdGadgetConfiguration,
-    pub http_rpc_endpoint: String,
-    pub ws_rpc_endpoint: String,
+}
+
+pub async fn constructor(
+    env: StdGadgetConfiguration,
+) -> color_eyre::Result<impl InitializableEventHandler> {
+    let context_example_address = env::var("CONTEXT_EXAMPLE_TASK_MANAGER_ADDRESS")
+        .map(|addr| {
+            addr.parse()
+                .expect("Invalid CONTEXT_EXAMPLE_TASK_MANAGER_ADDRESS")
+        })
+        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
+
+    let context_example_task_manager =
+        ContextExampleTaskManager::ContextExampleTaskManagerInstance::new(
+            context_example_address,
+            get_provider_http(&env.http_rpc_endpoint),
+        );
+
+    Ok(DemonstrateEigenlayerContextEventHandler {
+        contract: context_example_task_manager,
+        contract_instance: Default::default(),
+        ctx: ExampleEigenContext {
+            std_config: env.clone(),
+        },
+    })
 }
 
 #[job(
-    id = 1,
+    id = 0,
+    params(event, log),
     event_listener(
-        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
-        instance = IncredibleSquaringTaskManager,
-        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+        listener = EvmContractEventListener<ContextExampleTaskManager::NewTaskCreated>,
+        instance = ContextExampleTaskManager,
+        abi = CONTEXT_EXAMPLE_TASK_MANAGER_ABI_STRING,
+        pre_processor = handle_events,
     ),
 )]
 pub async fn demonstrate_eigenlayer_context(
     ctx: ExampleEigenContext,
-    event: (NewTaskCreated, gadget_sdk::alloy_rpc_types::Log),
+    event: ContextExampleTaskManager::NewTaskCreated,
+    log: alloy_rpc_types::Log,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     // Example operator ID and address
     let operator_id = FixedBytes::<32>::from([0u8; 32]);
@@ -138,16 +167,20 @@ pub async fn demonstrate_eigenlayer_context(
     Ok(0)
 }
 
-// pub async fn handle_inputs(
-//     event: (
-//         IncredibleSquaringTaskManager::NewTaskCreated,
-//         alloy_rpc_types::Log,
-//     ),
-// ) -> Result<u32, gadget_sdk::Error> {
-//     let task_index = event.0.taskIndex;
-//     println!("Task Index: {task_index}");
-//     Ok(task_index)
-// }
+pub async fn handle_events(
+    event: (
+        ContextExampleTaskManager::NewTaskCreated,
+        alloy_rpc_types::Log,
+    ),
+) -> Result<
+    (
+        ContextExampleTaskManager::NewTaskCreated,
+        alloy_rpc_types::Log,
+    ),
+    gadget_sdk::Error,
+> {
+    Ok(event)
+}
 
 // #[tokio::main]
 // async fn main() -> Result<(), Box<dyn std::error::Error>> {

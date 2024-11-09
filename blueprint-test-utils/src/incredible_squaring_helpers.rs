@@ -5,6 +5,9 @@ use std::time::Duration;
 use testcontainers::{ContainerAsync, GenericImage};
 use tokio::sync::Mutex;
 
+const DEFAULT_ANVIL_STATE_PATH: &str =
+    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
+
 /// Starts an Anvil container for testing from the given state file in JSON format.
 ///
 /// # Arguments
@@ -28,6 +31,22 @@ pub async fn start_anvil_testnet(
     // Sleep to give the testnet time to spin up
     tokio::time::sleep(Duration::from_secs(1)).await;
     (container, http_endpoint, ws_endpoint)
+}
+
+/// Starts an Anvil container for testing from this library's default state file.
+///
+/// # Arguments
+/// * `include_logs` - If true, testnet output will be printed to the console.
+///
+/// # Returns
+/// `(container, http_endpoint, ws_endpoint)`
+///    - `container` as a [`ContainerAsync`] - The Anvil container.
+///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
+///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
+pub async fn start_default_anvil_testnet(
+    include_logs: bool,
+) -> (ContainerAsync<GenericImage>, String, String) {
+    anvil::start_anvil_container(DEFAULT_ANVIL_STATE_PATH, include_logs).await
 }
 
 /// Waits for the given `successful_responses` Mutex to be greater than or equal to `task_response_count`.

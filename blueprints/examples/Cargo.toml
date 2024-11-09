@@ -17,6 +17,7 @@ color-eyre = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
@@ -38,6 +39,10 @@ alloy-contract = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true }
+
+[dev-dependencies]
+blueprint-test-utils = { workspace = true }
+gadget-io = { workspace = true, features = ["std"] }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

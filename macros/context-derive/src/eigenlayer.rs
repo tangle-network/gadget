@@ -23,6 +23,7 @@ pub fn generate_context_impl(
     quote! {
         use alloy_provider::Provider;
         use eigensdk::client_avsregistry::reader::AvsRegistryReader;
+        use eigensdk::utils::binding::RegistryCoordinator;
         use eigensdk::utils::binding::StakeRegistry::{StakeRegistryInstance, StakeUpdate};
         use eigensdk::types::operator::{Operator, OperatorPubKeys};
         use eigensdk::client_elcontracts::reader::ELChainReader;
@@ -30,13 +31,6 @@ pub fn generate_context_impl(
         use gadget_sdk::utils::evm::get_slasher_address;
         use gadget_sdk::ctx::BigInt;
         use alloy_primitives::{U256, FixedBytes};
-
-        alloy_sol_types::sol!(
-            #[allow(missing_docs, clippy::too_many_arguments)]
-            #[sol(rpc)]
-            RegistryCoordinator,
-            "contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
-        );
 
         #[async_trait::async_trait]
         impl #impl_generics gadget_sdk::ctx::EigenlayerContext for #name #ty_generics #where_clause {
