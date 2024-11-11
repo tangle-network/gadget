@@ -1,5 +1,5 @@
-use blueprint::examples::*;
 use blueprint_examples as blueprint;
+use blueprint::*;
 use gadget_sdk::info;
 use gadget_sdk::runners::{tangle::TangleConfig, BlueprintRunner};
 
