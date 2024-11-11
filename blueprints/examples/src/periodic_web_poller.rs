@@ -15,7 +15,9 @@ pub fn constructor() -> impl InitializableEventHandler {
     id = 0,
     params(value),
     event_listener(
-        listener = PeriodicEventListener<2000, WebPoller, serde_json::Value, reqwest::Client>,
+        listener = PeriodicEventListener<
+            2000, WebPoller, serde_json::Value, reqwest::Client
+        >,
         pre_processor = pre_process,
         post_processor = post_process,
     ),
