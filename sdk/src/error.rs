@@ -68,6 +68,12 @@ pub enum Error {
     Other(String),
 }
 
+impl From<bollard::errors::Error> for Error {
+    fn from(error: bollard::errors::Error) -> Self {
+        Error::Docker(crate::docker::Error::from(error))
+    }
+}
+
 impl From<String> for Error {
     fn from(s: String) -> Self {
         Error::Other(s)
