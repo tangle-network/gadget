@@ -187,6 +187,7 @@ impl<'a> Container<'a> {
         let config = Config {
             image: Some(self.image.clone()),
             cmd: self.options.cmd.clone(),
+            env: self.options.env.clone(),
             attach_stdout: Some(true),
             host_config: Some(HostConfig {
                 binds: self.options.binds.clone(),
