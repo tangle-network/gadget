@@ -12,18 +12,14 @@ pub async fn constructor(
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     use gadget_sdk::subxt_core::tx::signer::Signer;
 
-    let client = env.client().await.map_err(|e| color_eyre::eyre::eyre!(e))?;
     let signer = env
         .first_sr25519_signer()
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
     gadget_sdk::info!("Starting the event watcher for {} ...", signer.account_id());
-    Ok(RawEventHandler {
-        service_id: env.service_id().expect("No service ID found"),
-        context: MyContext,
-        client,
-        signer,
-    })
+    RawEventHandler::new(&env, MyContext)
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!(e))
 }
 
 #[job(

@@ -18,6 +18,7 @@ async-trait = { workspace = true }
 blueprint-manager = { workspace = true }
 futures = { workspace = true }
 parking_lot = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 # Logging and error handling

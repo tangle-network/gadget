@@ -12,13 +12,13 @@ alloy_sol_types::sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
-    ContextExampleTaskManager,
-    "contracts/out/ContextExampleTaskManager.sol/ContextExampleTaskManager.json"
+    ExampleTaskManager,
+    "contracts/out/ExampleTaskManager.sol/ExampleTaskManager.json"
 );
 
 load_abi!(
-    CONTEXT_EXAMPLE_TASK_MANAGER_ABI_STRING,
-    "contracts/out/ContextExampleTaskManager.sol/ContextExampleTaskManager.json"
+    EXAMPLE_TASK_MANAGER_ABI_STRING,
+    "contracts/out/ExampleTaskManager.sol/ExampleTaskManager.json"
 );
 
 #[derive(Clone, EigenlayerContext)]
@@ -30,41 +30,36 @@ pub struct ExampleEigenContext {
 pub async fn constructor(
     env: StdGadgetConfiguration,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
-    let context_example_address = env::var("CONTEXT_EXAMPLE_TASK_MANAGER_ADDRESS")
-        .map(|addr| {
-            addr.parse()
-                .expect("Invalid CONTEXT_EXAMPLE_TASK_MANAGER_ADDRESS")
-        })
+    let example_address = env::var("EXAMPLE_TASK_MANAGER_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid EXAMPLE_TASK_MANAGER_ADDRESS"))
         .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
 
-    let context_example_task_manager =
-        ContextExampleTaskManager::ContextExampleTaskManagerInstance::new(
-            context_example_address,
-            get_provider_http(&env.http_rpc_endpoint),
-        );
+    let example_task_manager = ExampleTaskManager::ExampleTaskManagerInstance::new(
+        example_address,
+        get_provider_http(&env.http_rpc_endpoint),
+    );
 
-    Ok(DemonstrateEigenlayerContextEventHandler {
-        contract: context_example_task_manager,
-        contract_instance: Default::default(),
-        ctx: ExampleEigenContext {
+    Ok(FetchDetailsEventHandler::new(
+        example_task_manager,
+        ExampleEigenContext {
             std_config: env.clone(),
         },
-    })
+    ))
 }
 
 #[job(
     id = 0,
     params(event, log),
     event_listener(
-        listener = EvmContractEventListener<ContextExampleTaskManager::NewTaskCreated>,
-        instance = ContextExampleTaskManager,
-        abi = CONTEXT_EXAMPLE_TASK_MANAGER_ABI_STRING,
+        listener = EvmContractEventListener<ExampleTaskManager::NewTaskCreated>,
+        instance = ExampleTaskManager,
+        abi = EXAMPLE_TASK_MANAGER_ABI_STRING,
         pre_processor = handle_events,
     ),
 )]
-pub async fn demonstrate_eigenlayer_context(
+pub async fn fetch_details(
     ctx: ExampleEigenContext,
-    event: ContextExampleTaskManager::NewTaskCreated,
+    event: ExampleTaskManager::NewTaskCreated,
     log: alloy_rpc_types::Log,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     // Example operator ID and address
@@ -168,29 +163,7 @@ pub async fn demonstrate_eigenlayer_context(
 }
 
 pub async fn handle_events(
-    event: (
-        ContextExampleTaskManager::NewTaskCreated,
-        alloy_rpc_types::Log,
-    ),
-) -> Result<
-    (
-        ContextExampleTaskManager::NewTaskCreated,
-        alloy_rpc_types::Log,
-    ),
-    gadget_sdk::Error,
-> {
+    event: (ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log),
+) -> Result<(ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log), gadget_sdk::Error> {
     Ok(event)
 }
-
-// #[tokio::main]
-// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     // Example configuration
-//     let config = StdGadgetConfiguration::default();
-//     let context = ExampleEigenContext {
-//         std_config: config,
-//         http_rpc_endpoint: "http://localhost:8545".to_string(),
-//         ws_rpc_endpoint: "ws://localhost:8546".to_string(),
-//     };
-//
-//     demonstrate_eigenlayer_context(&context).await
-// }

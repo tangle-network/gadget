@@ -2024,6 +2024,7 @@ dependencies = [
  "libp2p",
  "log",
  "parking_lot 0.12.3",
+ "serde",
  "sp-core",
  "sp-io",
  "subxt",

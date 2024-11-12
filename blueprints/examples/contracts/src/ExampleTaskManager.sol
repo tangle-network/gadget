@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.13;
 
-contract ContextExampleTaskManager {
+contract ExampleTaskManager {
     // Define the Task struct
     struct Task {
         address targetAddress;

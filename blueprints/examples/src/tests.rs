@@ -1,5 +1,5 @@
 use crate::examples::eigen_context;
-use crate::examples::eigen_context::ContextExampleTaskManager;
+use crate::examples::eigen_context::ExampleTaskManager;
 use alloy_provider::Provider;
 use blueprint_test_utils::eigenlayer_test_env::{
     AVS_DIRECTORY_ADDR, DELEGATION_MANAGER_ADDR, OPERATOR_STATE_RETRIEVER_ADDR,
@@ -20,7 +20,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 #[tokio::test]
-async fn test_demonstrate_eigenlayer_context() {
+async fn test_eigenlayer_context() {
     setup_log();
 
     let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
@@ -33,7 +33,7 @@ async fn test_demonstrate_eigenlayer_context() {
     let owner_address = &accounts[1];
     let task_generator_address = &accounts[4];
 
-    let context_example_task_manager = ContextExampleTaskManager::deploy_builder(provider.clone());
+    let context_example_task_manager = ExampleTaskManager::deploy_builder(provider.clone());
     let context_example_task_manager_address = get_receipt(context_example_task_manager)
         .await
         .unwrap()
