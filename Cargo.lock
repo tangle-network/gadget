@@ -4815,6 +4815,7 @@ name = "gadget-sdk"
 version = "0.4.0"
 dependencies = [
  "alloy-contract",
+ "alloy-json-abi",
  "alloy-network",
  "alloy-primitives 0.7.7",
  "alloy-provider",
