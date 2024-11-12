@@ -29,14 +29,14 @@ pub async fn web_poller(value: bool, client: reqwest::Client) -> Result<u8, Infa
 }
 
 // Maps a JSON response to a boolean value
-async fn pre_process(event: serde_json::Value) -> Result<bool, gadget_sdk::Error> {
+pub async fn pre_process(event: serde_json::Value) -> Result<bool, gadget_sdk::Error> {
     gadget_sdk::info!("Running web_poller pre-processor on value: {event}");
     let completed = event["completed"].as_bool().unwrap_or(false);
     Ok(completed)
 }
 
 // Received the u8 value output from the job and performs any last post-processing
-async fn post_process(job_output: u8) -> Result<(), gadget_sdk::Error> {
+pub async fn post_process(job_output: u8) -> Result<(), gadget_sdk::Error> {
     gadget_sdk::info!("Running web_poller post-processor on value: {job_output}");
     if job_output == 1 {
         Ok(())

@@ -1,4 +1,6 @@
+mod array_return_type;
 mod complex_types;
+mod custom_return_type;
 mod function_with_explicit_empty_return_type;
 mod function_without_return_type;
 mod infer_result;
