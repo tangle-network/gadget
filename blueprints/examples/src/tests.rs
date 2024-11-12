@@ -1,23 +1,21 @@
 use crate::eigen_context;
 use crate::eigen_context::ExampleTaskManager;
 use alloy_provider::Provider;
-use blueprint_test_utils::eigenlayer_test_env::{
-    AVS_DIRECTORY_ADDR, DELEGATION_MANAGER_ADDR, OPERATOR_STATE_RETRIEVER_ADDR,
-    REGISTRY_COORDINATOR_ADDR, STRATEGY_MANAGER_ADDR,
-};
 use blueprint_test_utils::helpers::get_receipt;
 use blueprint_test_utils::incredible_squaring_helpers::start_default_anvil_testnet;
 use blueprint_test_utils::{inject_test_keys, KeyGenType};
-use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, Protocol};
+use gadget_io::SupportedChains;
+use gadget_sdk::config::protocol::EigenlayerContractAddresses;
+use gadget_sdk::config::ContextConfig;
 use gadget_sdk::info;
 use gadget_sdk::logging::setup_log;
 use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::utils::evm::get_provider_http;
 use reqwest::Url;
-use std::net::IpAddr;
 use std::path::Path;
-use std::str::FromStr;
+use std::time::Duration;
+use tokio::time::timeout;
 
 #[tokio::test]
 async fn test_eigenlayer_context() {
@@ -25,7 +23,6 @@ async fn test_eigenlayer_context() {
 
     let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
     let url = Url::parse(&http_endpoint).unwrap();
-    let target_port = url.port().unwrap();
 
     let provider = get_provider_http(&http_endpoint);
     info!("Fetching accounts");
@@ -94,45 +91,46 @@ async fn test_eigenlayer_context() {
         std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-    // Create the GadgetConfiguration
-    let config = ContextConfig {
-        gadget_core_settings: GadgetCLICoreSettings::Run {
-            target_addr: IpAddr::from_str("127.0.0.1").unwrap(),
-            target_port,
-            use_secure_url: false,
-            test_mode: false,
-            log_id: None,
-            http_rpc_url: url,
-            bootnodes: None,
-            keystore_uri: keystore_uri_str,
-            chain: gadget_io::SupportedChains::LocalTestnet,
-            verbose: 3,
-            pretty: true,
-            keystore_password: None,
-            blueprint_id: Some(0),
-            service_id: Some(0),
-            skip_registration: false,
-            protocol: Protocol::Eigenlayer,
-            registry_coordinator: Some(REGISTRY_COORDINATOR_ADDR),
-            operator_state_retriever: Some(OPERATOR_STATE_RETRIEVER_ADDR),
-            delegation_manager: Some(DELEGATION_MANAGER_ADDR),
-            ws_rpc_url: Url::parse(&ws_endpoint).unwrap(),
-            strategy_manager: Some(STRATEGY_MANAGER_ADDR),
-            avs_directory: Some(AVS_DIRECTORY_ADDR),
-            operator_registry: None,
-            network_registry: None,
-            base_delegator: None,
-            network_opt_in_service: None,
-            vault_opt_in_service: None,
-            slasher: None,
-            veto_slasher: None,
-        },
-    };
+    let config = ContextConfig::create_eigenlayer_config(
+        url,
+        Url::parse(&ws_endpoint).unwrap(),
+        keystore_uri_str,
+        SupportedChains::LocalTestnet,
+        EigenlayerContractAddresses::default(),
+    );
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
 
-    BlueprintRunner::new(EigenlayerConfig {}, env.clone())
-        .job(eigen_context::constructor(env.clone()).await.unwrap())
-        .run()
-        .await
-        .unwrap();
+    let mut blueprint = BlueprintRunner::new(EigenlayerConfig {}, env.clone());
+
+    let result = timeout(Duration::from_secs(90), async {
+        tokio::select! {
+            _ = blueprint
+            .job(eigen_context::constructor(env.clone()).await.unwrap())
+            .run()
+            => {
+                panic!("Blueprint ended unexpectedly");
+            }
+            _ = tokio::task::spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_millis(3000)).await;
+                    let result = std::env::var("EIGEN_CONTEXT_STATUS").unwrap_or_else(|_| "false".to_string());
+                    match result.as_str() {
+                        "true" => {
+                            break;
+                        }
+                        _ => {
+                            info!("Waiting for Eigenlayer Context Job to Successfully Finish...");
+                        }
+                    }
+                }
+            }) => {
+                info!("Eigenlayer Context Test Finished Successfully");
+            }
+        }
+    }).await;
+
+    match result {
+        Ok(_) => info!("Success! Exiting..."),
+        Err(_) => panic!("Test timed out"),
+    }
 }

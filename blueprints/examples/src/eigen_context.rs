@@ -1,4 +1,5 @@
 use alloy_primitives::{address, Address, Bytes};
+use color_eyre::eyre::eyre;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::subxt_core::ext::sp_runtime::traits::Zero;
@@ -33,7 +34,7 @@ pub async fn constructor(
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     let example_address = env::var("EXAMPLE_TASK_MANAGER_ADDRESS")
         .map(|addr| addr.parse().expect("Invalid EXAMPLE_TASK_MANAGER_ADDRESS"))
-        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
+        .map_err(|e| eyre!(e))?;
 
     let example_task_manager = ExampleTaskManager::ExampleTaskManagerInstance::new(
         example_address,
@@ -63,7 +64,7 @@ pub async fn fetch_details(
     event: ExampleTaskManager::NewTaskCreated,
     log: alloy_rpc_types::Log,
 ) -> Result<u32, Box<dyn std::error::Error>> {
-    // Example operator ID and address
+    // Example address, quorum number, and index
     let operator_addr = address!("70997970C51812dc3A010C7d01b50e0d17dc79C8");
     let quorum_number: u8 = 0;
     let index: U256 = U256::from(0);
@@ -176,6 +177,8 @@ pub async fn fetch_details(
     assert!(existing_registered_operator_pub_keys.0.is_empty());
     assert!(existing_registered_operator_pub_keys.1.is_empty());
 
+    // Set environment variable to indicate success for test
+    std::env::set_var("EIGEN_CONTEXT_STATUS", "true");
     Ok(0)
 }
 

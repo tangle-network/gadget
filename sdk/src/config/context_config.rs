@@ -1,11 +1,14 @@
 use super::*;
+use crate::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use alloc::string::String;
 use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
+use core::str::FromStr;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
+use std::net::Ipv4Addr;
 use url::Url;
 
 #[derive(Debug, Default, Clone, clap::Parser, Serialize, Deserialize)]
@@ -207,6 +210,200 @@ impl Default for GadgetCLICoreSettings {
             slasher: None,
             veto_slasher: None,
         }
+    }
+}
+
+impl ContextConfig {
+    /// Creates a new context config with the given parameters
+    ///
+    /// # Arguments
+    /// - `http_rpc_url`: The HTTP RPC URL of the target chain
+    /// - `ws_rpc_url`: The WebSocket RPC URL of the target chain
+    /// - `use_secure_url`: Whether to use a secure URL (ws/wss and http/https)
+    /// - `keystore_uri`: The keystore URI as a string
+    /// - `chain`: The [`chain`](SupportedChains)
+    /// - `protocol`: The [`Protocol`]
+    /// - `eigenlayer_contract_addresses`: The [`contract addresses`](EigenlayerContractAddresses) for the necessary EigenLayer contracts
+    /// - `symbiotic_contract_addresses`: The [`contract addresses`](SymbioticContractAddresses) for the necessary Symbiotic contracts
+    /// - `blueprint_id`: The blueprint ID - only required for Tangle
+    /// - `service_id`: The service ID - only required for Tangle
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_config(
+        target_addr: IpAddr,
+        target_port: u16,
+        http_rpc_url: Url,
+        ws_rpc_url: Url,
+        use_secure_url: bool,
+        skip_registration: bool,
+        keystore_uri: String,
+        keystore_password: Option<String>,
+        chain: SupportedChains,
+        protocol: Protocol,
+        eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
+        symbiotic_contract_addresses: Option<SymbioticContractAddresses>,
+        blueprint_id: Option<u64>,
+        service_id: Option<u64>,
+    ) -> Self {
+        // Eigenlayer addresses
+        let registry_coordinator =
+            eigenlayer_contract_addresses.map(|a| a.registry_coordinator_address);
+        let operator_state_retriever =
+            eigenlayer_contract_addresses.map(|a| a.operator_state_retriever_address);
+        let delegation_manager =
+            eigenlayer_contract_addresses.map(|a| a.delegation_manager_address);
+        let strategy_manager = eigenlayer_contract_addresses.map(|a| a.strategy_manager_address);
+        let avs_directory = eigenlayer_contract_addresses.map(|a| a.avs_directory_address);
+
+        // Symbiotic addresses
+        let operator_registry = symbiotic_contract_addresses.map(|a| a.operator_registry_address);
+        let network_registry = symbiotic_contract_addresses.map(|a| a.network_registry_address);
+        let base_delegator = symbiotic_contract_addresses.map(|a| a.base_delegator_address);
+        let network_opt_in_service =
+            symbiotic_contract_addresses.map(|a| a.network_opt_in_service_address);
+        let vault_opt_in_service =
+            symbiotic_contract_addresses.map(|a| a.vault_opt_in_service_address);
+        let slasher = symbiotic_contract_addresses.map(|a| a.slasher_address);
+        let veto_slasher = symbiotic_contract_addresses.map(|a| a.veto_slasher_address);
+
+        ContextConfig {
+            gadget_core_settings: GadgetCLICoreSettings::Run {
+                target_addr,
+                target_port,
+                use_secure_url,
+                test_mode: false,
+                log_id: None,
+                http_rpc_url,
+                bootnodes: None,
+                keystore_uri,
+                chain,
+                verbose: 3,
+                pretty: true,
+                keystore_password,
+                blueprint_id,
+                service_id,
+                skip_registration,
+                protocol,
+                registry_coordinator,
+                operator_state_retriever,
+                delegation_manager,
+                ws_rpc_url,
+                strategy_manager,
+                avs_directory,
+                operator_registry,
+                network_registry,
+                base_delegator,
+                network_opt_in_service,
+                vault_opt_in_service,
+                slasher,
+                veto_slasher,
+            },
+        }
+    }
+
+    /// Creates a new context config with the given parameters
+    ///
+    /// # Defaults
+    /// - `target_addr`: The same host address as the given http_rpc_url, defaulting to 127.0.0.1 if an error occurs
+    /// - `target_port`: The same port as the given http_rpc_url, defaulting to 0 if an error occurs
+    /// - `use_secure_url`: false
+    /// - `skip_registration`: false
+    /// - `keystore_password`: None
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_config_with_defaults(
+        http_rpc_url: Url,
+        ws_rpc_url: Url,
+        keystore_uri: String,
+        chain: SupportedChains,
+        protocol: Protocol,
+        eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
+        symbiotic_contract_addresses: Option<SymbioticContractAddresses>,
+        blueprint_id: Option<u64>,
+        service_id: Option<u64>,
+    ) -> Self {
+        let target_port = http_rpc_url.port().unwrap_or_default();
+        let target_addr = http_rpc_url
+            .host_str()
+            .and_then(|host| IpAddr::from_str(host).ok())
+            .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+
+        ContextConfig::create_config(
+            target_addr,
+            target_port,
+            http_rpc_url,
+            ws_rpc_url,
+            false,
+            false,
+            keystore_uri,
+            None,
+            chain,
+            protocol,
+            eigenlayer_contract_addresses,
+            symbiotic_contract_addresses,
+            blueprint_id,
+            service_id,
+        )
+    }
+
+    /// Creates a new context config with defaults for Eigenlayer
+    pub fn create_eigenlayer_config(
+        http_rpc_url: Url,
+        ws_rpc_url: Url,
+        keystore_uri: String,
+        chain: SupportedChains,
+        eigenlayer_contract_addresses: EigenlayerContractAddresses,
+    ) -> Self {
+        Self::create_config_with_defaults(
+            http_rpc_url,
+            ws_rpc_url,
+            keystore_uri,
+            chain,
+            Protocol::Eigenlayer,
+            Some(eigenlayer_contract_addresses),
+            None,
+            None,
+            None,
+        )
+    }
+
+    /// Creates a new context config with defaults for Symbiotic
+    pub fn create_symbiotic_config(
+        http_rpc_url: Url,
+        ws_rpc_url: Url,
+        keystore_uri: String,
+        chain: SupportedChains,
+        symbiotic_contract_addresses: SymbioticContractAddresses,
+    ) -> Self {
+        Self::create_config_with_defaults(
+            http_rpc_url,
+            ws_rpc_url,
+            keystore_uri,
+            chain,
+            Protocol::Symbiotic,
+            None,
+            Some(symbiotic_contract_addresses),
+            None,
+            None,
+        )
+    }
+
+    /// Creates a new context config with defaults for Tangle
+    pub fn create_tangle_config(
+        http_rpc_url: Url,
+        ws_rpc_url: Url,
+        keystore_uri: String,
+        chain: SupportedChains,
+    ) -> Self {
+        Self::create_config_with_defaults(
+            http_rpc_url,
+            ws_rpc_url,
+            keystore_uri,
+            chain,
+            Protocol::Tangle,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 }
 
