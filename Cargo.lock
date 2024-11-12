@@ -360,7 +360,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "auto_impl",
- "dashmap",
+ "dashmap 5.5.3",
  "futures",
  "futures-utils-wasm",
  "lru",
@@ -854,9 +854,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.92"
+version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74f37166d7d48a0284b99dd824694c26119c700b53bf0d1540cdb147dbdaaf13"
+checksum = "4c95c10ba0b00a02636238b814946408b1322d5ac4760326e6fb8ec956d85775"
 
 [[package]]
 name = "anymap2"
@@ -1755,6 +1755,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f49f6183038e081170ebbbadee6678966c7d54728938a3e7de7f4e780770318f"
+dependencies = [
+ "byteorder",
+ "serde",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2256,13 +2266,14 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-signer-local",
+ "anyhow",
  "cargo-generate",
  "cargo_metadata",
  "clap",
@@ -2277,6 +2288,7 @@ dependencies = [
  "subxt",
  "tangle-subxt",
  "tempfile",
+ "thiserror",
  "tokio",
  "tracing-subscriber 0.3.18",
  "w3f-bls",
@@ -2981,6 +2993,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
 dependencies = [
  "cfg-if 1.0.0",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core 0.9.10",
+]
+
+[[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if 1.0.0",
+ "crossbeam-utils",
  "hashbrown 0.14.5",
  "lock_api",
  "once_cell",
@@ -4695,7 +4721,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "gadget-blueprint-proc-macro-core",
@@ -4735,7 +4761,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-serde"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "paste",
  "serde",
@@ -4786,7 +4812,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -4806,8 +4832,10 @@ dependencies = [
  "auto_impl",
  "backon",
  "bincode",
+ "bincode2",
  "bollard",
  "clap",
+ "dashmap 6.1.0",
  "ed25519-zebra 4.0.3",
  "eigensdk",
  "elliptic-curve",
@@ -4828,6 +4856,7 @@ dependencies = [
  "libp2p",
  "lock_api",
  "log",
+ "lru-mem",
  "nix 0.29.0",
  "num-bigint 0.4.6",
  "parking_lot 0.12.3",
@@ -7494,6 +7523,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31e24f1ad8321ca0e8a1e0ac13f23cb668e6f5466c2c57319f6a5cf1cc8e3b1c"
 dependencies = [
  "linked-hash-map",
+]
+
+[[package]]
+name = "lru-mem"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf5c8c26d903a41c80d4cc171940a57a4d1bc51139ebd6aad87e2f9ae3774780"
+dependencies = [
+ "hashbrown 0.14.5",
 ]
 
 [[package]]

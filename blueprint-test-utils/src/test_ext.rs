@@ -309,10 +309,12 @@ pub async fn new_test_ext_blueprint_manager<
 pub fn find_open_tcp_bind_port() -> u16 {
     let listener = std::net::TcpListener::bind(format!("{LOCAL_BIND_ADDR}:0"))
         .expect("Should bind to localhost");
-    listener
+    let port = listener
         .local_addr()
         .expect("Should have a local address")
-        .port()
+        .port();
+    drop(listener);
+    port
 }
 
 pub struct LocalhostTestExt {

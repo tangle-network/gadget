@@ -123,6 +123,10 @@ jobs:
       - name: tests
         run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}
 
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: doc tests
+        run: cargo test --package ${{ matrix.package }} --doc
+
   eigenlayer-tests:
     timeout-minutes: 90
     runs-on: ubuntu-latest

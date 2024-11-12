@@ -30,7 +30,7 @@ pub enum Error {
     Executor(#[from] crate::executor::process::Error),
 
     #[error("Docker error: {0}")]
-    Docker(#[from] bollard::errors::Error),
+    Docker(#[from] crate::docker::Error),
 
     #[error("Missing network ID")]
     MissingNetworkId,
@@ -66,6 +66,12 @@ pub enum Error {
 
     #[error("Other error: {0}")]
     Other(String),
+}
+
+impl From<bollard::errors::Error> for Error {
+    fn from(error: bollard::errors::Error) -> Self {
+        Error::Docker(crate::docker::Error::from(error))
+    }
 }
 
 impl From<String> for Error {

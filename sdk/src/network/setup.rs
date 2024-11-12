@@ -15,6 +15,7 @@ use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::{spawn, JoinHandle};
 use libp2p::Multiaddr;
+use lru_mem::LruCache;
 use sp_core::ecdsa;
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -39,7 +40,6 @@ pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
     pub ecdsa_key: ecdsa::Pair,
     pub bootnodes: Vec<Multiaddr>,
-    pub bind_ip: IpAddr,
     pub bind_port: u16,
     pub topics: Vec<String>,
 }
@@ -49,7 +49,6 @@ impl std::fmt::Debug for NetworkConfig {
         f.debug_struct("NetworkConfig")
             .field("identity", &self.identity)
             .field("bootnodes", &self.bootnodes)
-            .field("bind_ip", &self.bind_ip)
             .field("bind_port", &self.bind_port)
             .field("topics", &self.topics)
             .finish_non_exhaustive()
@@ -64,7 +63,6 @@ impl NetworkConfig {
         identity: libp2p::identity::Keypair,
         ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
-        bind_ip: IpAddr,
         bind_port: u16,
         topics: Vec<String>,
     ) -> Self {
@@ -72,7 +70,6 @@ impl NetworkConfig {
             identity,
             ecdsa_key,
             bootnodes,
-            bind_ip,
             bind_port,
             topics,
         }
@@ -84,7 +81,6 @@ impl NetworkConfig {
         identity: libp2p::identity::Keypair,
         ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
-        bind_ip: IpAddr,
         bind_port: u16,
         service_name: T,
     ) -> Self {
@@ -92,7 +88,6 @@ impl NetworkConfig {
             identity,
             ecdsa_key,
             bootnodes,
-            bind_ip,
             bind_port,
             vec![service_name.into()],
         )
@@ -146,7 +141,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     let NetworkConfig {
         identity,
         bootnodes,
-        bind_ip,
         bind_port,
         topics,
         ecdsa_key,
@@ -165,6 +159,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     }
 
     let networks = topics;
+
+    let my_id = identity.public().to_peer_id();
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -273,28 +269,22 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 tx_to_outbound: tx_to_outbound.clone(),
                 rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
                 ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
+                // Each key is 32 bytes, therefore 512 messages hashes can be stored in the set
+                recent_messages: LruCache::new(16 * 1024).into(),
+                my_id,
             },
         );
     }
 
-    let mut ips_to_bind_to = vec![bind_ip];
-
-    if let IpAddr::V6(v6_addr) = bind_ip {
-        if v6_addr.is_loopback() {
-            ips_to_bind_to.push(IpAddr::from_str("127.0.0.1").unwrap());
-        } else {
-            ips_to_bind_to.push(IpAddr::from_str("0.0.0.0").unwrap());
-        }
-    } else {
-        if bind_ip.is_loopback() {
-            ips_to_bind_to.push(IpAddr::from_str("::1").unwrap());
-        } else {
-            ips_to_bind_to.push(IpAddr::from_str("::").unwrap());
-        }
-    }
+    let ips_to_bind_to = [
+        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
+    ];
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
+        // Bind to both UDP and TCP to increase probability of successful NAT traversal.
+        // Use QUIC over UDP to have reliable ordered transport like TCP.
         swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
         swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
     }
@@ -316,7 +306,9 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             ecdsa_peer_id_to_libp2p_id,
             ecdsa_key: &ecdsa_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
+            my_id,
         };
+
         loop {
             select! {
                 // Setup outbound channel

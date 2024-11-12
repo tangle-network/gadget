@@ -39,13 +39,14 @@ pub type InputValue = runtime_types::tangle_primitives::services::field::Field<A
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod anvil;
+pub mod helpers;
+pub mod sync;
+pub mod tangle;
+pub mod test_ext;
 pub mod binding;
 pub mod eigenlayer_test_env;
-pub mod helpers;
 pub mod incredible_squaring_helpers;
 pub mod symbiotic_test_env;
-pub mod sync;
-pub mod test_ext;
 
 pub type TestClient = TangleClient;
 
@@ -216,7 +217,6 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
-///
 fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre::Result<()> {
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),
@@ -255,7 +255,6 @@ fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre:
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
-///
 fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre::Result<()> {
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),
@@ -346,7 +345,6 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
 ///
 /// # Errors
 /// - May fail if the keystore path cannot be created or accessed
-///
 pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result<()> {
     let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
         keystore_path.as_ref(),

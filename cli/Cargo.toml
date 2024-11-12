@@ -1,6 +1,6 @@
 [package]
 name = "cargo-tangle"
-version = "0.2.2"
+version = "0.2.3"
 description = "A command-line tool to create and deploy blueprints on Tangle Network"
 authors.workspace = true
 edition.workspace = true
@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 # CLI
+anyhow.workspace = true
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { workspace = true }
 cargo-generate = { workspace = true, default-features = false, features = ["vendored-openssl", "vendored-libgit2"] }
@@ -31,6 +32,7 @@ alloy-rpc-types = { workspace = true }
 alloy-signer-local = { workspace = true }
 hex = { workspace = true }
 w3f-bls = { workspace = true }
+thiserror.workspace = true
 
 [dev-dependencies]
 tempfile = "3.10.1"

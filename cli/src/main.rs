@@ -112,7 +112,7 @@ async fn main() -> color_eyre::Result<()> {
     match cli.command {
         Commands::Blueprint { subcommand } => match subcommand {
             GadgetCommands::Create { name, source } => {
-                create::new_blueprint(name, source);
+                create::new_blueprint(name, source)?;
             }
             GadgetCommands::Deploy {
                 http_rpc_url,
