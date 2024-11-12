@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.4.0...gadget-sdk-v0.4.1) - 2024-11-12
+
+### Added
+
+- add IN_ADDR_ANY for V4 and V6  ([#461](https://github.com/tangle-network/gadget/pull/461))
+
+### Other
+
+- enable `format_code_in_doc_comments` for rustfmt ([#467](https://github.com/tangle-network/gadget/pull/467))
+
 ## [0.4.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.3.0...gadget-sdk-v0.4.0) - 2024-11-08
 
 ### Fixed

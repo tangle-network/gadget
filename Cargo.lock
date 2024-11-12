@@ -1965,7 +1965,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-manager"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -2005,7 +2005,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-test-utils"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-contract",
  "alloy-primitives 0.7.7",
@@ -2257,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -4803,7 +4803,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "alloy-contract",
  "alloy-network",
