@@ -11,7 +11,6 @@ pub const SIGNATURE_EXPIRY: U256 = U256::from_limbs([86400, 0, 0, 0]);
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
-///
 pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -27,7 +26,6 @@ pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
-///
 pub fn get_wallet_provider_http(
     http_endpoint: &str,
     wallet: EthereumWallet,
@@ -47,7 +45,6 @@ pub fn get_wallet_provider_http(
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
-///
 pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -68,7 +65,6 @@ pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
 ///
 /// # Errors
 /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
-///
 pub async fn get_slasher_address(
     delegation_manager_addr: Address,
     http_endpoint: &str,
