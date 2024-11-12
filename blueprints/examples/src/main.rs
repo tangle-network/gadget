@@ -1,5 +1,4 @@
-use blueprint::examples::*;
-use blueprint_examples as blueprint;
+use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events};
 use gadget_sdk::info;
 use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
 use gadget_sdk::runners::{tangle::TangleConfig, BlueprintRunner};

@@ -1,5 +1,5 @@
-use crate::examples::eigen_context;
-use crate::examples::eigen_context::ExampleTaskManager;
+use crate::eigen_context;
+use crate::eigen_context::ExampleTaskManager;
 use alloy_provider::Provider;
 use blueprint_test_utils::eigenlayer_test_env::{
     AVS_DIRECTORY_ADDR, DELEGATION_MANAGER_ADDR, OPERATOR_STATE_RETRIEVER_ADDR,
