@@ -1,5 +1,6 @@
 use crate::anvil;
 use alloy_primitives::{address, Address};
+use gadget_sdk::info;
 use std::sync::Arc;
 use std::time::Duration;
 use testcontainers::{ContainerAsync, GenericImage};
@@ -46,6 +47,7 @@ pub async fn start_anvil_testnet(
 pub async fn start_default_anvil_testnet(
     include_logs: bool,
 ) -> (ContainerAsync<GenericImage>, String, String) {
+    info!("Starting Anvil testnet from default state file");
     anvil::start_anvil_container(DEFAULT_ANVIL_STATE_PATH, include_logs).await
 }
 

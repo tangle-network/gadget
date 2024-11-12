@@ -123,7 +123,7 @@ jobs:
       - name: tests
         run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}
 
-  integration-test-eigenlayer:
+  eigenlayer-tests:
     timeout-minutes: 90
     runs-on: ubuntu-latest
     steps:
@@ -171,5 +171,8 @@ jobs:
       - name: Build (release) integration test
         run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
 
-      - name: tests
+      - name: eigenlayer incredible squaring blueprint test
         run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
+
+      - name: eigenlayer context test
+        run: RUST_LOG=gadget=trace cargo test --package blueprint-examples test_eigenlayer_context -- --nocapture

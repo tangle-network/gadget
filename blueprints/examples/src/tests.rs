@@ -23,28 +23,63 @@ use std::str::FromStr;
 async fn test_eigenlayer_context() {
     setup_log();
 
-    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
+    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
     let url = Url::parse(&http_endpoint).unwrap();
     let target_port = url.port().unwrap();
 
     let provider = get_provider_http(&http_endpoint);
+    info!("Fetching accounts");
     let accounts = provider.get_accounts().await.unwrap();
 
-    let owner_address = &accounts[1];
-    let task_generator_address = &accounts[4];
+    let owner_address = accounts[1];
+    let task_generator_address = accounts[4];
 
+    info!("Deploying Example Task Manager...");
     let context_example_task_manager = ExampleTaskManager::deploy_builder(provider.clone());
     let context_example_task_manager_address = get_receipt(context_example_task_manager)
         .await
         .unwrap()
         .contract_address
         .unwrap();
+    std::env::set_var(
+        "EXAMPLE_TASK_MANAGER_ADDRESS",
+        context_example_task_manager_address.to_string(),
+    );
+    let context_example_task_manager =
+        ExampleTaskManager::new(context_example_task_manager_address, provider.clone());
 
     info!("Starting Eigenlayer Blueprint Context Test...");
 
     // Set up Task Spawner
     let _task_spawner_handle = tokio::task::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(3000)).await;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
+            match get_receipt(
+                context_example_task_manager
+                    .createTask(owner_address)
+                    .from(task_generator_address),
+            )
+            .await
+            {
+                Ok(receipt) => {
+                    info!("Created task with receipt: {:?}", receipt);
+                }
+                Err(e) => {
+                    panic!("Failed to create task: {:?}", e);
+                }
+            }
+
+            tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg(format!(
+                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
+                    http_endpoint
+                ))
+                .output()
+                .await
+                .unwrap();
+            info!("Mined a block...");
+        }
     });
 
     // Set up Temporary Testing Keystore
