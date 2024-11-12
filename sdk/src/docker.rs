@@ -4,13 +4,74 @@
 
 pub use bollard;
 use bollard::container::{
-    Config, CreateContainerOptions, StartContainerOptions, StopContainerOptions,
-    WaitContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, ListContainersOptions,
+    StartContainerOptions, StopContainerOptions, WaitContainerOptions,
 };
-use bollard::models::{ContainerCreateResponse, HostConfig};
+use bollard::models::{
+    ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, HostConfig,
+    MountPointTypeEnum,
+};
 use bollard::{Docker, API_DEFAULT_VERSION};
+use core::str::FromStr;
+use std::collections::HashMap;
 use std::sync::Arc;
 use subxt::ext::futures::{Stream, StreamExt};
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Attempted to connect to a non-existent container")]
+    ContainerNotFound,
+    #[error("Found an invalid status for the container: `{0}`")]
+    BadContainerStatus(String),
+    #[error("{0}")]
+    Bollard(#[from] bollard::errors::Error),
+}
+
+/// The status of a Docker container
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ContainerStatus {
+    /// Created, but never started
+    Created,
+    /// Actively running
+    Running,
+    /// Paused via `docker pause`
+    Paused,
+    /// Restarting according to the restart policy
+    Restarting,
+    /// Container was started, and is no longer running
+    Exited,
+    /// In the process of being removed
+    Removing,
+    /// Defunct, partially removed
+    Dead,
+}
+
+impl FromStr for ContainerStatus {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "created" => Ok(ContainerStatus::Created),
+            "running" => Ok(ContainerStatus::Running),
+            "paused" => Ok(ContainerStatus::Paused),
+            "restarting" => Ok(ContainerStatus::Restarting),
+            "exited" => Ok(ContainerStatus::Exited),
+            "removing" => Ok(ContainerStatus::Removing),
+            "dead" => Ok(ContainerStatus::Dead),
+            _ => Err(Error::BadContainerStatus(s.to_string())),
+        }
+    }
+}
+
+impl ContainerStatus {
+    pub fn is_active(self) -> bool {
+        matches!(self, ContainerStatus::Running)
+    }
+
+    pub fn is_usable(self) -> bool {
+        !matches!(self, ContainerStatus::Removing | ContainerStatus::Dead)
+    }
+}
 
 /// A [Docker](https://en.wikipedia.org/wiki/Docker_(software)) container
 #[derive(Debug)]
@@ -56,6 +117,99 @@ impl<'a> Container<'a> {
             connection,
             options: ContainerOptions::default(),
         }
+    }
+
+    /// Attempt to fetch an existing container by its ID
+    ///
+    /// # Errors
+    ///
+    /// * Docker inspect fails
+    /// * The container isn't found
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use gadget_sdk::docker::{connect_to_docker, Container};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
+    ///
+    ///     // We can now start our container and grab its id
+    ///     container.start(false).await?;
+    ///
+    ///     let id = container.id().unwrap();
+    ///
+    ///     let container2 = Container::from_id(&connection, id).await?;
+    ///
+    ///     assert_eq!(container.id(), container2.id());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn from_id<T>(connection: &'a Docker, id: T) -> Result<Self, Error>
+    where
+        T: AsRef<str>,
+    {
+        let inspection = connection
+            .inspect_container(id.as_ref(), None::<InspectContainerOptions>)
+            .await?;
+
+        let ContainerInspectResponse {
+            id: Some(id),
+            config:
+                Some(ContainerConfig {
+                    env,
+                    cmd,
+                    image: Some(image),
+                    ..
+                }),
+            mounts,
+            ..
+        } = inspection
+        else {
+            return Err(Error::ContainerNotFound);
+        };
+
+        let mut binds = None;
+        if let Some(mounts) = mounts {
+            let mut bind_mounds = Vec::new();
+            for mount in mounts {
+                if !matches!(mount.typ, Some(MountPointTypeEnum::BIND)) {
+                    continue;
+                }
+
+                let mut bind = String::new();
+                if let Some(source) = mount.source {
+                    bind.push_str(&source);
+                }
+
+                let Some(dest) = mount.destination else {
+                    continue;
+                };
+
+                bind.push(':');
+                bind.push_str(&dest);
+
+                if let Some(mode) = mount.mode {
+                    bind.push(':');
+                    bind.push_str(&mode);
+                }
+
+                bind_mounds.push(bind);
+            }
+
+            binds = Some(bind_mounds);
+        }
+
+        let options = ContainerOptions { env, cmd, binds };
+
+        Ok(Self {
+            id: Some(id),
+            image,
+            connection,
+            options,
+        })
     }
 
     /// Set the environment variables for the container
@@ -253,6 +407,63 @@ impl<'a> Container<'a> {
         }
 
         Ok(())
+    }
+
+    /// Checks if the container has not exited and is marked as `healthy`
+    ///
+    /// NOTE: If the container has not yet been created, this will immediately return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use gadget_sdk::docker::{connect_to_docker, Container};
+    /// use std::time::Duration;
+    /// use tokio::time;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), gadget_sdk::Error> {
+    ///     let connection = connect_to_docker(None).await?;
+    ///     let mut container = Container::new(&connection, "rustlang/rust");
+    ///
+    ///     container.cmd(["echo", "Hello!"]);
+    ///
+    ///     let wait_for_exit = false;
+    ///     container.start(wait_for_exit).await?;
+    ///
+    ///     loop {
+    ///         let status = container.status().await?.unwrap();
+    ///         if status.is_active() {
+    ///             time::sleep(Duration::from_secs(5)).await;
+    ///             continue;
+    ///         }
+    ///
+    ///         println!("Container exited!");
+    ///         break;
+    ///     }
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn status(&self) -> Result<Option<ContainerStatus>, Error> {
+        if self.id.is_none() {
+            return Ok(None);
+        }
+
+        let mut filters = HashMap::new();
+        let _ = filters.insert("id", vec![self.id.as_deref().unwrap()]);
+
+        let options = Some(ListContainersOptions {
+            all: true,
+            filters,
+            ..Default::default()
+        });
+
+        let containers = self.connection.list_containers(options).await?;
+        let Some(status) = &containers[0].status else {
+            return Ok(None);
+        };
+
+        ContainerStatus::from_str(status.as_str()).map(Some)
     }
 
     /// Stop a running container

@@ -30,7 +30,7 @@ pub enum Error {
     Executor(#[from] crate::executor::process::Error),
 
     #[error("Docker error: {0}")]
-    Docker(#[from] bollard::errors::Error),
+    Docker(#[from] crate::docker::Error),
 
     #[error("Missing network ID")]
     MissingNetworkId,
