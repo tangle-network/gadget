@@ -1,42 +1,9 @@
-use std::collections::BTreeMap;
-
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::ForeignItemFn;
 
 pub(crate) fn registration_hook_impl(input: &ForeignItemFn) -> syn::Result<TokenStream> {
-    let syn::ReturnType::Default = &input.sig.output else {
-        return Err(syn::Error::new_spanned(
-            &input.sig.output,
-            "hooks does not return any value",
-        ));
-    };
-
-    let mut param_types = BTreeMap::new();
-    for input in &input.sig.inputs {
-        if let syn::FnArg::Typed(arg) = input {
-            if let syn::Pat::Ident(pat_ident) = &*arg.pat {
-                let ident = &pat_ident.ident;
-                let ty = &*arg.ty;
-                let added = param_types.insert(ident.clone(), ty.clone());
-                if added.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        ident,
-                        "tried to add the same field twice",
-                    ));
-                }
-            }
-        }
-    }
-
-    let params = param_types
-        .values()
-        .map(crate::shared::type_to_field_type)
-        .collect::<syn::Result<Vec<_>>>()?;
-
-    let hook_params = serde_json::to_string(&params).map_err(|err| {
-        syn::Error::new_spanned(input, format!("failed to serialize hook: {err}"))
-    })?;
+    let hook_params = generate_hook_params(input)?;
 
     let gen = quote! {
         #[doc(hidden)]
@@ -48,7 +15,7 @@ pub(crate) fn registration_hook_impl(input: &ForeignItemFn) -> syn::Result<Token
     Ok(gen.into())
 }
 
-pub(crate) fn request_hook_impl(input: &ForeignItemFn) -> syn::Result<TokenStream> {
+fn generate_hook_params(input: &ForeignItemFn) -> syn::Result<String> {
     let syn::ReturnType::Default = &input.sig.output else {
         return Err(syn::Error::new_spanned(
             &input.sig.output,
@@ -56,22 +23,7 @@ pub(crate) fn request_hook_impl(input: &ForeignItemFn) -> syn::Result<TokenStrea
         ));
     };
 
-    let mut param_types = BTreeMap::new();
-    for input in &input.sig.inputs {
-        if let syn::FnArg::Typed(arg) = input {
-            if let syn::Pat::Ident(pat_ident) = &*arg.pat {
-                let ident = &pat_ident.ident;
-                let ty = &*arg.ty;
-                let added = param_types.insert(ident.clone(), ty.clone());
-                if added.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        ident,
-                        "tried to add the same field twice",
-                    ));
-                }
-            }
-        }
-    }
+    let param_types = crate::shared::param_types(&input.sig)?;
 
     let params = param_types
         .values()
@@ -81,6 +33,12 @@ pub(crate) fn request_hook_impl(input: &ForeignItemFn) -> syn::Result<TokenStrea
     let hook_params = serde_json::to_string(&params).map_err(|err| {
         syn::Error::new_spanned(input, format!("failed to serialize hook: {err}"))
     })?;
+
+    Ok(hook_params)
+}
+
+pub(crate) fn request_hook_impl(input: &ForeignItemFn) -> syn::Result<TokenStream> {
+    let hook_params = generate_hook_params(input)?;
 
     let gen = quote! {
         #[doc(hidden)]

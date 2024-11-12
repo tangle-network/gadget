@@ -130,6 +130,7 @@ hyper = { workspace = true, features = ["client"] }
 
 [features]
 default = ["std"]
+testing = []
 
 std = [
     "dep:alloy-provider",

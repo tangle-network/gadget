@@ -64,6 +64,9 @@ pub enum Error {
     #[error("The type has been skipped in the preprocessor")]
     SkipPreProcessedType,
 
+    #[error("Bad argument decoding for {0}")]
+    BadArgumentDecoding(String),
+
     #[error("Other error: {0}")]
     Other(String),
 }

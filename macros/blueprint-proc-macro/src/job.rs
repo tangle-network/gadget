@@ -1,4 +1,5 @@
-use crate::shared::{pascal_case, type_to_field_type};
+use crate::shared;
+use crate::shared::{get_return_type_wrapper, pascal_case, type_to_field_type, MacroExt};
 use crate::special_impls::evm::{
     generate_evm_specific_impl, get_evm_instance_data, get_evm_job_processor_wrapper,
 };
@@ -8,6 +9,7 @@ use crate::special_impls::tangle::{
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashSet;
 use syn::ext::IdentExt;
@@ -52,38 +54,36 @@ pub fn get_current_call_id_field_name(input: &ItemFn) -> Ident {
 /// Job Macro implementation
 pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     // Extract function name and arguments
-    let (fn_name_string, _job_def_name, _job_id_name) = get_job_id_field_name(input);
     const SUFFIX: &str = "EventHandler";
 
-    let result = get_result_type(input)?;
-    let param_map = param_types(input)?;
+    let result = &get_return_type(input);
+    let param_map = shared::param_types(&input.sig)?;
     // Extracts Job ID and param/result types
     let job_id = &args.id;
     let params_type = declared_params_to_field_types(&args.params, &param_map)?;
-    let result_type = declared_result_type_to_field_types(&args.result, result)?;
+    let result_type = args.result_to_field_types(result)?;
 
     let (event_listener_gen, event_listener_calls) = generate_event_workflow_tokenstream(
         input,
         SUFFIX,
-        &fn_name_string,
         &args.event_listener,
         args.skip_codegen,
         &param_map,
         &args.params,
-    );
+    )?;
 
     // Generate Event Workflow, if not being skipped
     let additional_specific_logic = if args.skip_codegen {
         proc_macro2::TokenStream::default()
     } else {
         // Specialized code for the event workflow or otherwise
-        generate_additional_logic(
+        generate_specialized_logic(
             input,
             &args.event_listener,
             SUFFIX,
             &param_map,
             &args.params,
-        )
+        )?
     };
 
     let autogen_struct = if args.skip_codegen {
@@ -96,7 +96,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             &param_map,
             SUFFIX,
             &event_listener_calls,
-        )
+        )?
     };
 
     let job_const_block = generate_job_const_block(input, params_type, result_type, job_id)?;
@@ -120,34 +120,32 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     Ok(gen.into())
 }
 
-pub fn get_result_type(input: &ItemFn) -> syn::Result<&Type> {
-    let syn::ReturnType::Type(_, result) = &input.sig.output else {
-        return Err(syn::Error::new_spanned(
-            &input.sig.output,
-            "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
-        ));
-    };
-
-    // Check that the function has a return type of Result<T, E>
-    match **result {
-        Type::Path(ref path) => {
-            let seg = path.path.segments.last().unwrap();
-            if seg.ident != "Result" {
-                return Err(syn::Error::new_spanned(
-                    result,
-                    "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
-                ));
-            }
-        }
-        _ => {
-            return Err(syn::Error::new_spanned(
-                result,
-                "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
-            ));
+pub fn get_return_type(input: &ItemFn) -> Type {
+    match input.sig.output.clone() {
+        syn::ReturnType::Type(_, result) => *result,
+        syn::ReturnType::Default => {
+            let empty_type: Type = syn::parse_quote! { () };
+            empty_type
         }
     }
+}
 
-    Ok(result)
+pub(crate) trait IsResultType {
+    fn is_result_type(&self) -> bool;
+}
+
+impl IsResultType for Type {
+    fn is_result_type(&self) -> bool {
+        if let Type::Path(path) = self {
+            if let Some(seg) = path.path.segments.last() {
+                seg.ident == "Result"
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 /// Creates Job Definition using input parameters
@@ -198,38 +196,17 @@ pub fn generate_job_const_block(
     })
 }
 
-pub(crate) fn param_types(input: &ItemFn) -> syn::Result<IndexMap<Ident, Type>> {
-    // Ensures that no duplicate parameters have been given
-    let mut param_types = IndexMap::new();
-    for input in &input.sig.inputs {
-        if let syn::FnArg::Typed(arg) = input {
-            if let syn::Pat::Ident(pat_ident) = &*arg.pat {
-                let ident = &pat_ident.ident;
-                let ty = &*arg.ty;
-                let added = param_types.insert(ident.clone(), ty.clone());
-                if added.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        ident,
-                        "tried to add the same field twice",
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(param_types)
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_event_workflow_tokenstream(
     input: &ItemFn,
     suffix: &str,
-    _fn_name_string: &str,
     event_listeners: &EventListenerArgs,
     skip_codegen: bool,
     param_types: &IndexMap<Ident, Type>,
     params: &[Ident],
-) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
+) -> syn::Result<(Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>)> {
+    let return_type = get_return_type(input);
+
     let (mut event_handler_args, _event_handler_arg_types) =
         get_event_handler_args(param_types, params);
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
@@ -278,7 +255,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     // If is_raw, assume the actual context is the second param
                     quote! { ctx. #field_in_self .clone() }
                 })
-                .expect("No context found");
+                .ok_or_else(|| syn::Error::new(Span::call_site(), "Must specify a context"))?;
 
             let autogen_struct_name = quote! { #struct_name };
 
@@ -315,7 +292,8 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     fn_name_ident,
                     &call_id_static_name,
                     &asyncness,
-                ),
+                    &return_type,
+                )?,
 
                 ListenerType::Evm => get_evm_job_processor_wrapper(
                     params,
@@ -324,12 +302,16 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     &mut ordered_inputs,
                     fn_name_ident,
                     &asyncness,
-                ),
+                    &return_type,
+                )?,
 
                 ListenerType::Custom => {
+                    let job_processor_call_return = get_return_type_wrapper(&return_type);
+
                     quote! {
                         move |param0| async move {
-                            #fn_name_ident (#(#ordered_inputs)*) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+                            let res = #fn_name_ident (#(#ordered_inputs)*) #asyncness;
+                            #job_processor_call_return
                         }
                     }
                 }
@@ -436,7 +418,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
         event_listener_calls.push(proc_macro2::TokenStream::default())
     }
 
-    (event_listener_gen, event_listener_calls)
+    Ok((event_listener_gen, event_listener_calls))
 }
 
 fn get_preprocessor_default_identity_function(
@@ -479,7 +461,7 @@ pub(crate) fn get_event_handler_args<'a>(
     let event_handler_args = x.difference(&y).copied().collect::<Vec<_>>();
     let event_handler_types = event_handler_args
         .iter()
-        .map(|r| param_types.get(*r).unwrap())
+        .map(|r| param_types.get(*r).expect("Should exist"))
         .collect::<Vec<_>>();
     (event_handler_args, event_handler_types)
 }
@@ -499,7 +481,7 @@ pub fn generate_autogen_struct(
     param_types: &IndexMap<Ident, Type>,
     suffix: &str,
     event_listener_calls: &[proc_macro2::TokenStream],
-) -> proc_macro2::TokenStream {
+) -> syn::Result<proc_macro2::TokenStream> {
     let (_fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
     let (event_handler_args, _) = get_event_handler_args(param_types, params);
@@ -542,7 +524,7 @@ pub fn generate_autogen_struct(
 
     // Even if multiple evm listeners, we only need this once
     if event_listener_args.has_evm() {
-        let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args);
+        let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args)?;
 
         required_fields.push(quote! {
             pub contract: #instance_name,
@@ -552,7 +534,7 @@ pub fn generate_autogen_struct(
 
     let combined_event_listener = generate_combined_event_listener_selector(&struct_name);
 
-    quote! {
+    Ok(quote! {
         /// Event handler for the function
         #[doc = "[`"]
         #[doc = #fn_name_string]
@@ -572,7 +554,7 @@ pub fn generate_autogen_struct(
                 #combined_event_listener
             }
         }
-    }
+    })
 }
 
 pub fn get_fn_call_ordered(
@@ -630,13 +612,13 @@ fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {
 
 /// Generates the [`EventHandler`](gadget_sdk::event_utils::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
-pub fn generate_additional_logic(
+pub fn generate_specialized_logic(
     input: &ItemFn,
     event_listener_args: &EventListenerArgs,
     suffix: &str,
     param_map: &IndexMap<Ident, Type>,
     job_params: &[Ident],
-) -> proc_macro2::TokenStream {
+) -> syn::Result<proc_macro2::TokenStream> {
     let (_fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
     match event_listener_args.get_event_listener().listener_type {
@@ -644,11 +626,14 @@ pub fn generate_additional_logic(
             generate_evm_specific_impl(&struct_name, event_listener_args, param_map, job_params)
         }
 
-        ListenerType::Tangle => {
-            generate_tangle_specific_impl(&struct_name, param_map, job_params, event_listener_args)
-        }
+        ListenerType::Tangle => Ok(generate_tangle_specific_impl(
+            &struct_name,
+            param_map,
+            job_params,
+            event_listener_args,
+        )),
 
-        ListenerType::Custom => proc_macro2::TokenStream::default(),
+        ListenerType::Custom => Ok(proc_macro2::TokenStream::default()),
     }
 }
 
@@ -672,6 +657,12 @@ pub(crate) struct JobArgs {
     /// this is useful if the developer want to impl a custom event handler
     /// for this job.
     skip_codegen: bool,
+}
+
+impl MacroExt for JobArgs {
+    fn return_type(&self) -> &ResultsKind {
+        &self.result
+    }
 }
 
 impl Parse for JobArgs {
@@ -700,7 +691,10 @@ impl Parse for JobArgs {
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
             } else if lookahead.peek(kw::event_listener) {
-                event_listener = input.parse()?;
+                let next_event_listener: EventListenerArgs = input.parse()?;
+                event_listener
+                    .listeners
+                    .extend(next_event_listener.listeners);
             } else {
                 return Err(lookahead.error());
             }
@@ -712,8 +706,16 @@ impl Parse for JobArgs {
 
         if let ResultsKind::Types(ref r) = result {
             if r.is_empty() {
-                return Err(input.error("`result` attribute empty, expected at least one parameter, or `_` to infer the type"));
+                return Err(input.error("`result` attribute empty, expected at least one parameter, or `_` to infer the type, or to leave omit this field entirely"));
             }
+        }
+
+        if event_listener.listeners.is_empty() {
+            return Err(input.error("Missing `event_listener` argument in attribute"));
+        }
+
+        if event_listener.listeners.len() > 1 {
+            return Err(input.error("Only one event listener is currently allowed"));
         }
 
         Ok(JobArgs {
@@ -770,22 +772,6 @@ pub(crate) fn declared_params_to_field_types(
     Ok(params)
 }
 
-pub(crate) fn declared_result_type_to_field_types(
-    kind: &ResultsKind,
-    result: &Type,
-) -> syn::Result<Vec<FieldType>> {
-    match kind {
-        ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
-        ResultsKind::Types(types) => {
-            let xs = types
-                .iter()
-                .map(type_to_field_type)
-                .collect::<syn::Result<Vec<_>>>()?;
-            Ok(xs)
-        }
-    }
-}
-
 pub enum ResultsKind {
     Infered,
     Types(Vec<Type>),
@@ -801,7 +787,7 @@ impl std::fmt::Debug for ResultsKind {
 }
 
 #[derive(Debug)]
-struct Results(ResultsKind);
+pub(crate) struct Results(pub(crate) ResultsKind);
 
 impl Parse for Results {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
@@ -830,7 +816,7 @@ impl Parse for Results {
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
 pub(crate) struct EventListenerArgs {
-    listeners: Vec<SingleListener>,
+    pub(crate) listeners: Vec<SingleListener>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -891,114 +877,95 @@ impl Parse for EventListenerArgs {
         let content;
         syn::parenthesized!(content in input);
 
-        let mut listeners = Vec::new();
+        let mut listener = None;
+        let mut pre_processor = None;
+        let mut post_processor = None;
+        let mut is_evm = false;
+        // EVM specific
+        let mut instance: Option<Ident> = None;
+        let mut abi: Option<Type> = None;
 
         while !content.is_empty() {
-            let mut listener = None;
-            let mut pre_processor = None;
-            let mut post_processor = None;
-            let mut is_evm = false;
-            // EVM specific
-            let mut instance: Option<Ident> = None;
-            let mut abi: Option<Type> = None;
+            if content.peek(kw::listener) {
+                let listener_found =
+                    extract_x_equals_y::<kw::listener, Type>(&content, true, "listener")?
+                        .ok_or_else(|| content.error("Expected `listener` field"))?;
 
-            // TODO: Get rid of the needless nesting, this is a mess
-            while !content.is_empty() {
-                if content.peek(kw::listener) {
-                    let listener_found =
-                        extract_x_equals_y::<kw::listener, Type>(&content, true, "listener")?
-                            .expect("No listener defined in listener block");
+                let ty_str = quote! { #listener_found }.to_string();
 
-                    let ty_str = quote! { #listener_found }.to_string();
-
-                    if ty_str.contains(EVM_EVENT_LISTENER_TAG) {
-                        is_evm = true;
-                    }
-
-                    listener = Some(listener_found)
-                } else if content.peek(kw::pre_processor) {
-                    pre_processor = extract_x_equals_y::<kw::pre_processor, Type>(
-                        &content,
-                        false,
-                        "pre_processor",
-                    )?;
-                } else if content.peek(kw::post_processor) {
-                    post_processor = extract_x_equals_y::<kw::post_processor, Type>(
-                        &content,
-                        false,
-                        "post_processor",
-                    )?;
-                } else if content.peek(Token![,]) {
-                    let _ = content.parse::<Token![,]>()?;
-                } else if content.peek(kw::instance) {
-                    let _ = content.parse::<kw::instance>()?;
-                    let _ = content.parse::<Token![=]>()?;
-                    instance = Some(content.parse::<Ident>()?);
-                } else if content.peek(kw::abi) {
-                    let _ = content.parse::<kw::abi>()?;
-                    let _ = content.parse::<Token![=]>()?;
-                    abi = Some(content.parse::<Type>()?);
-                } else {
-                    return Err(content.error(
-                        "Expected one of `listener`, `event`, `pre_processor`, `post_processor`",
-                    ));
+                if ty_str.contains(EVM_EVENT_LISTENER_TAG) {
+                    is_evm = true;
                 }
+
+                listener = Some(listener_found)
+            } else if content.peek(kw::pre_processor) {
+                pre_processor = extract_x_equals_y::<kw::pre_processor, Type>(
+                    &content,
+                    false,
+                    "pre_processor",
+                )?;
+            } else if content.peek(kw::post_processor) {
+                post_processor = extract_x_equals_y::<kw::post_processor, Type>(
+                    &content,
+                    false,
+                    "post_processor",
+                )?;
+            } else if content.peek(Token![,]) {
+                let _ = content.parse::<Token![,]>()?;
+            } else if content.peek(kw::instance) {
+                let _ = content.parse::<kw::instance>()?;
+                let _ = content.parse::<Token![=]>()?;
+                instance = Some(content.parse::<Ident>()?);
+            } else if content.peek(kw::abi) {
+                let _ = content.parse::<kw::abi>()?;
+                let _ = content.parse::<Token![=]>()?;
+                abi = Some(content.parse::<Type>()?);
+            } else {
+                return Err(content.error(
+                    "Unexpected field parsed. Expected one of `listener`, `event`, `pre_processor`, `post_processor`",
+                ));
+            }
+        }
+
+        let listener = listener.ok_or_else(|| content.error("Expected `listener` argument"))?;
+        // Create a listener. If this is an EvmContractEventListener, we need to specially parse the arguments
+        // In the case of tangle and everything other listener type, we don't pass evm_args
+        let ty_str = quote! { #listener }.to_string();
+        let this_listener = if is_evm {
+            if instance.is_none() {
+                return Err(content.error("Expected `instance` argument for EVM event listener"));
             }
 
-            let listener = listener.expect("No `listener` defined in listener block");
-            // Create a listener. If this is an EvmContractEventListener, we need to specially parse the arguments
-            // In the case of tangle and everything other listener type, we don't pass evm_args
-            let ty_str = quote! { #listener }.to_string();
-            let this_listener = if is_evm {
-                if instance.is_none() {
-                    return Err(
-                        content.error("Expected `instance` argument for EVM event listener")
-                    );
-                }
+            if abi.is_none() {
+                return Err(content.error("Expected `abi` argument for EVM event listener"));
+            }
 
-                if abi.is_none() {
-                    return Err(content.error("Expected `abi` argument for EVM event listener"));
-                }
-
-                SingleListener {
-                    listener,
-                    evm_args: Some(EvmArgs { instance, abi }),
-                    listener_type: ListenerType::Evm,
-                    post_processor,
-                    pre_processor,
-                }
+            SingleListener {
+                listener,
+                evm_args: Some(EvmArgs { instance, abi }),
+                listener_type: ListenerType::Evm,
+                post_processor,
+                pre_processor,
+            }
+        } else {
+            let listener_type = if ty_str.contains(TANGLE_EVENT_LISTENER_TAG) {
+                ListenerType::Tangle
             } else {
-                let listener_type = if ty_str.contains(TANGLE_EVENT_LISTENER_TAG) {
-                    ListenerType::Tangle
-                } else {
-                    ListenerType::Custom
-                };
-
-                SingleListener {
-                    listener,
-                    evm_args: None,
-                    listener_type,
-                    post_processor,
-                    pre_processor,
-                }
+                ListenerType::Custom
             };
 
-            listeners.push(this_listener);
-
-            if content.peek(Token![,]) {
-                let _ = content.parse::<Token![,]>()?;
+            SingleListener {
+                listener,
+                evm_args: None,
+                listener_type,
+                post_processor,
+                pre_processor,
             }
-        }
+        };
 
-        if listeners.is_empty() {
-            return Err(content.error("Expected at least one event listener"));
-        }
-
-        if listeners.len() > 1 {
-            return Err(content.error("Only one event listener is currently supported"));
-        }
-
-        Ok(Self { listeners })
+        Ok(Self {
+            listeners: vec![this_listener],
+        })
     }
 }
 
@@ -1015,7 +982,6 @@ impl EventListenerArgs {
     pub fn get_param_name_tokenstream(
         &self,
         params: &[FieldType],
-        panic_on_decode_fail: bool,
     ) -> Vec<proc_macro2::TokenStream> {
         params
             .iter()
@@ -1025,11 +991,7 @@ impl EventListenerArgs {
                 let index = Index::from(i);
                 match self.get_event_listener().listener_type {
                     ListenerType::Tangle => {
-                        crate::special_impls::tangle::field_type_to_param_token(
-                            &ident,
-                            t,
-                            panic_on_decode_fail,
-                        )
+                        crate::special_impls::tangle::field_type_to_param_token(&ident, t)
                     }
                     ListenerType::Evm => {
                         quote! {

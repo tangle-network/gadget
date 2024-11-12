@@ -1,5 +1,0 @@
-error: Function must have a return type of Result<T, E> where T is a tuple of the result fields
- --> tests/invalid_cases/job/01_non_result_return_type.rs:4:22
-  |
-4 | fn keygen(n: u16) -> Vec<u8> {
-  |                      ^^^^^^^
