@@ -25,10 +25,11 @@ fn generate_hook_params(input: &ForeignItemFn) -> syn::Result<String> {
 
     let param_types = crate::shared::param_types(&input.sig)?;
 
-    let params = param_types
-        .values()
-        .map(crate::shared::type_to_field_type)
-        .collect::<syn::Result<Vec<_>>>()?;
+    let mut params = Vec::new();
+    for param_type in param_types.values() {
+        let param_type = crate::shared::type_to_field_type(param_type)?;
+        params.push(param_type.ty);
+    }
 
     let hook_params = serde_json::to_string(&params).map_err(|err| {
         syn::Error::new_spanned(input, format!("failed to serialize hook: {err}"))

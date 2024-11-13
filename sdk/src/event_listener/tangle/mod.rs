@@ -3,15 +3,12 @@ use crate::event_listener::markers::IsTangle;
 use crate::event_listener::EventListener;
 use crate::Error;
 use async_trait::async_trait;
-use gadget_blueprint_proc_macro_core::FieldType;
 pub use subxt_core::utils::AccountId32;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use subxt::backend::StreamOfResults;
 use subxt_core::events::{EventDetails, StaticEvent};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Job, ServiceId};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called;
@@ -185,139 +182,8 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
     }
 }
 
-pub trait FieldTypeIntoValue: Sized {
-    fn convert(field: Field<AccountId32>, field_type: FieldType) -> Self;
-}
-
-pub trait ValueIntoFieldType {
-    fn into_field_type(self) -> Field<AccountId32>;
-}
-
-macro_rules! impl_value_to_field_type {
-    ($($t:ty => $j:path),*) => {
-        $(
-            impl ValueIntoFieldType for $t {
-                fn into_field_type(self) -> Field<AccountId32> {
-                    $j(self)
-                }
-            }
-        )*
-    };
-}
-
-impl_value_to_field_type!(
-    u8 => Field::Uint8,
-    u16 => Field::Uint16,
-    u32 => Field::Uint32,
-    u64 => Field::Uint64,
-    i8 => Field::Int8,
-    i16 => Field::Int16,
-    i32 => Field::Int32,
-    i64 => Field::Int64,
-    bool => Field::Bool,
-    AccountId32 => Field::AccountId
-);
-
-impl<T: ValueIntoFieldType + 'static> ValueIntoFieldType for Vec<T> {
-    fn into_field_type(self) -> Field<AccountId32> {
-        if core::any::TypeId::of::<T>() == core::any::TypeId::of::<u8>() {
-            let (ptr, length, capacity) = {
-                let mut me = core::mem::ManuallyDrop::new(self);
-                (me.as_mut_ptr() as *mut u8, me.len(), me.capacity())
-            };
-            // SAFETY: We are converting a Vec<T> to Vec<u8> only when T is u8.
-            // This is safe because the memory layout of Vec<u8> is the same as Vec<T> when T is u8.
-            // We use ManuallyDrop to prevent double-freeing the memory.
-            // Vec::from_raw_parts takes ownership of the raw parts, ensuring proper deallocation.
-            #[allow(unsafe_code)]
-            Field::Bytes(BoundedVec(unsafe {
-                Vec::from_raw_parts(ptr, length, capacity)
-            }))
-        } else {
-            Field::List(BoundedVec(
-                self.into_iter()
-                    .map(ValueIntoFieldType::into_field_type)
-                    .collect(),
-            ))
-        }
-    }
-}
-
-impl<T: ValueIntoFieldType, const N: usize> ValueIntoFieldType for [T; N] {
-    fn into_field_type(self) -> Field<AccountId32> {
-        Field::Array(BoundedVec(
-            self.into_iter()
-                .map(ValueIntoFieldType::into_field_type)
-                .collect(),
-        ))
-    }
-}
-
-impl<T: ValueIntoFieldType> ValueIntoFieldType for Option<T> {
-    fn into_field_type(self) -> Field<AccountId32> {
-        match self {
-            Some(val) => val.into_field_type(),
-            None => Field::None,
-        }
-    }
-}
-
-impl ValueIntoFieldType for String {
-    fn into_field_type(self) -> Field<AccountId32> {
-        Field::String(BoundedString(BoundedVec(self.into_bytes())))
-    }
-}
-
-macro_rules! impl_field_type_to_value {
-    ($($t:ty => $f:pat => $j:path),*) => {
-        $(
-            impl FieldTypeIntoValue for $t {
-                fn convert(field: Field<AccountId32>, field_type: FieldType) -> Self {
-                    match field_type {
-                        $f => {
-                            let $j (val) = field else {
-                                panic!("Invalid field type!");
-                            };
-
-                            val
-                        },
-                        _ => panic!("Invalid field type!"),
-                    }
-                }
-            }
-        )*
-    };
-}
-
-impl_field_type_to_value!(
-    u16 => FieldType::Uint16 => Field::Uint16,
-    u32 => FieldType::Uint32 => Field::Uint32,
-    u64 => FieldType::Uint64 => Field::Uint64,
-    i8 => FieldType::Int8 => Field::Int8,
-    i16 => FieldType::Int16 => Field::Int16,
-    i32 => FieldType::Int32 => Field::Int32,
-    i64 => FieldType::Int64 => Field::Int64,
-    bool => FieldType::Bool => Field::Bool,
-    AccountId32 => FieldType::AccountId => Field::AccountId
-);
-
-impl FieldTypeIntoValue for String {
-    fn convert(field: Field<AccountId32>, field_type: FieldType) -> Self {
-        match field_type {
-            FieldType::String => {
-                let Field::String(val) = field else {
-                    panic!("Invalid field type!");
-                };
-
-                String::from_utf8(val.0 .0).expect("Bad String from pallet Field")
-            }
-            _ => panic!("Invalid field type!"),
-        }
-    }
-}
-
-pub struct TangleResult<Res> {
-    pub results: Res,
+pub struct TangleResult<R: serde::Serialize> {
+    pub results: R,
     pub service_id: ServiceId,
     pub call_id: job_called::CallId,
     pub client: TangleClient,

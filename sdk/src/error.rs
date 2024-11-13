@@ -50,6 +50,9 @@ pub enum Error {
     #[error("{0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("{0}")]
+    BlueprintSerde(#[from] blueprint_serde::error::Error),
+
     #[cfg(feature = "std")]
     #[error("Prometheus error: {err}")]
     Prometheus { err: String },

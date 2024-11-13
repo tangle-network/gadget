@@ -1,7 +1,7 @@
 use crate::job::{
     declared_params_to_field_types, generate_autogen_struct, generate_specialized_logic,
     get_current_call_id_field_name, get_job_id_field_name, get_return_type, EventListenerArgs,
-    ResultsKind,
+    ParameterType, ResultsKind,
 };
 use crate::shared::{pascal_case, MacroExt};
 use gadget_blueprint_proc_macro_core::{
@@ -76,8 +76,8 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
             name: fn_name_string.clone().into(),
             description: None, // This will get auto-injected during the build process
         },
-        params: params_type.clone(),
-        result: result_type.clone(),
+        params: params_type.iter().map(ParameterType::field_type).collect(),
+        result: result_type.iter().map(ParameterType::field_type).collect(),
         report_type: args.report_type.clone(),
         job_id,
         interval: args

@@ -11,8 +11,9 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use std::collections::HashSet;
+use std::str::FromStr;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::{Ident, Index, ItemFn, LitInt, Token, Type};
@@ -152,8 +153,8 @@ impl IsResultType for Type {
 /// Creates Job Definition using input parameters
 pub fn generate_job_const_block(
     input: &ItemFn,
-    params: Vec<FieldType>,
-    result: Vec<FieldType>,
+    params: Vec<ParameterType>,
+    result: Vec<ParameterType>,
     job_id: &LitInt,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (fn_name_string, job_def_name, job_id_name) = get_job_id_field_name(input);
@@ -164,8 +165,8 @@ pub fn generate_job_const_block(
             // filled later on during the rustdoc gen.
             description: None,
         },
-        params,
-        result,
+        params: params.iter().map(ParameterType::field_type).collect(),
+        result: result.iter().map(ParameterType::field_type).collect(),
     };
 
     // Serialize Job Definition to JSON string
@@ -769,20 +770,39 @@ impl Parse for Params {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ParameterType {
+    pub ty: FieldType,
+    pub span: Option<Span>,
+}
+
+impl PartialEq for ParameterType {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty == other.ty
+    }
+}
+
+impl Eq for ParameterType {}
+
+impl ParameterType {
+    pub(crate) fn field_type(&self) -> FieldType {
+        self.ty.clone()
+    }
+}
+
 pub(crate) fn declared_params_to_field_types(
     params: &[Ident],
     param_types: &IndexMap<Ident, Type>,
-) -> syn::Result<Vec<FieldType>> {
-    let params = params
-        .iter()
-        .map(|ident| {
-            param_types.get(ident).ok_or_else(|| {
-                syn::Error::new_spanned(ident, "parameter not declared in the function")
-            })
-        })
-        .map(|ty| type_to_field_type(ty?))
-        .collect::<syn::Result<Vec<_>>>()?;
-    Ok(params)
+) -> syn::Result<Vec<ParameterType>> {
+    let mut ret = Vec::new();
+    for param in params {
+        let ty = param_types.get(param).ok_or_else(|| {
+            syn::Error::new_spanned(param, "parameter not declared in the function")
+        })?;
+
+        ret.push(type_to_field_type(ty)?)
+    }
+    Ok(ret)
 }
 
 pub enum ResultsKind {
@@ -832,7 +852,7 @@ pub(crate) struct EventListenerArgs {
     pub(crate) listeners: Vec<SingleListener>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ListenerType {
     Evm,
     Tangle,
@@ -994,17 +1014,28 @@ impl EventListenerArgs {
 
     pub fn get_param_name_tokenstream(
         &self,
-        params: &[FieldType],
+        params: &[ParameterType],
     ) -> Vec<proc_macro2::TokenStream> {
+        let listener_type = self.get_event_listener().listener_type;
+
         params
             .iter()
             .enumerate()
-            .map(|(i, t)| {
+            .map(|(i, param_ty)| {
                 let ident = format_ident!("param{i}");
                 let index = Index::from(i);
-                match self.get_event_listener().listener_type {
+                match listener_type {
                     ListenerType::Tangle => {
-                        crate::special_impls::tangle::field_type_to_param_token(&ident, t)
+                        let ty_token_stream = proc_macro2::TokenStream::from_str(&param_ty.ty.as_rust_type()).expect("should be valid");
+                        let ty_tokens = quote_spanned! {param_ty.span.expect("should always be available")=>
+                            #ty_token_stream
+                        };
+                        quote! {
+                            let __arg = args.next().expect("parameter count checked before");
+                            let Ok(#ident) = ::gadget_sdk::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
+                                return Err(::gadget_sdk::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
+                            };
+                        }
                     }
                     ListenerType::Evm => {
                         quote! {
