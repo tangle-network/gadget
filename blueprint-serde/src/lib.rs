@@ -11,7 +11,7 @@
 //! use gadget_blueprint_serde::{new_bounded_string, BoundedVec, Field};
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(PartialEq, Debug, Serialize, Deserialize)]
 //! struct Person {
 //!     name: String,
 //!     age: u8,
