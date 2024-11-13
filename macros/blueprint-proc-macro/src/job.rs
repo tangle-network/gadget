@@ -8,8 +8,8 @@ use crate::special_impls::tangle::{
 };
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashSet;
 use syn::ext::IdentExt;
@@ -208,7 +208,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
     let return_type = get_return_type(input);
 
     let (mut event_handler_args, _event_handler_arg_types) =
-        get_event_handler_args(param_types, params);
+        get_event_handler_args(param_types, params)?;
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
     // Generate Event Listener, if not being skipped
@@ -234,7 +234,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let fn_name_ident = &input.sig.ident;
             let static_ctx_get_override = quote! { CTX.get().unwrap() };
             let mut ordered_inputs =
-                get_fn_call_ordered(param_types, params, Some(static_ctx_get_override));
+                get_fn_call_ordered(param_types, params, Some(static_ctx_get_override))?;
 
             let asyncness = get_asyncness(input);
             let call_id_static_name = get_current_call_id_field_name(input);
@@ -255,7 +255,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     // If is_raw, assume the actual context is the second param
                     quote! { ctx. #field_in_self .clone() }
                 })
-                .ok_or_else(|| syn::Error::new(Span::call_site(), "Must specify a context"))?;
+                .ok_or_else(|| {
+                    syn::Error::new_spanned(quote! { (#(#params),*) }, "Must specify a context")
+                })?;
 
             let autogen_struct_name = quote! { #struct_name };
 
@@ -455,15 +457,20 @@ fn get_preprocessor_default_identity_function(
 pub(crate) fn get_event_handler_args<'a>(
     param_types: &'a IndexMap<Ident, Type>,
     params: &'a [Ident],
-) -> (Vec<&'a Ident>, Vec<&'a Type>) {
+) -> syn::Result<(Vec<&'a Ident>, Vec<&'a Type>)> {
     let x = param_types.keys().collect::<IndexSet<_>>();
     let y = params.iter().collect::<IndexSet<_>>();
     let event_handler_args = x.difference(&y).copied().collect::<Vec<_>>();
-    let event_handler_types = event_handler_args
-        .iter()
-        .map(|r| param_types.get(*r).expect("Should exist"))
-        .collect::<Vec<_>>();
-    (event_handler_args, event_handler_types)
+    let event_handler_types = Itertools::try_collect(event_handler_args.iter().map(|r| {
+        param_types.get(*r).ok_or_else(|| {
+            syn::Error::new_spanned(
+                r,
+                "Could not find the type of the parameter in the function signature",
+            )
+        })
+    }))?;
+
+    Ok((event_handler_args, event_handler_types))
 }
 
 fn generate_fn_name_and_struct<'a>(f: &'a ItemFn, suffix: &'a str) -> (&'a Ident, String, Ident) {
@@ -484,7 +491,7 @@ pub fn generate_autogen_struct(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (_fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
-    let (event_handler_args, _) = get_event_handler_args(param_types, params);
+    let (event_handler_args, _) = get_event_handler_args(param_types, params)?;
 
     let mut additional_var_indexes = vec![];
     let mut additional_params = event_handler_args
@@ -561,18 +568,23 @@ pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
     replacement_for_self: Option<proc_macro2::TokenStream>,
-) -> Vec<proc_macro2::TokenStream> {
-    let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args);
+) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
 
-    let additional_var_indexes = event_handler_args
-        .iter()
-        .map(|ident| param_types.get_index_of(*ident).expect("Should exist"))
-        .collect::<Vec<_>>();
+    let additional_var_indexes: Vec<usize> =
+        Itertools::try_collect(event_handler_args.iter().map(|ident| {
+            param_types.get_index_of(*ident).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    ident,
+                    "Could not find the index of the parameter in the function signature",
+                )
+            })
+        }))?;
 
     // This has all params
     let mut job_var_idx = 0;
     let this = replacement_for_self.unwrap_or_else(|| quote! { self });
-    param_types
+    let ret = param_types
         .iter()
         .enumerate()
         .map(|(pos_in_all_args, (ident, ty))| {
@@ -599,7 +611,9 @@ pub fn get_fn_call_ordered(
                 quote! { #this .#ident.clone(), }
             }
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+
+    Ok(ret)
 }
 
 fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {

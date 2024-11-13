@@ -27,7 +27,6 @@ mod kw {
     syn::custom_keyword!(evm);
     syn::custom_keyword!(event_listener);
     syn::custom_keyword!(skip_codegen);
-    syn::custom_keyword!(description);
 }
 
 /// Implements the core functionality of the `report` attribute macro.
@@ -75,7 +74,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
     let report_def = ReportDefinition {
         metadata: ReportMetadata {
             name: fn_name_string.clone().into(),
-            description: args.description.as_ref().map(|r| r.as_str().into()),
+            description: None, // This will get auto-injected during the build process
         },
         params: params_type.clone(),
         result: result_type.clone(),
@@ -209,7 +208,6 @@ pub(crate) struct ReportArgs {
     /// Optional: Verifier for the report result, currently only supports EVM verifier.
     /// `#[report(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
-    description: Option<String>,
     /// Optional: Event handler type for the report.
     /// `#[report(event_handler_type = "tangle")]`
     pub(crate) event_listeners: EventListenerArgs,
@@ -229,7 +227,6 @@ impl Parse for ReportArgs {
         let mut job_id = None;
         let mut interval = None;
         let mut metric_thresholds = None;
-        let mut description = None;
         let mut verifier = Verifier::None;
         let mut event_listener = EventListenerArgs { listeners: vec![] };
         let mut skip_codegen = false;
@@ -293,11 +290,6 @@ impl Parse for ReportArgs {
                 skip_codegen = true;
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
-            } else if lookahead.peek(kw::description) {
-                let _ = input.parse::<kw::description>()?;
-                let _ = input.parse::<Token![=]>()?;
-                let type_str: LitStr = input.parse()?;
-                description = Some(type_str.value())
             } else {
                 return Err(lookahead.error());
             }
@@ -341,7 +333,6 @@ impl Parse for ReportArgs {
             params,
             result,
             report_type,
-            description,
             job_id,
             interval,
             metric_thresholds,
