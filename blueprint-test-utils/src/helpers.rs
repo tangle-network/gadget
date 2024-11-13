@@ -8,6 +8,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::process::Child;
 use tokio::sync::Mutex;
@@ -268,4 +269,23 @@ where
     };
 
     Ok(receipt)
+}
+
+/// Waits for the given `successful_responses` Mutex to be greater than or equal to `task_response_count`.
+pub async fn wait_for_responses(
+    successful_responses: Arc<Mutex<usize>>,
+    task_response_count: usize,
+    timeout_duration: Duration,
+) -> Result<Result<(), std::io::Error>, tokio::time::error::Elapsed> {
+    tokio::time::timeout(timeout_duration, async move {
+        loop {
+            let count = *successful_responses.lock().await;
+            if count >= task_response_count {
+                crate::info!("Successfully received {} task responses", count);
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await
 }

@@ -42,7 +42,6 @@ pub mod anvil;
 pub mod binding;
 pub mod eigenlayer_test_env;
 pub mod helpers;
-pub mod incredible_squaring_helpers;
 pub mod symbiotic_test_env;
 pub mod sync;
 pub mod tangle;

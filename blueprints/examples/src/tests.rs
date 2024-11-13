@@ -1,8 +1,8 @@
 use crate::eigen_context;
 use crate::eigen_context::ExampleTaskManager;
 use alloy_provider::Provider;
+use blueprint_test_utils::eigenlayer_test_env::start_default_anvil_testnet;
 use blueprint_test_utils::helpers::get_receipt;
-use blueprint_test_utils::incredible_squaring_helpers::start_default_anvil_testnet;
 use blueprint_test_utils::{inject_test_keys, KeyGenType};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::protocol::EigenlayerContractAddresses;
@@ -65,17 +65,6 @@ async fn test_eigenlayer_context() {
                     panic!("Failed to create task: {:?}", e);
                 }
             }
-
-            tokio::process::Command::new("sh")
-                .arg("-c")
-                .arg(format!(
-                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
-                    http_endpoint
-                ))
-                .output()
-                .await
-                .unwrap();
-            info!("Mined a block...");
         }
     });
 

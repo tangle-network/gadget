@@ -1,12 +1,22 @@
 use alloy_provider::Provider;
 use blueprint_test_utils::helpers::BlueprintProcessManager;
-use blueprint_test_utils::incredible_squaring_helpers::{
-    start_default_anvil_testnet, wait_for_responses,
-};
-use gadget_sdk::config::Protocol;
+use blueprint_test_utils::{eigenlayer_test_env::start_default_anvil_testnet, helpers::wait_for_responses, inject_test_keys, KeyGenType};
+use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::config::{ContextConfig, Protocol};
 use gadget_sdk::logging::setup_log;
-use std::path::PathBuf;
-
+use gadget_sdk::runners::BlueprintRunner;
+use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
+use crate::jobs::compute_x_square::XsquareEigenEventHandler;
+use crate::jobs::initialize_task::InitializeBlsTaskEventHandler;
+use crate::constants::{AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS};
+use gadget_sdk::utils::evm::get_wallet_provider_http;
+use alloy_network::EthereumWallet;
+use crate::contexts::x_square::EigenSquareContext;
+use alloy_signer_local::PrivateKeySigner;
+use crate::contexts::aggregator::AggregatorContext;
+use crate::contexts::client::AggregatorClient;
+use std::path::{Path, PathBuf};
+use reqwest::Url;
 use crate::IncredibleSquaringTaskManager;
 use blueprint_test_utils::eigenlayer_test_env::*;
 
@@ -15,7 +25,7 @@ const ANVIL_STATE_PATH: &str =
 
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::needless_return)]
-async fn test_eigenlayer_incredible_squaring_blueprint_from_binary() {
+async fn test_eigenlayer_incredible_squaring_blueprint() {
     setup_log();
 
     let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
@@ -75,30 +85,67 @@ async fn test_eigenlayer_incredible_squaring_blueprint_from_binary() {
         response_listener.await;
     });
 
-    info!("Starting Blueprint Binary...");
+    info!("Starting Blueprint Execution...");
 
-    let blueprint_process_manager = BlueprintProcessManager::new();
-    let current_dir = std::env::current_dir().unwrap();
-    let xsquare_task_program_path = PathBuf::from(format!(
-        "{}/../../target/release/incredible-squaring-blueprint-eigenlayer",
-        current_dir.display()
-    ))
-    .canonicalize()
-    .unwrap();
+    let signer: PrivateKeySigner = AGGREGATOR_PRIVATE_KEY
+        .parse()
+        .expect("failed to generate wallet ");
+    let wallet = EthereumWallet::from(signer);
+    let provider = get_wallet_provider_http(&http_endpoint, wallet.clone());
 
+    // Set up Temporary Testing Keystore
     let tmp_dir = tempfile::TempDir::new().unwrap();
     let keystore_path = &format!("{}", tmp_dir.path().display());
-
-    blueprint_process_manager
-        .start_blueprints(
-            vec![xsquare_task_program_path],
-            &http_endpoint,
-            ws_endpoint.as_ref(),
-            Protocol::Eigenlayer,
-            keystore_path,
-        )
+    let keystore_path = Path::new(keystore_path);
+    let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
+    inject_test_keys(&keystore_uri, KeyGenType::Anvil(0))
         .await
-        .unwrap();
+        .expect("Failed to inject testing keys for Blueprint Examples Test");
+    let keystore_uri_normalized =
+        std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
+    let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+
+    let config = ContextConfig::create_eigenlayer_config(
+        Url::parse(&http_endpoint).unwrap(),
+        Url::parse(&ws_endpoint).unwrap(),
+        keystore_uri_str,
+        SupportedChains::LocalTestnet,
+        EigenlayerContractAddresses::default(),
+    );
+    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
+
+    let server_address = format!("{}:{}", env.target_addr, 8081);
+    let eigen_client_context = EigenSquareContext {
+        client: AggregatorClient::new(&server_address).unwrap(),
+        std_config: env.clone(),
+    };
+    let aggregator_context =
+        AggregatorContext::new(server_address, *TASK_MANAGER_ADDRESS, wallet, env.clone())
+            .await
+            .unwrap();
+
+    let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
+        task_manager_address,
+        provider,
+    );
+
+    let initialize_task =
+        InitializeBlsTaskEventHandler::new(contract.clone(), aggregator_context.clone());
+
+    let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
+
+    info!("~~~ Executing the incredible squaring blueprint ~~~");
+    let eigen_config = EigenlayerConfig {};
+
+    let blueprint_handle = tokio::spawn(async move {
+        BlueprintRunner::new(eigen_config, env)
+            .job(x_square_eigen)
+            .job(initialize_task)
+            .background_service(Box::new(aggregator_context))
+            .run()
+            .await
+            .unwrap();
+    });
 
     // Wait for the process to complete or timeout
     let timeout_duration = Duration::from_secs(300);
@@ -112,13 +159,9 @@ async fn test_eigenlayer_incredible_squaring_blueprint_from_binary() {
     // Check the result
     if let Ok(Ok(())) = result {
         info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
-        blueprint_process_manager
-            .kill_all()
-            .await
-            .unwrap_or_else(|e| {
-                error!("Failed to kill all blueprint processes: {:?}", e);
-            });
+        blueprint_handle.abort();
     } else {
+        blueprint_handle.abort();
         panic!(
             "Test timed out after {} seconds with {} successful responses out of {} required",
             timeout_duration.as_secs(),
@@ -194,7 +237,7 @@ pub async fn setup_task_spawner(
     let quorums = Bytes::from(vec![0]);
     async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
 
             info!("Creating a new task...");
             if get_receipt(
