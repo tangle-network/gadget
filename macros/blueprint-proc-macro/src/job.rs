@@ -1012,7 +1012,7 @@ impl EventListenerArgs {
         &self.listeners[0]
     }
 
-    pub fn get_param_name_tokenstream<'a>(
+    pub fn get_param_name_tokenstream(
         &self,
         params: &[ParameterType],
     ) -> Vec<proc_macro2::TokenStream> {
