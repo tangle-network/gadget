@@ -22,11 +22,9 @@ use gadget_sdk::{
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
+use tokio::sync::{oneshot, Mutex, Notify};
 use tokio::task::JoinHandle;
-use tokio::{
-    sync::{oneshot, Mutex},
-    time::interval,
-};
+use tokio::time::interval;
 
 use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
@@ -54,6 +52,7 @@ pub struct AggregatorContext {
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
     #[config]
     pub sdk_config: StdGadgetConfiguration,
+    shutdown: Arc<(Notify, Mutex<bool>)>,
 }
 
 impl AggregatorContext {
@@ -73,6 +72,7 @@ impl AggregatorContext {
             wallet,
             response_cache: Arc::new(Mutex::new(VecDeque::new())),
             sdk_config,
+            shutdown: Arc::new((Notify::new(), Mutex::new(false))),
         };
 
         // Initialize the bls registry service
@@ -84,7 +84,7 @@ impl AggregatorContext {
         Ok(aggregator_context)
     }
 
-    pub fn start(self) -> (JoinHandle<()>, oneshot::Sender<()>) {
+    pub async fn start(self) -> (JoinHandle<()>, oneshot::Sender<()>) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let aggregator = Arc::new(Mutex::new(self));
 
@@ -96,22 +96,34 @@ impl AggregatorContext {
             let process_handle =
                 tokio::spawn(Self::process_cached_responses(Arc::clone(&aggregator)));
 
-            tokio::select! {
-                _ = server_handle => {
-                    error!("Server task unexpectedly finished");
-                }
-                _ = process_handle => {
-                    error!("Process cached responses task unexpectedly finished");
-                }
+            // Wait for both tasks to complete
+            let (server_result, process_result) = tokio::join!(server_handle, process_handle);
+
+            if let Err(e) = server_result {
+                error!("Server task failed: {}", e);
             }
+            if let Err(e) = process_result {
+                error!("Process cached responses task failed: {}", e);
+            }
+
+            info!("Aggregator shutdown complete");
         });
 
         (handle, shutdown_tx)
     }
 
+    pub async fn shutdown(&self) {
+        info!("Initiating aggregator shutdown");
+
+        // Set internal shutdown flag
+        let (notify, is_shutdown) = &*self.shutdown;
+        *is_shutdown.lock().await = true;
+        notify.notify_waiters();
+    }
+
     async fn start_server(
         aggregator: Arc<Mutex<Self>>,
-        shutdown: oneshot::Receiver<()>,
+        mut _shutdown: oneshot::Receiver<()>,
     ) -> Result<()> {
         let mut io = IoHandler::new();
         io.add_method("process_signed_task_response", {
@@ -159,16 +171,53 @@ impl AggregatorContext {
         // Create a close handle before we move the server
         let close_handle = server.close_handle();
 
+        // Get shutdown components
+        let shutdown = {
+            let agg = aggregator.lock().await;
+            agg.shutdown.clone()
+        };
+
+        // Create a channel to coordinate shutdown
+        let (server_tx, server_rx) = oneshot::channel();
+
+        // Spawn the server in a blocking task
+        let server_handle = tokio::task::spawn_blocking(move || {
+            let result = server.wait();
+            let _ = server_tx.send(());
+            result
+        });
+
         // Use tokio::select! to wait for either the server to finish or the shutdown signal
         tokio::select! {
-            _ = async { server.wait() } => {
-                info!("Server has stopped");
+            result = server_handle => {
+                info!("Server has stopped naturally");
+                result.map_err(|e| {
+                    error!("Server task failed: {}", e);
+                    e
+                })?;
             }
-            _ = shutdown => {
+            _ = async {
+                let (_, is_shutdown) = &*shutdown;
+                loop {
+                    if *is_shutdown.lock().await {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+            } => {
                 info!("Initiating server shutdown");
-                close_handle.close();
+                // Spawn a blocking task to handle server shutdown
+                tokio::task::spawn_blocking(move || {
+                    close_handle.close();
+                }).await?;
+
+                // Wait for server to complete
+                let _ = server_rx.await;
+                info!("Server has stopped after shutdown");
             }
         }
+
+        info!("Server shutdown complete");
         Ok(())
     }
 
@@ -189,18 +238,52 @@ impl AggregatorContext {
     async fn process_cached_responses(aggregator: Arc<Mutex<Self>>) {
         let mut interval = interval(Duration::from_secs(6));
 
+        // Get shutdown components
+        let shutdown = {
+            let agg = aggregator.lock().await;
+            agg.shutdown.clone()
+        };
+
         loop {
-            interval.tick().await;
+            tokio::select! {
+                _ = interval.tick() => {
+                    // Check shutdown status first
+                    if *shutdown.1.lock().await {
+                        info!("Process cached responses received shutdown signal");
+                        break;
+                    }
 
-            let mut aggregator = aggregator.lock().await;
-            let responses_to_process = aggregator.response_cache.lock().await.clone();
+                    // Get responses to process while holding the lock briefly
+                    let responses_to_process = {
+                        let guard = aggregator.lock().await;
+                        let cache = guard.response_cache.lock().await;
+                        cache.clone()
+                    };
 
-            for resp in responses_to_process {
-                if let Err(e) = aggregator.process_response(resp).await {
-                    error!("Failed to process cached response: {:?}", e);
-                    // Continue processing other responses without failing
-                } else {
-                    aggregator.response_cache.lock().await.pop_front();
+                    // Process each response without holding the main lock
+                    for resp in responses_to_process {
+                        match {
+                            let mut guard = aggregator.lock().await;
+                            guard.process_response(resp.clone()).await
+                        } {
+                            Ok(_) => {
+                                // Only remove from cache if processing succeeded
+                                let guard = aggregator.lock().await;
+                                let mut cache = guard.response_cache.lock().await;
+                                cache.pop_front();
+                            }
+                            Err(e) => {
+                                error!("Failed to process cached response: {:?}", e);
+                                // Continue processing other responses without failing
+                            }
+                        }
+                    }
+                }
+                _ = shutdown.0.notified() => {
+                    if *shutdown.1.lock().await {
+                        info!("Process cached responses received shutdown signal");
+                        break;
+                    }
                 }
             }
         }
@@ -351,28 +434,23 @@ impl AggregatorContext {
 #[async_trait::async_trait]
 impl BackgroundService for AggregatorContext {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
-        let (tx, rx) = oneshot::channel();
-
-        let aggregator = self.clone();
+        let (handle, shutdown_tx) = self.clone().start().await;
+        let (result_tx, result_rx) = oneshot::channel();
 
         tokio::spawn(async move {
-            let (handle, shutdown_tx) = aggregator.start();
-
-            // Wait for the handle to complete
-            if let Err(e) = handle.await {
-                error!("Aggregator task failed: {:?}", e);
-                let _ = tx.send(Err(RunnerError::EigenlayerError(format!(
-                    "Aggregator task failed: {:?}",
-                    e
-                ))));
-            } else {
-                let _ = tx.send(Ok(()));
+            match handle.await {
+                Ok(_) => {
+                    let _ = result_tx.send(Ok(()));
+                }
+                Err(e) => {
+                    let _ = result_tx.send(Err(RunnerError::EigenlayerError(format!(
+                        "Aggregator task failed: {:?}",
+                        e
+                    ))));
+                }
             }
-
-            // Drop the shutdown sender to ensure proper cleanup
-            drop(shutdown_tx);
         });
 
-        Ok(rx)
+        Ok(result_rx)
     }
 }

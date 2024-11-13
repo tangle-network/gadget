@@ -1,24 +1,26 @@
-use alloy_provider::Provider;
-use blueprint_test_utils::helpers::BlueprintProcessManager;
-use blueprint_test_utils::{eigenlayer_test_env::start_default_anvil_testnet, helpers::wait_for_responses, inject_test_keys, KeyGenType};
-use gadget_io::{GadgetConfig, SupportedChains};
-use gadget_sdk::config::{ContextConfig, Protocol};
-use gadget_sdk::logging::setup_log;
-use gadget_sdk::runners::BlueprintRunner;
-use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
-use crate::jobs::compute_x_square::XsquareEigenEventHandler;
-use crate::jobs::initialize_task::InitializeBlsTaskEventHandler;
 use crate::constants::{AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS};
-use gadget_sdk::utils::evm::get_wallet_provider_http;
-use alloy_network::EthereumWallet;
-use crate::contexts::x_square::EigenSquareContext;
-use alloy_signer_local::PrivateKeySigner;
 use crate::contexts::aggregator::AggregatorContext;
 use crate::contexts::client::AggregatorClient;
-use std::path::{Path, PathBuf};
-use reqwest::Url;
+use crate::contexts::x_square::EigenSquareContext;
+use crate::jobs::compute_x_square::XsquareEigenEventHandler;
+use crate::jobs::initialize_task::InitializeBlsTaskEventHandler;
 use crate::IncredibleSquaringTaskManager;
+use alloy_network::EthereumWallet;
+use alloy_provider::Provider;
+use alloy_signer_local::PrivateKeySigner;
 use blueprint_test_utils::eigenlayer_test_env::*;
+use blueprint_test_utils::{
+    eigenlayer_test_env::start_default_anvil_testnet, helpers::wait_for_responses,
+    inject_test_keys, KeyGenType,
+};
+use gadget_io::SupportedChains;
+use gadget_sdk::config::ContextConfig;
+use gadget_sdk::logging::setup_log;
+use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
+use gadget_sdk::runners::BlueprintRunner;
+use gadget_sdk::utils::evm::get_wallet_provider_http;
+use reqwest::Url;
+use std::path::Path;
 
 const ANVIL_STATE_PATH: &str =
     "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
@@ -123,6 +125,8 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
         AggregatorContext::new(server_address, *TASK_MANAGER_ADDRESS, wallet, env.clone())
             .await
             .unwrap();
+    let aggregator_context = Arc::new(aggregator_context);
+    let aggregator_context_clone = aggregator_context.clone();
 
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         task_manager_address,
@@ -130,7 +134,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     );
 
     let initialize_task =
-        InitializeBlsTaskEventHandler::new(contract.clone(), aggregator_context.clone());
+        InitializeBlsTaskEventHandler::new(contract.clone(), (*aggregator_context).clone());
 
     let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
@@ -141,7 +145,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
         BlueprintRunner::new(eigen_config, env)
             .job(x_square_eigen)
             .job(initialize_task)
-            .background_service(Box::new(aggregator_context))
+            .background_service(Box::new((*aggregator_context).clone()))
             .run()
             .await
             .unwrap();
@@ -156,18 +160,27 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     )
     .await;
 
-    // Check the result
-    if let Ok(Ok(())) = result {
-        info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
-        blueprint_handle.abort();
-    } else {
-        blueprint_handle.abort();
-        panic!(
-            "Test timed out after {} seconds with {} successful responses out of {} required",
-            timeout_duration.as_secs(),
-            successful_responses_clone.lock().await,
-            num_successful_responses_required
-        );
+    // Check the result and ensure proper cleanup
+    match result {
+        Ok(Ok(())) => {
+            info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
+            // First shutdown the aggregator context
+            aggregator_context_clone.shutdown().await;
+            // Then abort the blueprint handle
+            blueprint_handle.abort();
+            blueprint_handle.await.unwrap_err(); // We expect this to error since we aborted
+        }
+        _ => {
+            aggregator_context_clone.shutdown().await;
+            blueprint_handle.abort();
+            blueprint_handle.await.unwrap_err();
+            panic!(
+                "Test timed out after {} seconds with {} successful responses out of {} required",
+                timeout_duration.as_secs(),
+                successful_responses_clone.lock().await,
+                num_successful_responses_required
+            );
+        }
     }
 }
 
