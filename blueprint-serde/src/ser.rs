@@ -200,6 +200,52 @@ pub struct SerializeSeq<'a> {
     vec: Vec<Field<AccountId32>>,
 }
 
+impl SerializeSeq<'_> {
+    fn is_homogeneous(&self) -> bool {
+        if self.vec.is_empty() {
+            return true;
+        }
+
+        macro_rules! homogeneous_check {
+            ($($field:pat),+ $(,)?) => {
+                paste::paste! {
+                    match &self.vec[0] {
+                        $($field => { self.vec.iter().all(|f| matches!(f, $field)) },)+
+                        Field::Struct(name, fields) => {
+                            self.vec.iter().all(|f| {
+                                match f {
+                                    Field::Struct(n, f) => {
+                                        n == name && fields == f
+                                    },
+                                    _ => false,
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
+        homogeneous_check!(
+            Field::None,
+            Field::Bool(_),
+            Field::Uint8(_),
+            Field::Int8(_),
+            Field::Uint16(_),
+            Field::Int16(_),
+            Field::Uint32(_),
+            Field::Int32(_),
+            Field::Uint64(_),
+            Field::Int64(_),
+            Field::String(_),
+            Field::Bytes(_),
+            Field::Array(_),
+            Field::List(_),
+            Field::AccountId(_),
+        )
+    }
+}
+
 impl ser::SerializeSeq for SerializeSeq<'_> {
     type Ok = Field<AccountId32>;
     type Error = crate::error::Error;
@@ -232,7 +278,11 @@ impl ser::SerializeTuple for SerializeSeq<'_> {
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        <SerializeSeq<'_> as ser::SerializeSeq>::end(self)
+        if self.is_homogeneous() {
+            return Ok(Field::Array(BoundedVec(self.vec)));
+        }
+
+        Err(crate::error::Error::HeterogeneousTuple)
     }
 }
 

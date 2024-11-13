@@ -29,6 +29,7 @@ gadget-sdk = { workspace = true, features = ["default"] }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+blueprint-examples = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

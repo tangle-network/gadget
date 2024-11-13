@@ -451,3 +451,193 @@ mod primitives {
         i64  =>    0, Token::I64,  Field::Int64;
     );
 }
+
+mod sequences {
+    use super::*;
+    use alloc::vec::Vec;
+
+    fn expected_vec_field() -> Field<AccountId32> {
+        Field::List(BoundedVec(vec![
+            Field::Uint32(1),
+            Field::Uint32(2),
+            Field::Uint32(3),
+        ]))
+    }
+
+    #[test]
+    fn test_ser_vec() {
+        let vec: Vec<u32> = vec![1, 2, 3];
+
+        assert_ser_tokens(
+            &vec,
+            &[
+                Token::Seq { len: Some(3) },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::SeqEnd,
+            ],
+        );
+
+        let field = to_field(&vec).unwrap();
+        assert_eq!(field, expected_vec_field());
+    }
+
+    #[test]
+    fn test_de_vec() {
+        let vec: Vec<u32> = vec![1, 2, 3];
+
+        assert_de_tokens(
+            &vec,
+            &[
+                Token::Seq { len: Some(3) },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::SeqEnd,
+            ],
+        );
+
+        let vec_de: Vec<u32> = from_field(expected_vec_field()).unwrap();
+        assert_eq!(vec, vec_de);
+    }
+
+    fn expected_array_field() -> Field<AccountId32> {
+        Field::Array(BoundedVec(vec![
+            Field::Uint32(1),
+            Field::Uint32(2),
+            Field::Uint32(3),
+        ]))
+    }
+
+    #[test]
+    fn test_ser_array() {
+        let array: [u32; 3] = [1, 2, 3];
+
+        assert_ser_tokens(
+            &array,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let field = to_field(array).unwrap();
+        assert_eq!(field, expected_array_field());
+    }
+
+    #[test]
+    fn test_de_array() {
+        let array: [u32; 3] = [1, 2, 3];
+
+        assert_de_tokens(
+            &array,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let array_de: [u32; 3] = from_field(expected_array_field()).unwrap();
+        assert_eq!(array, array_de);
+    }
+
+    fn expected_same_type_field() -> Field<AccountId32> {
+        Field::Array(BoundedVec(vec![
+            Field::Uint32(1u32),
+            Field::Uint32(2u32),
+            Field::Uint32(3u32),
+        ]))
+    }
+
+    #[test]
+    fn test_ser_tuple_same_type() {
+        let tuple: (u32, u32, u32) = (1, 2, 3);
+
+        assert_ser_tokens(
+            &tuple,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let field = to_field(tuple).unwrap();
+        assert_eq!(field, expected_same_type_field());
+    }
+
+    #[test]
+    fn test_de_tuple_same_type() {
+        let tuple: (u32, u32, u32) = (1, 2, 3);
+
+        assert_de_tokens(
+            &tuple,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let tuple_de: (u32, u32, u32) = from_field(expected_same_type_field()).unwrap();
+        assert_eq!(tuple, tuple_de);
+    }
+
+    fn expected_different_type_field() -> Field<AccountId32> {
+        Field::Array(BoundedVec(vec![
+            Field::Uint32(1u32),
+            Field::Uint16(2u16),
+            Field::Uint8(3u8),
+        ]))
+    }
+
+    #[test]
+    #[should_panic = "HeterogeneousTuple"] // TODO: Support heterogeneous tuples
+    fn test_ser_tuple_different_type() {
+        let tuple: (u32, u16, u8) = (1, 2, 3);
+
+        assert_ser_tokens(
+            &tuple,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U16(2),
+                Token::U8(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let field = to_field(tuple).unwrap();
+        assert_eq!(field, expected_different_type_field());
+    }
+
+    #[test]
+    fn test_de_tuple_different_type() {
+        let tuple: (u32, u16, u8) = (1, 2, 3);
+
+        assert_de_tokens(
+            &tuple,
+            &[
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U16(2),
+                Token::U8(3),
+                Token::TupleEnd,
+            ],
+        );
+
+        let tuple_de: (u32, u16, u8) = from_field(expected_different_type_field()).unwrap();
+        assert_eq!(tuple, tuple_de);
+    }
+}

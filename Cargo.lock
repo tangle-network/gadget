@@ -4751,6 +4751,7 @@ name = "gadget-blueprint-proc-macro-playground"
 version = "0.1.1"
 dependencies = [
  "async-trait",
+ "blueprint-examples",
  "blueprint-metadata",
  "gadget-sdk",
  "reqwest 0.12.9",
@@ -4844,6 +4845,7 @@ dependencies = [
  "futures",
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
+ "gadget-blueprint-serde",
  "gadget-context-derive",
  "gadget-io",
  "getrandom",

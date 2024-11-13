@@ -8,6 +8,8 @@ pub mod executor;
 pub mod markers;
 pub mod periodic;
 pub mod tangle;
+#[cfg(feature = "testing")]
+pub mod testing;
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]

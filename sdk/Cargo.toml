@@ -13,6 +13,7 @@ license.workspace = true
 itertools = { workspace = true }
 auto_impl = { workspace = true }
 bollard = { workspace = true }
+blueprint-serde.workspace = true
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }
@@ -131,6 +132,7 @@ hyper = { workspace = true, features = ["client"] }
 
 [features]
 default = ["std"]
+testing = []
 
 std = [
     "dep:alloy-provider",
@@ -141,6 +143,7 @@ std = [
     "dep:subxt",
     "dep:tokio",
     "backon/tokio-sleep",
+    "blueprint-serde/std",
     "dep:getrandom",
     "gadget-io/std",
     "hex/std",

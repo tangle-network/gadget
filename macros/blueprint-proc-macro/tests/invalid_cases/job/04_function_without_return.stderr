@@ -1,7 +1,0 @@
-error: Function must have a return type of Result<T, E> where T is a tuple of the result fields
- --> tests/invalid_cases/job/04_function_without_return.rs:3:1
-  |
-3 | #[job(id = 0, params(n), result(_))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: this error originates in the attribute macro `job` (in Nightly builds, run with -Z macro-backtrace for more info)

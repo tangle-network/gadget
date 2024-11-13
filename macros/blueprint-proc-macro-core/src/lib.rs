@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 pub type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
 pub type Address = ethereum_types::H160;
@@ -45,31 +47,46 @@ pub enum FieldType {
     List(Box<FieldType>),
     /// A Struct of items of type [`FieldType`].
     Struct(String, Vec<(String, Box<FieldType>)>),
+    /// Tuple
+    Tuple(Vec<FieldType>),
     // NOTE: Special types starts from 100
     /// A special type for AccountId
     AccountId,
 }
 
-impl AsRef<str> for FieldType {
-    fn as_ref(&self) -> &str {
+impl FieldType {
+    pub fn as_rust_type(&self) -> Cow<'_, str> {
         match self {
-            FieldType::Uint8 => "u8",
-            FieldType::Uint16 => "u16",
-            FieldType::Uint32 => "u32",
-            FieldType::Uint64 => "u64",
-            FieldType::Int8 => "i8",
-            FieldType::Int16 => "i16",
-            FieldType::Int32 => "i32",
-            FieldType::Int64 => "i64",
-            FieldType::Uint128 => "u128",
-            FieldType::U256 => "U256",
-            FieldType::Int128 => "i128",
-            FieldType::Float64 => "f64",
-            FieldType::Bool => "bool",
-            FieldType::String => "String",
-            FieldType::Bytes => "Bytes",
-            FieldType::AccountId => "AccountId",
-            ty => unimplemented!("Unsupported FieldType {ty:?}"),
+            FieldType::Uint8 => Cow::Borrowed("u8"),
+            FieldType::Uint16 => Cow::Borrowed("u16"),
+            FieldType::Uint32 => Cow::Borrowed("u32"),
+            FieldType::Uint64 => Cow::Borrowed("u64"),
+            FieldType::Int8 => Cow::Borrowed("i8"),
+            FieldType::Int16 => Cow::Borrowed("i16"),
+            FieldType::Int32 => Cow::Borrowed("i32"),
+            FieldType::Int64 => Cow::Borrowed("i64"),
+            FieldType::Uint128 => Cow::Borrowed("u128"),
+            FieldType::U256 => Cow::Borrowed("U256"),
+            FieldType::Int128 => Cow::Borrowed("i128"),
+            FieldType::Float64 => Cow::Borrowed("f64"),
+            FieldType::Bool => Cow::Borrowed("bool"),
+            FieldType::String => Cow::Borrowed("String"),
+            FieldType::Bytes => Cow::Borrowed("Vec<u8>"),
+            FieldType::AccountId => Cow::Borrowed("AccountId"),
+
+            FieldType::Optional(ty) => Cow::Owned(format!("Option<{}>", ty.as_rust_type())),
+            FieldType::Array(size, ty) => Cow::Owned(format!("[{}; {size}]", ty.as_rust_type())),
+            FieldType::List(ty) => Cow::Owned(format!("Vec<{}>", ty.as_rust_type())),
+            FieldType::Struct(..) => unimplemented!("FieldType::Struct encoding"),
+            FieldType::Tuple(tys) => {
+                let mut s = String::from("(");
+                for ty in tys {
+                    s.push_str(&format!("{},", ty.as_rust_type()));
+                }
+                s.push(')');
+                Cow::Owned(s)
+            }
+            FieldType::Void => panic!("Void is not a representable type"),
         }
     }
 }

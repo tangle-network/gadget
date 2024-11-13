@@ -50,6 +50,9 @@ pub enum Error {
     #[error("{0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("{0}")]
+    BlueprintSerde(#[from] blueprint_serde::error::Error),
+
     #[cfg(feature = "std")]
     #[error("Prometheus error: {err}")]
     Prometheus { err: String },
@@ -63,6 +66,9 @@ pub enum Error {
 
     #[error("The type has been skipped in the preprocessor")]
     SkipPreProcessedType,
+
+    #[error("Bad argument decoding for {0}")]
+    BadArgumentDecoding(String),
 
     #[error("Other error: {0}")]
     Other(String),

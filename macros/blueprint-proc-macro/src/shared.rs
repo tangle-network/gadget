@@ -1,7 +1,10 @@
+use crate::job::ParameterType;
+use crate::job::{IsResultType, ResultsKind};
 use gadget_blueprint_proc_macro_core::FieldType;
 use indexmap::IndexMap;
-use quote::ToTokens;
-use syn::{Ident, Type};
+use quote::{quote, ToTokens};
+use syn::spanned::Spanned;
+use syn::{Ident, Signature, Type};
 
 /// Convert a `snake_case` string to `PascalCase`
 pub fn pascal_case(s: &str) -> String {
@@ -34,17 +37,48 @@ pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
         "String" => Ok(FieldType::String),
         "Bytes" => Ok(FieldType::Bytes),
         "AccountId" => Ok(FieldType::AccountId),
-        _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
+        _ => Err(syn::Error::new_spanned(ident, "unsupported field type")),
     }
 }
 
-pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
-    match ty {
-        Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
+pub fn type_to_field_type(ty: &Type) -> syn::Result<ParameterType> {
+    let field_type = match ty {
+        Type::Array(arr) => {
+            let elem_type = type_to_field_type(&arr.elem)?;
+            // convert arr.len expr to u64
+            let len = match arr.len.to_token_stream().to_string().parse::<u64>() {
+                Ok(l) => l,
+                Err(_) => {
+                    return Err(syn::Error::new_spanned(
+                        &arr.len,
+                        "array length must be a constant",
+                    ))
+                }
+            };
+            Ok(FieldType::Array(len, Box::new(elem_type.ty)))
+        }
         Type::Path(inner) => path_to_field_type(&inner.path),
-        Type::Reference(type_reference) => type_to_field_type(&type_reference.elem),
-        _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
-    }
+        Type::Reference(type_reference) => {
+            type_to_field_type(&type_reference.elem).map(|ref_ty| ref_ty.ty)
+        }
+        Type::Tuple(tuple) => {
+            let mut ret = vec![];
+            for elem in &tuple.elems {
+                let elem_type = type_to_field_type(elem)?.ty;
+                ret.push(elem_type);
+            }
+            Ok(FieldType::Tuple(ret))
+        }
+        _ => Err(syn::Error::new_spanned(
+            ty,
+            "unsupported type (type_to_field_type)",
+        )),
+    };
+
+    Ok(ParameterType {
+        ty: field_type?,
+        span: Some(ty.span()),
+    })
 }
 
 pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
@@ -70,7 +104,7 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             let inner_arg = &inner.args[0];
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
-                match inner_type {
+                match inner_type.ty {
                     FieldType::Uint8 => Ok(FieldType::Bytes),
                     others => Ok(FieldType::List(Box::new(others))),
                 }
@@ -86,22 +120,24 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             if ident.eq("Option") && inner.args.len() == 1 =>
         {
             let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(FieldType::Optional(Box::new(inner_type)))
-            } else {
-                Err(syn::Error::new_spanned(
+            let syn::GenericArgument::Type(inner_ty) = inner_arg else {
+                return Err(syn::Error::new_spanned(
                     inner_arg,
                     "unsupported complex type",
-                ))
-            }
+                ));
+            };
+
+            let inner_type = type_to_field_type(inner_ty)?;
+            Ok(FieldType::Optional(Box::new(inner_type.ty)))
         }
         // Support for Result<T, E> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Result") => {
+        syn::PathArguments::AngleBracketed(inner)
+            if ident.eq("Result") && !inner.args.is_empty() =>
+        {
             let inner_arg = &inner.args[0];
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
-                Ok(inner_type)
+                Ok(inner_type.ty)
             } else {
                 Err(syn::Error::new_spanned(
                     inner_arg,
@@ -119,7 +155,10 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             for inner_arg in &inner.args {
                 if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                     let inner_type = type_to_field_type(inner_ty)?;
-                    ret.push((inner_ty.to_token_stream().to_string(), Box::new(inner_type)))
+                    ret.push((
+                        inner_ty.to_token_stream().to_string(),
+                        Box::new(inner_type.ty),
+                    ))
                 } else {
                     return Err(syn::Error::new_spanned(inner_arg, "unsupported type param"));
                 }
@@ -144,6 +183,53 @@ pub fn get_non_job_arguments(
         .into_iter()
         .filter(|r| !job_params.contains(&r.0))
         .collect::<IndexMap<Ident, Type>>()
+}
+
+pub(crate) trait MacroExt {
+    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<ParameterType>> {
+        match self.return_type() {
+            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
+            ResultsKind::Types(types) => {
+                let xs = types
+                    .iter()
+                    .map(type_to_field_type)
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(xs)
+            }
+        }
+    }
+
+    fn return_type(&self) -> &ResultsKind;
+}
+
+pub(crate) fn param_types(sig: &Signature) -> syn::Result<IndexMap<Ident, Type>> {
+    // Ensures that no duplicate parameters have been given
+    let mut param_types = IndexMap::new();
+    for input in &sig.inputs {
+        if let syn::FnArg::Typed(arg) = input {
+            if let syn::Pat::Ident(pat_ident) = &*arg.pat {
+                let ident = &pat_ident.ident;
+                let ty = &*arg.ty;
+                let added = param_types.insert(ident.clone(), ty.clone());
+                if added.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        ident,
+                        "tried to add the same field twice",
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(param_types)
+}
+
+pub fn get_return_type_wrapper(return_type: &Type) -> proc_macro2::TokenStream {
+    if return_type.is_result_type() {
+        quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())) }
+    } else {
+        quote! { Ok(res) }
+    }
 }
 
 #[cfg(test)]
