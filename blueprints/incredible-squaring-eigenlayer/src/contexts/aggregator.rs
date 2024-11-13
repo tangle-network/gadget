@@ -87,7 +87,7 @@ impl AggregatorContext {
     pub async fn start(self) -> JoinHandle<()> {
         let aggregator = Arc::new(Mutex::new(self));
 
-        let handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             info!("Starting aggregator RPC server");
 
             let server_handle = tokio::spawn(Self::start_server(Arc::clone(&aggregator)));
@@ -105,9 +105,7 @@ impl AggregatorContext {
             }
 
             info!("Aggregator shutdown complete");
-        });
-
-        handle
+        })
     }
 
     pub async fn shutdown(&self) {

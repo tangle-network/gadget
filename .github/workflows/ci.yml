@@ -176,7 +176,7 @@ jobs:
         run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
 
       - name: eigenlayer incredible squaring blueprint test
-        run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
+        run: RUST_LOG=gadget=trace cargo test --package incredible-squaring-blueprint-eigenlayer test_eigenlayer_incredible_squaring_blueprint -- --nocapture
 
       - name: eigenlayer context test
         run: RUST_LOG=gadget=trace cargo test --package blueprint-examples test_eigenlayer_context -- --nocapture
