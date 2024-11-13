@@ -84,15 +84,13 @@ impl AggregatorContext {
         Ok(aggregator_context)
     }
 
-    pub async fn start(self) -> (JoinHandle<()>, oneshot::Sender<()>) {
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    pub async fn start(self) -> JoinHandle<()> {
         let aggregator = Arc::new(Mutex::new(self));
 
         let handle = tokio::spawn(async move {
             info!("Starting aggregator RPC server");
 
-            let server_handle =
-                tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
+            let server_handle = tokio::spawn(Self::start_server(Arc::clone(&aggregator)));
             let process_handle =
                 tokio::spawn(Self::process_cached_responses(Arc::clone(&aggregator)));
 
@@ -109,7 +107,7 @@ impl AggregatorContext {
             info!("Aggregator shutdown complete");
         });
 
-        (handle, shutdown_tx)
+        handle
     }
 
     pub async fn shutdown(&self) {
@@ -121,10 +119,7 @@ impl AggregatorContext {
         notify.notify_waiters();
     }
 
-    async fn start_server(
-        aggregator: Arc<Mutex<Self>>,
-        mut _shutdown: oneshot::Receiver<()>,
-    ) -> Result<()> {
+    async fn start_server(aggregator: Arc<Mutex<Self>>) -> Result<()> {
         let mut io = IoHandler::new();
         io.add_method("process_signed_task_response", {
             let aggregator = Arc::clone(&aggregator);
@@ -434,7 +429,7 @@ impl AggregatorContext {
 #[async_trait::async_trait]
 impl BackgroundService for AggregatorContext {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
-        let (handle, _shutdown_tx) = self.clone().start().await;
+        let handle = self.clone().start().await;
         let (result_tx, result_rx) = oneshot::channel();
 
         tokio::spawn(async move {

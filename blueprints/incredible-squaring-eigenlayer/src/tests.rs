@@ -160,23 +160,18 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     )
     .await;
 
-    // Check the result and ensure proper cleanup
+    // Start the shutdown/cleanup process
+    aggregator_context_clone.shutdown().await;
+    blueprint_handle.abort();
+    blueprint_handle.await.unwrap_err();
+
     match result {
         Ok(Ok(())) => {
             info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
-            // First shutdown the aggregator context
-            aggregator_context_clone.shutdown().await;
-            // Then abort the blueprint handle
-            blueprint_handle.abort();
-            blueprint_handle.await.unwrap_err(); // We expect this to error since we aborted
         }
         _ => {
-            aggregator_context_clone.shutdown().await;
-            blueprint_handle.abort();
-            blueprint_handle.await.unwrap_err();
             panic!(
-                "Test timed out after {} seconds with {} successful responses out of {} required",
-                timeout_duration.as_secs(),
+                "Test failed with {} successful responses out of {} required",
                 successful_responses_clone.lock().await,
                 num_successful_responses_required
             );
