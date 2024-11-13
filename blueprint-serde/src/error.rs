@@ -48,6 +48,7 @@ pub enum Error {
     UnsupportedType(UnsupportedType),
     /// Attempting to deserialize a [`char`] from a [`Field::String`](crate::Field::String)
     BadCharLength(usize),
+    HeterogeneousTuple,
     FromUtf8Error(alloc::string::FromUtf8Error),
     Other(String),
 }
@@ -78,6 +79,12 @@ impl Display for Error {
             }
             Error::BadCharLength(len) => {
                 write!(f, "String contains {len} characters, expected 1")
+            }
+            Error::HeterogeneousTuple => {
+                write!(
+                    f,
+                    "Attempted to serialize heterogeneous tuple, not currently supported"
+                )
             }
             Error::FromUtf8Error(e) => write!(f, "{e}"),
             Error::Other(msg) => write!(f, "{}", msg),
