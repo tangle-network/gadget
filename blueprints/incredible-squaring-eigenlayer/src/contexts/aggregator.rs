@@ -182,9 +182,8 @@ impl AggregatorContext {
 
         // Spawn the server in a blocking task
         let server_handle = tokio::task::spawn_blocking(move || {
-            let result = server.wait();
+            server.wait();
             let _ = server_tx.send(());
-            result
         });
 
         // Use tokio::select! to wait for either the server to finish or the shutdown signal
@@ -262,10 +261,11 @@ impl AggregatorContext {
 
                     // Process each response without holding the main lock
                     for resp in responses_to_process {
-                        match {
+                        let res = {
                             let mut guard = aggregator.lock().await;
                             guard.process_response(resp.clone()).await
-                        } {
+                        };
+                        match res {
                             Ok(_) => {
                                 // Only remove from cache if processing succeeded
                                 let guard = aggregator.lock().await;
@@ -434,7 +434,7 @@ impl AggregatorContext {
 #[async_trait::async_trait]
 impl BackgroundService for AggregatorContext {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
-        let (handle, shutdown_tx) = self.clone().start().await;
+        let (handle, _shutdown_tx) = self.clone().start().await;
         let (result_tx, result_rx) = oneshot::channel();
 
         tokio::spawn(async move {
