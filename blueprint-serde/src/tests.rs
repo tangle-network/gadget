@@ -525,7 +525,7 @@ mod sequences {
             ],
         );
 
-        let field = to_field(&array).unwrap();
+        let field = to_field(array).unwrap();
         assert_eq!(field, expected_array_field());
     }
 
@@ -571,7 +571,7 @@ mod sequences {
             ],
         );
 
-        let field = to_field(&tuple).unwrap();
+        let field = to_field(tuple).unwrap();
         assert_eq!(field, expected_same_type_field());
     }
 
@@ -618,7 +618,7 @@ mod sequences {
             ],
         );
 
-        let field = to_field(&tuple).unwrap();
+        let field = to_field(tuple).unwrap();
         assert_eq!(field, expected_different_type_field());
     }
 
