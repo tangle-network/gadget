@@ -10,6 +10,7 @@ use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashSet;
 use syn::ext::IdentExt;
@@ -255,9 +256,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     // If is_raw, assume the actual context is the second param
                     quote! { ctx. #field_in_self .clone() }
                 })
-                .ok_or_else(|| {
-                    syn::Error::new_spanned(quote! { (#(#params),*) }, "Must specify a context")
-                })?;
+                .ok_or_else(|| syn::Error::new(Span::call_site(), "Must specify a context"))?;
 
             let autogen_struct_name = quote! { #struct_name };
 
