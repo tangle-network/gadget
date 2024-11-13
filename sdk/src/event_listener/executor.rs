@@ -64,6 +64,9 @@ where
                     self.post_process(job_output).await?;
                 }
                 Err(crate::Error::SkipPreProcessedType) => {}
+                Err(crate::Error::BadArgumentDecoding(err)) => {
+                    crate::warn!("Bad argument decoding, will skip handling event and consequentially triggering the job: {}", err);
+                }
                 Err(e) => {
                     return Err(e);
                 }

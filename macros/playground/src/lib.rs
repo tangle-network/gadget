@@ -123,7 +123,6 @@ fn report_keygen(
 #[report(
     params(uptime, response_time, error_rate),
     event_listener(listener = TangleEventListener<TangleClient, JobResultSubmitted>, pre_processor = services_pre_processor,),
-
     report_type = "qos",
     interval = 3600,
     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
@@ -161,6 +160,7 @@ fn keygen_2_of_3() {
 #[cfg(test)]
 mod tests {
     use async_trait::async_trait;
+    use blueprint_examples::periodic_web_poller::{post_process, pre_process, WebPoller};
     use gadget_sdk as sdk;
     use gadget_sdk::runners::BlueprintRunner;
     use sdk::event_listener::periodic::PeriodicEventListener;
@@ -231,74 +231,43 @@ mod tests {
     #[job(
         id = 0,
         params(value),
-
         event_listener(
-            listener = PeriodicEventListener<1500, WebPoller, serde_json::Value, Arc<AtomicUsize>>,
+            listener = PeriodicEventListener<1500, WebPollerTest, serde_json::Value, Arc<AtomicUsize>>,
             pre_processor = pre_process,
             post_processor = post_process,
         ),
     )]
     // Maps a boolean value obtained from pre-processing to a u8 value
-    pub async fn web_poller(value: bool, count: Arc<AtomicUsize>) -> Result<u8, Infallible> {
+    pub async fn web_poller_test(value: bool, count: Arc<AtomicUsize>) -> Result<u8, Infallible> {
         gadget_sdk::info!("Running web_poller on value: {value}");
         Ok(value as u8)
     }
 
-    async fn pre_process(event: serde_json::Value) -> Result<bool, gadget_sdk::Error> {
-        gadget_sdk::info!("Running web_poller pre-processor on value: {event}");
-        let completed = event["completed"].as_bool().unwrap_or(false);
-        Ok(completed)
-    }
-
-    async fn post_process(job_output: u8) -> Result<(), gadget_sdk::Error> {
-        gadget_sdk::info!("Running web_poller post-processor on value: {job_output}");
-        if job_output == 1 {
-            Ok(())
-        } else {
-            Err(gadget_sdk::Error::Other(
-                "Job failed since query returned with a false status".to_string(),
-            ))
-        }
-    }
-
     /// Define an event listener that polls a webserver
-    pub struct WebPoller {
-        pub client: reqwest::Client,
+    pub struct WebPollerTest {
+        pub inner: WebPoller,
         pub count: Arc<AtomicUsize>,
     }
 
     #[async_trait]
-    impl EventListener<serde_json::Value, Arc<AtomicUsize>> for WebPoller {
+    impl EventListener<serde_json::Value, Arc<AtomicUsize>> for WebPollerTest {
         async fn new(context: &Arc<AtomicUsize>) -> Result<Self, gadget_sdk::Error>
         where
             Self: Sized,
         {
             let client = reqwest::Client::new();
+            let inner = WebPoller::new(&client).await?;
             Ok(Self {
-                client,
+                inner,
                 count: context.clone(),
             })
         }
 
         /// Implement the logic that polls the web server
         async fn next_event(&mut self) -> Option<serde_json::Value> {
-            // Send a GET request to the JSONPlaceholder API
-            let response = self
-                .client
-                .get("https://jsonplaceholder.typicode.com/todos/10")
-                .send()
-                .await
-                .ok()?;
-
-            // Check if the request was successful
-            if response.status().is_success() {
-                // Parse the JSON response
-                let resp: serde_json::Value = response.json().await.ok()?;
-                self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                Some(resp)
-            } else {
-                None
-            }
+            let resp = self.inner.next_event().await?;
+            self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some(resp)
         }
     }
 
@@ -307,7 +276,7 @@ mod tests {
         gadget_sdk::logging::setup_log();
         let env = gadget_sdk::config::load(Default::default()).expect("Failed to load environment");
         let count = &Arc::new(AtomicUsize::new(0));
-        let job = WebPollerEventHandler {
+        let job = WebPollerTestEventHandler {
             count: count.clone(),
         };
 

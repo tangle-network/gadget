@@ -1,9 +1,9 @@
 use crate::job::{
-    declared_params_to_field_types, generate_additional_logic, generate_autogen_struct,
-    get_current_call_id_field_name, get_job_id_field_name, get_result_type, EventListenerArgs,
+    declared_params_to_field_types, generate_autogen_struct, generate_specialized_logic,
+    get_current_call_id_field_name, get_job_id_field_name, get_return_type, EventListenerArgs,
     ResultsKind,
 };
-use crate::shared::{pascal_case, type_to_field_type};
+use crate::shared::{pascal_case, MacroExt};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
 };
@@ -13,7 +13,7 @@ use quote::{format_ident, quote};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    Ident, ItemFn, LitInt, LitStr, Token, Type,
+    Ident, ItemFn, LitInt, LitStr, Token,
 };
 
 mod kw {
@@ -45,7 +45,7 @@ mod kw {
 pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
     let report_def_name = format_ident!("{}_REPORT_DEF", fn_name_string.to_ascii_uppercase());
-    let _ = get_result_type(input);
+    let _ = get_return_type(input);
     let mut param_types = IndexMap::new();
     for input in &input.sig.inputs {
         if let syn::FnArg::Typed(arg) = input {
@@ -74,7 +74,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
     let report_def = ReportDefinition {
         metadata: ReportMetadata {
             name: fn_name_string.clone().into(),
-            description: None, // TODO: Add support for description
+            description: None, // This will get auto-injected during the build process
         },
         params: params_type.clone(),
         result: result_type.clone(),
@@ -117,12 +117,11 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         crate::job::generate_event_workflow_tokenstream(
             input,
             suffix,
-            &fn_name_string,
             &args.event_listeners,
             args.skip_codegen,
             &param_types,
             &args.params,
-        );
+        )?;
 
     let autogen_struct = generate_autogen_struct(
         input,
@@ -131,20 +130,20 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         &param_types,
         suffix,
         &event_listener_calls,
-    );
+    )?;
 
     // Generate Event Workflow, if not being skipped
     let additional_specific_logic = if args.skip_codegen {
         proc_macro2::TokenStream::default()
     } else {
         // Specialized code for the event workflow or otherwise
-        generate_additional_logic(
+        generate_specialized_logic(
             input,
             &args.event_listeners,
             suffix,
             &param_types,
             &args.params,
-        )
+        )?
     };
 
     let call_id_static_name = get_current_call_id_field_name(input);
@@ -229,7 +228,7 @@ impl Parse for ReportArgs {
         let mut interval = None;
         let mut metric_thresholds = None;
         let mut verifier = Verifier::None;
-        let mut event_listener = None;
+        let mut event_listener = EventListenerArgs { listeners: vec![] };
         let mut skip_codegen = false;
 
         while !input.is_empty() {
@@ -243,7 +242,7 @@ impl Parse for ReportArgs {
                     .into_iter()
                     .collect();
             } else if lookahead.peek(kw::result) {
-                let Results(r) = input.parse()?;
+                let crate::job::Results(r) = input.parse()?;
                 result = Some(r);
             } else if lookahead.peek(kw::report_type) {
                 let _ = input.parse::<kw::report_type>()?;
@@ -284,7 +283,8 @@ impl Parse for ReportArgs {
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
             } else if lookahead.peek(kw::event_listener) {
-                event_listener = Some(input.parse()?)
+                let listener: EventListenerArgs = input.parse()?;
+                event_listener.listeners.extend(listener.listeners);
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -321,7 +321,13 @@ impl Parse for ReportArgs {
             }
         }
 
-        let event_listener = event_listener.expect("Event listener type must be present");
+        if event_listener.listeners.is_empty() {
+            return Err(input.error("Missing `event_listener` for report"));
+        }
+
+        if event_listener.listeners.len() > 1 {
+            return Err(input.error("Only one event listener is currently supported for reports"));
+        }
 
         Ok(ReportArgs {
             params,
@@ -337,18 +343,9 @@ impl Parse for ReportArgs {
     }
 }
 
-impl ReportArgs {
-    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
-        match &self.result {
-            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
-            ResultsKind::Types(types) => {
-                let xs = types
-                    .iter()
-                    .map(type_to_field_type)
-                    .collect::<syn::Result<Vec<_>>>()?;
-                Ok(xs)
-            }
-        }
+impl MacroExt for ReportArgs {
+    fn return_type(&self) -> &ResultsKind {
+        &self.result
     }
 }
 
@@ -374,15 +371,15 @@ fn generate_qos_report_event_handler(
     input: &ItemFn,
     _params: &[FieldType],
     _result: &[FieldType],
-) -> proc_macro2::TokenStream {
+) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
     const SUFFIX: &str = "QoSReportEventHandler";
 
     let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
     let job_id = quote! { 0 }; // We don't care about job ID's for QOS
-    let param_types =
-        crate::job::param_types(input).expect("Failed to generate param types for job report");
+    let param_types = crate::shared::param_types(&input.sig)
+        .expect("Failed to generate param types for job report");
     // TODO: Allow passing all events, use a dummy value here that satisfies the trait bounds. For now QOS will
     // trigger only once a singular JobCalled event is received.
     let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
@@ -391,22 +388,21 @@ fn generate_qos_report_event_handler(
         crate::job::generate_event_workflow_tokenstream(
             input,
             SUFFIX,
-            &fn_name_string,
             &args.event_listeners,
             args.skip_codegen,
             &param_types,
             &args.params,
-        );
+        )?;
 
     let interval = args
         .interval
         .as_ref()
-        .expect("Interval must be present for QoS reports");
+        .ok_or_else(|| syn::Error::new_spanned(input, "Missing field `interval` for QoS report"))?;
 
     let combined_event_listener =
         crate::job::generate_combined_event_listener_selector(&struct_name);
 
-    quote! {
+    Ok(quote! {
         #(#event_listener_gen)*
 
         #[automatically_derived]
@@ -459,34 +455,7 @@ fn generate_qos_report_event_handler(
         }
 
         impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
-    }
-}
-
-#[derive(Debug)]
-struct Results(ResultsKind);
-
-impl Parse for Results {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::result>();
-        let content;
-        let _ = syn::parenthesized!(content in input);
-        let names = content.parse_terminated(Type::parse, Token![,])?;
-        if names.is_empty() {
-            return Err(syn::Error::new_spanned(
-                names,
-                "Expected at least one parameter",
-            ));
-        }
-        if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
-            // Infer the types from the retun type
-            return Ok(Self(ResultsKind::Infered));
-        }
-        let mut items = Vec::new();
-        for name in names {
-            items.push(name);
-        }
-        Ok(Self(ResultsKind::Types(items)))
-    }
+    })
 }
 
 #[derive(Debug)]
@@ -500,7 +469,7 @@ impl Parse for Verifier {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let _ = input.parse::<kw::verifier>()?;
         let content;
-        let _ = syn::parenthesized!(content in input);
+        let _ = parenthesized!(content in input);
         let lookahead = content.lookahead1();
         // parse `(evm = "MyVerifierContract")`
         if lookahead.peek(kw::evm) {
