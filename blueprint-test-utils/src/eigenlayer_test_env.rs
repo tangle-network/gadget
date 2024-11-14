@@ -1,33 +1,72 @@
-use alloy_primitives::{address, Address};
-use alloy_provider::Provider;
-use gadget_sdk::info;
-use gadget_sdk::{config::protocol::EigenlayerContractAddresses, utils::evm::get_provider_http};
+use crate::anvil;
+pub use crate::binding::ipauserregistry::PauserRegistry;
+pub use crate::binding::registrycoordinator::RegistryCoordinator;
+pub use crate::helpers::get_receipt;
+pub use alloy_primitives::{address, Address, Bytes, U256};
+pub use alloy_provider::Provider;
+pub use gadget_sdk::config::protocol::EigenlayerContractAddresses;
+pub use gadget_sdk::futures::StreamExt;
+pub use gadget_sdk::tokio::sync::Mutex;
+pub use gadget_sdk::utils::evm::{get_provider_http, get_provider_ws};
+pub use gadget_sdk::{error, info};
+pub use std::sync::Arc;
+pub use std::time::Duration;
+use testcontainers::{ContainerAsync, GenericImage};
 
-use crate::helpers::get_receipt;
+pub const AVS_DIRECTORY_ADDR: Address = address!("0000000000000000000000000000000000000000");
+pub const DELEGATION_MANAGER_ADDR: Address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+pub const ERC20_MOCK_ADDR: Address = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
+pub const MAILBOX_ADDR: Address = address!("0000000000000000000000000000000000000000");
+pub const OPERATOR_STATE_RETRIEVER_ADDR: Address =
+    address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+pub const REGISTRY_COORDINATOR_ADDR: Address = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
+pub const SERVICE_MANAGER_ADDR: Address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
+pub const STRATEGY_MANAGER_ADDR: Address = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
 
-alloy_sol_types::sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    #[derive(Debug)]
-    IncredibleSquaringTaskManager,
-    "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
-);
+const DEFAULT_ANVIL_STATE_PATH: &str =
+    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
-alloy_sol_types::sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    #[derive(Debug)]
-    PauserRegistry,
-    "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
-);
+/// Starts an Anvil container for testing from the given state file in JSON format.
+///
+/// # Arguments
+/// * `path` - The path to the save-state file.
+/// * `include_logs` - If true, testnet output will be printed to the console.
+///
+/// # Returns
+/// `(container, http_endpoint, ws_endpoint)`
+///    - `container` as a [`ContainerAsync`] - The Anvil container.
+///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
+///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
+pub async fn start_anvil_testnet(
+    path: &str,
+    include_logs: bool,
+) -> (ContainerAsync<GenericImage>, String, String) {
+    let (container, http_endpoint, ws_endpoint) =
+        anvil::start_anvil_container(path, include_logs).await;
+    std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
+    std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
-alloy_sol_types::sol!(
-    #[allow(missing_docs, clippy::too_many_arguments)]
-    #[sol(rpc)]
-    #[derive(Debug)]
-    RegistryCoordinator,
-    "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
-);
+    // Sleep to give the testnet time to spin up
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    (container, http_endpoint, ws_endpoint)
+}
+
+/// Starts an Anvil container for testing from this library's default state file.
+///
+/// # Arguments
+/// * `include_logs` - If true, testnet output will be printed to the console.
+///
+/// # Returns
+/// `(container, http_endpoint, ws_endpoint)`
+///    - `container` as a [`ContainerAsync`] - The Anvil container.
+///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
+///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
+pub async fn start_default_anvil_testnet(
+    include_logs: bool,
+) -> (ContainerAsync<GenericImage>, String, String) {
+    info!("Starting Anvil testnet from default state file");
+    anvil::start_anvil_container(DEFAULT_ANVIL_STATE_PATH, include_logs).await
+}
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
@@ -37,6 +76,11 @@ pub struct EigenlayerTestEnvironment {
     pub pauser_registry_address: Address,
 }
 
+/// Sets up the test environment for the EigenLayer Blueprint.
+///
+/// # Description
+/// - Sets all the necessary environment variables for the necessary EigenLayer Contract Addresses.
+/// - Returns a [`EigenlayerTestEnvironment`] struct containing the test environment state.
 pub async fn setup_eigenlayer_test_environment(
     http_endpoint: &str,
     ws_endpoint: &str,

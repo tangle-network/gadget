@@ -127,7 +127,7 @@ jobs:
       - name: doc tests
         run: cargo test --package ${{ matrix.package }} --doc
 
-  integration-test-eigenlayer:
+  eigenlayer-tests:
     timeout-minutes: 90
     runs-on: ubuntu-latest
     steps:
@@ -175,5 +175,8 @@ jobs:
       - name: Build (release) integration test
         run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
 
-      - name: tests
-        run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
+      - name: eigenlayer incredible squaring blueprint test
+        run: RUST_LOG=gadget=trace cargo test --package incredible-squaring-blueprint-eigenlayer test_eigenlayer_incredible_squaring_blueprint -- --nocapture
+
+      - name: eigenlayer context test
+        run: RUST_LOG=gadget=trace cargo test --package blueprint-examples test_eigenlayer_context -- --nocapture

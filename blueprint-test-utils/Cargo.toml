@@ -14,7 +14,6 @@ license.workspace = true
 default = ["std"]
 std = ["sp-core/std", "gadget-io/std", "gadget-sdk/std"]
 wasm = ["gadget-io/wasm-bindgen", "gadget-sdk/wasm"]
-eigenlayer_test = []
 
 [dependencies]
 # Core dependencies
@@ -22,6 +21,7 @@ async-trait = { workspace = true }
 blueprint-manager = { workspace = true }
 futures = { workspace = true }
 parking_lot = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 # Logging and error handling

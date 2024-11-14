@@ -39,17 +39,10 @@ async fn main() {
         provider,
     );
 
-    let initialize_task = InitializeBlsTaskEventHandler {
-        ctx: aggregator_context.clone(),
-        contract: contract.clone(),
-        contract_instance: Default::default(),
-    };
+    let initialize_task =
+        InitializeBlsTaskEventHandler::new(contract.clone(), aggregator_context.clone());
 
-    let x_square_eigen = XsquareEigenEventHandler {
-        ctx: eigen_client_context,
-        contract: contract.clone(),
-        contract_instance: Default::default(),
-    };
+    let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let eigen_config = EigenlayerConfig {};
