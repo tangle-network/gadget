@@ -70,6 +70,9 @@ pub enum Error {
     #[error("Bad argument decoding for {0}")]
     BadArgumentDecoding(String),
 
+    #[error("Color Eyre error: {0}")]
+    Generic(#[from] color_eyre::Report),
+
     #[error("Other error: {0}")]
     Other(String),
 }

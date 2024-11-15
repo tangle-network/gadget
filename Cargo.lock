@@ -4827,6 +4827,7 @@ dependencies = [
  "bincode2",
  "bollard",
  "clap",
+ "color-eyre",
  "dashmap 6.1.0",
  "ed25519-zebra 4.0.3",
  "eigensdk",

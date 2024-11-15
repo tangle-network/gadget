@@ -68,6 +68,8 @@ pub enum Error {
     MissingSymbioticContractAddresses,
     #[error("Bad RPC Connection: {0}")]
     BadRpcConnection(String),
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
