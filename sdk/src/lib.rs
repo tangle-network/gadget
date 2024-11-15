@@ -79,6 +79,7 @@ pub use parking_lot;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
+pub use tracing;
 pub use uuid;
 
 // External modules usually used in proc-macro codegen.
