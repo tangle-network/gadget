@@ -4,6 +4,7 @@ use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
+use crate::network::setup::NetworkConfig;
 use crate::utils::test_utils::get_client;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -129,6 +130,32 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
 }
 
 impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
+    /// Returns a libp2p-friendly identity keypair.
+    pub fn libp2p_identity(&self) -> Result<libp2p::identity::Keypair, Error> {
+        let ed25519 = *self.first_ed25519_signer()?.signer();
+        let keypair = libp2p::identity::Keypair::ed25519_from_bytes(ed25519.seed())
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        Ok(keypair)
+    }
+
+    /// Returns a new `NetworkConfig` for the current environment.
+    pub fn libp2p_network_config<T: Into<String>>(
+        &self,
+        network_name: T,
+    ) -> Result<NetworkConfig, Error> {
+        let network_identity = self.libp2p_identity()?;
+
+        let my_ecdsa_key = self.first_ecdsa_signer()?;
+        let network_config = NetworkConfig::new_service_network(
+            network_identity,
+            my_ecdsa_key.signer().clone(),
+            self.bootnodes.clone(),
+            self.target_port,
+            network_name,
+        );
+
+        Ok(network_config)
+    }
     /// Loads the `KeyStore` from the current environment.
     ///
     /// # Errors

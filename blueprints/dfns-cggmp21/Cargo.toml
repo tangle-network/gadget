@@ -1,0 +1,41 @@
+[package]
+name = "dfns-cggmp21-blueprint"
+version = "0.1.1"
+description = "A DFNS CGGMP21 Blueprint that can run keygen and signing jobs on demand from the Tangle network"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+tracing = { workspace = true }
+async-trait = { workspace = true }
+gadget-sdk = { workspace = true, features = ["std"] }
+color-eyre = { workspace = true }
+lock_api = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["full"] }
+tokio-util = { workspace = true }
+sp-core = { workspace = true }
+subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
+parking_lot = { workspace = true }
+libp2p = { workspace = true }
+ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
+hex = { workspace = true }
+k256 = { workspace = true }
+serde_json = { workspace = true }
+bincode2 = { workspace = true }
+
+cggmp21 = { git = "https://github.com/LFDT-Lockness/cggmp21", features = ["curve-secp256k1"] }
+rand_chacha = "0.3.1"
+serde = { version = "1.0.214", features = ["derive"] }
+round-based = { version = "0.3.2", features = ["runtime-tokio"] }
+key-share = { git = "https://github.com/LFDT-Lockness/cggmp21", features = ["serde"] }
+
+[build-dependencies]
+blueprint-metadata = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
