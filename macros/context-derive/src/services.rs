@@ -119,7 +119,7 @@ pub fn generate_context_impl(
                 Output = Result<
                     Vec<(
                         gadget_sdk::ext::subxt::utils::AccountId32,
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegations::types::OperatorMetadata,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::OperatorMetadata,
                     )>,
                     gadget_sdk::ext::subxt::Error
                 >
@@ -132,7 +132,7 @@ pub fn generate_context_impl(
                     let mut operator_metadata = Vec::new();
 
                     for operator in operators {
-                        let metadata_storage_key = api::storage().multi_asset_delegations().operators(operator.clone());
+                        let metadata_storage_key = api::storage().multi_asset_delegation().operators(operator.clone());
                         let operator_metadata_result = storage.fetch(&metadata_storage_key).await?;
                         if let Some(metadata) = operator_metadata_result {
                             operator_metadata.push((operator, metadata));
@@ -148,14 +148,14 @@ pub fn generate_context_impl(
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operator: gadget_sdk::ext::subxt::utils::AccountId32,
             ) -> Result<
-                Option<gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegations::types::OperatorMetadata>,
+                Option<gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::OperatorMetadata>,
                 gadget_sdk::ext::subxt::Error,
             > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 use gadget_sdk::ext::subxt;
 
                 let storage = client.storage().at_latest().await?;
-                let metadata_storage_key = api::storage().multi_asset_delegations().operators(operator);
+                let metadata_storage_key = api::storage().multi_asset_delegation().operators(operator);
                 storage.fetch(&metadata_storage_key).await
             }
 
@@ -189,7 +189,7 @@ pub fn generate_context_impl(
                 let mut operator_delegations: Vec<(AccountId32, BTreeMap<AccountId32, BTreeMap<AssetId, Balance>>)> = Vec::new();
 
                 for operator in operators {
-                    let delegations_storage_key = api::storage().multi_asset_delegations().delegations_to(operator.clone());
+                    let delegations_storage_key = api::storage().multi_asset_delegation().delegations_to(operator.clone());
                     let delegations_result = storage.fetch(&delegations_storage_key).await?;
 
                     if let Some(delegations) = delegations_result {
@@ -218,7 +218,7 @@ pub fn generate_context_impl(
                 use gadget_sdk::ext::subxt;
 
                 let storage = client.storage().at_latest().await?;
-                let delegations_storage_key = api::storage().multi_asset_delegations().delegations_to(operator);
+                let delegations_storage_key = api::storage().multi_asset_delegation().delegations_to(operator);
                 let delegations_result = storage.fetch(&delegations_storage_key).await?;
 
                 match delegations_result {
