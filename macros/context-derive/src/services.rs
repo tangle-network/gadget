@@ -4,6 +4,7 @@ use syn::DeriveInput;
 use crate::cfg::FieldInfo;
 
 /// Generate the `ServicesContext` implementation for the given struct.
+#[allow(clippy::too_many_lines)]
 pub fn generate_context_impl(
     DeriveInput {
         ident: name,
