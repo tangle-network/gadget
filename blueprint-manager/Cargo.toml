@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-manager"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tangle Blueprint manager and Runner"
 authors.workspace = true
 edition.workspace = true

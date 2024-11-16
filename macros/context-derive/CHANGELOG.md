@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.2.0...gadget-context-derive-v0.2.1) - 2024-11-16
+
+### Added
+
+- improved eigenlayer context and testing ([#453](https://github.com/tangle-network/gadget/pull/453))
+
 ## [0.2.0](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.1.3...gadget-context-derive-v0.2.0) - 2024-11-05
 
 ### Added

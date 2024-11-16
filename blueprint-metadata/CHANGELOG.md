@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.6...blueprint-metadata-v0.1.7) - 2024-11-16
+
+### Other
+
+- updated the following local packages: gadget-blueprint-proc-macro-core
+
 ## [0.1.6](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.5...blueprint-metadata-v0.1.6) - 2024-10-25
 
 ### Other
