@@ -100,6 +100,7 @@ sysinfo = { workspace = true }
 dashmap = { workspace = true }
 lazy_static = "1.5.0"
 bincode2 = { workspace = true }
+color-eyre = { workspace = true }
 
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]

@@ -19,6 +19,7 @@ pub mod handlers;
 #[cfg(target_family = "wasm")]
 pub mod matchbox;
 pub mod messaging;
+pub mod round_based_compat;
 pub mod setup;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]

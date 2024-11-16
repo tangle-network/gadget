@@ -4,7 +4,7 @@
 #[macro_export]
 macro_rules! trace {
     ($($tt:tt)*) => {
-        tracing::trace!(target: "gadget", $($tt)*)
+        $crate::tracing::trace!(target: "gadget", $($tt)*)
     }
 }
 
@@ -14,7 +14,7 @@ macro_rules! trace {
 #[macro_export]
 macro_rules! debug {
     ($($tt:tt)*) => {
-        tracing::debug!(target: "gadget", $($tt)*)
+        $crate::tracing::debug!(target: "gadget", $($tt)*)
     }
 }
 
@@ -24,7 +24,7 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! error {
     ($($tt:tt)*) => {
-        tracing::error!(target: "gadget", $($tt)*)
+        $crate::tracing::error!(target: "gadget", $($tt)*)
     }
 }
 
@@ -34,7 +34,7 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warn {
     ($($tt:tt)*) => {
-        tracing::warn!(target: "gadget", $($tt)*)
+        $crate::tracing::warn!(target: "gadget", $($tt)*)
     }
 }
 
@@ -44,7 +44,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! info {
     ($($tt:tt)*) => {
-        tracing::info!(target: "gadget", $($tt)*)
+        $crate::tracing::info!(target: "gadget", $($tt)*)
     }
 }
 
