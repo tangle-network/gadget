@@ -47,10 +47,10 @@
 //! ```
 
 use crate::keystore::backend::GenericKeyStore;
-use alloc::collections::BTreeMap;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Service;
 use tangle_subxt::tangle_testnet_runtime::api::system::storage::types::number::Number;
@@ -150,7 +150,7 @@ pub trait ServicesContext {
         operator: subxt::utils::AccountId32,
     ) -> impl Future<
         Output = Result<
-            OperatorMetadata<subxt::utils::AccountId32, Balance, AssetId>,
+            Option<OperatorMetadata<subxt::utils::AccountId32, Balance, AssetId>>,
             subxt::Error,
         >,
     >;
@@ -170,10 +170,7 @@ pub trait ServicesContext {
         Output = Result<
             Vec<(
                 subxt::utils::AccountId32, // operator
-                BTreeMap<
-                    subxt::utils::AccountId32, // delegator
-                    BTreeMap<AssetId, Balance>,
-                >,
+                Option<DelegatorMetadata<subxt::utils::AccountId32, AssetId, Balance>>,
             )>,
             subxt::Error,
         >,
@@ -186,10 +183,7 @@ pub trait ServicesContext {
         operator: subxt::utils::AccountId32,
     ) -> impl Future<
         Output = Result<
-            BTreeMap<
-                subxt::utils::AccountId32, // delegator
-                BTreeMap<AssetId, Balance>,
-            >,
+            Option<DelegatorMetadata<subxt::utils::AccountId32, AssetId, Balance>>,
             subxt::Error,
         >,
     >;

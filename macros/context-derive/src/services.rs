@@ -31,14 +31,20 @@ pub fn generate_context_impl(
                     gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint,
                     gadget_sdk::ext::subxt::Error
                 >
-            > {
-                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
+            >{
                 use gadget_sdk::ext::subxt;
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 async move {
                     let blueprint_id = match #field_access.protocol_specific {
-                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
-                        _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
+                            settings.blueprint_id
+                        }
+                        _ => {
+                            return Err(subxt::Error::Other(
+                                "Blueprint id is only available for Tangle protocol".to_string(),
+                            ))
+                        }
                     };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
                     let storage = client.storage().at_latest().await?;
@@ -55,13 +61,21 @@ pub fn generate_context_impl(
             fn current_blueprint_owner(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error>> {
-                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
+            ) -> impl core::future::Future<
+                Output = Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error>,
+            > {
                 use gadget_sdk::ext::subxt;
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 async move {
                     let blueprint_id = match #field_access.protocol_specific {
-                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
-                        _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
+                            settings.blueprint_id
+                        }
+                        _ => {
+                            return Err(subxt::Error::Other(
+                                "Blueprint id is only available for Tangle protocol".to_string(),
+                            ))
+                        }
                     };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
                     let storage = client.storage().at_latest().await?;
@@ -86,18 +100,28 @@ pub fn generate_context_impl(
                     )>,
                     gadget_sdk::ext::subxt::Error
                 >
-            > {
-                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
+            >{
                 use gadget_sdk::ext::subxt;
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 async move {
                     let service_instance_id = match #field_access.protocol_specific {
-                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
-                        _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
+                            settings.service_id
+                        }
+                        _ => {
+                            return Err(subxt::Error::Other(
+                                "Service instance id is only available for Tangle protocol".to_string(),
+                            ))
+                        }
                     };
                     let service_id = match service_instance_id {
-                      Some(service_instance_id) => service_instance_id,
-                      None => return Err(subxt::Error::Other("Service instance id is not set. Running in Registration mode?".to_string())),
+                        Some(service_instance_id) => service_instance_id,
+                        None => {
+                            return Err(subxt::Error::Other(
+                                "Service instance id is not set. Running in Registration mode?".to_string(),
+                            ))
+                        }
                     };
                     let service_instance = api::storage().services().instances(service_id);
                     let storage = client.storage().at_latest().await?;
@@ -119,20 +143,25 @@ pub fn generate_context_impl(
                 Output = Result<
                     Vec<(
                         gadget_sdk::ext::subxt::utils::AccountId32,
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::OperatorMetadata,
+                        gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
+                            gadget_sdk::ext::subxt::utils::AccountId32, // delegator
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
+                        >,
                     )>,
                     gadget_sdk::ext::subxt::Error
                 >
-            > {
+            >{
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-                use gadget_sdk::ext::subxt;
 
                 async move {
                     let storage = client.storage().at_latest().await?;
                     let mut operator_metadata = Vec::new();
 
                     for operator in operators {
-                        let metadata_storage_key = api::storage().multi_asset_delegation().operators(operator.clone());
+                        let metadata_storage_key = api::storage()
+                            .multi_asset_delegation()
+                            .operators(operator.clone());
                         let operator_metadata_result = storage.fetch(&metadata_storage_key).await?;
                         if let Some(metadata) = operator_metadata_result {
                             operator_metadata.push((operator, metadata));
@@ -148,11 +177,16 @@ pub fn generate_context_impl(
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operator: gadget_sdk::ext::subxt::utils::AccountId32,
             ) -> Result<
-                Option<gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::OperatorMetadata>,
+                Option<
+                    gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
+                        gadget_sdk::ext::subxt::utils::AccountId32, // delegator
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
+                    >
+                >,
                 gadget_sdk::ext::subxt::Error,
-            > {
+            >{
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-                use gadget_sdk::ext::subxt;
 
                 let storage = client.storage().at_latest().await?;
                 let metadata_storage_key = api::storage().multi_asset_delegation().operators(operator);
@@ -166,35 +200,35 @@ pub fn generate_context_impl(
             ) -> Result<
                 Vec<(
                     gadget_sdk::ext::subxt::utils::AccountId32, // operator
-                    gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_std::collections::btree_map::BTreeMap<
-                        gadget_sdk::ext::subxt::utils::AccountId32, // delegator
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_std::collections::btree_map::BTreeMap<
-                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_assets::types::AssetId,
-                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_balances::types::Balance,
+                    Option<
+                        gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata<
+                            gadget_sdk::ext::subxt::utils::AccountId32,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
                         >
                     >
                 )>,
                 gadget_sdk::ext::subxt::Error,
-            > {
+            >{
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-                use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::subxt::utils::AccountId32;
-                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
-                    sp_std::collections::btree_map::BTreeMap,
-                    pallet_assets::types::AssetId,
-                    pallet_balances::types::Balance,
-                };
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId;
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance;
+                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
 
                 let storage = client.storage().at_latest().await?;
-                let mut operator_delegations: Vec<(AccountId32, BTreeMap<AccountId32, BTreeMap<AssetId, Balance>>)> = Vec::new();
+                let mut operator_delegations: Vec<(
+                    AccountId32,
+                    Option<DelegatorMetadata<AccountId32, AssetId, Balance>>,
+                )> = Vec::new();
 
                 for operator in operators {
-                    let delegations_storage_key = api::storage().multi_asset_delegation().delegations_to(operator.clone());
+                    let delegations_storage_key = api::storage()
+                        .multi_asset_delegation()
+                        .delegators(operator.clone());
                     let delegations_result = storage.fetch(&delegations_storage_key).await?;
 
-                    if let Some(delegations) = delegations_result {
-                        operator_delegations.push((operator, delegations.0));
-                    }
+                    operator_delegations.push((operator, delegations_result))
                 }
 
                 Ok(operator_delegations)
@@ -205,45 +239,55 @@ pub fn generate_context_impl(
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operator: gadget_sdk::ext::subxt::utils::AccountId32,
             ) -> Result<
-                gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_std::collections::btree_map::BTreeMap<
-                    gadget_sdk::ext::subxt::utils::AccountId32, // delegator
-                    gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_std::collections::btree_map::BTreeMap<
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_assets::types::AssetId,
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_balances::types::Balance,
+                Option<
+                    gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata<
+                        gadget_sdk::ext::subxt::utils::AccountId32,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
                     >
                 >,
                 gadget_sdk::ext::subxt::Error,
-            > {
+            >{
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-                use gadget_sdk::ext::subxt;
 
                 let storage = client.storage().at_latest().await?;
-                let delegations_storage_key = api::storage().multi_asset_delegation().delegations_to(operator);
+                let delegations_storage_key = api::storage().multi_asset_delegation().delegators(operator);
                 let delegations_result = storage.fetch(&delegations_storage_key).await?;
 
-                match delegations_result {
-                    Some(delegations) => Ok(delegations.0),
-                    None => Ok(Default::default()),
-                }
+                Ok(delegations_result)
             }
 
             async fn get_service_instance(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
             ) -> Result<
-                gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::types::Service,
+                gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Service<
+                    gadget_sdk::ext::subxt::utils::AccountId32,
+                    gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::system::storage::types::number::Number,
+                    gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                >,
                 gadget_sdk::ext::subxt::Error,
-            > {
-                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
+            >{
                 use gadget_sdk::ext::subxt;
+                use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 let service_instance_id = match &#field_access.protocol_specific {
-                    gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_instance_id,
-                    _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
+                    gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
+                        settings.service_id
+                    }
+                    _ => {
+                        return Err(subxt::Error::Other(
+                            "Service instance id is only available for Tangle protocol".to_string(),
+                        ))
+                    }
                 };
                 let service_id = match service_instance_id {
                     Some(service_instance_id) => service_instance_id,
-                    None => return Err(subxt::Error::Other("Service instance id is not set. Running in Registration mode?".to_string())),
+                    None => {
+                        return Err(subxt::Error::Other(
+                            "Service instance id is not set. Running in Registration mode?".to_string(),
+                        ))
+                    }
                 };
                 let service_instance = api::storage().services().instances(service_id);
                 let storage = client.storage().at_latest().await?;

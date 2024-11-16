@@ -41,7 +41,7 @@ pub async fn constructor(
         get_provider_http(&env.http_rpc_endpoint),
     );
 
-    Ok(FetchDetailsEventHandler::new(
+    Ok(HandleJobEventHandler::new(
         example_task_manager,
         ExampleEigenContext {
             std_config: env.clone(),
@@ -59,7 +59,7 @@ pub async fn constructor(
         pre_processor = handle_events,
     ),
 )]
-pub async fn fetch_details(
+pub async fn handle_job(
     ctx: ExampleEigenContext,
     event: ExampleTaskManager::NewTaskCreated,
     log: alloy_rpc_types::Log,
