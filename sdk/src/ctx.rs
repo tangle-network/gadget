@@ -127,6 +127,7 @@ pub trait ServicesContext {
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<Vec<(subxt::utils::AccountId32, Percent)>, subxt::Error>>;
 
+    #[allow(clippy::type_complexity)]
     /// Get metadata for a list of operators from the context.
     fn get_operators_metadata(
         &self,
@@ -161,6 +162,7 @@ pub trait ServicesContext {
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<Service<subxt::utils::AccountId32, Number, AssetId>, subxt::Error>>;
 
+    #[allow(clippy::type_complexity)]
     /// Get delegations for a list of operators from the context.
     fn get_operator_delegations(
         &self,
