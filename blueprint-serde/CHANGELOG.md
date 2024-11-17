@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-serde-v0.1.1...gadget-blueprint-serde-v0.2.0) - 2024-11-16
+
+### Added
+
+- *(gadget-blueprint-serde)* [**breaking**] change array/tuple serialization
+
+### Other
+
+- clippy
+
 ## [0.1.1](https://github.com/tangle-network/gadget/compare/gadget-blueprint-serde-v0.1.0...gadget-blueprint-serde-v0.1.1) - 2024-11-08
 
 ### Added

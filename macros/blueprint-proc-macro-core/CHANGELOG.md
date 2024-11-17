@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.5...gadget-blueprint-proc-macro-core-v0.2.0) - 2024-11-16
+
+### Added
+
+- *(gadget-sdk)* [**breaking**] integrate `blueprint-serde` ([#469](https://github.com/tangle-network/gadget/pull/469))
+
+### Other
+
+- *(macros)* cleanup macros, add better error handling, dedup code, DX ([#472](https://github.com/tangle-network/gadget/pull/472))
+
 ## [0.1.5](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.4...gadget-blueprint-proc-macro-core-v0.1.5) - 2024-10-25
 
 ### Fixed

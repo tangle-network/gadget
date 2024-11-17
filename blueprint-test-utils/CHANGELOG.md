@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/tangle-network/gadget/compare/blueprint-test-utils-v0.1.1...blueprint-test-utils-v0.1.2) - 2024-11-16
+
+### Added
+
+- improved eigenlayer context and testing ([#453](https://github.com/tangle-network/gadget/pull/453))
+
+### Other
+
+- enable `format_code_in_doc_comments` for rustfmt ([#467](https://github.com/tangle-network/gadget/pull/467))
+- fix changelog files ([#464](https://github.com/tangle-network/gadget/pull/464))
+
 ## [0.1.1](https://github.com/tangle-network/gadget/releases/tag/blueprint-test-utils-v0.1.1) - 2024-11-08
 
 ### Added
