@@ -31,8 +31,8 @@ where
         parties: BTreeMap<PartyIndex, ecdsa::Public>,
     ) -> Self {
         let mux = NetworkMultiplexer::new(network);
-        // By default, we create 4 substreams for each party.
-        let sub_streams = (1..5)
+        // By default, we create 10 substreams for each party.
+        let sub_streams = (0..10)
             .map(|i| {
                 let key = StreamKey {
                     // This is a dummy task hash, it should be replaced with the actual task hash
@@ -172,7 +172,7 @@ where
         while let Some(out) = this.outgoing_queue.pop_front() {
             // Get the substream to send the message to.
             let key = StreamKey {
-                task_hash: this.task_hash,
+                task_hash: [0u8; 32], // TODO: Use real hash
                 round_id: i32::from(out.msg.round()),
             };
             let substream = this
