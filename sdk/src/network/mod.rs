@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, sha2_256};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -24,31 +24,15 @@ pub mod setup;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 pub struct IdentifierInfo {
-    pub block_id: Option<u64>,
-    pub session_id: Option<u64>,
-    pub retry_id: Option<u64>,
-    pub task_id: Option<u64>,
+    pub message_id: u64,
+    pub round_id: u16,
 }
 
 impl Display for IdentifierInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let block_id = self
-            .block_id
-            .map(|id| format!("block_id: {}", id))
-            .unwrap_or_default();
-        let session_id = self
-            .session_id
-            .map(|id| format!("session_id: {}", id))
-            .unwrap_or_default();
-        let retry_id = self
-            .retry_id
-            .map(|id| format!("retry_id: {}", id))
-            .unwrap_or_default();
-        let task_id = self
-            .task_id
-            .map(|id| format!("task_id: {}", id))
-            .unwrap_or_default();
-        write!(f, "{} {} {} {}", block_id, session_id, retry_id, task_id)
+        let message_id = format!("message_id: {}", self.message_id);
+        let round_id = format!("round_id: {}", self.round_id);
+        write!(f, "{} {}", message_id, round_id)
     }
 }
 
@@ -179,6 +163,12 @@ impl Deref for MultiplexedReceiver {
     }
 }
 
+impl DerefMut for MultiplexedReceiver {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 impl Drop for MultiplexedReceiver {
     fn drop(&mut self) {
         let _ = self.active_streams.remove(&self.stream_id);
@@ -211,15 +201,22 @@ impl NetworkMultiplexer {
             let network_clone = &network;
 
             let task1 = async move {
-                while let Some((stream_id, proto_message)) = rx_from_substreams.recv().await {
+                while let Some((stream_id, msg)) = rx_from_substreams.recv().await {
+                    crate::info!(
+                        "Round {}: Sending RAW message from {} to {:?} (id: {})",
+                        msg.identifier_info.round_id,
+                        msg.sender.user_id,
+                        msg.recipient.as_ref().map(|p| p.user_id),
+                        msg.identifier_info.message_id,
+                    );
                     let multiplexed_message = MultiplexedMessage {
-                        payload: proto_message.payload,
+                        payload: msg.payload,
                         stream_id,
                     };
                     let message = ProtocolMessage {
-                        identifier_info: proto_message.identifier_info,
-                        sender: proto_message.sender,
-                        recipient: proto_message.recipient,
+                        identifier_info: msg.identifier_info,
+                        sender: msg.sender,
+                        recipient: msg.recipient,
                         payload: bincode2::serialize(&multiplexed_message)
                             .expect("Failed to serialize message"),
                     };
@@ -233,6 +230,13 @@ impl NetworkMultiplexer {
 
             let task2 = async move {
                 while let Some(mut msg) = network_clone.next_message().await {
+                    crate::info!(
+                        "Round {}: Received RAW message from {} to {:?} (id: {})",
+                        msg.identifier_info.round_id,
+                        msg.sender.user_id,
+                        msg.recipient.as_ref().map(|p| p.user_id),
+                        msg.identifier_info.message_id,
+                    );
                     if let Ok(multiplexed_message) =
                         bincode2::deserialize::<MultiplexedMessage>(&msg.payload)
                     {
@@ -282,7 +286,7 @@ impl NetworkMultiplexer {
             tx_to_networking_layer.stream_id = id;
             return SubNetwork {
                 tx: tx_to_networking_layer,
-                rx: unclaimed.1.into(),
+                rx: Some(unclaimed.1.into()),
             };
         }
 
@@ -292,7 +296,42 @@ impl NetworkMultiplexer {
             id,
         );
 
-        SubNetwork { tx, rx: rx.into() }
+        SubNetwork {
+            tx,
+            rx: Some(rx.into()),
+        }
+    }
+
+    /// Creates a subnetwork, and also forwards all messages to the given channel. The network cannot be used to
+    /// receive messages since the messages will be forwarded to the provided channel.
+    pub fn multiplex_with_forwarding(
+        &self,
+        id: impl Into<StreamKey>,
+        forward_tx: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
+    ) -> SubNetwork {
+        let mut network = self.multiplex(id);
+        let rx = network.rx.take().expect("Rx from network should be Some");
+        let forwarding_task = async move {
+            let mut rx = rx.into_inner();
+            while let Some(msg) = rx.recv().await {
+                crate::info!(
+                    "Round {}: Received message from {} to {:?} (id: {})",
+                    msg.identifier_info.round_id,
+                    msg.sender.user_id,
+                    msg.recipient.as_ref().map(|p| p.user_id),
+                    msg.identifier_info.message_id,
+                );
+                if let Err(err) = forward_tx.send(msg) {
+                    crate::error!(%err, "Failed to forward message to network");
+                    // TODO: Add AtomicBool to make sending stop
+                    break;
+                }
+            }
+        };
+
+        drop(tokio::spawn(forwarding_task));
+
+        network
     }
 
     fn create_multiplexed_stream_inner(
@@ -327,7 +366,7 @@ impl<N: Network> From<N> for NetworkMultiplexer {
 
 pub struct SubNetwork {
     tx: MultiplexedSender,
-    rx: Mutex<MultiplexedReceiver>,
+    rx: Option<Mutex<MultiplexedReceiver>>,
 }
 
 impl SubNetwork {
@@ -336,7 +375,7 @@ impl SubNetwork {
     }
 
     pub async fn recv(&self) -> Option<ProtocolMessage> {
-        self.rx.lock().await.next().await
+        self.rx.as_ref()?.lock().await.next().await
     }
 }
 
@@ -348,14 +387,6 @@ impl Network for SubNetwork {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         self.send(message)
-    }
-}
-
-impl Stream for SubNetwork {
-    type Item = ProtocolMessage;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(self.rx.get_mut()).poll_next(cx)
     }
 }
 
@@ -492,17 +523,17 @@ mod tests {
         // used throughout the program must also use the multiplexer to prevent mixed messages.
         let multiplexer = NetworkMultiplexer::new(node);
 
-        let mut round1_network = multiplexer.multiplex(StreamKey {
+        let round1_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 0, // To differentiate between different subsets of a running task
         });
 
-        let mut round2_network = multiplexer.multiplex(StreamKey {
+        let round2_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 1, // To differentiate between different subsets of a running task
         });
 
-        let mut round3_network = multiplexer.multiplex(StreamKey {
+        let round3_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 2, // To differentiate between different subsets of a running task
         });
@@ -519,10 +550,8 @@ mod tests {
 
             GossipHandle::build_protocol_message(
                 IdentifierInfo {
-                    block_id: None,
-                    session_id: None,
-                    retry_id: None,
-                    task_id: None,
+                    message_id: 0,
+                    round_id: 0,
                 },
                 i,
                 None,
@@ -539,7 +568,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round1_network.next().await {
+        while let Some(msg) = round1_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round1 message
@@ -573,10 +602,8 @@ mod tests {
             .map(|j| {
                 GossipHandle::build_protocol_message(
                     IdentifierInfo {
-                        block_id: None,
-                        session_id: None,
-                        retry_id: None,
-                        task_id: None,
+                        message_id: 0,
+                        round_id: 0,
                     },
                     i,
                     Some(j),
@@ -596,7 +623,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round2_network.next().await {
+        while let Some(msg) = round2_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round2 message
@@ -628,10 +655,8 @@ mod tests {
             };
             GossipHandle::build_protocol_message(
                 IdentifierInfo {
-                    block_id: None,
-                    session_id: None,
-                    retry_id: None,
-                    task_id: None,
+                    message_id: 0,
+                    round_id: 0,
                 },
                 i,
                 None,
@@ -646,7 +671,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round3_network.next().await {
+        while let Some(msg) = round3_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round3 message
