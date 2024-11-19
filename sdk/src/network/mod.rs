@@ -262,7 +262,7 @@ impl NetworkMultiplexer {
                     crate::trace!(
                         "SEND SEQ {current_seq} FROM {} | StreamKey: {:?}",
                         msg.sender.user_id,
-                        hex::encode(bincode2::serialize(&compound_key).unwrap())
+                        hex::encode(bincode::serialize(&compound_key).unwrap())
                     );
 
                     let multiplexed_message = MultiplexedMessage {
@@ -277,7 +277,7 @@ impl NetworkMultiplexer {
                         identifier_info: msg.identifier_info,
                         sender: msg.sender,
                         recipient: msg.recipient,
-                        payload: bincode2::serialize(&multiplexed_message)
+                        payload: bincode::serialize(&multiplexed_message)
                             .expect("Failed to serialize message"),
                     };
 
@@ -297,7 +297,7 @@ impl NetworkMultiplexer {
 
                 while let Some(mut msg) = network_clone.next_message().await {
                     if let Ok(multiplexed_message) =
-                        bincode2::deserialize::<MultiplexedMessage>(&msg.payload)
+                        bincode::deserialize::<MultiplexedMessage>(&msg.payload)
                     {
                         let stream_id = multiplexed_message.stream_id;
                         let compound_key = CompoundStreamKey {
@@ -320,7 +320,7 @@ impl NetworkMultiplexer {
                             .unwrap_or(-1);
 
                         let compound_key_hex =
-                            hex::encode(bincode2::serialize(&compound_key).unwrap());
+                            hex::encode(bincode::serialize(&compound_key).unwrap());
                         crate::trace!(
                             "RECV SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}",
                             send_user,
@@ -368,7 +368,7 @@ impl NetworkMultiplexer {
                                     break;
                                 }
 
-                                crate::trace!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+                                crate::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
 
                                 *expected_seq += 1;
 
@@ -382,6 +382,8 @@ impl NetworkMultiplexer {
 
                             let _ = unclaimed_streams.insert(stream_id, rx);
                         }
+                    } else {
+                        crate::error!("Failed to deserialize message");
                     }
                 }
             };

@@ -114,7 +114,7 @@ where
 
             let id = res.identifier_info.message_id;
 
-            let msg = match crate::network::deserialize(&res.payload) {
+            let msg = match bincode::deserialize(&res.payload) {
                 Ok(msg) => msg,
                 Err(err) => {
                     crate::error!(%err, "Failed to deserialize message");
@@ -149,9 +149,11 @@ where
         let this = self.get_mut();
         let id = this.next_msg_id.next();
 
+        let round_id = out.msg.round();
+
         crate::info!(
             "Round {}: Sending message from {} to {:?} (id: {})",
-            out.msg.round(),
+            round_id,
             this.me,
             out.recipient,
             id,
@@ -160,14 +162,13 @@ where
         // Get the substream to send the message to.
         let key = StreamKey {
             task_hash: this.task_hash,
-            round_id: i32::from(out.msg.round()),
+            round_id: i32::from(round_id),
         };
         let substream = this.sub_streams.entry(key).or_insert_with(|| {
             this.mux
                 .multiplex_with_forwarding(key, this.tx_forward.clone())
         });
 
-        let round_id = out.msg.round();
         let identifier_info = IdentifierInfo {
             message_id: id,
             round_id,
@@ -176,6 +177,11 @@ where
             MessageDestination::AllParties => (None, None),
             MessageDestination::OneParty(p) => (Some(p), this.participants.get(&p).cloned()),
         };
+
+        if matches!(out.recipient, MessageDestination::OneParty(_)) && to_network_id.is_none() {
+            crate::warn!("Recipient not found when required for {:?}", out.recipient);
+            return Err(crate::Error::Other("Recipient not found".to_string()));
+        }
 
         let protocol_message = ProtocolMessage {
             identifier_info,
@@ -187,7 +193,7 @@ where
                 user_id,
                 ecdsa_key: to_network_id,
             }),
-            payload: crate::network::serialize(&out.msg)?,
+            payload: bincode::serialize(&out.msg).expect("Should be able to serialize message"),
         };
 
         match substream.send(protocol_message) {
