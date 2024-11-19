@@ -52,11 +52,11 @@ pub async fn handle_job(
         .cloned()
         .collect::<Vec<AccountId32>>();
     let restaking_delegations = context
-        .get_operator_delegations(&client, operators.clone())
+        .operator_delegations(&client, operators.clone())
         .await
         .unwrap();
     let operators_metadata = context
-        .get_operators_metadata(&client, operators)
+        .operators_metadata(&client, operators)
         .await
         .unwrap();
     Ok(0)
