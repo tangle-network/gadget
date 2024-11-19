@@ -1,4 +1,4 @@
-use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events};
+use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events, services_context};
 use gadget_sdk::info;
 use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
 use gadget_sdk::runners::{tangle::TangleConfig, BlueprintRunner};
@@ -19,6 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             BlueprintRunner::new(TangleConfig::default(), env.clone())
                 .job(raw_tangle_events::constructor(env.clone()).await?)
                 .job(periodic_web_poller::constructor())
+                .job(services_context::constructor(env.clone()).await?)
                 .run()
                 .await?;
         }

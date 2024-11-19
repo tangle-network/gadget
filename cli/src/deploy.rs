@@ -256,7 +256,7 @@ fn build_contracts_if_needed(
     let needs_build = abs_pathes_to_check.iter().any(|path| !path.exists());
 
     if needs_build {
-        let mut foundry = crate::foundry::FoundryToolchain::new();
+        let foundry = crate::foundry::FoundryToolchain::new();
         foundry.check_installed_or_exit();
         foundry.forge.build()?;
     }
