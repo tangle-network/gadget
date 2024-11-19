@@ -1,6 +1,7 @@
+use crate::foundry::FoundryToolchain;
 use clap::Args;
+use gadget_sdk::tracing;
 use std::path::PathBuf;
-use std::process::Command;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -103,26 +104,22 @@ pub fn new_blueprint(name: String, source: Option<Source>) -> Result<(), Error> 
     .map_err(Error::GenerationFailed)?;
 
     println!("Blueprint generated at: {}", path.display());
+    let contracts = path.join("contracts");
+    if !contracts.exists() {
+        return Ok(());
+    }
 
-    // TODO: Hack, we have to initialize submodules ourselves, cargo-generate just copies
-    //       them as normal directories: https://github.com/cargo-generate/cargo-generate/issues/1317
-    std::env::set_current_dir(path)?;
-    std::fs::remove_dir_all("./contracts/lib/tnt-core")?;
+    let foundry = FoundryToolchain::new();
+    if !foundry.forge.is_installed() {
+        tracing::warn!("Forge not installed, skipping dependencies");
+        tracing::warn!("NOTE: See <https://getfoundry.sh>");
+        tracing::warn!("NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies");
+        return Ok(());
+    }
 
-    let output = Command::new("git")
-        .args([
-            "submodule",
-            "add",
-            "https://github.com/tangle-network/tnt-core",
-            "contracts/lib/tnt-core",
-        ])
-        .output()?;
-
-    if !output.status.success() {
-        eprintln!(
-            "Failed to add tnt-core submodule: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+    std::env::set_current_dir(contracts)?;
+    if let Err(e) = foundry.forge.install_dependencies() {
+        tracing::error!("{e}");
     }
 
     Ok(())

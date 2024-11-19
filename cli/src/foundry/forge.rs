@@ -1,7 +1,7 @@
-use color_eyre::{eyre::eyre, Result};
-use std::process::Command;
-
 use super::CommandInstalled;
+use color_eyre::{eyre::eyre, Result};
+use gadget_sdk::tracing;
+use std::process::Command;
 
 pub struct Forge {
     cmd: Command,
@@ -32,7 +32,7 @@ impl Forge {
     }
 
     /// Builds the contracts.
-    pub fn build(&mut self) -> Result<()> {
+    pub fn build(mut self) -> Result<()> {
         eprintln!("Building contracts...");
         let status = self
             .cmd
@@ -43,6 +43,20 @@ impl Forge {
             .wait()?;
         if !status.success() {
             return Err(eyre!("Failed to build contracts"));
+        }
+        Ok(())
+    }
+
+    pub fn install_dependencies(mut self) -> Result<()> {
+        tracing::info!("Installing dependencies...");
+        let output = self
+            .cmd
+            .args(["soldeer", "update", "-d"])
+            .stderr(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .output()?;
+        if !output.status.success() {
+            return Err(eyre!("Failed to install dependencies"));
         }
         Ok(())
     }
