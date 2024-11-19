@@ -45,22 +45,6 @@ impl BlueprintType {
             self.eigenlayer.map(BlueprintVariant::Eigenlayer)
         }
     }
-
-    pub fn get_submodules(&self) -> Vec<(&'static str, &'static str)> {
-        match self.get_type() {
-            Some(BlueprintVariant::Tangle) => {
-                vec![("https://github.com/tangle-network/tnt-core", "tnt-core")]
-            }
-            Some(BlueprintVariant::Eigenlayer(_)) => vec![
-                (
-                    "https://github.com/Layr-Labs/eigenlayer-middleware",
-                    "eigenlayer-middleware",
-                ),
-                ("https://github.com/foundry-rs/forge-std", "forge-std"),
-            ],
-            None => vec![],
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

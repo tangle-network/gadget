@@ -1,7 +1,8 @@
 pub use crate::create::error::Error;
 pub use crate::create::source::Source;
 pub use crate::create::types::BlueprintType;
-use std::path::Path;
+use crate::foundry::FoundryToolchain;
+use gadget_sdk::tracing;
 use types::*;
 
 pub mod error;
@@ -68,54 +69,22 @@ pub fn new_blueprint(
     .map_err(Error::GenerationFailed)?;
 
     println!("Blueprint generated at: {}", path.display());
-
-    // TODO: Hack, we have to initialize submodules ourselves, cargo-generate just copies
-    //       them as normal directories: https://github.com/cargo-generate/cargo-generate/issues/1317
-    std::env::set_current_dir(path)?;
-    remove_lib_directories()?;
-
-    add_git_submodules(blueprint_type)?;
-
-    Ok(())
-}
-
-fn add_git_submodules(blueprint_type: Option<BlueprintType>) -> Result<(), Error> {
-    let blueprint_type = blueprint_type.unwrap_or_default();
-    let submodules = blueprint_type.get_submodules();
-
-    for (repo_url, submodule_name) in submodules {
-        let submodule_path = format!("contracts/lib/{}", submodule_name);
-        let output = std::process::Command::new("git")
-            .args(["submodule", "add", repo_url, &submodule_path])
-            .output()?;
-        if !output.status.success() {
-            eprintln!(
-                "Failed to add {submodule_name} submodule: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
+    let contracts = path.join("contracts");
+    if !contracts.exists() {
+        return Ok(());
     }
-    Ok(())
-}
 
-fn remove_lib_directories() -> Result<(), Error> {
-    let lib_path = Path::new("./contracts/lib");
+    let foundry = FoundryToolchain::new();
+    if !foundry.forge.is_installed() {
+        tracing::warn!("Forge not installed, skipping dependencies");
+        tracing::warn!("NOTE: See <https://getfoundry.sh>");
+        tracing::warn!("NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies");
+        return Ok(());
+    }
 
-    if lib_path.exists() && lib_path.is_dir() {
-        for entry in std::fs::read_dir(lib_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                println!("Removing directory: {:?}", path);
-                std::fs::remove_dir_all(path)?;
-            }
-        }
-        println!("All directories in ./contracts/lib have been removed.");
-    } else {
-        println!("The ./contracts/lib directory does not exist or is not a directory.");
-        return Err(Error::GenerationFailed(anyhow::Error::msg(
-            "Failed to remove ./contracts/lib/ directories",
-        )));
+    std::env::set_current_dir(contracts)?;
+    if let Err(e) = foundry.forge.install_dependencies() {
+        tracing::error!("{e}");
     }
 
     Ok(())
