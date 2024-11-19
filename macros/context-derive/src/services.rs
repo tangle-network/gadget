@@ -135,7 +135,7 @@ pub fn generate_context_impl(
                 }
             }
 
-            fn get_operators_metadata(
+            fn operators_metadata(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operators: Vec<gadget_sdk::ext::subxt::utils::AccountId32>,
@@ -172,7 +172,7 @@ pub fn generate_context_impl(
                 }
             }
 
-            async fn get_operator_metadata(
+            async fn operator_metadata(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operator: gadget_sdk::ext::subxt::utils::AccountId32,
@@ -193,7 +193,7 @@ pub fn generate_context_impl(
                 storage.fetch(&metadata_storage_key).await
             }
 
-            async fn get_operator_delegations(
+            async fn operator_delegations(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operators: Vec<gadget_sdk::ext::subxt::utils::AccountId32>,
@@ -234,7 +234,7 @@ pub fn generate_context_impl(
                 Ok(operator_delegations)
             }
 
-            async fn get_operator_delegation(
+            async fn operator_delegation(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operator: gadget_sdk::ext::subxt::utils::AccountId32,
@@ -257,7 +257,7 @@ pub fn generate_context_impl(
                 Ok(delegations_result)
             }
 
-            async fn get_service_instance(
+            async fn service_instance(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
             ) -> Result<

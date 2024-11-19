@@ -129,7 +129,7 @@ pub trait ServicesContext {
 
     #[allow(clippy::type_complexity)]
     /// Get metadata for a list of operators from the context.
-    fn get_operators_metadata(
+    fn operators_metadata(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
         operators: Vec<subxt::utils::AccountId32>,
@@ -145,7 +145,7 @@ pub trait ServicesContext {
 
     /// Get metadata for a single operator from the context.
     /// This function will return the metadata for a single operator.
-    fn get_operator_metadata(
+    fn operator_metadata(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
         operator: subxt::utils::AccountId32,
@@ -157,14 +157,14 @@ pub trait ServicesContext {
     >;
 
     /// Get the current service instance from the context.
-    fn get_service_instance(
+    fn service_instance(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<Service<subxt::utils::AccountId32, Number, AssetId>, subxt::Error>>;
 
     #[allow(clippy::type_complexity)]
     /// Get delegations for a list of operators from the context.
-    fn get_operator_delegations(
+    fn operator_delegations(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
         operators: Vec<subxt::utils::AccountId32>,
@@ -179,7 +179,7 @@ pub trait ServicesContext {
     >;
 
     /// Get delegations for a single operator from the context.
-    fn get_operator_delegation(
+    fn operator_delegation(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
         operator: subxt::utils::AccountId32,
