@@ -291,6 +291,16 @@ impl AggregatorContext {
         let task_index = task_response.referenceTaskIndex;
         let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
 
+        // Check if we have the task initialized first
+        if !self.tasks.lock().await.contains_key(&task_index) {
+            info!(
+                "Task {} not yet initialized, caching response for later processing",
+                task_index
+            );
+            self.response_cache.lock().await.push_back(resp);
+            return Ok(());
+        }
+
         if self
             .tasks_responses
             .lock()
