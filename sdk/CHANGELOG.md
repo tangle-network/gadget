@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.5.0...gadget-sdk-v0.5.1) - 2024-11-20
+
+### Added
+
+- add more service ctx methods for Tangle ([#477](https://github.com/tangle-network/gadget/pull/477))
+
+### Fixed
+
+- race conditions in multiplexer ([#486](https://github.com/tangle-network/gadget/pull/486))
+
 ## [0.5.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.4.0...gadget-sdk-v0.5.0) - 2024-11-16
 
 ### Added
