@@ -1,9 +1,9 @@
 use crate::anvil;
-pub use crate::binding::ipauserregistry::PauserRegistry;
-pub use crate::binding::registrycoordinator::RegistryCoordinator;
 pub use crate::helpers::get_receipt;
 pub use alloy_primitives::{address, Address, Bytes, U256};
 pub use alloy_provider::Provider;
+pub use gadget_sdk::binding::ipauser_registry::PauserRegistry;
+pub use gadget_sdk::binding::registry_coordinator::RegistryCoordinator;
 pub use gadget_sdk::config::protocol::EigenlayerContractAddresses;
 pub use gadget_sdk::futures::StreamExt;
 pub use gadget_sdk::tokio::sync::Mutex;
@@ -104,6 +104,10 @@ pub async fn setup_eigenlayer_test_environment(
         "DELEGATION_MANAGER_ADDR",
         delegation_manager_address.to_string(),
     );
+    let service_manager_address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
+    std::env::set_var("SERVICE_MANAGER_ADDR", service_manager_address.to_string());
+    let stake_registry_address = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
+    std::env::set_var("STAKE_REGISTRY_ADDR", stake_registry_address.to_string());
     let strategy_manager_address = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
     std::env::set_var(
         "STRATEGY_MANAGER_ADDR",
@@ -147,6 +151,8 @@ pub async fn setup_eigenlayer_test_environment(
             registry_coordinator_address,
             operator_state_retriever_address,
             delegation_manager_address,
+            service_manager_address,
+            stake_registry_address,
             strategy_manager_address,
             avs_directory_address: Default::default(),
         },

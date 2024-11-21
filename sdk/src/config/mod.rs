@@ -123,6 +123,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 registry_coordinator,
                 operator_state_retriever,
                 delegation_manager,
+                service_manager,
+                stake_registry,
                 strategy_manager,
                 avs_directory,
                 operator_registry,
@@ -149,6 +151,10 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             operator_state_retriever_address: operator_state_retriever
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
             delegation_manager_address: delegation_manager
+                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+            service_manager_address: service_manager
+                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+            stake_registry_address: stake_registry
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
             strategy_manager_address: strategy_manager
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,

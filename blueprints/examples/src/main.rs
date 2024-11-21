@@ -1,6 +1,6 @@
 use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events, services_context};
 use gadget_sdk::info;
-use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
+use gadget_sdk::runners::eigenlayer::EigenlayerBLSConfig;
 use gadget_sdk::runners::{tangle::TangleConfig, BlueprintRunner};
 use std::env;
 
@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "eigenlayer" => {
             info!("Running Eigenlayer examples");
-            BlueprintRunner::new(EigenlayerConfig {}, env.clone())
+            BlueprintRunner::new(EigenlayerBLSConfig {}, env.clone())
                 .job(eigen_context::constructor(env.clone()).await?)
                 .run()
                 .await?;

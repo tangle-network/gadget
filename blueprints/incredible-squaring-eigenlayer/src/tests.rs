@@ -16,7 +16,7 @@ use blueprint_test_utils::{
 use gadget_io::SupportedChains;
 use gadget_sdk::config::ContextConfig;
 use gadget_sdk::logging::setup_log;
-use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
+use gadget_sdk::runners::eigenlayer::EigenlayerBLSConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::utils::evm::get_wallet_provider_http;
 use reqwest::Url;
@@ -139,7 +139,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let eigen_config = EigenlayerConfig {};
+    let eigen_config = EigenlayerBLSConfig {};
 
     let blueprint_handle = tokio::spawn(async move {
         BlueprintRunner::new(eigen_config, env)

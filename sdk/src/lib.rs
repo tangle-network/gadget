@@ -14,6 +14,9 @@ extern crate core;
 /// Benchmark Module
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod benchmark;
+/// Sol Bindings
+#[allow(missing_copy_implementations)]
+pub mod binding;
 /// Blockchain clients
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod clients;
