@@ -14,11 +14,11 @@ pub struct CreateArgs {
 #[group(required = false, multiple = false)]
 pub struct BlueprintType {
     /// Create a Tangle blueprint
-    #[arg(long)]
+    #[arg(long, conflicts_with = "eigenlayer")]
     pub tangle: bool,
 
     /// Create an EigenLayer blueprint
-    #[arg(long, value_name = "VARIANT", value_enum)]
+    #[arg(long, value_name = "VARIANT", value_enum, num_args = 0..=1, default_value = "bls")]
     pub eigenlayer: Option<EigenlayerVariant>,
 }
 
@@ -31,8 +31,9 @@ impl Default for BlueprintType {
     }
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Default, Clone, Copy, ValueEnum)]
 pub enum EigenlayerVariant {
+    #[default]
     BLS,
     ECDSA,
 }
