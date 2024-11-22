@@ -4770,6 +4770,8 @@ dependencies = [
  "gadget-sdk",
  "proc-macro2",
  "quote",
+ "round-based",
+ "serde",
  "syn 2.0.87",
  "trybuild",
 ]

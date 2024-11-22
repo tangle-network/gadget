@@ -1,5 +1,5 @@
 error: Context Extensions traits can only be derived for structs
- --> tests/ui/05_not_a_struct.rs:4:6
+ --> tests/ui/not_a_struct.rs:4:6
   |
 4 | enum MyContext {
   |      ^^^^^^^^^

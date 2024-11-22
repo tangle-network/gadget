@@ -48,6 +48,7 @@
 
 use crate::keystore::backend::GenericKeyStore;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
+use subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
@@ -304,4 +305,65 @@ pub trait EigenlayerContext {
         start_block: u64,
         to_block: u64,
     ) -> Result<(Vec<Address>, Vec<OperatorPubKeys>), std::io::Error>;
+}
+
+use crate::network::NetworkMultiplexer;
+use color_eyre::Result;
+use round_based::PartyIndex;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+/// `MPCContext` trait provides access to MPC (Multi-Party Computation) functionality from the context.
+#[async_trait::async_trait]
+pub trait MPCContext {
+    /// Returns a reference to the configuration
+    fn config(&self) -> &crate::config::StdGadgetConfiguration;
+
+    /// Returns the network protocol identifier
+    fn network_protocol(&self) -> String;
+
+    /// Creates a network delivery wrapper for MPC communication
+    fn create_network_delivery_wrapper<M>(
+        &self,
+        mux: Arc<NetworkMultiplexer>,
+        party_index: PartyIndex,
+        task_hash: [u8; 32],
+        parties: BTreeMap<PartyIndex, subxt_core::ext::sp_core::ecdsa::Public>,
+    ) -> Result<crate::network::round_based_compat::NetworkDeliveryWrapper<M>, crate::Error>
+    where
+        M: Clone
+            + Send
+            + Unpin
+            + 'static
+            + serde::Serialize
+            + serde::de::DeserializeOwned
+            + round_based::ProtocolMessage;
+
+    /// Gets the party index from the participants map
+    async fn get_party_index(&self) -> Result<PartyIndex, crate::Error>;
+
+    /// Gets the participants in the MPC protocol
+    async fn get_participants(
+        &self,
+        client: &subxt::OnlineClient<crate::clients::tangle::runtime::TangleConfig>,
+    ) -> Result<BTreeMap<PartyIndex, AccountId32>, crate::Error>;
+
+    /// Gets the current blueprint ID
+    fn blueprint_id(&self) -> Result<u64>;
+
+    /// Gets the party index and operator mapping
+    async fn get_party_index_and_operators(
+        &self,
+    ) -> Result<(
+        usize,
+        BTreeMap<AccountId32, crate::subxt_core::ext::sp_core::ecdsa::Public>,
+    )>;
+
+    /// Gets the ECDSA keys for all current service operators
+    async fn current_service_operators_ecdsa_keys(
+        &self,
+    ) -> Result<BTreeMap<AccountId32, crate::subxt_core::ext::sp_core::ecdsa::Public>>;
+
+    /// Gets the current call ID for this job
+    async fn current_call_id(&self) -> Result<u64>;
 }

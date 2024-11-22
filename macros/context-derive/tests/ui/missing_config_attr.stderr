@@ -1,5 +1,5 @@
 error: No field with #[config] attribute found, please add #[config] to the field that holds the `gadget_sdk::config::GadgetConfiguration`
- --> tests/ui/04_missing_config_attr.rs:5:8
+ --> tests/ui/missing_config_attr.rs:5:8
   |
 5 | struct MyContext {
   |        ^^^^^^^^^
