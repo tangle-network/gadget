@@ -459,7 +459,7 @@ impl<'a> Container<'a> {
         });
 
         let containers = self.connection.list_containers(options).await?;
-        let Some(status) = &containers[0].status else {
+        let Some(status) = &containers[0].state else {
             return Ok(None);
         };
 
