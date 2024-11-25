@@ -1,10 +1,10 @@
 use crate::error::{Error, Result, UnsupportedType};
 use crate::Field;
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use serde::de;
 use serde::de::IntoDeserializer;
+use serde::{de, forward_to_deserialize_any};
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
@@ -15,24 +15,6 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 ///
 /// See [`crate::from_field`].
 pub struct Deserializer(pub(crate) Field<AccountId32>);
-
-macro_rules! deserialize_primitive {
-    ($($t:ty => $pat:pat),+ $(,)?) => {
-        $(
-        paste::paste! {
-            fn [<deserialize_ $t>]<V>(self, visitor: V) -> Result<V::Value>
-            where
-                V: de::Visitor<'de>,
-            {
-                match self.0 {
-                    $pat(value) => visitor.[<visit_ $t>](value),
-                    _ => Err(self.invalid_type(&visitor))
-                }
-            }
-        }
-        )+
-    }
-}
 
 impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = Error;
@@ -56,24 +38,15 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 let s = String::from_utf8(s.0 .0)?;
                 visitor.visit_string(s)
             }
-            Field::Bytes(b) => visitor.visit_bytes(b.0.as_slice()),
+            Field::Bytes(b) => {
+                // Unless `deserialize_bytes` is explicitly called, assume a sequence is desired
+                de::value::SeqDeserializer::new(b.0.into_iter()).deserialize_any(visitor)
+            }
             Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
             Field::Struct(_, fields) => visit_struct(*fields, visitor),
-            Field::AccountId(a) => visitor.visit_bytes(a.0.as_slice()),
+            Field::AccountId(a) => visitor.visit_string(a.to_string()),
         }
     }
-
-    deserialize_primitive!(
-        bool => Field::Bool,
-        i8   => Field::Int8,
-        i16  => Field::Int16,
-        i32  => Field::Int32,
-        i64  => Field::Int64,
-        u8   => Field::Uint8,
-        u16  => Field::Uint16,
-        u32  => Field::Uint32,
-        u64  => Field::Uint64,
-    );
 
     fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
     where
@@ -118,36 +91,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         self.deserialize_string(visitor)
     }
 
-    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self.0 {
-            Field::String(bound_string) => {
-                visitor.visit_string(String::from_utf8(bound_string.0 .0)?)
-            }
-            _ => Err(self.invalid_type(&visitor)),
-        }
-    }
-
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        self.deserialize_byte_buf(visitor)
-    }
-
-    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self.0 {
-            Field::Bytes(seq) => visitor.visit_byte_buf(seq.0),
-            Field::String(s) => visitor.visit_string(String::from_utf8(s.0 .0)?),
-            _ => Err(self.invalid_type(&visitor)),
-        }
-    }
-
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -182,23 +125,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self.0 {
-            Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
-            _ => Err(self.invalid_type(&visitor)),
-        }
-    }
-
-    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        self.deserialize_seq(visitor)
-    }
-
     fn deserialize_tuple_struct<V>(
         self,
         _name: &'static str,
@@ -228,21 +154,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         Err(Error::UnsupportedType(UnsupportedType::Map))
     }
 
-    fn deserialize_struct<V>(
-        self,
-        _name: &'static str,
-        _fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self.0 {
-            Field::Struct(_name, fields) => visit_struct(*fields, visitor),
-            _ => Err(self.invalid_type(&visitor)),
-        }
-    }
-
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
@@ -261,19 +172,17 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         }
     }
 
-    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: de::Visitor<'de>,
-    {
-        self.deserialize_str(visitor)
-    }
-
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
         drop(self);
         visitor.visit_unit()
+    }
+
+    forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 string
+        bytes byte_buf seq struct identifier tuple
     }
 }
 

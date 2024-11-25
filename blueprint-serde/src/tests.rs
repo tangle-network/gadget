@@ -456,6 +456,83 @@ mod sequences {
     use super::*;
     use alloc::vec::Vec;
 
+    fn expected_empty_bytes_field() -> Field<AccountId32> {
+        Field::Bytes(BoundedVec(Vec::new()))
+    }
+
+    #[test]
+    fn test_ser_bytes_empty() {
+        let bytes: serde_bytes::ByteBuf = serde_bytes::ByteBuf::from(Vec::new());
+
+        assert_ser_tokens(&bytes, &[Token::Bytes(&[])]);
+
+        let field = to_field(&bytes).unwrap();
+        assert_eq!(field, expected_empty_bytes_field());
+    }
+
+    #[test]
+    fn test_de_bytes_empty() {
+        let bytes: serde_bytes::ByteBuf = serde_bytes::ByteBuf::from(Vec::new());
+
+        assert_de_tokens(&bytes, &[Token::Bytes(&[])]);
+
+        let bytes_de: serde_bytes::ByteBuf = from_field(expected_empty_bytes_field()).unwrap();
+        assert_eq!(bytes, bytes_de);
+    }
+
+    #[test]
+    fn test_de_bytes_seq_empty() {
+        let bytes: Vec<u8> = Vec::new();
+
+        assert_de_tokens(&bytes, &[Token::Seq { len: Some(0) }, Token::SeqEnd]);
+
+        let bytes_de: Vec<u8> = from_field(expected_empty_bytes_field()).unwrap();
+        assert_eq!(bytes, bytes_de);
+    }
+
+    fn expected_bytes_field() -> Field<AccountId32> {
+        Field::Bytes(BoundedVec(vec![1, 2, 3]))
+    }
+
+    #[test]
+    fn test_ser_bytes() {
+        let bytes: serde_bytes::ByteBuf = serde_bytes::ByteBuf::from(vec![1, 2, 3]);
+
+        assert_ser_tokens(&bytes, &[Token::Bytes(&[1, 2, 3])]);
+
+        let field = to_field(&bytes).unwrap();
+        assert_eq!(field, expected_bytes_field());
+    }
+
+    #[test]
+    fn test_de_bytes() {
+        let bytes: serde_bytes::ByteBuf = serde_bytes::ByteBuf::from(vec![1, 2, 3]);
+
+        assert_de_tokens(&bytes, &[Token::Bytes(&[1, 2, 3])]);
+
+        let bytes_de: serde_bytes::ByteBuf = from_field(expected_bytes_field()).unwrap();
+        assert_eq!(bytes, bytes_de);
+    }
+
+    #[test]
+    fn test_de_bytes_seq() {
+        let bytes: Vec<u8> = vec![1, 2, 3];
+
+        assert_de_tokens(
+            &bytes,
+            &[
+                Token::Seq { len: Some(3) },
+                Token::U8(1),
+                Token::U8(2),
+                Token::U8(3),
+                Token::SeqEnd,
+            ],
+        );
+
+        let bytes_de: Vec<u8> = from_field(expected_bytes_field()).unwrap();
+        assert_eq!(bytes, bytes_de);
+    }
+
     fn expected_vec_field() -> Field<AccountId32> {
         Field::List(BoundedVec(vec![
             Field::Uint32(1),
@@ -639,5 +716,49 @@ mod sequences {
 
         let tuple_de: (u32, u16, u8) = from_field(expected_different_type_field()).unwrap();
         assert_eq!(tuple, tuple_de);
+    }
+}
+
+mod accountid32 {
+    use super::*;
+    use core::str::FromStr;
+
+    fn expected_accountid32_field() -> Field<AccountId32> {
+        Field::AccountId(
+            AccountId32::from_str("12bzRJfh7arnnfPPUZHeJUaE62QLEwhK48QnH9LXeK2m1iZU").unwrap(),
+        )
+    }
+
+    #[test]
+    #[should_panic = "assertion `left == right` failed"] // TODO: No way to differentiate, AccountId32 is serialized as a string.
+    fn test_ser_accountid32() {
+        let account_id: AccountId32 =
+            AccountId32::from_str("12bzRJfh7arnnfPPUZHeJUaE62QLEwhK48QnH9LXeK2m1iZU").unwrap();
+
+        assert_ser_tokens(
+            &account_id,
+            &[Token::Str(
+                "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+            )],
+        );
+
+        let field = to_field(account_id).unwrap();
+        assert_eq!(field, expected_accountid32_field());
+    }
+
+    #[test]
+    fn test_de_accountid32() {
+        let account_id: AccountId32 =
+            AccountId32::from_str("12bzRJfh7arnnfPPUZHeJUaE62QLEwhK48QnH9LXeK2m1iZU").unwrap();
+
+        assert_de_tokens(
+            &account_id,
+            &[Token::Str(
+                "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+            )],
+        );
+
+        let account_id_de: AccountId32 = from_field(expected_accountid32_field()).unwrap();
+        assert_eq!(account_id, account_id_de);
     }
 }
