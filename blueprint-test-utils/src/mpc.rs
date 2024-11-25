@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! mpc_generate_keygen_and_signing_tests {
     (
-        $blueprint_path:expr,
+        $blueprint_path:literal,
         $N:tt,
         $T:tt,
         $keygen_job_id:tt,
@@ -10,13 +10,14 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
         $signing_job_id:tt,
         [$($signing_inputs:expr),+],
         [$($expected_signing_outputs:expr),*],
+        $atomic_keygen_call_id_store:expr,
     ) => {
         $crate::generic_test_blueprint!(
             $blueprint_path,
             $N,
             |client, handles, blueprint| async move {
                 let keypair = handles[0].sr25519_id().clone();
-                let service = &blueprint.services[$keygen_job_id];
+                let service = &blueprint.services[$keygen_job_id as usize];
 
                 let service_id = service.id;
                 gadget_sdk::info!(
@@ -36,9 +37,10 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 .expect("Failed to submit job");
 
                 let keygen_call_id = job.call_id;
+                $atomic_keygen_call_id_store.store(keygen_call_id, std::sync::atomic::Ordering::Relaxed);
 
                 gadget_sdk::info!(
-                    "Submitted KEYGEN job {} with service ID {service_id} has call id {}", $keygen_job_id
+                    "Submitted KEYGEN job {} with service ID {service_id} has call id {keygen_call_id}", $keygen_job_id,
                 );
 
                 let job_results = wait_for_completion_of_tangle_job(client, service_id, keygen_call_id, $T)
@@ -56,7 +58,7 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 }
 
                 // ~~~~~ Now, run a signing job ~~~~~
-                let service = &blueprint.services[$signing_job_id];
+                let service = &blueprint.services[$signing_job_id as usize];
 
                 let service_id = service.id;
                 gadget_sdk::info!(

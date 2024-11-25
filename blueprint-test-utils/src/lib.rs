@@ -32,9 +32,8 @@ use url::Url;
 use uuid::Uuid;
 use gadget_sdk::{error, info};
 
-pub use gadget_sdk::logging::setup_log;
-
 pub use cargo_tangle::deploy::Opts;
+pub use gadget_sdk::logging::setup_log;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -50,6 +49,7 @@ pub mod tangle;
 pub mod test_ext;
 use anvil::ANVIL_PRIVATE_KEYS;
 pub use gadget_sdk;
+pub use gadget_sdk::ext::blueprint_serde::BoundedVec;
 pub use tangle::transactions::{get_next_call_id, submit_job, wait_for_completion_of_tangle_job};
 pub use tempfile;
 
