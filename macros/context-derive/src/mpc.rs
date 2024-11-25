@@ -22,7 +22,7 @@ pub fn generate_context_impl(
 
     quote! {
         #[gadget_sdk::async_trait::async_trait]
-        impl #impl_generics gadget_sdk::ctx::MPCContext for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::MPCContext for #name #ty_generics #where_clause {
             /// Returns a reference to the configuration
             #[inline]
             fn config(&self) -> &gadget_sdk::config::StdGadgetConfiguration {

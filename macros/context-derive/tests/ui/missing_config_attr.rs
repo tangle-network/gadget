@@ -1,5 +1,5 @@
 use gadget_sdk::config::StdGadgetConfiguration;
-use gadget_sdk::ctx::KeystoreContext;
+use gadget_sdk::contexts::KeystoreContext;
 
 #[derive(KeystoreContext)]
 struct MyContext {

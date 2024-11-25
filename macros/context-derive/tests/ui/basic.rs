@@ -1,6 +1,6 @@
 use gadget_sdk::async_trait::async_trait;
 use gadget_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
-use gadget_sdk::ctx::{
+use gadget_sdk::contexts::{
     EVMProviderContext, KeystoreContext, MPCContext, ServicesContext, TangleClientContext,
 };
 use gadget_sdk::network::{Network, NetworkMultiplexer, ProtocolMessage};

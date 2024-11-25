@@ -1,5 +1,7 @@
 use gadget_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
-use gadget_sdk::ctx::{EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext};
+use gadget_sdk::contexts::{
+    EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext,
+};
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]

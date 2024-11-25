@@ -39,21 +39,10 @@ use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::subxt_core::config::Header;
 use gadget_sdk::utils::test_utils::get_client;
+use crate::tangle::transactions;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
-pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
-    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-    "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
-    "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
-    "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
-    "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e",
-    "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356",
-    "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97",
-    "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
-];
 
 /// - `N`: number of nodes
 /// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
@@ -181,7 +170,7 @@ pub async fn new_test_ext_blueprint_manager<
                 },
             };
 
-            if let Err(err) = super::join_delegators(&client, &keypair).await {
+            if let Err(err) = transactions::join_delegators(&client, &keypair).await {
                 let _span = handle.span().enter();
 
                 let err_str = format!("{err}");
@@ -193,7 +182,7 @@ pub async fn new_test_ext_blueprint_manager<
                 }
             }
 
-            if let Err(err) = super::register_blueprint(
+            if let Err(err) = transactions::register_blueprint(
                 &client,
                 &keypair,
                 blueprint_id,
@@ -226,13 +215,14 @@ pub async fn new_test_ext_blueprint_manager<
     info!("Requesting service for blueprint ID {blueprint_id} using Alice's keys ...");
 
     if let Err(err) =
-        super::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+        transactions::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes)
+            .await
     {
         error!("Failed to register service: {err}");
         panic!("Failed to register service: {err}");
     }
 
-    let next_request_id = super::get_next_request_id(&client)
+    let next_request_id = transactions::get_next_request_id(&client)
         .await
         .expect("Failed to get next request ID")
         .saturating_sub(1);
@@ -244,7 +234,9 @@ pub async fn new_test_ext_blueprint_manager<
         let client = client.clone();
         let task = async move {
             let keypair = handle.sr25519_id().clone();
-            if let Err(err) = super::approve_service(&client, &keypair, next_request_id, 20).await {
+            if let Err(err) =
+                transactions::approve_service(&client, &keypair, next_request_id, 20).await
+            {
                 let _span = handle.span().enter();
                 error!("Failed to approve service request {next_request_id}: {err}");
                 panic!("Failed to approve service request {next_request_id}: {err}");

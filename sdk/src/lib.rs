@@ -63,8 +63,7 @@ pub mod tracer;
 pub mod tx;
 
 /// Gadget Context and context extensions
-pub mod ctx;
-
+pub mod contexts;
 pub mod docker;
 pub mod utils;
 

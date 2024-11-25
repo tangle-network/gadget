@@ -15,7 +15,7 @@ use eigensdk::{
 };
 use gadget_sdk::{
     config::StdGadgetConfiguration,
-    ctx::{EigenlayerContext, KeystoreContext},
+    contexts::{EigenlayerContext, KeystoreContext},
     debug, error, info,
     runners::{BackgroundService, RunnerError},
 };
