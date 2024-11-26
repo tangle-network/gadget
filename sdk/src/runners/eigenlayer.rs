@@ -75,6 +75,7 @@ impl BlueprintConfig for EigenlayerConfig {
         let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
         let delegation_manager_address = contract_addresses.delegation_manager_address;
         let strategy_manager_address = contract_addresses.strategy_manager_address;
+        let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
         let avs_directory_address = contract_addresses.avs_directory_address;
 
         let operator = env.keystore()?.ecdsa_key()?;
@@ -82,10 +83,11 @@ impl BlueprintConfig for EigenlayerConfig {
         let operator_address = operator.alloy_key()?.address();
         let provider = get_provider_http(&env.http_rpc_endpoint);
 
-        let delegation_manager = eigensdk::utils::binding::DelegationManager::new(
-            delegation_manager_address,
-            provider.clone(),
-        );
+        let delegation_manager =
+            eigensdk::utils::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+                delegation_manager_address,
+                provider.clone(),
+            );
         let slasher_address = delegation_manager.slasher().call().await.map(|a| a._0)?;
 
         let logger = get_test_logger();
@@ -124,6 +126,7 @@ impl BlueprintConfig for EigenlayerConfig {
         let el_writer = ELChainWriter::new(
             delegation_manager_address,
             strategy_manager_address,
+            rewards_coordinator_address,
             el_chain_reader,
             env.http_rpc_endpoint.clone(),
             operator_private_key,

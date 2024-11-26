@@ -6,6 +6,7 @@ use std::pin::Pin;
 use tokio::sync::oneshot;
 
 pub mod eigenlayer;
+#[cfg(feature = "symbiotic")]
 pub mod symbiotic;
 
 pub mod jobs;

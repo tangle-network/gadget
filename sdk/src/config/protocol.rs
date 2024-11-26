@@ -91,6 +91,7 @@ pub struct EigenlayerContractAddresses {
     pub strategy_manager_address: Address,
     /// The address of the avs registry contract
     pub avs_directory_address: Address,
+    pub rewards_coordinator_address: Address,
 }
 
 impl Default for EigenlayerContractAddresses {
@@ -101,6 +102,7 @@ impl Default for EigenlayerContractAddresses {
             delegation_manager_address: address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"),
             strategy_manager_address: address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"),
             avs_directory_address: address!("0000000000000000000000000000000000000000"),
+            rewards_coordinator_address: address!("0000000000000000000000000000000000000000"),
         }
     }
 }

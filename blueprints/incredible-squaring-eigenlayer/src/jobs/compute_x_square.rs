@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
+use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::keccak256;
 use alloy_primitives::{Bytes, U256};
@@ -13,7 +14,6 @@ use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref};
-use IncredibleSquaringTaskManager::TaskResponse;
 
 /// Sends a signed task response to the BLS Aggregator.
 ///

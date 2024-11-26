@@ -92,7 +92,7 @@ auto_impl = "1.2.0"
 backon = { version = "1.2.0", default-features = false }
 bincode = "1.3.3"
 bip39 = "2.1.0"
-bollard = "0.16.1"
+bollard = "0.17"
 cargo-generate = { version = "0.21.3", default-features = false }
 cfg-if = "1.0.0"
 clap = "4.5.16"
@@ -159,28 +159,28 @@ jsonrpc-http-server = "18.0.0"
 tempfile = "3.10.1"
 cargo_toml = { version = "0.20.5" }
 
-alloy-primitives = "0.7.2"
-alloy-json-abi = "0.7.2"
-alloy-sol-types = "0.7.2"
-alloy-rpc-client = "0.4.2"
-alloy-rpc-types = { version = "0.1" }
-alloy-rpc-types-eth = { version = "0.1" }
-alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.1" }
-alloy-signer = { version = "0.1" }
-alloy-signer-local = { version = "0.1" }
-alloy-network = { version = "0.1" }
-alloy-node-bindings = "0.4.2"
-alloy-contract = { version = "0.1" }
-alloy-consensus = { version = "0.1" }
-alloy-transport = { version = "0.1" }
-alloy-transport-http = { version = "0.1" }
+alloy-primitives = "0.8.12"
+alloy-json-abi = "0.8.12"
+alloy-sol-types = "0.8.12"
+alloy-rpc-client = "0.5"
+alloy-rpc-types = { version = "0.5" }
+alloy-rpc-types-eth = { version = "0.5" }
+alloy-provider = { version = "0.5", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.5" }
+alloy-signer = { version = "0.5" }
+alloy-signer-local = { version = "0.5" }
+alloy-network = { version = "0.5" }
+alloy-node-bindings = "0.5"
+alloy-contract = { version = "0.5" }
+alloy-consensus = { version = "0.5" }
+alloy-transport = { version = "0.5" }
+alloy-transport-http = { version = "0.5" }
 
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.0"
-ark-ff = "0.4.0"
+ark-ff = "0.5.0"
 ark-std = "0.4.0"
-ark-serialize = "0.4.0"
+ark-serialize = "0.5.0"
 
 # WebAssembly
 js-sys = "0.3.70"
@@ -192,8 +192,8 @@ wasmtimer = "0.2"
 secp256k1 = "0.29.1"
 
 # Eigenlayer
-eigensdk = { version = "0.1.0", features = ["full", "utils", "types"] }
-testcontainers = { version = "0.20.1" }
+eigensdk = { version = "0.1.1", default-features = false }
+testcontainers = { version = "0.23.1" }
 
 # Symbiotic
 symbiotic-rs = { version = "0.1.0" }

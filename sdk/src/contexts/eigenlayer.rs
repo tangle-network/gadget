@@ -1,13 +1,15 @@
-use alloy_primitives::{Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, Uint, U256};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::writer::Operator;
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
 use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
-use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
+use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::{
+    OperatorInfoServiceError, OperatorInfoServiceInMemory,
+};
 use eigensdk::types::operator::OperatorPubKeys;
-use eigensdk::utils::binding::OperatorStateRetriever;
-use eigensdk::utils::binding::StakeRegistry::StakeUpdate;
+use eigensdk::utils::operatorstateretriever::OperatorStateRetriever;
+use eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate;
 use num_bigint::BigInt;
 use std::collections::HashMap;
 
@@ -28,7 +30,13 @@ pub trait EigenlayerContext {
     /// Provides an operator info service.
     async fn operator_info_service_in_memory(
         &self,
-    ) -> color_eyre::Result<OperatorInfoServiceInMemory, std::io::Error>;
+    ) -> color_eyre::Result<
+        (
+            OperatorInfoServiceInMemory,
+            tokio::sync::mpsc::UnboundedReceiver<OperatorInfoServiceError>,
+        ),
+        std::io::Error,
+    >;
 
     /// Provides an AVS registry service chain caller.
     async fn avs_registry_service_chain_caller_in_memory(
@@ -88,7 +96,7 @@ pub trait EigenlayerContext {
         operator_id: FixedBytes<32>,
         quorum_number: u8,
         block_number: u32,
-    ) -> color_eyre::Result<u128, std::io::Error>;
+    ) -> color_eyre::Result<Uint<96, 2>, std::io::Error>;
 
     /// Get an Operator's [`details`](OperatorDetails).
     async fn get_operator_details(
@@ -115,7 +123,7 @@ pub trait EigenlayerContext {
         quorum_number: u8,
         block_number: u32,
         index: U256,
-    ) -> color_eyre::Result<u128, std::io::Error>;
+    ) -> color_eyre::Result<Uint<96, 2>, std::io::Error>;
 
     /// Get the total stake history length of a given quorum.
     async fn get_total_stake_history_length(

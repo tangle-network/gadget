@@ -1,3 +1,4 @@
+use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
     contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
@@ -5,7 +6,6 @@ use crate::{
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::{info, job};
 use std::{convert::Infallible, ops::Deref};
-use IncredibleSquaringTaskManager::Task;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;

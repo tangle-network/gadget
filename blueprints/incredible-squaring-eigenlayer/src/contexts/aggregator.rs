@@ -1,9 +1,9 @@
-use crate::{
-    contexts::client::SignedTaskResponse,
-    IncredibleSquaringTaskManager::{
-        self, G1Point, G2Point, NonSignerStakesAndSignature, TaskResponse,
-    },
-};
+use crate::IBLSSignatureChecker::NonSignerStakesAndSignature;
+use crate::IIncredibleSquaringTaskManager::Task;
+use crate::IIncredibleSquaringTaskManager::TaskResponse;
+use crate::BN254::G1Point;
+use crate::BN254::G2Point;
+use crate::{contexts::client::SignedTaskResponse, IncredibleSquaringTaskManager};
 use alloy_network::{Ethereum, NetworkWallet};
 use alloy_primitives::keccak256;
 use alloy_sol_types::SolType;
@@ -26,7 +26,6 @@ use tokio::sync::{oneshot, Mutex, Notify};
 use tokio::task::JoinHandle;
 use tokio::time::interval;
 
-use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
