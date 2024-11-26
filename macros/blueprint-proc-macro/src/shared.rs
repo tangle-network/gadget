@@ -88,6 +88,10 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
         .last()
         .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
     let ident = &seg.ident;
+    if ident == "ByteBuf" {
+        return Ok(FieldType::Bytes);
+    }
+    
     let args = &seg.arguments;
     match args {
         syn::PathArguments::None => {
@@ -104,10 +108,7 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             let inner_arg = &inner.args[0];
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
-                match inner_type.ty {
-                    FieldType::Uint8 => Ok(FieldType::Bytes),
-                    others => Ok(FieldType::List(Box::new(others))),
-                }
+                Ok(FieldType::List(Box::new(inner_type.ty)))
             } else {
                 Err(syn::Error::new_spanned(
                     inner_arg,
