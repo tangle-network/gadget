@@ -29,11 +29,11 @@ pub fn generate_context_impl(
         use eigensdk::client_elcontracts::reader::ELChainReader;
         use eigensdk::logging::get_test_logger;
         use gadget_sdk::utils::evm::get_slasher_address;
-        use gadget_sdk::ctx::BigInt;
+        use gadget_sdk::contexts::BigInt;
         use alloy_primitives::{U256, FixedBytes};
 
         #[async_trait::async_trait]
-        impl #impl_generics gadget_sdk::ctx::EigenlayerContext for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::EigenlayerContext for #name #ty_generics #where_clause {
             async fn avs_registry_reader(&self) -> Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader, std::io::Error> {
                 let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
                 let gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &#field_access.protocol_specific else {

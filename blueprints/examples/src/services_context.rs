@@ -1,11 +1,11 @@
-use gadget_sdk::ctx::TangleClientContext;
+use gadget_sdk::config::StdGadgetConfiguration;
+use gadget_sdk::contexts::{ServicesContext, TangleClientContext};
 use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
 use gadget_sdk::event_listener::tangle::TangleEventListener;
 use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::job;
 use gadget_sdk::subxt_core::utils::AccountId32;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
-use gadget_sdk::{config::StdGadgetConfiguration, ctx::ServicesContext};
 
 #[derive(Clone, ServicesContext, TangleClientContext)]
 pub struct ExampleServiceContext {

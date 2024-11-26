@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use crate::test_ext::{ANVIL_PRIVATE_KEYS, NAME_IDS};
+use crate::test_ext::NAME_IDS;
 use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
@@ -8,7 +8,7 @@ use gadget_sdk::clients::tangle::runtime::{TangleClient, TangleConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
+pub use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use gadget_sdk::keystore;
@@ -24,16 +24,16 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use alloy_primitives::hex;
+use cargo_toml::Manifest;
 use color_eyre::eyre::eyre;
 use subxt::tx::{Signer, TxProgress};
 use subxt::utils::AccountId32;
 use url::Url;
 use uuid::Uuid;
-use gadget_sdk::{info, error};
+use gadget_sdk::{error, info};
 
+pub use cargo_tangle::deploy::Opts;
 pub use gadget_sdk::logging::setup_log;
-
-use cargo_tangle::deploy::Opts;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -42,10 +42,16 @@ pub mod anvil;
 pub mod binding;
 pub mod eigenlayer_test_env;
 pub mod helpers;
+pub mod mpc;
 pub mod symbiotic_test_env;
 pub mod sync;
 pub mod tangle;
 pub mod test_ext;
+use anvil::ANVIL_PRIVATE_KEYS;
+pub use gadget_sdk;
+pub use gadget_sdk::ext::blueprint_serde::BoundedVec;
+pub use tangle::transactions::{get_next_call_id, submit_job, wait_for_completion_of_tangle_job};
+pub use tempfile;
 
 pub type TestClient = TangleClient;
 
@@ -358,419 +364,38 @@ pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result
     Ok(())
 }
 
-pub async fn create_blueprint(
-    client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
-    blueprint: Blueprint,
-) -> Result<(), Box<dyn Error>> {
-    let call = api::tx().services().create_blueprint(blueprint);
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, account_id)
-        .await?;
-    wait_for_in_block_success(res).await?;
-    Ok(())
-}
+/// Returns the output of "git rev-parse --show-toplevel" to get the root of the git repository as a PathBuf.
+/// If it's not in a git repo, default to return the current directory
+pub fn get_blueprint_base_dir() -> PathBuf {
+    let output = std::process::Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()
+        .expect("Failed to run git command");
 
-pub async fn join_delegators(
-    client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
-) -> Result<(), Box<dyn Error>> {
-    info!("Joining delegators ...");
-    let call_pre = api::tx()
-        .multi_asset_delegation()
-        .join_operators(1_000_000_000_000_000);
-    let res_pre = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call_pre, account_id)
-        .await?;
-
-    wait_for_in_block_success(res_pre).await?;
-    Ok(())
-}
-
-pub async fn register_blueprint(
-    client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
-    blueprint_id: u64,
-    preferences: Preferences,
-    registration_args: RegistrationArgs,
-) -> Result<(), Box<dyn Error>> {
-    info!("Registering to blueprint {blueprint_id} to become an operator ...");
-    let call = api::tx()
-        .services()
-        .register(blueprint_id, preferences, registration_args);
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, account_id)
-        .await?;
-    wait_for_in_block_success(res).await?;
-    Ok(())
-}
-
-pub async fn submit_job(
-    client: &TestClient,
-    user: &TanglePairSigner<sp_core::sr25519::Pair>,
-    service_id: u64,
-    job_type: Job,
-    job_params: Args,
-) -> Result<(), Box<dyn Error>> {
-    let call = api::tx().services().call(service_id, job_type, job_params);
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, user)
-        .await?;
-    wait_for_in_block_success(res).await?;
-    Ok(())
-}
-
-/// Requests a service with a given blueprint. This is meant for testing, and will allow any node
-/// to make a call to run a service, and will have all nodes running the service.
-pub async fn request_service(
-    client: &TestClient,
-    user: &TanglePairSigner<sp_core::sr25519::Pair>,
-    blueprint_id: u64,
-    test_nodes: Vec<AccountId32>,
-) -> Result<(), Box<dyn Error>> {
-    let call = api::tx().services().request(
-        blueprint_id,
-        test_nodes.clone(),
-        test_nodes,
-        Default::default(),
-        vec![0],
-        1000,
-    );
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, user)
-        .await?;
-    wait_for_in_block_success(res).await?;
-    Ok(())
-}
-
-pub async fn wait_for_in_block_success(
-    mut res: TxProgress<TangleConfig, TestClient>,
-) -> Result<(), Box<dyn Error>> {
-    while let Some(Ok(event)) = res.next().await {
-        let Some(block) = event.as_in_block() else {
-            continue;
-        };
-        block.wait_for_success().await?;
+    if output.status.success() {
+        let path = std::str::from_utf8(&output.stdout)
+            .expect("Failed to convert output to string")
+            .trim();
+        PathBuf::from(path)
+    } else {
+        std::env::current_dir().expect("Failed to get current directory")
     }
-    Ok(())
 }
 
-pub async fn wait_for_completion_of_tangle_job(
-    client: &TestClient,
-    service_id: u64,
-    call_id: u64,
-    required_count: usize,
-) -> Result<JobResultSubmitted, Box<dyn Error>> {
-    let mut count = 0;
-    let mut blocks = client.blocks().subscribe_best().await?;
-    while let Some(Ok(block)) = blocks.next().await {
-        let events = block.events().await?;
-        let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
-        info!(
-            %service_id,
-            %call_id,
-            %required_count,
-            %count,
-            "Waiting for job completion. Found {} results ...",
-            results.len()
-        );
-        for result in results {
-            match result {
-                Ok(result) => {
-                    if result.service_id == service_id && result.call_id == call_id {
-                        count += 1;
-                        if count == required_count {
-                            return Ok(result);
-                        }
-                    }
-                }
-                Err(err) => {
-                    error!("Failed to get job result: {err}");
-                }
-            }
-        }
-    }
-    Err("Failed to get job result".into())
-}
-
-pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
-    let call = api::storage().services().next_blueprint_id();
-    let res = client
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&call)
-        .await?;
-    Ok(res)
-}
-
-pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
-    let call = api::storage().services().next_instance_id();
-    let res = client
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&call)
-        .await?;
-    Ok(res)
-}
-
-pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
-    let call = api::storage().services().next_job_call_id();
-    let res = client
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&call)
-        .await?;
-    Ok(res)
-}
-
-/// Approves a service request. This is meant for testing, and will always approve the request.
-pub async fn approve_service(
-    client: &TestClient,
-    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
-    request_id: u64,
-    restaking_percent: u8,
-) -> Result<(), Box<dyn Error>> {
-    gadget_sdk::info!("Approving service request ...");
-    let call = api::tx()
-        .services()
-        .approve(request_id, Percent(restaking_percent));
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, caller)
-        .await?;
-    res.wait_for_finalized_success().await?;
-    Ok(())
-}
-
-pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
-    gadget_sdk::info!("Fetching next request ID ...");
-    let next_request_id_addr = api::storage().services().next_service_request_id();
-    let next_request_id = client
-        .storage()
-        .at_latest()
-        .await
-        .expect("Failed to fetch latest block")
-        .fetch_or_default(&next_request_id_addr)
-        .await
-        .expect("Failed to fetch next request ID");
-    Ok(next_request_id)
-}
-
-#[macro_export]
-macro_rules! test_blueprint {
-    (
-        $blueprint_path:expr,
-        $blueprint_name:expr,
-        $N:expr,
-        [$($input:expr),+],
-        [$($expected_output:expr),+]
-    ) => {
-        use $crate::{
-            get_next_call_id, run_test_blueprint_manager,
-            submit_job, wait_for_completion_of_tangle_job, Opts, setup_log,
-        };
-
-        use $crate::test_ext::new_test_ext_blueprint_manager;
-
-        #[tokio::test(flavor = "multi_thread")]
-        async fn test_externalities_standard() {
-            setup_log();
-            let mut base_path = std::env::current_dir().expect("Failed to get current directory");
-
-            let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
-            let tmp_dir_path = format!("{}", tmp_dir.path().display());
-
-            base_path.push($blueprint_path);
-            base_path
-                .canonicalize()
-                .expect("File could not be normalized");
-
-            let manifest_path = base_path.join("Cargo.toml");
-
-
-            let http_addr = "http://127.0.0.1:9944";
-            let ws_addr = "ws://127.0.0.1:9944";
-
-            let opts = Opts {
-                pkg_name: Some($blueprint_name.to_string()),
-                http_rpc_url: http_addr.to_string(),
-                ws_rpc_url: ws_addr.to_string(),
-                manifest_path,
-                signer: None,
-                signer_evm: None,
-            };
-
-            new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
-                tmp_dir_path,
-                opts,
-                run_test_blueprint_manager,
-            )
-            .await
-            .execute_with_async(move |client, handles, blueprint| async move {
-                let keypair = handles[0].sr25519_id().clone();
-                let selected_service = &blueprint.services[0];
-                let service_id = selected_service.id;
-                let call_id = get_next_call_id(client)
-                    .await
-                    .expect("Failed to get next job id");
-
-                info!(
-                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
-                );
-
-                let mut job_args = Args::new();
-                for input in [$($input),+] {
-                    job_args.push(input);
-                }
-
-                submit_job(
-                    client,
-                    &keypair,
-                    service_id,
-                    Job::from(call_id as u8),
-                    job_args,
-                )
-                .await
-                .expect("Failed to submit job");
-
-                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, $N)
-                    .await
-                    .expect("Failed to wait for job completion");
-
-                assert_eq!(job_results.service_id, service_id);
-                assert_eq!(job_results.call_id, call_id);
-
-                let expected_outputs = vec![$($expected_output),+];
-                assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of outputs doesn't match expected");
-
-                for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
-                    assert_eq!(result, expected);
-                }
-            })
-            .await
-        }
-    };
-}
-
-#[cfg(test)]
-mod test_macros {
-    use super::*;
-
-    test_blueprint!(
-        "./blueprints/incredible-squaring-eigen/", // Path to the blueprint's dir
-        "incredible-squaring-blueprint",           // Name of the package
-        5,                                         // Number of nodes
-        [InputValue::Uint64(5)],
-        [OutputValue::Uint64(25)] // Expected output: each input squared
-    );
-}
-
-#[cfg(test)]
-mod tests_standard {
-    use super::*;
-    use crate::test_ext::new_test_ext_blueprint_manager;
-
-    use cargo_tangle::deploy::Opts;
-    use gadget_sdk::config::protocol::EigenlayerContractAddresses;
-    use gadget_sdk::config::Protocol;
-    use gadget_sdk::logging::setup_log;
-    use gadget_sdk::{error, info};
-    use helpers::BlueprintProcessManager;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
-
-    /// This test requires that `yarn install` has been executed inside the
-    /// `./blueprints/incredible-squaring/` directory
-    /// The other requirement is that there is a locally-running tangle node
-    #[tokio::test(flavor = "multi_thread")]
-    #[allow(clippy::needless_return)]
-    async fn test_externalities_gadget_starts() {
-        setup_log();
-        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
-        let tmp_dir = tempfile::TempDir::new().unwrap(); // Create a temporary directory for the keystores
-        let tmp_dir_path = format!("{}", tmp_dir.path().display());
-
-        base_path.push("../blueprints/incredible-squaring");
-        base_path
-            .canonicalize()
-            .expect("File could not be normalized");
-
-        let manifest_path = base_path.join("Cargo.toml");
-
-        let opts = Opts {
-            pkg_name: Some("incredible-squaring-blueprint".to_string()),
-            http_rpc_url: "http://127.0.0.1:9944".to_string(),
-            ws_rpc_url: "ws://127.0.0.1:9944".to_string(),
-            manifest_path,
-            signer: None,
-            signer_evm: None,
-        };
-        // --ws-external
-        const INPUT: u64 = 10;
-        const OUTPUT: u64 = INPUT.pow(2);
-
-        new_test_ext_blueprint_manager::<5, 1, String, _, _>(
-            tmp_dir_path,
-            opts,
-            run_test_blueprint_manager,
+pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest> {
+    let manifest = cargo_toml::Manifest::from_path(path).map_err(|err| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to read Cargo.toml: {err}"),
         )
-        .await
-        .execute_with_async(move |client, handles, blueprint| async move {
-            // At this point, blueprint has been deployed, every node has registered
-            // as an operator for the relevant services, and, all gadgets are running
-
-            // What's left: Submit a job, wait for the job to finish, then assert the job results
-            let keypair = handles[0].sr25519_id().clone();
-            let selected_service = &blueprint.services[0];
-            let service_id = selected_service.id;
-            let call_id = get_next_call_id(client)
-                .await
-                .expect("Failed to get next job id")
-                .saturating_sub(1);
-
-            info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
-
-            // Pass the arguments
-            let mut job_args = Args::new();
-            let input =
-                api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
-            job_args.push(input);
-
-            // Next step: submit a job under that service/job id
-            if let Err(err) = submit_job(
-                client,
-                &keypair,
-                service_id,
-                Job::from(call_id as u8),
-                job_args,
-            )
-            .await
-            {
-                error!("Failed to submit job: {err}");
-                panic!("Failed to submit job: {err}");
-            }
-
-            // Step 2: wait for the job to complete
-            let job_results =
-                wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
-                    .await
-                    .expect("Failed to wait for job completion");
-
-            // Step 3: Get the job results, compare to expected value(s)
-            let expected_result =
-                api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
-            assert_eq!(job_results.service_id, service_id);
-            assert_eq!(job_results.call_id, call_id);
-            assert_eq!(job_results.result[0], expected_result);
-        })
-        .await
+    })?;
+    if manifest.package.is_none() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "No package section found in Cargo.toml",
+        ));
     }
+
+    Ok(manifest)
 }

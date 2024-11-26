@@ -30,14 +30,14 @@ pub fn generate_context_impl(
 
     quote! {
         #[cfg(not(feature = "std"))]
-        impl #impl_generics_without_rwlock gadget_sdk::ctx::KeystoreContext<RwLock> for #name #ty_generics #where_clause_without_rwlock {
+        impl #impl_generics_without_rwlock gadget_sdk::contexts::KeystoreContext<RwLock> for #name #ty_generics #where_clause_without_rwlock {
             fn keystore(&self) -> Result<gadget_sdk::keystore::backend::GenericKeyStore<RwLock>, gadget_sdk::config::Error> {
                 #field_access.keystore()
             }
         }
 
         #[cfg(feature = "std")]
-        impl #impl_generics gadget_sdk::ctx::KeystoreContext<gadget_sdk::ext::parking_lot::RawRwLock> for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::KeystoreContext<gadget_sdk::ext::parking_lot::RawRwLock> for #name #ty_generics #where_clause {
             fn keystore(&self) -> Result<gadget_sdk::keystore::backend::GenericKeyStore<gadget_sdk::ext::parking_lot::RawRwLock>, gadget_sdk::config::Error> {
                 #field_access.keystore()
             }

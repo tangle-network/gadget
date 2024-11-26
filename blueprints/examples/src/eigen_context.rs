@@ -4,7 +4,7 @@ use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::subxt_core::ext::sp_runtime::traits::Zero;
 use gadget_sdk::utils::evm::get_provider_http;
-use gadget_sdk::{config::StdGadgetConfiguration, ctx::EigenlayerContext, job, load_abi};
+use gadget_sdk::{config::StdGadgetConfiguration, contexts::EigenlayerContext, job, load_abi};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
