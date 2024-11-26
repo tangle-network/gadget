@@ -31,7 +31,7 @@ pub async fn join_operators(
     client: &TestClient,
     account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
 ) -> Result<(), Box<dyn Error>> {
-    info!("Joining delegators ...");
+    info!("Joining operators ...");
     let call_pre = api::tx()
         .multi_asset_delegation()
         .join_operators(1_000_000_000_000_000);
