@@ -130,6 +130,7 @@ reqwest = "0.12.7"
 rustdoc-types = "0.31.0"
 schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
 serde = { version = "1.0.208", default-features = false }
+serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = "1.0"
 serde_test = "1.0.177"
 sha2 = "0.10.8"

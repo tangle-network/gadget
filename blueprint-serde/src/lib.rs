@@ -58,6 +58,7 @@ use tangle_subxt::subxt_core::utils::AccountId32;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 pub use ser::new_bounded_string;
+pub use serde_bytes::ByteBuf;
 use error::Result;
 
 /// Derive a [`Field`] from an instance of type `S`

@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 paste.workspace = true
 serde.workspace = true
+serde_bytes = { workspace = true, features = ["alloc"] }
 tangle-subxt.workspace = true
 
 [dev-dependencies]
@@ -21,4 +22,7 @@ workspace = true
 
 [features]
 default = ["std"]
-std = []
+std = [
+    "serde/std",
+    "serde_bytes/std"
+]

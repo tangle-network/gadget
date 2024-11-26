@@ -4756,6 +4756,7 @@ version = "0.2.0"
 dependencies = [
  "paste",
  "serde",
+ "serde_bytes",
  "serde_test",
  "tangle-subxt",
 ]
