@@ -91,7 +91,7 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
     if ident == "ByteBuf" {
         return Ok(FieldType::Bytes);
     }
-    
+
     let args = &seg.arguments;
     match args {
         syn::PathArguments::None => {
