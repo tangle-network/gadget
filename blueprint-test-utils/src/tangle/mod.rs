@@ -23,7 +23,8 @@ pub fn run() -> Result<SubstrateNode, Error> {
 }
 
 #[macro_export]
-macro_rules! generic_test_blueprint {
+/// A template that makes creating domain-specific macros for tangle-based blueprints easier
+macro_rules! tangle_blueprint_test_template {
     (
         $blueprint_path:expr,
         $N:tt,
@@ -92,7 +93,7 @@ macro_rules! test_tangle_blueprint {
         [$($inputs:expr),+],
         [$($expected_output:expr),+]
     ) => {
-        generic_test_blueprint!(
+        tangle_blueprint_test_template!(
             $blueprint_path,
             $N,
             |client, handles, blueprint| async move {

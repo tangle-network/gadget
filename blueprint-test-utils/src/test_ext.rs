@@ -170,7 +170,7 @@ pub async fn new_test_ext_blueprint_manager<
                 },
             };
 
-            if let Err(err) = transactions::join_delegators(&client, &keypair).await {
+            if let Err(err) = transactions::join_operators(&client, &keypair).await {
                 let _span = handle.span().enter();
 
                 let err_str = format!("{err}");

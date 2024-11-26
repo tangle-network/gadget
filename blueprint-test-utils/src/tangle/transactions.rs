@@ -27,7 +27,7 @@ pub async fn create_blueprint(
     Ok(())
 }
 
-pub async fn join_delegators(
+pub async fn join_operators(
     client: &TestClient,
     account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
 ) -> Result<(), Box<dyn Error>> {
@@ -206,7 +206,7 @@ pub async fn approve_service(
     request_id: u64,
     restaking_percent: u8,
 ) -> Result<(), Box<dyn Error>> {
-    gadget_sdk::info!("Approving service request ...");
+    info!("Approving service request ...");
     let call = api::tx()
         .services()
         .approve(request_id, Percent(restaking_percent));
@@ -219,7 +219,7 @@ pub async fn approve_service(
 }
 
 pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
-    gadget_sdk::info!("Fetching next request ID ...");
+    info!("Fetching next request ID ...");
     let next_request_id_addr = api::storage().services().next_service_request_id();
     let next_request_id = client
         .storage()

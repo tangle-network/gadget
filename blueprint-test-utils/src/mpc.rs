@@ -12,7 +12,7 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
         [$($expected_signing_outputs:expr),*],
         $atomic_keygen_call_id_store:expr,
     ) => {
-        $crate::generic_test_blueprint!(
+        $crate::tangle_blueprint_test_template!(
             $blueprint_path,
             $N,
             |client, handles, blueprint| async move {
