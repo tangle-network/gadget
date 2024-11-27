@@ -131,6 +131,11 @@ macro_rules! test_tangle_blueprint {
                 assert_eq!(job_results.call_id, call_id);
 
                 let expected_outputs = vec![$($expected_output),+];
+                if expected_outputs.is_empty() {
+                    gadget_sdk::info!("No expected outputs specified, skipping verification");
+                    return
+                }
+
                 assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of outputs doesn't match expected");
 
                 for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {

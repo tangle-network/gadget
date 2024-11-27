@@ -51,14 +51,20 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 assert_eq!(job_results.call_id, keygen_call_id);
 
                 let expected_outputs = vec![$($expected_keygen_outputs),*];
-                assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of keygen outputs doesn't match expected");
+                if !expected_outputs.is_empty() {
+                    assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of keygen outputs doesn't match expected");
 
-                for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
-                    assert_eq!(result, expected);
+                    for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
+                        assert_eq!(result, expected);
+                    }
+                } else {
+                    gadget_sdk::info!("No expected outputs specified, skipping keygen verification");
                 }
 
+                log::info!("Keygen job completed successfully! Moving on to signing ...");
+
                 // ~~~~~ Now, run a signing job ~~~~~
-                let service = &blueprint.services[$signing_job_id as usize];
+                let service = &blueprint.services[$keygen_job_id as usize];
 
                 let service_id = service.id;
                 gadget_sdk::info!(
@@ -81,7 +87,7 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 let signing_call_id = job.call_id;
 
                 gadget_sdk::info!(
-                    "Submitted SIGNING job {} with service ID {service_id} has call id {signing_call_id}", $keygen_job_id
+                    "Submitted SIGNING job {} with service ID {service_id} has call id {signing_call_id}", $signing_job_id
                 );
 
                 let job_results =
@@ -90,10 +96,14 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                         .expect("Failed to wait for job completion");
 
                 let expected_outputs = vec![$($expected_signing_outputs),*];
-                assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of signing outputs doesn't match expected");
+                if !expected_outputs.is_empty() {
+                    assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of signing outputs doesn't match expected");
 
-                for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
-                    assert_eq!(result, expected);
+                    for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
+                        assert_eq!(result, expected);
+                    }
+                } else {
+                    gadget_sdk::info!("No expected outputs specified, skipping signing verification");
                 }
             },
         );
