@@ -188,6 +188,7 @@ pub async fn new_test_ext_blueprint_manager<
                 blueprint_id,
                 preferences,
                 registration_args.clone(),
+                0,
             )
             .await
             {
@@ -215,7 +216,7 @@ pub async fn new_test_ext_blueprint_manager<
     info!("Requesting service for blueprint ID {blueprint_id} using Alice's keys ...");
 
     if let Err(err) =
-        transactions::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes)
+        transactions::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes, 0)
             .await
     {
         error!("Failed to register service: {err}");
