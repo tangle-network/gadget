@@ -79,7 +79,6 @@ jobs:
       matrix:
         package: [
           gadget-sdk,
-          blueprint-manager,
           gadget-context-derive,
           gadget-blueprint-proc-macro,
           gadget-blueprint-proc-macro-playground
