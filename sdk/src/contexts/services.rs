@@ -4,6 +4,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{MaxDelegations, MaxDelegatorBlueprints, MaxOperatorBlueprints, MaxUnstakeRequests, MaxWithdrawRequests};
 use tangle_subxt::tangle_testnet_runtime::api::system::storage::types::number::Number;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
 
@@ -40,7 +41,13 @@ pub trait ServicesContext {
         Output = color_eyre::Result<
             Vec<(
                 subxt::utils::AccountId32,
-                OperatorMetadata<subxt::utils::AccountId32, Balance, AssetId>,
+                OperatorMetadata<
+                    subxt::utils::AccountId32,
+                    Balance,
+                    AssetId,
+                    MaxDelegations,
+                    MaxOperatorBlueprints,
+                >,
             )>,
             subxt::Error,
         >,
@@ -54,7 +61,15 @@ pub trait ServicesContext {
         operator: subxt::utils::AccountId32,
     ) -> impl Future<
         Output = color_eyre::Result<
-            Option<OperatorMetadata<subxt::utils::AccountId32, Balance, AssetId>>,
+            Option<
+                OperatorMetadata<
+                    subxt::utils::AccountId32,
+                    Balance,
+                    AssetId,
+                    MaxDelegations,
+                    MaxOperatorBlueprints,
+                >,
+            >,
             subxt::Error,
         >,
     >;
@@ -80,7 +95,17 @@ pub trait ServicesContext {
         Output = color_eyre::Result<
             Vec<(
                 subxt::utils::AccountId32, // operator
-                Option<DelegatorMetadata<subxt::utils::AccountId32, AssetId, Balance>>,
+                Option<
+                    DelegatorMetadata<
+                        subxt::utils::AccountId32,
+                        AssetId,
+                        Balance,
+                        MaxWithdrawRequests,
+                        MaxDelegations,
+                        MaxUnstakeRequests,
+                        MaxDelegatorBlueprints,
+                    >,
+                >,
             )>,
             subxt::Error,
         >,
@@ -93,7 +118,17 @@ pub trait ServicesContext {
         operator: subxt::utils::AccountId32,
     ) -> impl Future<
         Output = color_eyre::Result<
-            Option<DelegatorMetadata<subxt::utils::AccountId32, AssetId, Balance>>,
+            Option<
+                DelegatorMetadata<
+                    subxt::utils::AccountId32,
+                    AssetId,
+                    Balance,
+                    MaxWithdrawRequests,
+                    MaxDelegations,
+                    MaxUnstakeRequests,
+                    MaxDelegatorBlueprints,
+                >,
+            >,
             subxt::Error,
         >,
     >;

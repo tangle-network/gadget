@@ -118,6 +118,7 @@ impl BlueprintConfig for TangleConfig {
                 price_targets: self.price_targets.clone().0,
             },
             Default::default(),
+            Default::default(),
         );
 
         // send the tx to the tangle and exit.

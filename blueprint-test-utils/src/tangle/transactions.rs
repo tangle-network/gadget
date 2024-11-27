@@ -50,11 +50,12 @@ pub async fn register_blueprint(
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
+    value: u128,
 ) -> Result<(), Box<dyn Error>> {
     info!("Registering to blueprint {blueprint_id} to become an operator ...");
     let call = api::tx()
         .services()
-        .register(blueprint_id, preferences, registration_args);
+        .register(blueprint_id, preferences, registration_args, value);
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
@@ -99,6 +100,7 @@ pub async fn request_service(
     user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
+    value: u128,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().request(
         blueprint_id,
@@ -107,6 +109,7 @@ pub async fn request_service(
         Default::default(),
         vec![0],
         1000,
+        value,
     );
     let res = client
         .tx()
