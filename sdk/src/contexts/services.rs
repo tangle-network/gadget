@@ -9,6 +9,7 @@ use tangle_subxt::tangle_testnet_runtime::api::system::storage::types::number::N
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
 
 /// `ServicesContext` trait provides access to the current service and current blueprint from the context.
+#[allow(clippy::type_complexity)]
 pub trait ServicesContext {
     type Config: subxt::Config;
     /// Get the current blueprint information from the context.

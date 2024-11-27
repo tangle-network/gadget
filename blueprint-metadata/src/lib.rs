@@ -302,7 +302,7 @@ fn extract_blueprint_metadata(package: &Package) -> BlueprintMetadata {
         serde_json::from_value(blueprint.clone()).expect("Failed to deserialize gadget.");
     match &mut metadata.manager {
         BlueprintManager::Evm(manager) => {
-            let path = resolve_evm_contract_path_by_name(&manager);
+            let path = resolve_evm_contract_path_by_name(manager);
             *manager = path.display().to_string();
         }
         _ => unreachable!("Unsupported blueprint manager"),
