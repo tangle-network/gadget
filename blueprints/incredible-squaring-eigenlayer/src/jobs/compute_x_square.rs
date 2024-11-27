@@ -8,7 +8,7 @@ use alloy_sol_types::SolType;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
-use gadget_sdk::ctx::KeystoreContext;
+use gadget_sdk::contexts::KeystoreContext;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::{error, info, job};

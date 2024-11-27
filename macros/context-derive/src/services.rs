@@ -21,7 +21,7 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl #impl_generics gadget_sdk::ctx::ServicesContext for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::ServicesContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
             fn current_blueprint(
                 &self,

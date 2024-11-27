@@ -66,20 +66,24 @@ pub mod tracer;
 pub mod tx;
 
 /// Gadget Context and context extensions
-pub mod ctx;
-
+pub mod contexts;
 pub mod docker;
 pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
 pub use async_trait;
+pub use blueprint_serde::ByteBuf;
 pub use clap;
+pub use color_eyre;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;
 pub use libp2p;
 pub use parking_lot;
+pub use round_based;
+pub use serde;
+pub use subxt;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;

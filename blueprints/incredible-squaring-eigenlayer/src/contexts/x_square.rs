@@ -1,5 +1,5 @@
 use crate::contexts::client::AggregatorClient;
-use gadget_sdk::{config::StdGadgetConfiguration, ctx::KeystoreContext};
+use gadget_sdk::{config::StdGadgetConfiguration, contexts::KeystoreContext};
 
 #[derive(Clone, KeystoreContext)]
 pub struct EigenSquareContext {

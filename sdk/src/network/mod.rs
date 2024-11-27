@@ -5,7 +5,9 @@ use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, sha2_256};
-use std::ops::Deref;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap};
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -24,31 +26,15 @@ pub mod setup;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 pub struct IdentifierInfo {
-    pub block_id: Option<u64>,
-    pub session_id: Option<u64>,
-    pub retry_id: Option<u64>,
-    pub task_id: Option<u64>,
+    pub message_id: u64,
+    pub round_id: u16,
 }
 
 impl Display for IdentifierInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let block_id = self
-            .block_id
-            .map(|id| format!("block_id: {}", id))
-            .unwrap_or_default();
-        let session_id = self
-            .session_id
-            .map(|id| format!("session_id: {}", id))
-            .unwrap_or_default();
-        let retry_id = self
-            .retry_id
-            .map(|id| format!("retry_id: {}", id))
-            .unwrap_or_default();
-        let task_id = self
-            .task_id
-            .map(|id| format!("task_id: {}", id))
-            .unwrap_or_default();
-        write!(f, "{} {} {} {}", block_id, session_id, retry_id, task_id)
+        let message_id = format!("message_id: {}", self.message_id);
+        let round_id = format!("round_id: {}", self.round_id);
+        write!(f, "{} {}", message_id, round_id)
     }
 }
 
@@ -117,10 +103,49 @@ pub trait Network: Send + Sync + 'static {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct SequencedMessage {
+    seq: u64,
+    payload: Vec<u8>,
+}
+
+#[derive(Debug)]
+struct PendingMessage {
+    seq: u64,
+    message: ProtocolMessage,
+}
+
+impl PartialEq for PendingMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.seq == other.seq
+    }
+}
+
+impl Eq for PendingMessage {}
+
+impl PartialOrd for PendingMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PendingMessage {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.seq.cmp(&other.seq)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MultiplexedMessage {
+    stream_id: StreamKey,
+    payload: SequencedMessage,
+}
+
 pub struct NetworkMultiplexer {
     to_receiving_streams: ActiveStreams,
     unclaimed_receiving_streams: Arc<DashMap<StreamKey, MultiplexedReceiver>>,
     tx_to_networking_layer: MultiplexedSender,
+    sequence_numbers: Arc<DashMap<CompoundStreamKey, u64>>,
 }
 
 type ActiveStreams = Arc<DashMap<StreamKey, tokio::sync::mpsc::UnboundedSender<ProtocolMessage>>>;
@@ -179,16 +204,25 @@ impl Deref for MultiplexedReceiver {
     }
 }
 
+impl DerefMut for MultiplexedReceiver {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 impl Drop for MultiplexedReceiver {
     fn drop(&mut self) {
         let _ = self.active_streams.remove(&self.stream_id);
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct MultiplexedMessage {
-    payload: Vec<u8>,
+// Since a single stream can be used for multiple users, and, multiple users assign seq's independently,
+// we need to make a key that is unique for each (send->dest) pair and stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct CompoundStreamKey {
     stream_id: StreamKey,
+    send_user_id: UserID,
+    recv_user_id: Option<UserID>,
 }
 
 impl NetworkMultiplexer {
@@ -200,27 +234,50 @@ impl NetworkMultiplexer {
             unclaimed_receiving_streams: Arc::new(DashMap::new()),
             tx_to_networking_layer: MultiplexedSender {
                 inner: tx_to_networking_layer,
-                stream_id: Default::default(), // Start with an arbitrary stream ID, this won't get used
+                stream_id: Default::default(),
             },
+            sequence_numbers: Arc::new(DashMap::new()),
         };
 
         let active_streams = this.to_receiving_streams.clone();
         let unclaimed_streams = this.unclaimed_receiving_streams.clone();
         let tx_to_networking_layer = this.tx_to_networking_layer.clone();
+        let sequence_numbers = this.sequence_numbers.clone();
+
         drop(tokio::spawn(async move {
             let network_clone = &network;
 
             let task1 = async move {
-                while let Some((stream_id, proto_message)) = rx_from_substreams.recv().await {
-                    let multiplexed_message = MultiplexedMessage {
-                        payload: proto_message.payload,
+                while let Some((stream_id, msg)) = rx_from_substreams.recv().await {
+                    let compound_key = CompoundStreamKey {
                         stream_id,
+                        send_user_id: msg.sender.user_id,
+                        recv_user_id: msg.recipient.as_ref().map(|p| p.user_id),
                     };
+
+                    let mut seq = sequence_numbers.entry(compound_key).or_insert(0);
+                    let current_seq = *seq;
+                    *seq += 1;
+
+                    crate::trace!(
+                        "SEND SEQ {current_seq} FROM {} | StreamKey: {:?}",
+                        msg.sender.user_id,
+                        hex::encode(bincode::serialize(&compound_key).unwrap())
+                    );
+
+                    let multiplexed_message = MultiplexedMessage {
+                        stream_id,
+                        payload: SequencedMessage {
+                            seq: current_seq,
+                            payload: msg.payload,
+                        },
+                    };
+
                     let message = ProtocolMessage {
-                        identifier_info: proto_message.identifier_info,
-                        sender: proto_message.sender,
-                        recipient: proto_message.recipient,
-                        payload: bincode2::serialize(&multiplexed_message)
+                        identifier_info: msg.identifier_info,
+                        sender: msg.sender,
+                        recipient: msg.recipient,
+                        payload: bincode::serialize(&multiplexed_message)
                             .expect("Failed to serialize message"),
                     };
 
@@ -232,32 +289,101 @@ impl NetworkMultiplexer {
             };
 
             let task2 = async move {
+                let mut pending_messages: HashMap<
+                    CompoundStreamKey,
+                    BinaryHeap<Reverse<PendingMessage>>,
+                > = Default::default();
+                let mut expected_seqs: HashMap<CompoundStreamKey, u64> = Default::default();
+
                 while let Some(mut msg) = network_clone.next_message().await {
                     if let Ok(multiplexed_message) =
-                        bincode2::deserialize::<MultiplexedMessage>(&msg.payload)
+                        bincode::deserialize::<MultiplexedMessage>(&msg.payload)
                     {
                         let stream_id = multiplexed_message.stream_id;
-                        msg.payload = multiplexed_message.payload;
-                        // Two possibilities: the entry already exists, or, it doesn't and we need to enqueue
+                        let compound_key = CompoundStreamKey {
+                            stream_id,
+                            send_user_id: msg.sender.user_id,
+                            recv_user_id: msg.recipient.as_ref().map(|p| p.user_id),
+                        };
+                        let seq = multiplexed_message.payload.seq;
+                        msg.payload = multiplexed_message.payload.payload;
+
+                        // Get or create the pending heap for this stream
+                        let pending = pending_messages.entry(compound_key).or_default();
+                        let expected_seq = expected_seqs.entry(compound_key).or_default();
+
+                        let send_user = msg.sender.user_id;
+                        let recv_user = msg
+                            .recipient
+                            .as_ref()
+                            .map(|p| p.user_id as i32)
+                            .unwrap_or(-1);
+
+                        let compound_key_hex =
+                            hex::encode(bincode::serialize(&compound_key).unwrap());
+                        crate::trace!(
+                            "RECV SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}",
+                            send_user,
+                            recv_user,
+                            *expected_seq,
+                            compound_key_hex,
+                        );
+
+                        // Add the message to pending
+                        pending.push(Reverse(PendingMessage { seq, message: msg }));
+
+                        // Try to deliver messages in order
                         if let Some(active_receiver) = active_streams.get(&stream_id) {
-                            if let Err(err) = active_receiver.send(msg) {
-                                crate::error!(%err, "Failed to send message to receiver");
-                                // Delete entry since the receiver is dead
-                                let _ = active_streams.remove(&stream_id);
+                            while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                                pending.peek()
+                            {
+                                if *seq != *expected_seq {
+                                    break;
+                                }
+
+                                crate::trace!("DELIVERING SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+
+                                *expected_seq += 1;
+
+                                let message = pending.pop().unwrap().0.message;
+
+                                if let Err(err) = active_receiver.send(message) {
+                                    crate::error!(%err, "Failed to send message to receiver");
+                                    let _ = active_streams.remove(&stream_id);
+                                    break;
+                                }
                             }
                         } else {
-                            // Second possibility: the entry does not exist, and another substream is received for this task.
-                            // In this case, reserve an entry locally and store the message in the unclaimed streams. Later,
-                            // when the user attempts to open the substream with the same ID, the message will be sent to the user.
                             let (tx, rx) = Self::create_multiplexed_stream_inner(
                                 tx_to_networking_layer.clone(),
                                 &active_streams,
                                 stream_id,
                             );
-                            let _ = tx.send(msg);
-                            //let _ = active_streams.insert(stream_id, tx); TX already passed into active_streams above
+
+                            // Deliver any pending messages in order
+                            while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                                pending.peek()
+                            {
+                                if *seq != *expected_seq {
+                                    break;
+                                }
+
+                                crate::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+
+                                *expected_seq += 1;
+
+                                let message = pending.pop().unwrap().0.message;
+
+                                if let Err(err) = tx.send(message) {
+                                    crate::error!(%err, "Failed to send message to receiver");
+                                    break;
+                                }
+                            }
+
                             let _ = unclaimed_streams.insert(stream_id, rx);
                         }
+                    } else {
+                        crate::error!("Failed to deserialize message");
                     }
                 }
             };
@@ -282,7 +408,7 @@ impl NetworkMultiplexer {
             tx_to_networking_layer.stream_id = id;
             return SubNetwork {
                 tx: tx_to_networking_layer,
-                rx: unclaimed.1.into(),
+                rx: Some(unclaimed.1.into()),
             };
         }
 
@@ -292,7 +418,42 @@ impl NetworkMultiplexer {
             id,
         );
 
-        SubNetwork { tx, rx: rx.into() }
+        SubNetwork {
+            tx,
+            rx: Some(rx.into()),
+        }
+    }
+
+    /// Creates a subnetwork, and also forwards all messages to the given channel. The network cannot be used to
+    /// receive messages since the messages will be forwarded to the provided channel.
+    pub fn multiplex_with_forwarding(
+        &self,
+        id: impl Into<StreamKey>,
+        forward_tx: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
+    ) -> SubNetwork {
+        let mut network = self.multiplex(id);
+        let rx = network.rx.take().expect("Rx from network should be Some");
+        let forwarding_task = async move {
+            let mut rx = rx.into_inner();
+            while let Some(msg) = rx.recv().await {
+                crate::info!(
+                    "Round {}: Received message from {} to {:?} (id: {})",
+                    msg.identifier_info.round_id,
+                    msg.sender.user_id,
+                    msg.recipient.as_ref().map(|p| p.user_id),
+                    msg.identifier_info.message_id,
+                );
+                if let Err(err) = forward_tx.send(msg) {
+                    crate::error!(%err, "Failed to forward message to network");
+                    // TODO: Add AtomicBool to make sending stop
+                    break;
+                }
+            }
+        };
+
+        drop(tokio::spawn(forwarding_task));
+
+        network
     }
 
     fn create_multiplexed_stream_inner(
@@ -327,7 +488,7 @@ impl<N: Network> From<N> for NetworkMultiplexer {
 
 pub struct SubNetwork {
     tx: MultiplexedSender,
-    rx: Mutex<MultiplexedReceiver>,
+    rx: Option<Mutex<MultiplexedReceiver>>,
 }
 
 impl SubNetwork {
@@ -336,7 +497,7 @@ impl SubNetwork {
     }
 
     pub async fn recv(&self) -> Option<ProtocolMessage> {
-        self.rx.lock().await.next().await
+        self.rx.as_ref()?.lock().await.next().await
     }
 }
 
@@ -348,14 +509,6 @@ impl Network for SubNetwork {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         self.send(message)
-    }
-}
-
-impl Stream for SubNetwork {
-    type Item = ProtocolMessage;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(self.rx.get_mut()).poll_next(cx)
     }
 }
 
@@ -409,7 +562,6 @@ mod tests {
         velocity: (u16, u16, u16),
     }
 
-    // NOTE: if you lower the number of nodes to 2, this test passes without issues.
     const NODE_COUNT: u16 = 10;
 
     pub fn setup_log() {
@@ -492,17 +644,17 @@ mod tests {
         // used throughout the program must also use the multiplexer to prevent mixed messages.
         let multiplexer = NetworkMultiplexer::new(node);
 
-        let mut round1_network = multiplexer.multiplex(StreamKey {
+        let round1_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 0, // To differentiate between different subsets of a running task
         });
 
-        let mut round2_network = multiplexer.multiplex(StreamKey {
+        let round2_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 1, // To differentiate between different subsets of a running task
         });
 
-        let mut round3_network = multiplexer.multiplex(StreamKey {
+        let round3_network = multiplexer.multiplex(StreamKey {
             task_hash, // To differentiate between different instances of a running program (i.e., a task)
             round_id: 2, // To differentiate between different subsets of a running task
         });
@@ -519,10 +671,8 @@ mod tests {
 
             GossipHandle::build_protocol_message(
                 IdentifierInfo {
-                    block_id: None,
-                    session_id: None,
-                    retry_id: None,
-                    task_id: None,
+                    message_id: 0,
+                    round_id: 0,
                 },
                 i,
                 None,
@@ -539,7 +689,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round1_network.next().await {
+        while let Some(msg) = round1_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round1 message
@@ -553,7 +703,7 @@ mod tests {
             assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
-                msg.sender.user_id
+                msg.sender.user_id,
             );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
@@ -573,10 +723,8 @@ mod tests {
             .map(|j| {
                 GossipHandle::build_protocol_message(
                     IdentifierInfo {
-                        block_id: None,
-                        session_id: None,
-                        retry_id: None,
-                        task_id: None,
+                        message_id: 0,
+                        round_id: 0,
                     },
                     i,
                     Some(j),
@@ -596,7 +744,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round2_network.next().await {
+        while let Some(msg) = round2_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round2 message
@@ -610,7 +758,7 @@ mod tests {
             assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
-                msg.sender.user_id
+                msg.sender.user_id,
             );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
@@ -628,10 +776,8 @@ mod tests {
             };
             GossipHandle::build_protocol_message(
                 IdentifierInfo {
-                    block_id: None,
-                    session_id: None,
-                    retry_id: None,
-                    task_id: None,
+                    message_id: 0,
+                    round_id: 0,
                 },
                 i,
                 None,
@@ -646,7 +792,7 @@ mod tests {
 
         // Wait for all other nodes to send their messages
         let mut msgs = BTreeMap::new();
-        while let Some(msg) = round3_network.next().await {
+        while let Some(msg) = round3_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
             crate::debug!(from = %msg.sender.user_id, ?m, "Received message");
             // Expecting Round3 message
@@ -660,7 +806,7 @@ mod tests {
             assert!(
                 old.is_none(),
                 "Duplicate message from node {}",
-                msg.sender.user_id
+                msg.sender.user_id,
             );
             // Break if all messages are received
             if msgs.len() == usize::from(NODE_COUNT) - 1 {
@@ -674,18 +820,133 @@ mod tests {
         Ok(())
     }
 
-    fn node() -> gossip::GossipHandle {
+    fn node_with_id() -> (gossip::GossipHandle, ecdsa::Pair) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
         let ecdsa_key = sp_core::ecdsa::Pair::generate().0;
         let bind_port = 0;
-        setup::start_p2p_network(setup::NetworkConfig::new_service_network(
+        let handle = setup::start_p2p_network(setup::NetworkConfig::new_service_network(
             identity,
-            ecdsa_key,
+            ecdsa_key.clone(),
             Default::default(),
             bind_port,
             TOPIC,
         ))
-        .unwrap()
+        .unwrap();
+
+        (handle, ecdsa_key)
+    }
+
+    fn node() -> gossip::GossipHandle {
+        node_with_id().0
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_stress_test_multiplexer() {
+        setup_log();
+        crate::info!("Starting test_stress_test_multiplexer");
+
+        let (network0, id0) = node_with_id();
+        let (network1, id1) = node_with_id();
+        let mut networks = vec![network0, network1];
+
+        wait_for_nodes_connected(&networks).await;
+
+        let (network0, network1) = (networks.remove(0), networks.remove(0));
+
+        let public0 = id0.public();
+        let public1 = id1.public();
+
+        let multiplexer0 = NetworkMultiplexer::new(network0);
+        let multiplexer1 = NetworkMultiplexer::new(network1);
+
+        let stream_key = StreamKey {
+            task_hash: sha2_256(&[255u8]),
+            round_id: 100,
+        };
+
+        let sub0 = multiplexer0.multiplex(stream_key);
+        let sub1 = multiplexer1.multiplex(stream_key);
+
+        const MESSAGE_COUNT: u64 = 100;
+
+        #[derive(Serialize, Deserialize)]
+        struct StressTestPayload {
+            value: u64,
+        }
+
+        let handle0 = tokio::spawn(async move {
+            let sub0 = &sub0;
+
+            let recv_task = async move {
+                let mut count = 0;
+                while let Some(msg) = sub0.next_message().await {
+                    assert_eq!(msg.sender.user_id, 1, "Bad sender");
+                    assert_eq!(msg.recipient.unwrap().user_id, 0, "Bad recipient");
+
+                    let number: StressTestPayload = deserialize(&msg.payload).unwrap();
+                    assert_eq!(number.value, count, "Bad message order");
+                    count += 1;
+
+                    if count == MESSAGE_COUNT {
+                        break;
+                    }
+                }
+            };
+
+            let send_task = async move {
+                for i in 0..MESSAGE_COUNT {
+                    let msg = GossipHandle::build_protocol_message(
+                        IdentifierInfo::default(),
+                        0,
+                        Some(1),
+                        &StressTestPayload { value: i },
+                        Some(public0),
+                        Some(public1),
+                    );
+                    sub0.send(msg).unwrap();
+                }
+            };
+
+            tokio::join!(recv_task, send_task)
+        });
+
+        let handle1 = tokio::spawn(async move {
+            let sub1 = &sub1;
+
+            let recv_task = async move {
+                let mut count = 0;
+                while let Some(msg) = sub1.next_message().await {
+                    assert_eq!(msg.sender.user_id, 0, "Bad sender");
+                    assert_eq!(msg.recipient.unwrap().user_id, 1, "Bad recipient");
+                    let number: StressTestPayload = deserialize(&msg.payload).unwrap();
+                    assert_eq!(number.value, count, "Bad message order");
+                    count += 1;
+
+                    if count == MESSAGE_COUNT {
+                        break;
+                    }
+                }
+            };
+
+            let send_task = async move {
+                for i in 0..MESSAGE_COUNT {
+                    let msg = GossipHandle::build_protocol_message(
+                        IdentifierInfo::default(),
+                        1,
+                        Some(0),
+                        &StressTestPayload { value: i },
+                        Some(public1),
+                        Some(public0),
+                    );
+                    sub1.send(msg).unwrap();
+                }
+            };
+
+            tokio::join!(recv_task, send_task)
+        });
+
+        // Wait for all tasks to complete
+        tokio::try_join!(handle0, handle1).unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]

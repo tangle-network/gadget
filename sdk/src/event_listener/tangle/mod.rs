@@ -176,7 +176,7 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
                 .filter_map(|r| r.ok().and_then(E::try_decode))
                 .collect::<VecDeque<_>>();
 
-            crate::info!("Found {} possible events ...", events.len());
+            crate::debug!("Found {} possible events ...", events.len());
             self.enqueued_events = events;
         }
     }

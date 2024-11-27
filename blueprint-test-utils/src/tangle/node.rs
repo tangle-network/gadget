@@ -12,7 +12,7 @@ pub const TANGLE_NODE_ENV: &str = "TANGLE_NODE";
 
 #[derive(Debug)]
 pub enum Error {
-    Io(std::io::Error),
+    Io(io::Error),
     CouldNotExtractPort(String),
     CouldNotExtractP2pAddress(String),
     CouldNotExtractP2pPort(String),
@@ -108,6 +108,10 @@ impl SubstrateNodeBuilder {
         let path = String::from_utf8(path.stdout).expect("bad path");
         let mut bin_path = OsString::new();
         for binary_path in &self.binary_paths {
+            let binary_path = &std::path::absolute(binary_path)
+                .expect("bad path")
+                .into_os_string();
+            log::info!(target: "gadget", "Trying to spawn binary at {:?}", binary_path);
             self.custom_flags
                 .insert("base-path".into(), Some(path.clone().into()));
 
@@ -368,19 +372,4 @@ impl SubstrateNodeInfo {
         self.p2p_port
             .ok_or_else(|| Error::CouldNotExtractP2pPort(self.log.clone()))
     }
-}
-
-/// Run a Tangle node with the default settings.
-/// The node will shut down when the returned handle is dropped.
-pub fn run() -> Result<SubstrateNode, Error> {
-    let tangle_from_env = std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
-    let builder = SubstrateNode::builder()
-        .binary_paths(["../tangle/target/release/tangle", &tangle_from_env])
-        .arg("validator")
-        .arg_val("rpc-cors", "all")
-        .arg_val("rpc-methods", "unsafe")
-        .arg("rpc-external")
-        .arg_val("sealing", "manual")
-        .clone();
-    builder.spawn()
 }

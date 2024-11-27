@@ -245,7 +245,8 @@ pub async fn setup_task_spawner(
     let quorums = Bytes::from(vec![0]);
     async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+            // Increased delay to allow for proper task initialization
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
             info!("Creating a new task...");
             if get_receipt(
@@ -269,6 +270,9 @@ pub async fn setup_task_spawner(
             {
                 info!("Updated operators for quorum...");
             }
+
+            // Wait for task initialization to complete
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
             tokio::process::Command::new("sh")
                 .arg("-c")
