@@ -188,7 +188,7 @@ pub async fn new_test_ext_blueprint_manager<
                 blueprint_id,
                 preferences,
                 registration_args.clone(),
-                Default::default(),
+                0,
             )
             .await
             {
@@ -220,7 +220,7 @@ pub async fn new_test_ext_blueprint_manager<
         handles[0].sr25519_id(),
         blueprint_id,
         all_nodes,
-        Default::default(),
+        0,
     )
     .await
     {
