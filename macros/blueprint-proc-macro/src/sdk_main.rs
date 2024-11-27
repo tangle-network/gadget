@@ -26,9 +26,9 @@ pub(crate) struct SdkMainArgs {
 
 pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     let tokio_args = if let Some(args) = &args.tokio_args {
-        quote! { ( #(#args),* ) }
+        quote! { ( crate = "::gadget_sdk::tokio", #(#args),* ) }
     } else {
-        quote! {}
+        quote! { ( crate = "::gadget_sdk::tokio" ) }
     };
 
     let env_function_signature = if args.env {
