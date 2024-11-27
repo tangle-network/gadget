@@ -282,7 +282,7 @@ fn extract_metadata() -> Metadata {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct BlueprintMetadata {
     manager: BlueprintManager,
-    #[serde(alias = "mbsm_revision", alias = "master_revision", default)]
+    #[serde(alias = "master_revision", default)]
     master_blueprint_service_manager_revision: MasterBlueprintServiceManagerRevision,
 }
 

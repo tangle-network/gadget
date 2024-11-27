@@ -39,4 +39,4 @@ std = []
 
 [package.metadata.blueprint]
 manager = { Evm = "IncredibleSquaringBlueprint" }
-mbsm_revision = "Latest"
+master_revision = "Latest"
