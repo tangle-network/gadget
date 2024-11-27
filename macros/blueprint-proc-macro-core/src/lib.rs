@@ -101,6 +101,11 @@ pub struct ServiceBlueprint<'a> {
     pub metadata: ServiceMetadata<'a>,
     /// The blueprint manager that will be used to manage the blueprints lifecycle.
     pub manager: BlueprintManager,
+    /// The Revision number of the Master Blueprint Service Manager.
+    ///
+    /// If not sure what to use, use `MasterBlueprintServiceManagerRevision::default()` which will use
+    /// the latest revision available.
+    pub master_manager_revision: MasterBlueprintServiceManagerRevision,
     /// The job definitions that are available in this service.
     pub jobs: Vec<JobDefinition<'a>>,
     /// The parameters that are required for the service registration.
@@ -145,6 +150,22 @@ pub struct JobDefinition<'a> {
     /// These are the result, the return values of this job.
     /// i.e. the output.
     pub result: Vec<FieldType>,
+}
+
+/// Master Blueprint Service Manager Revision.
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum MasterBlueprintServiceManagerRevision {
+    /// Use Whatever the latest revision available on-chain.
+    ///
+    /// This is the default value.
+    #[default]
+    Latest,
+
+    /// Use a specific revision number.
+    ///
+    /// Note: Must be already deployed on-chain.
+    Specific(u32),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

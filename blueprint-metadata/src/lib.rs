@@ -8,7 +8,8 @@ use std::{
 use cargo_metadata::{Metadata, Package};
 use gadget_blueprint_proc_macro_core::{
     BlueprintManager, FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition,
-    NativeGadget, ServiceBlueprint, ServiceMetadata, TestFetcher,
+    MasterBlueprintServiceManagerRevision, NativeGadget, ServiceBlueprint, ServiceMetadata,
+    TestFetcher,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
@@ -41,7 +42,7 @@ impl Config {
         let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
         let package = find_package(&metadata, &crate_name);
         let gadget = generate_gadget(package);
-        let manager = extract_blueprint_manager(package);
+        let metadata = extract_blueprint_metadata(package);
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -57,7 +58,8 @@ impl Config {
                 license: std::env::var("CARGO_PKG_LICENSE").map(Into::into).ok(),
             },
             jobs,
-            manager,
+            manager: metadata.manager,
+            master_manager_revision: metadata.master_blueprint_service_manager_revision,
             registration_params: hooks
                 .iter()
                 .find_map(|hook| match hook {
@@ -280,25 +282,32 @@ fn extract_metadata() -> Metadata {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct BlueprintMetadata {
     manager: BlueprintManager,
+    #[serde(alias = "mbsm_revision", alias = "master_revision", default)]
+    master_blueprint_service_manager_revision: MasterBlueprintServiceManagerRevision,
 }
 
-fn extract_blueprint_manager(package: &Package) -> BlueprintManager {
+fn extract_blueprint_metadata(package: &Package) -> BlueprintMetadata {
     let Some(blueprint) = package.metadata.get("blueprint") else {
         eprintln!("No blueprint metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
         eprintln!("<TODO>");
         // TODO(@shekohex): make this hard error
-        return BlueprintManager::Evm(Default::default());
+        return BlueprintMetadata {
+            manager: BlueprintManager::Evm("".into()),
+            master_blueprint_service_manager_revision:
+                MasterBlueprintServiceManagerRevision::Latest,
+        };
     };
-    let metadata: BlueprintMetadata =
+    let mut metadata: BlueprintMetadata =
         serde_json::from_value(blueprint.clone()).expect("Failed to deserialize gadget.");
-    match metadata.manager {
+    match &mut metadata.manager {
         BlueprintManager::Evm(manager) => {
             let path = resolve_evm_contract_path_by_name(&manager);
-            BlueprintManager::Evm(path.display().to_string())
+            *manager = path.display().to_string();
         }
         _ => unreachable!("Unsupported blueprint manager"),
-    }
+    };
+    metadata
 }
 
 /// Generates the metadata for the gadget.
