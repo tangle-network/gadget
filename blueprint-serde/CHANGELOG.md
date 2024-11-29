@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-serde-v0.2.0...gadget-blueprint-serde-v0.3.0) - 2024-11-29
+
+### Fixed
+
+- *(gadget-blueprint-serde)* [**breaking**] handle bytes properly ([#500](https://github.com/tangle-network/gadget/pull/500))
+
 ## [0.2.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-serde-v0.1.1...gadget-blueprint-serde-v0.2.0) - 2024-11-16
 
 ### Added

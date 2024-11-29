@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.4.0...gadget-blueprint-proc-macro-v0.5.0) - 2024-11-29
+
+### Fixed
+
+- *(blueprint-proc-macro)* set `tokio` crate in `sdk::main` ([#502](https://github.com/tangle-network/gadget/pull/502))
+- *(gadget-blueprint-serde)* [**breaking**] handle bytes properly ([#500](https://github.com/tangle-network/gadget/pull/500))
+
 ## [0.4.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.3.1...gadget-blueprint-proc-macro-v0.4.0) - 2024-11-16
 
 ### Added
