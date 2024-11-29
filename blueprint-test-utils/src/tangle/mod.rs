@@ -90,28 +90,28 @@ macro_rules! test_tangle_blueprint {
         $N:tt,
         $T:tt,
         $job_id:tt,
-        [$($inputs:expr),+],
-        [$($expected_output:expr),+]
+        [$($inputs:expr),*],
+        [$($expected_output:expr),*]
     ) => {
         tangle_blueprint_test_template!(
             $blueprint_path,
             $N,
             |client, handles, blueprint| async move {
                 let keypair = handles[0].sr25519_id().clone();
-                let selected_service = &blueprint.services[$job_id];
+                let selected_service = &blueprint.services[0];
                 let service_id = selected_service.id;
 
                 gadget_sdk::info!(
                     "Submitting job {} with service ID {service_id}", $job_id
                 );
 
-                let job_args = vec![$($inputs),+];
+                let job_args = vec![$($inputs),*];
 
                 let job = submit_job(
                     client,
                     &keypair,
                     service_id,
-                    Job::from($job_id as u8),
+                    Job::from(0),
                     job_args,
                 )
                 .await
@@ -130,7 +130,7 @@ macro_rules! test_tangle_blueprint {
                 assert_eq!(job_results.service_id, service_id);
                 assert_eq!(job_results.call_id, call_id);
 
-                let expected_outputs = vec![$($expected_output),+];
+                let expected_outputs = vec![$($expected_output),*];
                 if expected_outputs.is_empty() {
                     gadget_sdk::info!("No expected outputs specified, skipping verification");
                     return
@@ -148,8 +148,8 @@ macro_rules! test_tangle_blueprint {
         $blueprint_path:expr,
         $N:tt,
         $job_id:tt,
-        [$($input:expr),+],
-        [$($expected_output:expr),+]
+        [$($input:expr),*],
+        [$($expected_output:expr),*]
     ) => {
         test_tangle_blueprint!($blueprint_path, $N, $N, $job_id, [$($input),+], [$($expected_output),+]);
     };

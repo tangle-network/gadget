@@ -5,10 +5,10 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
         $N:tt,
         $T:tt,
         $keygen_job_id:tt,
-        [$($keygen_inputs:expr),+],
+        [$($keygen_inputs:expr),*],
         [$($expected_keygen_outputs:expr),*],
         $signing_job_id:tt,
-        [$($signing_inputs:expr),+],
+        [$($signing_inputs:expr),*],
         [$($expected_signing_outputs:expr),*],
         $atomic_keygen_call_id_store:expr,
     ) => {
@@ -24,13 +24,13 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                     "Submitting KEYGEN job {} with service ID {service_id}", $keygen_job_id
                 );
 
-                let job_args = vec![$($keygen_inputs),+];
+                let job_args = vec![$($keygen_inputs),*];
 
                 let job = submit_job(
                     client,
                     &keypair,
                     service_id,
-                    Job::from($keygen_job_id as u8),
+                    Job::from(0),
                     job_args,
                 )
                 .await
@@ -64,7 +64,7 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 log::info!("Keygen job completed successfully! Moving on to signing ...");
 
                 // ~~~~~ Now, run a signing job ~~~~~
-                let service = &blueprint.services[$keygen_job_id as usize];
+                let service = &blueprint.services[0];
 
                 let service_id = service.id;
                 gadget_sdk::info!(
@@ -72,13 +72,13 @@ macro_rules! mpc_generate_keygen_and_signing_tests {
                 );
 
                 // Pass the arguments
-                let job_args = vec![$($signing_inputs),+];
+                let job_args = vec![$($signing_inputs),*];
 
                  let job = submit_job(
                     client,
                     &keypair,
                     service_id,
-                    Job::from($signing_job_id as u8),
+                    Job::from(0),
                     job_args,
                 )
                 .await
