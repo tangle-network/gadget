@@ -45,6 +45,9 @@ pub enum RunnerError {
     ContractError(#[from] alloy_contract::Error),
 
     #[error(transparent)]
+    PendingTransactionError(#[from] alloy_provider::PendingTransactionError),
+
+    #[error(transparent)]
     ElContractsError(#[from] eigensdk::client_elcontracts::error::ElContractsError),
 
     #[error(transparent)]
