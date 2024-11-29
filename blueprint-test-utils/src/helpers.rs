@@ -29,6 +29,9 @@ pub enum BlueprintError {
 
     #[error("Contract error occurred: {0}")]
     ContractError(#[from] alloy_contract::Error),
+
+    #[error("{0}")]
+    Transaction(#[from] alloy_provider::PendingTransactionError),
 }
 
 pub struct BlueprintProcess {

@@ -118,6 +118,14 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         avs_directory: Option<Address>,
+        /// The address of the rewards coordinator
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "REWARDS_COORDINATOR_ADDRESS",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        rewards_coordinator: Option<Address>,
         /// The address of the operator registry
         #[arg(
             long,
@@ -202,6 +210,7 @@ impl Default for GadgetCLICoreSettings {
             delegation_manager: None,
             strategy_manager: None,
             avs_directory: None,
+            rewards_coordinator: None,
             operator_registry: None,
             network_registry: None,
             base_delegator: None,
@@ -253,6 +262,8 @@ impl ContextConfig {
             eigenlayer_contract_addresses.map(|a| a.delegation_manager_address);
         let strategy_manager = eigenlayer_contract_addresses.map(|a| a.strategy_manager_address);
         let avs_directory = eigenlayer_contract_addresses.map(|a| a.avs_directory_address);
+        let rewards_coordinator =
+            eigenlayer_contract_addresses.map(|a| a.rewards_coordinator_address);
 
         // Symbiotic addresses
         let operator_registry = symbiotic_contract_addresses.map(|a| a.operator_registry_address);
@@ -289,6 +300,7 @@ impl ContextConfig {
                 ws_rpc_url,
                 strategy_manager,
                 avs_directory,
+                rewards_coordinator,
                 operator_registry,
                 network_registry,
                 base_delegator,

@@ -8,6 +8,7 @@ use crate::IncredibleSquaringTaskManager;
 use alloy_network::EthereumWallet;
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::sol;
 use blueprint_test_utils::eigenlayer_test_env::*;
 use blueprint_test_utils::{
     eigenlayer_test_env::start_default_anvil_testnet, helpers::wait_for_responses,
@@ -21,6 +22,14 @@ use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::utils::evm::get_wallet_provider_http;
 use reqwest::Url;
 use std::path::Path;
+
+sol!(
+    #[allow(missing_docs, clippy::too_many_arguments)]
+    #[sol(rpc)]
+    #[derive(Debug)]
+    RegistryCoordinator,
+    "./contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
+);
 
 const ANVIL_STATE_PATH: &str =
     "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";

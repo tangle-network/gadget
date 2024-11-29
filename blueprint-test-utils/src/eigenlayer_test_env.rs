@@ -2,6 +2,7 @@ use crate::anvil;
 pub use crate::binding::ipauserregistry::PauserRegistry;
 pub use crate::binding::registrycoordinator::RegistryCoordinator;
 pub use crate::helpers::get_receipt;
+use alloy_primitives::Uint;
 pub use alloy_primitives::{address, Address, Bytes, U256};
 pub use alloy_provider::Provider;
 pub use gadget_sdk::config::protocol::EigenlayerContractAddresses;
@@ -125,13 +126,13 @@ pub async fn setup_eigenlayer_test_environment(
     };
     let strategy_params = RegistryCoordinator::StrategyParams {
         strategy: erc20_mock_address,
-        multiplier: 1,
+        multiplier: Uint::from(1),
     };
 
     info!("Creating Quorum");
     let _receipt = get_receipt(registry_coordinator.createQuorum(
         operator_set_params,
-        0,
+        Uint::from(0),
         vec![strategy_params],
     ))
     .await
@@ -149,6 +150,7 @@ pub async fn setup_eigenlayer_test_environment(
             delegation_manager_address,
             strategy_manager_address,
             avs_directory_address: Default::default(),
+            rewards_coordinator_address: Default::default(),
         },
         pauser_registry_address,
     }

@@ -6,6 +6,7 @@ use std::pin::Pin;
 use tokio::sync::oneshot;
 
 pub mod eigenlayer;
+#[cfg(feature = "symbiotic")]
 pub mod symbiotic;
 
 pub mod jobs;
@@ -42,6 +43,9 @@ pub enum RunnerError {
 
     #[error(transparent)]
     ContractError(#[from] alloy_contract::Error),
+
+    #[error(transparent)]
+    PendingTransactionError(#[from] alloy_provider::PendingTransactionError),
 
     #[error(transparent)]
     ElContractsError(#[from] eigensdk::client_elcontracts::error::ElContractsError),

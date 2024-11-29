@@ -35,8 +35,7 @@ ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
-eigensdk = { workspace = true }
-symbiotic-rs = { workspace = true }
+eigensdk = { workspace = true, features = ["full", "utils", "types"] }
 ark-serialize = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
@@ -67,6 +66,9 @@ serde_json = { workspace = true }
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 scale-info = { workspace = true }
+
+# Symbiotic
+symbiotic-rs = { workspace = true, optional = true }
 
 # Event Watchers and Handlers
 backon = { workspace = true, optional = true }
@@ -169,6 +171,9 @@ wasm = [
     "getrandom?/js",
     "subxt/web",
     "tangle-subxt/web",
+]
+symbiotic = [
+    "dep:symbiotic-rs"
 ]
 
 # Randomness
