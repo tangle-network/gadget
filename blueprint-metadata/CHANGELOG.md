@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.7...blueprint-metadata-v0.2.0) - 2024-11-29
+
+### Other
+
+- *(gadget-sdk)* [**breaking**] update to latest tangle ([#503](https://github.com/tangle-network/gadget/pull/503))
+
 ## [0.1.7](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.6...blueprint-metadata-v0.1.7) - 2024-11-16
 
 ### Other
