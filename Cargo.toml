@@ -196,7 +196,7 @@ eigensdk = { version = "0.1.1", default-features = false }
 testcontainers = { version = "0.23.1" }
 
 # Symbiotic
-symbiotic-rs = { version = "0.1.0" }
+symbiotic-rs = { version = "0.1.1" }
 dashmap = "6.1.0"
 lru-mem = "0.3.0"
 
