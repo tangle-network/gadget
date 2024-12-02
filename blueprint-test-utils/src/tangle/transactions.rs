@@ -1,4 +1,10 @@
+use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
+use alloy_provider::{Provider, WsConnect};
+use cargo_tangle::deploy::PrivateKeySigner;
 use gadget_sdk::keystore::TanglePairSigner;
+use sp_core::H160;
+use subxt::blocks::ExtrinsicEvents;
+use subxt::client::OnlineClientT;
 use std::error::Error;
 use gadget_sdk::event_listener::tangle::AccountId32;
 use gadget_sdk::{error, info};
@@ -7,11 +13,53 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_ari
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised};
 use subxt::tx::TxProgress;
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::subxt_core::tx::signer::Signer;
 use crate::TestClient;
+
+/// Deploy a new MBSM revision and returns the result.
+pub async fn deploy_new_mbsm_revision(
+    evm_rpc_endpoint: &str,
+    client: &TestClient,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
+    signer_evm: PrivateKeySigner,
+    bytecode: &[u8],
+) -> Result<MasterBlueprintServiceManagerRevised, Box<dyn Error>> {
+    info!("Deploying new MBSM revision ...");
+
+    let wallet = alloy_provider::network::EthereumWallet::from(signer_evm);
+    let provider = alloy_provider::ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_ws(WsConnect::new(evm_rpc_endpoint))
+        .await?;
+
+    let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode.to_vec());
+    // Deploy the contract.
+    let receipt = provider.send_transaction(tx).await?.get_receipt().await?;
+    // Check the receipt status.
+    let mbsm_address = if receipt.status() {
+        ReceiptResponse::contract_address(&receipt).unwrap()
+    } else {
+        error!("MBSM Contract deployment failed!");
+        error!("Receipt: {receipt:#?}");
+        return Err("MBSM Contract deployment failed!".into());
+    };
+    let call = api::tx()
+        .services()
+        .update_master_blueprint_service_manager(mbsm_address.0 .0.into());
+    let res = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call, account_id)
+        .await?;
+    let evts = wait_for_in_block_success(res).await?;
+    let ev = evts
+        .find_first::<MasterBlueprintServiceManagerRevised>()?
+        .expect("MBSM Revised Event to be emitted");
+    Ok(ev)
+}
 
 pub async fn create_blueprint(
     client: &TestClient,
@@ -121,14 +169,16 @@ pub async fn request_service(
 
 pub async fn wait_for_in_block_success(
     mut res: TxProgress<TangleConfig, TestClient>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<ExtrinsicEvents<TangleConfig>, Box<dyn Error>> {
+    let mut val = Err("Failed to get in block success".into());
     while let Some(Ok(event)) = res.next().await {
         let Some(block) = event.as_in_block() else {
             continue;
         };
-        block.wait_for_success().await?;
+        val = block.wait_for_success().await;
     }
-    Ok(())
+
+    val.map_err(Into::into)
 }
 
 pub async fn wait_for_completion_of_tangle_job(
@@ -200,6 +250,22 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
         .fetch_or_default(&call)
         .await?;
     Ok(res)
+}
+
+pub async fn get_latest_mbsm_revision(
+    client: &TestClient,
+) -> Result<Option<(u64, H160)>, Box<dyn Error>> {
+    let call = api::storage()
+        .services()
+        .master_blueprint_service_manager_revisions();
+    let mut res = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&call)
+        .await?;
+    let ver = res.0.len() as u64;
+    Ok(res.0.pop().map(|addr| (ver, addr)))
 }
 
 /// Approves a service request. This is meant for testing, and will always approve the request.

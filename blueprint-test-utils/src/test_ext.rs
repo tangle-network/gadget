@@ -15,6 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::PerTestNodeInput;
+use alloy_primitives::hex;
 use futures::StreamExt;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
@@ -23,6 +24,7 @@ use gadget_sdk::clients::tangle::runtime::TangleClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use libp2p::Multiaddr;
+use log::debug;
 use std::collections::HashSet;
 use std::future::Future;
 use std::net::IpAddr;
@@ -206,6 +208,29 @@ pub async fn new_test_ext_blueprint_manager<
         .collect::<Vec<BlueprintManagerHandle>>()
         .await;
 
+    // Check if the MBSM is already deployed.
+    let latest_revision = transactions::get_latest_mbsm_revision(&client)
+        .await
+        .expect("Get latest MBSM revision");
+    match latest_revision {
+        Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
+        None => {
+            let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
+            let bytecode = hex::decode(bytecode_hex).expect("valid bytecode in hex format");
+            let ev = transactions::deploy_new_mbsm_revision(
+                &local_tangle_node_http,
+                &client,
+                handles[0].sr25519_id(),
+                opts.signer_evm.clone().expect("Signer EVM is set"),
+                &bytecode,
+            )
+            .await
+            .expect("deploy new MBSM revision");
+            let rev = ev.revision;
+            let addr = ev.address;
+            debug!("Deployed MBSM at revision #{rev} at address {addr}");
+        }
+    };
     // Step 3: request a service
     let all_nodes = handles
         .iter()
