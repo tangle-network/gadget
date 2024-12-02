@@ -7,9 +7,7 @@
 //! Gadget SDK
 
 #![cfg_attr(all(not(feature = "std"), not(feature = "wasm")), no_std)]
-
 extern crate alloc;
-extern crate core;
 
 /// Benchmark Module
 #[cfg(any(feature = "std", feature = "wasm"))]
@@ -66,20 +64,24 @@ pub mod tracer;
 pub mod tx;
 
 /// Gadget Context and context extensions
-pub mod ctx;
-
+pub mod contexts;
 pub mod docker;
 pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
 pub use async_trait;
+pub use blueprint_serde::ByteBuf;
 pub use clap;
+pub use color_eyre;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;
 pub use libp2p;
 pub use parking_lot;
+pub use round_based;
+pub use serde;
+pub use subxt;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
@@ -89,7 +91,12 @@ pub use uuid;
 // External modules usually used in proc-macro codegen.
 #[doc(hidden)]
 pub mod ext {
+    pub use alloy_network;
+    pub use alloy_primitives;
+    pub use alloy_provider;
+    pub use alloy_transport;
     pub use blueprint_serde;
+    pub use eigensdk;
     pub use lock_api;
     #[cfg(feature = "std")]
     pub use parking_lot;

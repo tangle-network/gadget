@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.1.3...blueprint-manager-v0.2.0) - 2024-11-29
+
+### Other
+
+- *(gadget-sdk)* [**breaking**] update to latest tangle ([#503](https://github.com/tangle-network/gadget/pull/503))
+
+## [0.1.3](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.1.2...blueprint-manager-v0.1.3) - 2024-11-20
+
+### Other
+
+- updated the following local packages: gadget-sdk
+
 ## [0.1.2](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.1.1...blueprint-manager-v0.1.2) - 2024-11-16
 
 ### Other

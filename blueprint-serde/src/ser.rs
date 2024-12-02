@@ -21,10 +21,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     type SerializeSeq = SerializeSeq<'a>;
     type SerializeTuple = Self::SerializeSeq;
     type SerializeTupleStruct = SerializeTupleStruct<'a>;
-    type SerializeTupleVariant = Self;
-    type SerializeMap = Self;
+    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
     type SerializeStruct = SerializeStruct<'a>;
-    type SerializeStructVariant = Self;
+    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         Ok(Field::Bool(v))
@@ -164,7 +164,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(self)
+        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -187,7 +187,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(self)
+        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 
     fn is_human_readable(&self) -> bool {
@@ -339,63 +339,6 @@ impl ser::SerializeStruct for SerializeStruct<'_> {
             new_bounded_string(self.name),
             Box::new(BoundedVec(self.fields)),
         ))
-    }
-}
-
-// === UNSUPPORTED TYPES ===
-
-impl ser::SerializeTupleVariant for &mut Serializer {
-    type Ok = Field<AccountId32>;
-    type Error = crate::error::Error;
-
-    fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
-    }
-}
-
-impl ser::SerializeMap for &mut Serializer {
-    type Ok = Field<AccountId32>;
-    type Error = crate::error::Error;
-
-    fn serialize_key<T>(&mut self, _key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(Self::Error::UnsupportedType(UnsupportedType::Map))
-    }
-
-    fn serialize_value<T>(&mut self, _value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(Self::Error::UnsupportedType(UnsupportedType::Map))
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        Err(Self::Error::UnsupportedType(UnsupportedType::Map))
-    }
-}
-
-impl ser::SerializeStructVariant for &mut Serializer {
-    type Ok = Field<AccountId32>;
-    type Error = crate::error::Error;
-
-    fn serialize_field<T>(&mut self, _key: &'static str, _value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        Err(Self::Error::UnsupportedType(UnsupportedType::NonUnitEnum))
     }
 }
 

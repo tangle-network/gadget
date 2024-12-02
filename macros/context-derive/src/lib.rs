@@ -19,6 +19,8 @@ mod eigenlayer;
 mod evm;
 /// Keystore context extension implementation.
 mod keystore;
+/// MPC context extension implementation.
+mod mpc;
 /// Services context extension implementation.
 mod services;
 /// Tangle Subxt Client context extension implementation.
@@ -82,6 +84,19 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result = cfg::find_config_field(&input.ident, &input.data)
         .map(|config_field| eigenlayer::generate_context_impl(input, config_field));
+
+    match result {
+        Ok(expanded) => TokenStream::from(expanded),
+        Err(err) => TokenStream::from(err.to_compile_error()),
+    }
+}
+
+/// Derive macro for generating Context Extensions trait implementation for `MPCContext`.
+#[proc_macro_derive(MPCContext, attributes(config))]
+pub fn derive_mpc_context(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    let result = cfg::find_config_field(&input.ident, &input.data)
+        .map(|config_field| mpc::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),

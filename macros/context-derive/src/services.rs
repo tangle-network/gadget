@@ -21,7 +21,7 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl #impl_generics gadget_sdk::ctx::ServicesContext for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::ServicesContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
             fn current_blueprint(
                 &self,
@@ -30,8 +30,7 @@ pub fn generate_context_impl(
                 Output = Result<
                     gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint,
                     gadget_sdk::ext::subxt::Error
-                >
-            >{
+                >> {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
@@ -61,9 +60,7 @@ pub fn generate_context_impl(
             fn current_blueprint_owner(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<
-                Output = Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error>,
-            > {
+            ) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error>> {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 async move {
@@ -95,12 +92,12 @@ pub fn generate_context_impl(
             ) -> impl core::future::Future<
                 Output = Result<
                     Vec<(
-                        gadget_sdk::ext::subxt::utils::AccountId32,
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent,
-                    )>,
+                            gadget_sdk::ext::subxt::utils::AccountId32,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent,
+                        )>,
                     gadget_sdk::ext::subxt::Error
                 >
-            >{
+            > {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
@@ -144,14 +141,16 @@ pub fn generate_context_impl(
                     Vec<(
                         gadget_sdk::ext::subxt::utils::AccountId32,
                         gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
-                            gadget_sdk::ext::subxt::utils::AccountId32, // delegator
-                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                            gadget_sdk::ext::subxt::utils::AccountId32,
                             gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
-                        >,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegations,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxOperatorBlueprints,
+                        >
                     )>,
                     gadget_sdk::ext::subxt::Error
                 >
-            >{
+            > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 async move {
@@ -179,13 +178,15 @@ pub fn generate_context_impl(
             ) -> Result<
                 Option<
                     gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
-                        gadget_sdk::ext::subxt::utils::AccountId32, // delegator
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                        gadget_sdk::ext::subxt::utils::AccountId32,
                         gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegations,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxOperatorBlueprints,
                     >
                 >,
                 gadget_sdk::ext::subxt::Error,
-            >{
+            > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 let storage = client.storage().at_latest().await?;
@@ -199,17 +200,21 @@ pub fn generate_context_impl(
                 operators: Vec<gadget_sdk::ext::subxt::utils::AccountId32>,
             ) -> Result<
                 Vec<(
-                    gadget_sdk::ext::subxt::utils::AccountId32, // operator
+                    gadget_sdk::ext::subxt::utils::AccountId32,
                     Option<
                         gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata<
                             gadget_sdk::ext::subxt::utils::AccountId32,
-                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
                             gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxWithdrawRequests,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegations,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxUnstakeRequests,
+                            gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegatorBlueprints,
                         >
                     >
                 )>,
                 gadget_sdk::ext::subxt::Error,
-            >{
+            > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 use gadget_sdk::ext::subxt::utils::AccountId32;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId;
@@ -217,10 +222,7 @@ pub fn generate_context_impl(
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata;
 
                 let storage = client.storage().at_latest().await?;
-                let mut operator_delegations: Vec<(
-                    AccountId32,
-                    Option<DelegatorMetadata<AccountId32, AssetId, Balance>>,
-                )> = Vec::new();
+                let mut operator_delegations = Vec::new();
 
                 for operator in operators {
                     let delegations_storage_key = api::storage()
@@ -242,12 +244,16 @@ pub fn generate_context_impl(
                 Option<
                     gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::delegator::DelegatorMetadata<
                         gadget_sdk::ext::subxt::utils::AccountId32,
-                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
                         gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxWithdrawRequests,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegations,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxUnstakeRequests,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegatorBlueprints,
                     >
                 >,
                 gadget_sdk::ext::subxt::Error,
-            >{
+            > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
                 let storage = client.storage().at_latest().await?;
@@ -264,7 +270,7 @@ pub fn generate_context_impl(
                 gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Service<
                     gadget_sdk::ext::subxt::utils::AccountId32,
                     gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::system::storage::types::number::Number,
-                    gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::force_created::AssetId,
+                    gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
                 >,
                 gadget_sdk::ext::subxt::Error,
             >{

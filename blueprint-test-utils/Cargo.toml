@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-test-utils"
-version = "0.1.2"
+version = "0.2.0"
 description = "Tangle Blueprint test utils"
 authors.workspace = true
 edition.workspace = true
@@ -58,6 +58,7 @@ alloy-transport = { workspace = true }
 testcontainers = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 tempfile = { workspace = true }
+cargo_toml = { workspace = true }
 
 [dev-dependencies]
 cargo_metadata = { workspace = true }

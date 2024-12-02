@@ -64,7 +64,7 @@ pub async fn services_post_processor<R: serde::Serialize>(
     let response = api::tx().services().submit_result(
         service_id,
         call_id,
-        vec![blueprint_serde::to_field(results)?],
+        vec![dbg!(blueprint_serde::to_field(results)?)],
     );
     let _ = crate::tx::tangle::send(&client, &signer, &response)
         .await

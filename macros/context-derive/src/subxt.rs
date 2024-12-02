@@ -20,7 +20,7 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl #impl_generics gadget_sdk::ctx::TangleClientContext for #name #ty_generics #where_clause {
+        impl #impl_generics gadget_sdk::contexts::TangleClientContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
             fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {
                 use gadget_sdk::ext::subxt;

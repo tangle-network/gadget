@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.5.1...gadget-sdk-v0.6.0) - 2024-11-29
+
+### Added
+
+- add MPCContext derive + test utils refactor ([#497](https://github.com/tangle-network/gadget/pull/497))
+
+### Fixed
+
+- *(gadget-blueprint-serde)* [**breaking**] handle bytes properly ([#500](https://github.com/tangle-network/gadget/pull/500))
+- *(gadget-sdk)* use the right field for container status
+
+### Other
+
+- [**breaking**] update `eigensdk` ([#506](https://github.com/tangle-network/gadget/pull/506))
+- *(gadget-sdk)* [**breaking**] update to latest tangle ([#503](https://github.com/tangle-network/gadget/pull/503))
+
+## [0.5.1](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.5.0...gadget-sdk-v0.5.1) - 2024-11-20
+
+### Added
+
+- add more service ctx methods for Tangle ([#477](https://github.com/tangle-network/gadget/pull/477))
+
+### Fixed
+
+- race conditions in multiplexer ([#486](https://github.com/tangle-network/gadget/pull/486))
+
 ## [0.5.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.4.0...gadget-sdk-v0.5.0) - 2024-11-16
 
 ### Added

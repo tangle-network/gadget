@@ -1,6 +1,6 @@
 [package]
 name = "cargo-tangle"
-version = "0.2.4"
+version = "0.3.1"
 description = "A command-line tool to create and deploy blueprints on Tangle Network"
 authors.workspace = true
 edition.workspace = true

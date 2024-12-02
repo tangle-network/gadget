@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/blueprint-test-utils-v0.1.3...blueprint-test-utils-v0.2.0) - 2024-11-29
+
+### Added
+
+- allow zero-sized inputs for tangle-based macros ([#507](https://github.com/tangle-network/gadget/pull/507))
+- add MPCContext derive + test utils refactor ([#497](https://github.com/tangle-network/gadget/pull/497))
+
+### Fixed
+
+- bls signing now passing with modifications to mpc macro ([#504](https://github.com/tangle-network/gadget/pull/504))
+
+### Other
+
+- [**breaking**] update `eigensdk` ([#506](https://github.com/tangle-network/gadget/pull/506))
+- *(gadget-sdk)* [**breaking**] update to latest tangle ([#503](https://github.com/tangle-network/gadget/pull/503))
+- fix log message content
+
+## [0.1.3](https://github.com/tangle-network/gadget/compare/blueprint-test-utils-v0.1.2...blueprint-test-utils-v0.1.3) - 2024-11-20
+
+### Other
+
+- updated the following local packages: gadget-sdk, cargo-tangle
+
 ## [0.1.2](https://github.com/tangle-network/gadget/compare/blueprint-test-utils-v0.1.1...blueprint-test-utils-v0.1.2) - 2024-11-16
 
 ### Added

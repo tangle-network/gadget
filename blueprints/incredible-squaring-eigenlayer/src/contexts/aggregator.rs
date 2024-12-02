@@ -1,9 +1,9 @@
-use crate::{
-    contexts::client::SignedTaskResponse,
-    IncredibleSquaringTaskManager::{
-        self, G1Point, G2Point, NonSignerStakesAndSignature, TaskResponse,
-    },
-};
+use crate::IBLSSignatureChecker::NonSignerStakesAndSignature;
+use crate::IIncredibleSquaringTaskManager::Task;
+use crate::IIncredibleSquaringTaskManager::TaskResponse;
+use crate::BN254::G1Point;
+use crate::BN254::G2Point;
+use crate::{contexts::client::SignedTaskResponse, IncredibleSquaringTaskManager};
 use alloy_network::{Ethereum, NetworkWallet};
 use alloy_primitives::keccak256;
 use alloy_sol_types::SolType;
@@ -15,7 +15,7 @@ use eigensdk::{
 };
 use gadget_sdk::{
     config::StdGadgetConfiguration,
-    ctx::{EigenlayerContext, KeystoreContext},
+    contexts::{EigenlayerContext, KeystoreContext},
     debug, error, info,
     runners::{BackgroundService, RunnerError},
 };
@@ -26,7 +26,6 @@ use tokio::sync::{oneshot, Mutex, Notify};
 use tokio::task::JoinHandle;
 use tokio::time::interval;
 
-use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
@@ -290,6 +289,16 @@ impl AggregatorContext {
         } = resp.clone();
         let task_index = task_response.referenceTaskIndex;
         let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
+
+        // Check if we have the task initialized first
+        if !self.tasks.lock().await.contains_key(&task_index) {
+            info!(
+                "Task {} not yet initialized, caching response for later processing",
+                task_index
+            );
+            self.response_cache.lock().await.push_back(resp);
+            return Ok(());
+        }
 
         if self
             .tasks_responses

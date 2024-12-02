@@ -1,10 +1,11 @@
+use alloy_primitives::U256;
 use alloy_primitives::{address, Address, Bytes};
 use color_eyre::eyre::eyre;
 use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::subxt_core::ext::sp_runtime::traits::Zero;
 use gadget_sdk::utils::evm::get_provider_http;
-use gadget_sdk::{config::StdGadgetConfiguration, ctx::EigenlayerContext, job, load_abi};
+use gadget_sdk::{config::StdGadgetConfiguration, contexts::EigenlayerContext, job, load_abi};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -88,7 +89,6 @@ pub async fn handle_job(
     let stake_in_quorums_at_block = ctx
         .get_operator_stake_in_quorums_at_block(block_number, Bytes::from(vec![0]))
         .await?;
-    println!("Stake in Quorums at Block: {:?}", stake_in_quorums_at_block);
     assert!(!stake_in_quorums_at_block.is_empty());
 
     // Get an Operator's stake in Quorums at the current block.

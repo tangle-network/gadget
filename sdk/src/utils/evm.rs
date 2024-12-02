@@ -71,7 +71,10 @@ pub async fn get_slasher_address(
 ) -> Result<Address, Error> {
     let provider = get_provider_http(http_endpoint);
     let delegation_manager =
-        eigensdk::utils::binding::DelegationManager::new(delegation_manager_addr, provider);
+        eigensdk::utils::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+            delegation_manager_addr,
+            provider,
+        );
     delegation_manager
         .slasher()
         .call()
