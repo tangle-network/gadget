@@ -230,6 +230,7 @@ impl BlueprintConfig for crate::runners::eigenlayer::EigenlayerECDSAConfig {
         let avs_directory_address = contract_addresses.avs_directory_address;
         let service_manager_address = contract_addresses.service_manager_address;
         let stake_registry_address = contract_addresses.stake_registry_address;
+        let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
 
         let operator = env
             .keystore()
@@ -245,7 +246,7 @@ impl BlueprintConfig for crate::runners::eigenlayer::EigenlayerECDSAConfig {
             .address();
         let provider = get_provider_http(&env.http_rpc_endpoint);
 
-        let delegation_manager = eigensdk::utils::binding::DelegationManager::new(
+        let delegation_manager = eigensdk::utils::delegationmanager::DelegationManager::new(
             delegation_manager_address,
             provider.clone(),
         );
@@ -268,6 +269,7 @@ impl BlueprintConfig for crate::runners::eigenlayer::EigenlayerECDSAConfig {
         let el_writer = ELChainWriter::new(
             delegation_manager_address,
             strategy_manager_address,
+            rewards_coordinator_address,
             el_chain_reader.clone(),
             env.http_rpc_endpoint.clone(),
             operator_private_key.clone(),
@@ -343,13 +345,13 @@ impl BlueprintConfig for crate::runners::eigenlayer::EigenlayerECDSAConfig {
             ))?;
 
         // Get the base fee per gas from the latest block
-        let base_fee_per_gas =
-            latest_block
-                .header
-                .base_fee_per_gas
-                .ok_or(RunnerError::TransactionError(
-                    "Failed to get base fee per gas from latest block".into(),
-                ))?;
+        let base_fee_per_gas: u128 = latest_block
+            .header
+            .base_fee_per_gas
+            .ok_or(RunnerError::TransactionError(
+                "Failed to get base fee per gas from latest block".into(),
+            ))?
+            .into();
 
         // Get the max priority fee per gas
         let max_priority_fee_per_gas = provider
