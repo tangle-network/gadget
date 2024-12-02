@@ -39,6 +39,7 @@ impl Default for PriceTargets {
 #[derive(Clone, Default)]
 pub struct TangleConfig {
     pub price_targets: PriceTargets,
+    pub registration_args: RegistrationArgs,
 }
 
 #[async_trait::async_trait]
@@ -54,7 +55,12 @@ impl BlueprintConfig for TangleConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<(), RunnerError> {
-        register_impl(self.clone().price_targets, vec![], env).await
+        register_impl(
+            self.clone().price_targets,
+            self.clone().registration_args,
+            env,
+        )
+        .await
     }
 }
 
