@@ -135,6 +135,34 @@ pub async fn new_test_ext_blueprint_manager<
     let local_tangle_node_ws = opts.ws_rpc_url.clone();
     let local_tangle_node_http = opts.http_rpc_url.clone();
 
+    let client = get_client(&local_tangle_node_ws, &local_tangle_node_http)
+        .await
+        .expect("Failed to create an account-based localhost client");
+
+    // Check if the MBSM is already deployed.
+    let latest_revision = transactions::get_latest_mbsm_revision(&client)
+        .await
+        .expect("Get latest MBSM revision");
+    match latest_revision {
+        Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
+        None => {
+            let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
+            let bytecode = hex::decode(bytecode_hex).expect("valid bytecode in hex format");
+            let ev = transactions::deploy_new_mbsm_revision(
+                &local_tangle_node_ws,
+                &client,
+                handles[0].sr25519_id(),
+                opts.signer_evm.clone().expect("Signer EVM is set"),
+                &bytecode,
+            )
+                .await
+                .expect("deploy new MBSM revision");
+            let rev = ev.revision;
+            let addr = ev.address;
+            debug!("Deployed MBSM at revision #{rev} at address {addr}");
+        }
+    };
+
     // Step 1: Create the blueprint using alice's identity
     let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts.clone()).await {
         Ok(id) => id,
@@ -143,10 +171,6 @@ pub async fn new_test_ext_blueprint_manager<
             panic!("Failed to deploy blueprint: {err}");
         }
     };
-
-    let client = get_client(&local_tangle_node_ws, &local_tangle_node_http)
-        .await
-        .expect("Failed to create an account-based localhost client");
 
     // Step 2: Have each identity register to a blueprint
     let mut futures_ordered = FuturesOrdered::new();
@@ -208,29 +232,6 @@ pub async fn new_test_ext_blueprint_manager<
         .collect::<Vec<BlueprintManagerHandle>>()
         .await;
 
-    // Check if the MBSM is already deployed.
-    let latest_revision = transactions::get_latest_mbsm_revision(&client)
-        .await
-        .expect("Get latest MBSM revision");
-    match latest_revision {
-        Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
-        None => {
-            let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
-            let bytecode = hex::decode(bytecode_hex).expect("valid bytecode in hex format");
-            let ev = transactions::deploy_new_mbsm_revision(
-                &local_tangle_node_http,
-                &client,
-                handles[0].sr25519_id(),
-                opts.signer_evm.clone().expect("Signer EVM is set"),
-                &bytecode,
-            )
-            .await
-            .expect("deploy new MBSM revision");
-            let rev = ev.revision;
-            let addr = ev.address;
-            debug!("Deployed MBSM at revision #{rev} at address {addr}");
-        }
-    };
     // Step 3: request a service
     let all_nodes = handles
         .iter()
