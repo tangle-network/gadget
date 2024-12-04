@@ -148,7 +148,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let eigen_config = EigenlayerBLSConfig {};
+    let eigen_config = EigenlayerBLSConfig::new(Address::default(), Address::default());
 
     let blueprint_handle = tokio::spawn(async move {
         BlueprintRunner::new(eigen_config, env)

@@ -1,3 +1,4 @@
+use alloy_primitives::Address;
 use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events, services_context};
 use gadget_sdk::info;
 use gadget_sdk::runners::eigenlayer::EigenlayerBLSConfig;
@@ -25,10 +26,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "eigenlayer" => {
             info!("Running Eigenlayer examples");
-            BlueprintRunner::new(EigenlayerBLSConfig {}, env.clone())
-                .job(eigen_context::constructor(env.clone()).await?)
-                .run()
-                .await?;
+            BlueprintRunner::new(
+                EigenlayerBLSConfig::new(Address::default(), Address::default()),
+                env.clone(),
+            )
+            .job(eigen_context::constructor(env.clone()).await?)
+            .run()
+            .await?;
         }
         _ => {
             return Err(Box::new(std::io::Error::new(
