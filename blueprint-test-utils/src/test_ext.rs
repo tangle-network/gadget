@@ -147,7 +147,12 @@ pub async fn new_test_ext_blueprint_manager<
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
             let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
-            let bytecode = hex::decode(bytecode_hex).expect("valid bytecode in hex format");
+            let mut raw_hex = bytecode_hex.replace("0x", "").replace("\n", "");
+            // fix odd length
+            if raw_hex.len() % 2 != 0 {
+                raw_hex = format!("0{}", raw_hex);
+            }
+            let bytecode = hex::decode(&raw_hex).expect("valid bytecode in hex format");
             let ev = transactions::deploy_new_mbsm_revision(
                 &local_tangle_node_ws,
                 &client,
@@ -155,8 +160,8 @@ pub async fn new_test_ext_blueprint_manager<
                 opts.signer_evm.clone().expect("Signer EVM is set"),
                 &bytecode,
             )
-                .await
-                .expect("deploy new MBSM revision");
+            .await
+            .expect("deploy new MBSM revision");
             let rev = ev.revision;
             let addr = ev.address;
             debug!("Deployed MBSM at revision #{rev} at address {addr}");
