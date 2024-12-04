@@ -1,5 +1,6 @@
 use crate::eigen_context;
 use crate::eigen_context::ExampleTaskManager;
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use blueprint_test_utils::eigenlayer_test_env::start_default_anvil_testnet;
 use blueprint_test_utils::helpers::get_receipt;
@@ -9,7 +10,7 @@ use gadget_sdk::config::protocol::EigenlayerContractAddresses;
 use gadget_sdk::config::ContextConfig;
 use gadget_sdk::info;
 use gadget_sdk::logging::setup_log;
-use gadget_sdk::runners::eigenlayer::EigenlayerConfig;
+use gadget_sdk::runners::eigenlayer::EigenlayerBLSConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::utils::evm::get_provider_http;
 use reqwest::Url;
@@ -89,7 +90,10 @@ async fn test_eigenlayer_context() {
     );
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
 
-    let mut blueprint = BlueprintRunner::new(EigenlayerConfig {}, env.clone());
+    let mut blueprint = BlueprintRunner::new(
+        EigenlayerBLSConfig::new(Address::default(), Address::default()),
+        env.clone(),
+    );
 
     let result = timeout(Duration::from_secs(90), async {
         tokio::select! {

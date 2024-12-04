@@ -53,6 +53,9 @@ pub enum RunnerError {
     #[error(transparent)]
     AvsRegistryError(#[from] eigensdk::client_avsregistry::error::AvsRegistryError),
 
+    #[error("Transaction error: {0}")]
+    TransactionError(String),
+
     #[error(transparent)]
     TransportError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
 
@@ -61,6 +64,9 @@ pub enum RunnerError {
 
     #[error("Eigenlayer error: {0}")]
     EigenlayerError(String),
+
+    #[error("Signature error: {0}")]
+    SignatureError(String),
 
     #[error("Symbiotic error: {0}")]
     SymbioticError(String),

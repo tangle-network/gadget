@@ -39,7 +39,6 @@ pub type InputValue = runtime_types::tangle_primitives::services::field::Field<A
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod anvil;
-pub mod binding;
 pub mod eigenlayer_test_env;
 pub mod helpers;
 pub mod mpc;

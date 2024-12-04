@@ -110,6 +110,22 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         strategy_manager: Option<Address>,
+        /// The address of the Service Manager
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "SERVICE_MANAGER_ADDRESS",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        service_manager: Option<Address>,
+        /// The address of the Stake Registry
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "STAKE_REGISTRY_ADDRESS",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        stake_registry: Option<Address>,
         /// The address of the AVS directory
         #[arg(
             long,
@@ -208,6 +224,8 @@ impl Default for GadgetCLICoreSettings {
             registry_coordinator: None,
             operator_state_retriever: None,
             delegation_manager: None,
+            service_manager: None,
+            stake_registry: None,
             strategy_manager: None,
             avs_directory: None,
             rewards_coordinator: None,
@@ -260,6 +278,8 @@ impl ContextConfig {
             eigenlayer_contract_addresses.map(|a| a.operator_state_retriever_address);
         let delegation_manager =
             eigenlayer_contract_addresses.map(|a| a.delegation_manager_address);
+        let service_manager = eigenlayer_contract_addresses.map(|a| a.service_manager_address);
+        let stake_registry = eigenlayer_contract_addresses.map(|a| a.stake_registry_address);
         let strategy_manager = eigenlayer_contract_addresses.map(|a| a.strategy_manager_address);
         let avs_directory = eigenlayer_contract_addresses.map(|a| a.avs_directory_address);
         let rewards_coordinator =
@@ -298,6 +318,8 @@ impl ContextConfig {
                 operator_state_retriever,
                 delegation_manager,
                 ws_rpc_url,
+                stake_registry,
+                service_manager,
                 strategy_manager,
                 avs_directory,
                 rewards_coordinator,

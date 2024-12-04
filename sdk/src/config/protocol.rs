@@ -87,6 +87,10 @@ pub struct EigenlayerContractAddresses {
     pub operator_state_retriever_address: Address,
     /// The address of the operator registry contract
     pub delegation_manager_address: Address,
+    /// The address of the Service Manager contract
+    pub service_manager_address: Address,
+    /// The address of the Stake Registry contract
+    pub stake_registry_address: Address,
     /// The address of the strategy manager contract
     pub strategy_manager_address: Address,
     /// The address of the avs registry contract
@@ -100,6 +104,8 @@ impl Default for EigenlayerContractAddresses {
             registry_coordinator_address: address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690"),
             operator_state_retriever_address: address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8"),
             delegation_manager_address: address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"),
+            service_manager_address: address!("0000000000000000000000000000000000000000"),
+            stake_registry_address: address!("0000000000000000000000000000000000000000"),
             strategy_manager_address: address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"),
             avs_directory_address: address!("0000000000000000000000000000000000000000"),
             rewards_coordinator_address: address!("0000000000000000000000000000000000000000"),

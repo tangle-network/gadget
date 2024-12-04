@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use cargo_tangle::create::BlueprintType;
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use keys::KeyType;
@@ -42,6 +43,9 @@ pub enum GadgetCommands {
 
         #[command(flatten)]
         source: Option<create::Source>,
+
+        #[command(flatten)]
+        blueprint_type: Option<BlueprintType>,
     },
 
     /// Deploy a blueprint to the Tangle Network.
@@ -111,8 +115,12 @@ async fn main() -> color_eyre::Result<()> {
 
     match cli.command {
         Commands::Blueprint { subcommand } => match subcommand {
-            GadgetCommands::Create { name, source } => {
-                create::new_blueprint(name, source)?;
+            GadgetCommands::Create {
+                name,
+                source,
+                blueprint_type,
+            } => {
+                create::new_blueprint(name, source, blueprint_type)?;
             }
             GadgetCommands::Deploy {
                 http_rpc_url,

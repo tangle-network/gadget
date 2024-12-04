@@ -1,10 +1,11 @@
 use alloy_network::EthereumWallet;
+use alloy_primitives::Address;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::Result;
 use gadget_sdk::utils::evm::get_wallet_provider_http;
 use gadget_sdk::{
     info,
-    runners::{eigenlayer::EigenlayerConfig, BlueprintRunner},
+    runners::{eigenlayer::EigenlayerBLSConfig, BlueprintRunner},
 };
 use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 use incredible_squaring_blueprint_eigenlayer::{
@@ -45,7 +46,7 @@ async fn main() {
     let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let eigen_config = EigenlayerConfig {};
+    let eigen_config = EigenlayerBLSConfig::new(Address::default(), Address::default());
     BlueprintRunner::new(eigen_config, env)
         .job(x_square_eigen)
         .job(initialize_task)
