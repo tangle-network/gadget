@@ -2,6 +2,8 @@ use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
 use alloy_provider::{Provider, WsConnect};
 use cargo_tangle::deploy::PrivateKeySigner;
 use gadget_sdk::keystore::TanglePairSigner;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::module::Call;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeCall;
 use sp_core::H160;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
@@ -37,8 +39,23 @@ pub async fn deploy_new_mbsm_revision(
         .await?;
 
     let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode.to_vec());
+    let send_result = provider.send_transaction(tx).await;
+    let tx = match send_result {
+        Ok(tx) => tx,
+        Err(err) => {
+            error!("Failed to send transaction: {err}");
+            return Err("Failed to deploy MBSM Contract".into());
+        }
+    };
     // Deploy the contract.
-    let receipt = provider.send_transaction(tx).await?.get_receipt().await?;
+    let tx_result = tx.get_receipt().await;
+    let receipt = match tx_result {
+        Ok(receipt) => receipt,
+        Err(err) => {
+            error!("Failed to deploy MBSM Contract: {err}");
+            return Err("Failed to deploy MBSM Contract".into());
+        }
+    };
     // Check the receipt status.
     let mbsm_address = if receipt.status() {
         ReceiptResponse::contract_address(&receipt).unwrap()
@@ -47,12 +64,15 @@ pub async fn deploy_new_mbsm_revision(
         error!("Receipt: {receipt:#?}");
         return Err("MBSM Contract deployment failed!".into());
     };
-    let call = api::tx()
-        .services()
-        .update_master_blueprint_service_manager(mbsm_address.0 .0.into());
+    info!("MBSM Contract deployed at: {mbsm_address}");
+    let sudo_call = api::tx().sudo().sudo(RuntimeCall::Services(
+        Call::update_master_blueprint_service_manager {
+            address: mbsm_address.0 .0.into(),
+        },
+    ));
     let res = client
         .tx()
-        .sign_and_submit_then_watch_default(&call, account_id)
+        .sign_and_submit_then_watch_default(&sudo_call, account_id)
         .await?;
     let evts = wait_for_in_block_success(res).await?;
     let ev = evts
