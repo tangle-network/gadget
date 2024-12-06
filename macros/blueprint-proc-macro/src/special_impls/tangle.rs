@@ -11,7 +11,7 @@ pub(crate) fn generate_tangle_specific_impl(
     param_map: &IndexMap<Ident, Type>,
     job_params: &[Ident],
     event_listener_args: &EventListenerArgs,
-) -> TokenStream {
+) -> syn::Result<TokenStream> {
     let mut non_job_param_map = get_non_job_arguments(param_map, job_params);
     let mut new_function_signature = vec![];
     let mut constructor_args = vec![];
@@ -45,7 +45,7 @@ pub(crate) fn generate_tangle_specific_impl(
 
     let struct_name_as_literal = struct_name.to_string();
 
-    quote! {
+    Ok(quote! {
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -69,7 +69,7 @@ pub(crate) fn generate_tangle_specific_impl(
 
         #[automatically_derived]
         impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
-    }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

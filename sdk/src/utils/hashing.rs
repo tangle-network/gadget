@@ -2,7 +2,7 @@
 macro_rules! compute_sha256_hash {
     ($($data:expr),*) => {
         {
-            use k256::sha2::{Digest, Sha256};
+            use gadget_sdk::k256::sha2::{Digest, Sha256};
             let mut hasher = Sha256::default();
             $(hasher.update($data);)*
             let result = hasher.finalize();

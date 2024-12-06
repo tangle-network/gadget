@@ -640,12 +640,9 @@ pub fn generate_specialized_logic(
             generate_evm_specific_impl(&struct_name, event_listener_args, param_map, job_params)
         }
 
-        ListenerType::Tangle => Ok(generate_tangle_specific_impl(
-            &struct_name,
-            param_map,
-            job_params,
-            event_listener_args,
-        )),
+        ListenerType::Tangle => {
+            generate_tangle_specific_impl(&struct_name, param_map, job_params, event_listener_args)
+        }
 
         ListenerType::Custom => Ok(proc_macro2::TokenStream::default()),
     }

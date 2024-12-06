@@ -7,7 +7,14 @@ use incredible_squaring_blueprint as blueprint;
 
 #[gadget_sdk::main(env)]
 async fn main() {
-    let x_square = blueprint::XsquareEventHandler::new(&env, blueprint::MyContext).await?;
+    let x_square = blueprint::XsquareEventHandler::new(
+        &env,
+        blueprint::MyContext {
+            config: env.clone(),
+            call_id: None,
+        },
+    )
+    .await?;
 
     info!(
         "Starting the event watcher for {} ...",

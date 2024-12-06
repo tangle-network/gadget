@@ -7,4 +7,6 @@ pub trait TangleClientContext {
     fn tangle_client(
         &self,
     ) -> impl Future<Output = color_eyre::Result<subxt::OnlineClient<Self::Config>, subxt::Error>>;
+
+    fn set_call_id(&mut self, call_id: u64);
 }

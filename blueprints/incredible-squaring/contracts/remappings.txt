@@ -1,4 +1,4 @@
 ds-test/=lib/ds-test/src/
 forge-std/=lib/forge-std/src/
-tnt-core/=lib/tnt-core/src/
 incredible-squaring/=src/
+tnt-core/=lib/tnt-core/src/

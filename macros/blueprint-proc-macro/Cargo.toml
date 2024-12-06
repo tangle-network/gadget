@@ -19,6 +19,7 @@ proc-macro2 = { workspace = true }
 serde_json = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 indexmap = { workspace = true }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
 trybuild = { workspace = true }
