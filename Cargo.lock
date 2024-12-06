@@ -6213,26 +6213,10 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-ec 0.4.2",
- "ark-ff 0.5.0",
- "async-trait",
  "blueprint-metadata",
+ "blueprint-test-utils",
  "color-eyre",
- "ed25519-zebra 4.0.3",
- "eigensdk",
  "gadget-sdk",
- "hex",
- "k256",
- "libp2p",
- "lock_api",
- "parking_lot 0.12.3",
- "serde_json",
- "sp-core",
- "subxt-signer",
- "tokio",
- "tokio-util 0.7.12",
- "tracing",
 ]
 
 [[package]]
