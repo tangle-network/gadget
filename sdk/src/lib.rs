@@ -77,6 +77,7 @@ pub use color_eyre;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;
+pub use k256;
 pub use libp2p;
 pub use parking_lot;
 pub use round_based;

@@ -266,11 +266,10 @@ pub(crate) async fn handle_tangle_event(
 
             // Ensure that we have a test fetcher if we are in test mode
             if gadget_manager_opts.test_mode && test_fetcher_idx.is_none() {
-                warn!(
+                return Err(color_eyre::Report::msg(format!(
                     "No testing fetcher found for blueprint `{}` despite operating in TEST MODE",
                     blueprint.name,
-                );
-                continue;
+                )));
             }
 
             // Ensure that we have only one fetcher if we are in test mode

@@ -4861,6 +4861,7 @@ dependencies = [
  "gadget-sdk",
  "indexmap 2.6.0",
  "itertools 0.13.0",
+ "parking_lot 0.12.3",
  "proc-macro2",
  "quote",
  "serde_json",
