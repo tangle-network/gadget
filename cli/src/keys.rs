@@ -10,6 +10,12 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use w3f_bls::serialize::SerializableToBytes;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Unknown key type: {0}")]
+    UnknownKeyType(String),
+}
+
 #[derive(Clone, Debug)]
 pub enum KeyType {
     Sr25519,
@@ -44,16 +50,17 @@ impl ValueEnum for KeyType {
 }
 
 impl FromStr for KeyType {
-    type Err = String;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        let lower = s.to_lowercase();
+        match lower.as_str() {
             "sr25519" => Ok(Self::Sr25519),
             "ed25519" => Ok(Self::Ed25519),
             "ecdsa" => Ok(Self::Ecdsa),
             "bls381" => Ok(Self::Bls381),
             "blsbn254" => Ok(Self::BlsBn254),
-            _ => Err(format!("Unknown key type: {}", s)),
+            _ => Err(Error::UnknownKeyType(lower)),
         }
     }
 }
@@ -68,20 +75,15 @@ pub fn generate_key(
         None => GenericKeyStore::Mem(InMemoryKeystore::new()),
         Some(file_path) => {
             // Filesystem Keystore
-            GenericKeyStore::Fs(
-                FilesystemKeystore::open(file_path).map_err(|e| eyre!(e.to_string()))?,
-            )
+            GenericKeyStore::Fs(FilesystemKeystore::open(file_path)?)
         }
     };
 
     let (public, secret) = match key_type {
         KeyType::Sr25519 => {
-            let public_key = keystore
-                .sr25519_generate_new(seed)
-                .map_err(|e| eyre!(e.to_string()))?;
+            let public_key = keystore.sr25519_generate_new(seed)?;
             let secret = keystore
-                .expose_sr25519_secret(&public_key)
-                .map_err(|e| eyre!(e.to_string()))?
+                .expose_sr25519_secret(&public_key)?
                 .ok_or(eyre!("Failed to expose secret"))?;
             (
                 hex::encode(public_key.to_bytes()),
@@ -89,22 +91,16 @@ pub fn generate_key(
             )
         }
         KeyType::Ed25519 => {
-            let public_key = keystore
-                .ed25519_generate_new(seed)
-                .map_err(|e| eyre!(e.to_string()))?;
+            let public_key = keystore.ed25519_generate_new(seed)?;
             let secret = keystore
-                .expose_ed25519_secret(&public_key)
-                .map_err(|e| eyre!(e.to_string()))?
+                .expose_ed25519_secret(&public_key)?
                 .ok_or(eyre!("Failed to expose secret"))?;
             (hex::encode(public_key), hex::encode(secret))
         }
         KeyType::Ecdsa => {
-            let public_key = keystore
-                .ecdsa_generate_new(seed)
-                .map_err(|e| eyre!(e.to_string()))?;
+            let public_key = keystore.ecdsa_generate_new(seed)?;
             let secret = keystore
-                .expose_ecdsa_secret(&public_key)
-                .map_err(|e| eyre!(e.to_string()))?
+                .expose_ecdsa_secret(&public_key)?
                 .ok_or(eyre!("Failed to expose secret"))?;
             (
                 hex::encode(public_key.to_sec1_bytes()),
@@ -112,12 +108,9 @@ pub fn generate_key(
             )
         }
         KeyType::Bls381 => {
-            let public_key = keystore
-                .bls381_generate_new(seed)
-                .map_err(|e| eyre!(e.to_string()))?;
+            let public_key = keystore.bls381_generate_new(seed)?;
             let secret = keystore
-                .expose_bls381_secret(&public_key)
-                .map_err(|e| eyre!(e.to_string()))?
+                .expose_bls381_secret(&public_key)?
                 .ok_or(eyre!("Failed to expose secret"))?;
             (
                 hex::encode(public_key.0.to_string()),
@@ -125,12 +118,9 @@ pub fn generate_key(
             )
         }
         KeyType::BlsBn254 => {
-            let public_key = keystore
-                .bls_bn254_generate_new(seed)
-                .map_err(|e| eyre!(e.to_string()))?;
+            let public_key = keystore.bls_bn254_generate_new(seed)?;
             let secret = keystore
-                .expose_bls_bn254_secret(&public_key)
-                .map_err(|e| eyre!(e.to_string()))?
+                .expose_bls_bn254_secret(&public_key)?
                 .ok_or(eyre!("Failed to expose secret"))?;
             (public_key.g1().to_string(), secret.0.to_string())
         }

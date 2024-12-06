@@ -1,7 +1,7 @@
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 pub use alloy_signer_local::PrivateKeySigner;
-use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
+use color_eyre::eyre::{self, Context, ContextCompat, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 #[cfg(test)]
@@ -44,6 +44,25 @@ impl Debug for Opts {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Unsupported blueprint manager kind")]
+    UnsupportedBlueprintManager,
+    #[error("Contract not found at `{0}`, check the manager in your `Cargo.toml`!")]
+    ContractNotFound(PathBuf),
+    #[error("Failed to deserialize contract `{0}`: {1}")]
+    DeserializeContract(String, serde_json::Error),
+    #[error("The source at index {0} does not have a valid fetcher")]
+    MissingFetcher(usize),
+    #[error("No matching packages found in the workspace")]
+    NoPackageFound,
+    #[error("The workspace has multiple packages, please specify the package to deploy")]
+    ManyPackages,
+
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+}
+
 pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
@@ -59,8 +78,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 
     let package = find_package(&metadata, pkg_name)?.clone();
     let package_clone = &package.clone();
-    let mut blueprint =
-        tokio::task::spawn_blocking(move || load_blueprint_metadata(&package)).await??;
+    let mut blueprint = load_blueprint_metadata(&package)?;
     build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
     deploy_contracts_to_tangle(rpc_url.as_ref(), package_clone, &mut blueprint, signer_evm).await?;
 
@@ -158,10 +176,7 @@ async fn deploy_contracts_to_tangle(
     }
     let contract_paths = match blueprint.manager {
         BlueprintManager::Evm(ref path) => vec![(ContractKind::Manager, path)],
-        _ => {
-            eprintln!("Unsupported blueprint manager kind");
-            vec![]
-        }
+        _ => return Err(Error::UnsupportedBlueprintManager.into()),
     };
 
     let abs_contract_paths: Vec<_> = contract_paths
@@ -169,22 +184,32 @@ async fn deploy_contracts_to_tangle(
         .map(|(kind, path)| (kind, resolve_path_relative_to_package(package, path)))
         .collect();
 
-    let contracts = abs_contract_paths
-        .iter()
-        .flat_map(|(kind, path)| {
-            std::fs::read_to_string(path).map(|content| {
-                (
-                    kind,
-                    path.file_stem().unwrap_or_default().to_string_lossy(),
-                    content,
-                )
-            })
-        })
-        .flat_map(|(kind, contract_name, json)| {
-            serde_json::from_str::<alloy_json_abi::ContractObject>(&json)
-                .map(|contract| (kind, contract_name, contract))
-        })
-        .collect::<Vec<_>>();
+    let mut contracts_raw = Vec::new();
+    for (kind, path) in abs_contract_paths {
+        if !path.exists() {
+            return Err(Error::ContractNotFound(path).into());
+        }
+
+        let content = std::fs::read_to_string(&path)?;
+        contracts_raw.push((
+            kind,
+            path.file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+            content,
+        ));
+    }
+
+    let mut contracts = Vec::new();
+    for (kind, contract_name, json) in contracts_raw {
+        let contract = match serde_json::from_str::<alloy_json_abi::ContractObject>(&json) {
+            Ok(contract) => contract,
+            Err(e) => return Err(Error::DeserializeContract(contract_name, e).into()),
+        };
+
+        contracts.push((kind, contract_name, contract));
+    }
 
     if contracts.is_empty() {
         return Ok(());
@@ -242,10 +267,7 @@ fn build_contracts_if_needed(
 ) -> Result<()> {
     let pathes_to_check = match blueprint.manager {
         BlueprintManager::Evm(ref path) => vec![path],
-        _ => {
-            eprintln!("Unsupported blueprint manager kind");
-            vec![]
-        }
+        _ => return Err(Error::UnsupportedBlueprintManager.into()),
     };
 
     let abs_pathes_to_check: Vec<_> = pathes_to_check
@@ -301,29 +323,29 @@ fn bake_blueprint(
     // The source includes where to fetch the Blueprint, the name of the blueprint, and
     // the name of the binary. From this data, we create the blueprint's [`ServiceBlueprint`]
     for (idx, source) in sources.iter_mut().enumerate() {
-        if let Some(fetchers) = source["fetcher"].as_object_mut() {
-            let fetcher_fields = fetchers
-                .iter_mut()
-                .next()
-                .expect("Should be at least one fetcher")
-                .1;
-            for (_key, value) in fetcher_fields
-                .as_object_mut()
-                .expect("Fetcher should be a map")
-            {
-                if value.is_array() {
-                    let xs = value.as_array_mut().expect("Value should be an array");
-                    for x in xs {
-                        if x.is_object() {
-                            convert_to_bytes_or_null(&mut x["name"]);
-                        }
+        let Some(fetchers) = source["fetcher"].as_object_mut() else {
+            return Err(Error::MissingFetcher(idx).into());
+        };
+
+        let fetcher_fields = fetchers
+            .iter_mut()
+            .next()
+            .expect("Should be at least one fetcher")
+            .1;
+        for (_key, value) in fetcher_fields
+            .as_object_mut()
+            .expect("Fetcher should be a map")
+        {
+            if value.is_array() {
+                let xs = value.as_array_mut().expect("Value should be an array");
+                for x in xs {
+                    if x.is_object() {
+                        convert_to_bytes_or_null(&mut x["name"]);
                     }
-                } else {
-                    convert_to_bytes_or_null(value);
                 }
+            } else {
+                convert_to_bytes_or_null(value);
             }
-        } else {
-            panic!("The source at index {idx} does not have a valid fetcher");
         }
     }
 
@@ -365,26 +387,24 @@ fn find_package<'m>(
     pkg_name: Option<&String>,
 ) -> Result<&'m cargo_metadata::Package, eyre::Error> {
     match metadata.workspace_members.len() {
-        0 => Err(eyre::eyre!("No packages found in the workspace")),
+        0 => Err(Error::NoPackageFound.into()),
         1 => metadata
             .packages
             .iter()
             .find(|p| p.id == metadata.workspace_members[0])
-            .ok_or_eyre("No package found in the workspace"),
+            .ok_or(Error::NoPackageFound.into()),
         _more_than_one if pkg_name.is_some() => metadata
             .packages
             .iter()
             .find(|p| pkg_name.is_some_and(|v| &p.name == v))
-            .ok_or_eyre("No package found in the workspace with the specified name"),
+            .ok_or(Error::NoPackageFound.into()),
         _otherwise => {
             eprintln!("Please specify the package to deploy:");
             for package in metadata.packages.iter() {
                 eprintln!("Found: {}", package.name);
             }
             eprintln!();
-            Err(eyre::eyre!(
-                "The workspace has multiple packages, please specify the package to deploy"
-            ))
+            Err(Error::ManyPackages.into())
         }
     }
 }

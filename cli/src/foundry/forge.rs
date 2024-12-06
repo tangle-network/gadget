@@ -1,7 +1,15 @@
 use super::CommandInstalled;
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::Result;
 use gadget_sdk::tracing;
 use std::process::Command;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Failed to build contracts")]
+    BuildContracts,
+    #[error("Failed to install dependencies")]
+    InstallDependencies,
+}
 
 pub struct Forge {
     cmd: Command,
@@ -42,7 +50,7 @@ impl Forge {
             .spawn()?
             .wait()?;
         if !status.success() {
-            return Err(eyre!("Failed to build contracts"));
+            return Err(Error::BuildContracts.into());
         }
         Ok(())
     }
@@ -56,7 +64,7 @@ impl Forge {
             .stdout(std::process::Stdio::inherit())
             .output()?;
         if !output.status.success() {
-            return Err(eyre!("Failed to install dependencies"));
+            return Err(Error::InstallDependencies.into());
         }
         Ok(())
     }
