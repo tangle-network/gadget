@@ -363,23 +363,9 @@ pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result
     Ok(())
 }
 
-/// Returns the output of "git rev-parse --show-toplevel" to get the root of the git repository as a PathBuf.
-/// If it's not in a git repo, default to return the current directory
 pub fn get_blueprint_base_dir() -> PathBuf {
-    let output = std::process::Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .output()
-        .expect("Failed to run git command");
-
-    if output.status.success() {
-        let path = std::str::from_utf8(&output.stdout)
-            .expect("Failed to convert output to string")
-            .trim();
-        PathBuf::from(path)
-    } else {
-        std::env::current_dir().expect("Failed to get current directory")
-    }
+    // TODO: Walk up to find the closest manifest. This only work if `cargo test` is run from the project root.
+    std::env::current_dir().expect("Failed to get current directory")
 }
 
 pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest> {

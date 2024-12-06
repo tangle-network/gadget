@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::PerTestNodeInput;
+use crate::{get_blueprint_base_dir, read_cargo_toml_file, PerTestNodeInput};
 use alloy_primitives::hex;
 use futures::StreamExt;
 use blueprint_manager::executor::BlueprintManagerHandle;
@@ -41,6 +41,7 @@ use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::subxt_core::config::Header;
 use gadget_sdk::utils::test_utils::get_client;
+use crate::tangle::node::SubstrateNode;
 use crate::tangle::transactions;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
@@ -60,7 +61,6 @@ pub async fn new_test_ext_blueprint_manager<
     Fut: SendFuture<'static, BlueprintManagerHandle>,
 >(
     additional_params: D,
-    mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
     assert!(N > 0, "At least one node is required");
@@ -68,6 +68,31 @@ pub async fn new_test_ext_blueprint_manager<
 
     let span = tracing::info_span!("Integration-Test");
     let _span = span.enter();
+
+    let base_path = get_blueprint_base_dir();
+    let base_path = base_path
+        .canonicalize()
+        .expect("File could not be normalized");
+
+    let manifest_path = base_path.join("Cargo.toml");
+    tracing::debug!("Manifest path: {}", manifest_path.display());
+
+    let manifest =
+        read_cargo_toml_file(&manifest_path).expect("Failed to read blueprint's Cargo.toml");
+    let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
+
+    tracing::info!("Starting Tangle node...");
+    let tangle_node = crate::tangle::run().unwrap();
+    tracing::info!("Tangle node running on port: {}", tangle_node.ws_port());
+
+    let mut opts = Opts {
+        pkg_name: Some(blueprint_name),
+        http_rpc_url: format!("http://127.0.0.1:{}", tangle_node.ws_port()),
+        ws_rpc_url: format!("ws://127.0.0.1:{}", tangle_node.ws_port()),
+        manifest_path,
+        signer: None,
+        signer_evm: None,
+    };
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -323,6 +348,7 @@ pub async fn new_test_ext_blueprint_manager<
     drop(_span);
 
     LocalhostTestExt {
+        _tangle_node: tangle_node,
         client,
         handles,
         span,
@@ -342,6 +368,8 @@ pub fn find_open_tcp_bind_port() -> u16 {
 }
 
 pub struct LocalhostTestExt {
+    // Unused, stored here to keep it from dropping early
+    _tangle_node: SubstrateNode,
     client: TangleClient,
     handles: Vec<BlueprintManagerHandle>,
     span: tracing::Span,
