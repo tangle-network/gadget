@@ -98,7 +98,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let call_id_injector = quote! {
         let mut injected_context = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            injected_context.set_call_id(call_id);
+            gadget_sdk::contexts::TangleClientContext::set_call_id(&mut injected_context, call_id);
         }
     };
 
