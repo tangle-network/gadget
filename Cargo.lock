@@ -2130,7 +2130,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-test-utils"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -2384,7 +2384,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
