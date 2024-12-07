@@ -11,6 +11,8 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::Job
 pub struct ExampleServiceContext {
     #[config]
     sdk_config: StdGadgetConfiguration,
+    #[call_id]
+    call_id: Option<u64>,
 }
 
 pub async fn constructor(
@@ -24,9 +26,15 @@ pub async fn constructor(
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
     gadget_sdk::info!("Starting the event watcher for {} ...", signer.account_id());
-    HandleJobEventHandler::new(&env.clone(), ExampleServiceContext { sdk_config: env })
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!(e))
+    HandleJobEventHandler::new(
+        &env.clone(),
+        ExampleServiceContext {
+            sdk_config: env,
+            call_id: None,
+        },
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!(e))
 }
 
 #[job(
@@ -39,8 +47,8 @@ pub async fn constructor(
     ),
 )]
 pub async fn handle_job(
-    job_details: Vec<u8>,
     context: ExampleServiceContext,
+    job_details: Vec<u8>,
 ) -> Result<u64, gadget_sdk::Error> {
     let client = context.tangle_client().await.unwrap();
     let blueprint_owner = context.current_blueprint_owner(&client).await.unwrap();

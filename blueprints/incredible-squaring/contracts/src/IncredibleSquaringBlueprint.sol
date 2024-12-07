@@ -33,7 +33,6 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
         public
         payable
         virtual
-        override
         onlyFromRootChain
     {
         IncredibleSquaringInstance deployed = new IncredibleSquaringInstance(serviceId);
@@ -57,7 +56,7 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
         bytes calldata participant,
         bytes calldata inputs,
         bytes calldata outputs
-    ) public payable override {
+    ) public payable {
         // Decode the inputs and outputs
         uint256 input = abi.decode(inputs, (uint256));
         uint256 output = abi.decode(outputs, (uint256));

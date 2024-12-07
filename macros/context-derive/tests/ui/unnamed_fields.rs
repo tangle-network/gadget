@@ -5,12 +5,16 @@ use gadget_sdk::contexts::{
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]
-struct MyContext(String, #[config] StdGadgetConfiguration);
+struct MyContext(
+    String,
+    #[config] StdGadgetConfiguration,
+    #[call_id] Option<u64>,
+);
 
 #[allow(dead_code)]
 fn main() {
     let body = async {
-        let ctx = MyContext("bar".to_string(), GadgetConfiguration::default());
+        let ctx = MyContext("bar".to_string(), GadgetConfiguration::default(), None);
         let _keystore = ctx.keystore();
         let _evm_provider = ctx.evm_provider().await;
         let tangle_client = ctx.tangle_client().await.unwrap();

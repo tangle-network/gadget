@@ -1,11 +1,17 @@
 use gadget_sdk::config::StdGadgetConfiguration;
+use gadget_sdk::contexts::TangleClientContext;
 use gadget_sdk::event_listener::tangle::{TangleEvent, TangleEventListener};
 use gadget_sdk::event_utils::InitializableEventHandler;
 use gadget_sdk::job;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 
-#[derive(Clone)]
-pub struct MyContext;
+#[derive(Clone, TangleClientContext)]
+pub struct MyContext {
+    #[config]
+    sdk_config: StdGadgetConfiguration,
+    #[call_id]
+    call_id: Option<u64>,
+}
 
 pub async fn constructor(
     env: StdGadgetConfiguration,
@@ -17,9 +23,15 @@ pub async fn constructor(
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
     gadget_sdk::info!("Starting the event watcher for {} ...", signer.account_id());
-    RawEventHandler::new(&env, MyContext)
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!(e))
+    RawEventHandler::new(
+        &env,
+        MyContext {
+            sdk_config: env.clone(),
+            call_id: None,
+        },
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!(e))
 }
 
 #[job(

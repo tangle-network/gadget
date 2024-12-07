@@ -8,6 +8,7 @@
 //! # Example
 //!
 //! ```rust,no_run
+//! use gadget_context_derive::TangleClientContext;
 //! use gadget_sdk::config::StdGadgetConfiguration;
 //! use gadget_sdk::contexts::KeystoreContext;
 //! use gadget_sdk::event_listener::tangle::jobs::{
@@ -19,12 +20,14 @@
 //!
 //! // This your struct that encapsulates all the things you need from outside world.
 //! // By deriving KeystoreContext, you can now access the keystore client from your struct.
-//! #[derive(Clone, Debug, KeystoreContext)]
+//! #[derive(Clone, Debug, KeystoreContext, TangleClientContext)]
 //! struct MyContext {
 //!     foo: String,
 //!     bar: u64,
 //!     #[config]
 //!     sdk_config: StdGadgetConfiguration,
+//!     #[call_id]
+//!     call_id: Option<u64>,
 //! }
 //!
 //! #[job(

@@ -124,7 +124,7 @@ pub(crate) fn get_evm_job_processor_wrapper(
         quote! {
             let inputs = param0;
             #(#params_tokens)*
-            let res = #fn_name_ident (#(#ordered_inputs)*) #asyncness;
+            let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
         }
     };
 
