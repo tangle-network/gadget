@@ -1,0 +1,132 @@
+[package]
+name = "gadget-keystore"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core dependencies (always included)
+gadget-std = { workspace = true, default-features = false }
+async-trait = { workspace = true, default-features = false }
+lock_api = { workspace = true, default-features = false }
+parking_lot = { workspace = true, default-features = false }
+thiserror = { workspace = true, default-features = false }
+zeroize = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive"], default-features = false }
+hex = { workspace = true, default-features = false }
+
+# Crypto primitives (optional)
+k256 = { workspace = true, default-features = false, optional = true }
+schnorrkel = { workspace = true, default-features = false, optional = true }
+ed25519-zebra = { workspace = true, default-features = false, optional = true }
+w3f-bls = { workspace = true, default-features = false, optional = true }
+rust-bls-bn254 = { workspace = true, default-features = false, optional = true }
+
+# EVM dependencies (optional)
+alloy-primitives = { workspace = true, optional = true }
+alloy-signer = { workspace = true, optional = true }
+alloy-signer-local = { workspace = true, optional = true }
+
+# Substrate dependencies (optional)
+sp-core = { workspace = true, default-features = false, optional = true }
+sp-io = { workspace = true, default-features = false, optional = true }
+subxt-core = { workspace = true, default-features = false, optional = true }
+tangle-subxt = { workspace = true, default-features = false, optional = true }
+
+# Eigenlayer dependencies (optional)
+eigensdk = { workspace = true, features = ["signer", "crypto-bls", "crypto-bn254"], default-features = false, optional = true }
+ark-serialize = { workspace = true, default-features = false, optional = true }
+ark-bn254 = { workspace = true, default-features = false, optional = true }
+ark-ec = { workspace = true, default-features = false, optional = true }
+ark-ff = { workspace = true, default-features = false, optional = true }
+
+# Optional dependencies
+serde_json = { workspace = true, default-features = false, optional = true }
+tokio = { workspace = true, features = ["full"], optional = true }
+
+# Hardware/Cloud wallet support (optional)
+alloy-signer-aws = { workspace = true, optional = true }
+alloy-signer-gcp = { workspace = true, optional = true }
+alloy-signer-ledger = { workspace = true, features = ["eip712"], optional = true }
+alloy-signer-trezor = { workspace = true, optional = true }
+
+[features]
+default = ["std", "tangle-full", "eigenlayer-full"]
+
+# Core features
+std = [
+    # Basic std dependencies
+    "serde/std",
+    "hex/std",
+    "zeroize/std",
+    "gadget-std/std",
+    "tokio",
+    "serde_json/std",
+    
+    # Conditional std enables for crypto
+    "k256?/std",
+    "schnorrkel?/std",
+    "ed25519-zebra?/std",
+    "w3f-bls?/std",
+    "rust-bls-bn254?/std",
+    
+    # Conditional std enables for protocols
+    "alloy-primitives?/std",
+    "sp-core?/std",
+    "sp-io?/std",
+    "subxt-core?/std",
+    "ark-serialize?/std",
+]
+
+# Crypto primitive features
+ecdsa = ["k256"]
+sr25519-schnorrkel = ["schnorrkel"]
+zebra = ["ed25519-zebra"]
+sp-core-bls381 = ["sp-core/bls-experimental"]
+bls381 = ["w3f-bls"]
+bn254 = ["rust-bls-bn254", "arkworks"]
+arkworks = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize"]
+
+# Protocol features
+evm = [
+    "ecdsa",
+    "alloy-primitives",
+    "alloy-signer",
+    "alloy-signer-local",
+]
+
+tangle = [
+    "sp-core",
+    "sp-io", 
+    "subxt-core",
+    "tangle-subxt",
+    "ecdsa",
+]
+
+eigenlayer = [
+    "evm",
+    "eigensdk",
+    "bn254",
+]
+
+symbiotic = [
+    "evm",
+]
+
+# Optional protocol crypto features
+tangle-full = ["tangle", "sp-core-bls381", "bn254"]
+eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
+symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
+
+# Hardware/Cloud wallet support
+aws-signer = ["alloy-signer-aws", "evm", "std"]
+gcp-signer = ["alloy-signer-gcp", "evm", "std"]
+ledger-browser = ["evm", "alloy-signer-ledger/browser"]
+ledger-node = ["evm", "alloy-signer-ledger/node"]
+trezor-signer = ["alloy-signer-trezor", "evm", "std"]
+
+# Add a new feature for standalone bn254:
+standalone-bn254 = ["bn254"]
