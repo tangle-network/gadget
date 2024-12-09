@@ -43,6 +43,7 @@ use gadget_sdk::subxt_core::config::Header;
 use gadget_sdk::utils::test_utils::get_client;
 use crate::tangle::node::SubstrateNode;
 use crate::tangle::transactions;
+use tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
@@ -171,40 +172,9 @@ pub async fn new_test_ext_blueprint_manager<
     match latest_revision {
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
-            // Find the JSON file dynamically
-            let json_path = std::fs::read_dir("../dependencies")
-                .expect("Failed to read dependencies directory")
-                .filter_map(Result::ok)
-                .find_map(|entry| {
-                    let path = entry.path();
-                    if path.is_dir() && path.file_name().and_then(|n| n.to_str()).map_or(false, |s| s.starts_with("tnt-core")) {
-                        let json_path = path.join("out").join("MasterBlueprintServiceManager.sol").join("MasterBlueprintServiceManager.json");
-                        if json_path.exists() {
-                            Some(json_path)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "JSON file not found")).expect("Failed to find MBSM JSON file");
-            // Read the JSON file
-            let contents = std::fs::read_to_string(json_path).expect("Failed to read MBSM JSON file");
-            // Parse the JSON
-            let v: serde_json::Value = serde_json::from_str(&contents).expect("Failed to parse MBSM JSON file");
-            // Extract the bytecode
-            let bytecode_hex = v["bytecode"]
-                .as_str()
-                .ok_or("Bytecode not found or not a string")
-                .expect("MBSM bytecode not found")
-                .to_string();
-            let mut raw_hex = bytecode_hex.replace("0x", "").replace("\n", "");
-            // fix odd length
-            if raw_hex.len() % 2 != 0 {
-                raw_hex = format!("0{}", raw_hex);
-            }
-            let bytecode = hex::decode(&raw_hex).expect("valid bytecode in hex format");
+            let bytecode = MASTER_BLUEPRINT_SERVICE_MANAGER.to_vec();
+            debug!("Using MBSM bytecode of length: {}", bytecode.len());
+
             let ev = transactions::deploy_new_mbsm_revision(
                 &local_tangle_node_ws,
                 &client,

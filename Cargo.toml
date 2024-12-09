@@ -63,11 +63,12 @@ cargo-tangle = { path = "./cli", version = "0.3.2" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.7.0", default-features = false }
+tangle-subxt = { git = "https://github.com/tangle-network/tangle.git", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
 round-based = "0.3.0"
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
 
 sp-core = { version = "31.0.0", default-features = false }
 sp-io = { version = "33.0.0", default-features = false }

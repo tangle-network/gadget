@@ -45,6 +45,7 @@ url = { workspace = true }
 cargo-tangle = { workspace = true, default-features = true }
 gadget-io = { workspace = true, default-features = false }
 gadget-sdk = { workspace = true }
+tnt-core-bytecode = { workspace = true }
 
 # Alloy-related
 alloy-contract = { workspace = true }
