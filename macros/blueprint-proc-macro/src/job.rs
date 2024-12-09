@@ -230,20 +230,20 @@ pub(crate) fn generate_event_workflow_tokenstream(
             // convert the listener var, which is just a struct name, to an ident
             let listener = listener_meta.listener.to_token_stream();
 
+            // Raw events have no pre-processor, therefore their inputs are passed directly into the job function
+            // and NOT as job params
+            let is_raw = listener_meta.is_raw();
+
             // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
             // We assume the first supplied event handler arg is the context we are injecting into the event listener
             // Then, pass that into the EventFlowWrapper
             let fn_name_ident = &input.sig.ident;
             let static_ctx_get_override = quote! { CTX.get().unwrap() };
-            let mut ordered_inputs =
-                get_fn_call_ordered(param_types, params, Some(static_ctx_get_override))?;
+            let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
+                get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
 
             let asyncness = get_asyncness(input);
             let call_id_static_name = get_current_call_id_field_name(input);
-
-            // Raw events have no pre-processor, therefore their inputs are passed directly into the job function
-            // and NOT as job params
-            let is_raw = listener_meta.is_raw();
 
             // TODO: task 001: find better way to identify which ident is the raw event
             // for now, we assume the raw event is always listed first
@@ -257,7 +257,12 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     // If is_raw, assume the actual context is the second param
                     quote! { ctx. #field_in_self .clone() }
                 })
-                .ok_or_else(|| syn::Error::new(Span::call_site(), "Must specify a context"))?;
+                .ok_or_else(|| {
+                    syn::Error::new(
+                        Span::call_site(),
+                        "Must specify a context (field_in_self_getter)",
+                    )
+                })?;
 
             let autogen_struct_name = quote! { #struct_name };
 
@@ -292,9 +297,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     event_listeners,
                     &mut ordered_inputs,
                     fn_name_ident,
-                    &call_id_static_name,
                     &asyncness,
                     &return_type,
+                    ctx_pos_in_ordered_inputs,
                 )?,
 
                 ListenerType::Evm => get_evm_job_processor_wrapper(
@@ -312,7 +317,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
                     quote! {
                         move |param0| async move {
-                            let res = #fn_name_ident (#(#ordered_inputs)*) #asyncness;
+                            let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
                             #job_processor_call_return
                         }
                     }
@@ -329,7 +334,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                                 let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
                                     results: job_result,
                                     service_id: ctx.service_id,
-                                    call_id: #call_id_static_name.load(std::sync::atomic::Ordering::Relaxed),
+                                    call_id: #call_id_static_name.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                                     client: ctx.client.clone(),
                                     signer: ctx.signer.clone(),
                                 };
@@ -377,8 +382,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let next_listener = quote! {
                 async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                     static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                    if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
-                        ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
                         let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
 
                         static CTX: gadget_sdk::tokio::sync::OnceCell<#autogen_struct_name> = gadget_sdk::tokio::sync::OnceCell::const_new();
@@ -568,7 +572,8 @@ pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
     replacement_for_self: Option<proc_macro2::TokenStream>,
-) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    is_raw: bool,
+) -> syn::Result<(usize, Vec<proc_macro2::TokenStream>)> {
     let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
 
     let additional_var_indexes: Vec<usize> =
@@ -583,6 +588,8 @@ pub fn get_fn_call_ordered(
 
     // This has all params
     let mut job_var_idx = 0;
+    let mut non_job_var_count = 0;
+    let mut ctx_pos = None;
     let this = replacement_for_self.unwrap_or_else(|| quote! { self });
     let ret = param_types
         .iter()
@@ -595,7 +602,7 @@ pub fn get_fn_call_ordered(
             if is_job_var {
                 let ident = format_ident!("param{job_var_idx}");
                 job_var_idx += 1;
-                return quote! { #ident, };
+                return quote! { #ident };
             }
 
             let (is_ref, is_ref_mut) = match ty {
@@ -603,17 +610,35 @@ pub fn get_fn_call_ordered(
                 _ => (false, false),
             };
 
+            if non_job_var_count == 0 {
+                // Assume first non-job var is the context
+                ctx_pos = Some(pos_in_all_args);
+            }
+
+            non_job_var_count += 1;
+
             if is_ref && is_ref_mut {
-                quote! { &mut #this .#ident, }
+                quote! { &mut #this .#ident }
             } else if is_ref {
-                quote! { &#this .#ident, }
+                quote! { &#this .#ident }
             } else {
-                quote! { #this .#ident.clone(), }
+                quote! { #this .#ident.clone() }
             }
         })
         .collect::<Vec<_>>();
 
-    Ok(ret)
+    if is_raw {
+        ctx_pos = Some(1); // Raw events have only two events: 0 = the raw event, 1 = the context
+    }
+
+    let ctx_pos = ctx_pos.ok_or_else(|| {
+        syn::Error::new(
+            Span::call_site(),
+            "Could not find the context in the function signature",
+        )
+    })?;
+
+    Ok((ctx_pos, ret))
 }
 
 fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {
@@ -640,12 +665,9 @@ pub fn generate_specialized_logic(
             generate_evm_specific_impl(&struct_name, event_listener_args, param_map, job_params)
         }
 
-        ListenerType::Tangle => Ok(generate_tangle_specific_impl(
-            &struct_name,
-            param_map,
-            job_params,
-            event_listener_args,
-        )),
+        ListenerType::Tangle => {
+            generate_tangle_specific_impl(&struct_name, param_map, job_params, event_listener_args)
+        }
 
         ListenerType::Custom => Ok(proc_macro2::TokenStream::default()),
     }

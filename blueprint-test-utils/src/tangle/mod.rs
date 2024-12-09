@@ -117,7 +117,8 @@ macro_rules! test_tangle_blueprint {
         $T:tt,
         $job_id:tt,
         [$($inputs:expr),*],
-        [$($expected_output:expr),*]
+        [$($expected_output:expr),*],
+        $call_id:expr,
     ) => {
         ::blueprint_test_utils::tangle_blueprint_test_template!(
             $N,
@@ -138,6 +139,7 @@ macro_rules! test_tangle_blueprint {
                     service_id,
                     $job_id as ::blueprint_test_utils::Job,
                     job_args,
+                    $call_id,
                 )
                 .await
                 .expect("Failed to submit job");
@@ -174,7 +176,8 @@ macro_rules! test_tangle_blueprint {
         $job_id:tt,
         [$($input:expr),*],
         [$($expected_output:expr),*]
+        $call_id:expr,
     ) => {
-        ::blueprint_test_utils::test_tangle_blueprint!($N, $N, $job_id, [$($input),+], [$($expected_output),+]);
+        ::blueprint_test_utils::test_tangle_blueprint!($N, $N, $job_id, [$($input),+], [$($expected_output),+], $call_id);
     };
 }

@@ -11,7 +11,7 @@ pub(crate) fn generate_tangle_specific_impl(
     param_map: &IndexMap<Ident, Type>,
     job_params: &[Ident],
     event_listener_args: &EventListenerArgs,
-) -> TokenStream {
+) -> syn::Result<TokenStream> {
     let mut non_job_param_map = get_non_job_arguments(param_map, job_params);
     let mut new_function_signature = vec![];
     let mut constructor_args = vec![];
@@ -45,7 +45,7 @@ pub(crate) fn generate_tangle_specific_impl(
 
     let struct_name_as_literal = struct_name.to_string();
 
-    quote! {
+    Ok(quote! {
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -69,7 +69,7 @@ pub(crate) fn generate_tangle_specific_impl(
 
         #[automatically_derived]
         impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
-    }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -79,9 +79,9 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     event_listeners: &EventListenerArgs,
     ordered_inputs: &mut Vec<TokenStream>,
     fn_name_ident: &Ident,
-    call_id_static_name: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
+    ctx_post_in_ordered_inputs: usize,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(job_params, param_map)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
@@ -91,37 +91,48 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         const PARAMETER_COUNT: usize = #parameter_count;
     };
 
+    let injected_context = ordered_inputs[ctx_post_in_ordered_inputs].clone();
+    let call_id_injector = quote! {
+        let mut injected_context = #injected_context;
+        if let Some(call_id) = tangle_event.call_id {
+            gadget_sdk::contexts::TangleClientContext::set_call_id(&mut injected_context, call_id);
+        }
+    };
+
+    ordered_inputs[ctx_post_in_ordered_inputs] = quote! { injected_context };
+
     let job_processor_call = if params_tokens.is_empty() {
         let second_param = ordered_inputs
             .pop()
             .ok_or_else(|| syn::Error::new(Span::call_site(), "Context type required"))?;
         quote! {
+            #call_id_injector
             // If no args are specified, assume this job has no parameters and thus takes in the raw event
-            let res = #fn_name_ident (param0, #second_param) #asyncness;
+            let res = #fn_name_ident (tangle_event, #second_param) #asyncness;
         }
     } else {
         quote! {
             #parameter_count_const
 
-            if param0.args.len() != PARAMETER_COUNT {
+            if tangle_event.args.len() != PARAMETER_COUNT {
                 return Err(
-                    ::gadget_sdk::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", param0.args.len()))
+                    ::gadget_sdk::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", tangle_event.args.len()))
                 );
             }
 
-            let mut args = param0.args.into_iter();
+            let mut args = tangle_event.args.clone().into_iter();
             #(#params_tokens)*
-            let res = #fn_name_ident (#(#ordered_inputs)*) #asyncness;
+
+            #call_id_injector
+
+            let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
         }
     };
 
     let job_processor_call_return = get_return_type_wrapper(return_type);
 
     Ok(quote! {
-        move |param0: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {
-            if let Some(call_id) = param0.call_id {
-                #call_id_static_name.store(call_id, std::sync::atomic::Ordering::Relaxed);
-            }
+        move |tangle_event: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {
 
             #job_processor_call
             #job_processor_call_return

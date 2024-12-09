@@ -1,15 +1,16 @@
+use crate::contexts::TangleClientContext;
 use crate::event_listener::tangle::{EventMatcher, TangleEvent, TangleResult};
 use crate::Error;
 use std::any::Any;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};
 
-pub async fn services_pre_processor<C, E: EventMatcher<Output: Clone>>(
+pub async fn services_pre_processor<C: TangleClientContext, E: EventMatcher<Output: Clone>>(
     event: TangleEvent<C, E>,
 ) -> Result<TangleEvent<C, E>, Error> {
     let TangleEvent {
         evt,
-        context,
+        mut context,
         block_number,
         signer,
         client,
@@ -29,10 +30,14 @@ pub async fn services_pre_processor<C, E: EventMatcher<Output: Clone>>(
             return Err(Error::SkipPreProcessedType);
         };
 
-    crate::info!("Pre-processing event for sid/bid = {service_id}/{job_id} ...");
+    crate::info!("Pre-processing event for service-id/job-id = {service_id}/{job_id} ...");
 
     if event_job_id == job_id && event_service_id == service_id {
-        crate::info!("Found actionable event for sid/bid = {event_service_id}/{event_job_id} ...");
+        crate::info!(
+            "Found actionable event for service-id/job-id = {event_service_id}/{event_job_id} ..."
+        );
+        // Set the call ID that way the user can access it in the job function
+        context.set_call_id(event_call_id);
         return Ok(TangleEvent {
             evt: *boxed_item.downcast().unwrap(),
             context,
@@ -64,7 +69,7 @@ pub async fn services_post_processor<R: serde::Serialize>(
     let response = api::tx().services().submit_result(
         service_id,
         call_id,
-        vec![dbg!(blueprint_serde::to_field(results)?)],
+        vec![blueprint_serde::to_field(results)?],
     );
     let _ = crate::tx::tangle::send(&client, &signer, &response)
         .await

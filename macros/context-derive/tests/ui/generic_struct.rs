@@ -10,6 +10,8 @@ struct MyContext<T, U> {
     bar: U,
     #[config]
     sdk_config: StdGadgetConfiguration,
+    #[call_id]
+    call_id: Option<u64>,
 }
 
 #[allow(dead_code)]
@@ -19,6 +21,7 @@ fn main() {
             foo: "bar".to_string(),
             bar: 42,
             sdk_config: GadgetConfiguration::default(),
+            call_id: None,
         };
         let _keystore = ctx.keystore();
         let _evm_provider = ctx.evm_provider().await.unwrap();

@@ -7,7 +7,23 @@ use incredible_squaring_blueprint as blueprint;
 
 #[gadget_sdk::main(env)]
 async fn main() {
-    let x_square = blueprint::XsquareEventHandler::new(&env, blueprint::MyContext).await?;
+    let x_square = blueprint::XsquareEventHandler::new(
+        &env,
+        blueprint::MyContext {
+            config: env.clone(),
+            call_id: None,
+        },
+    )
+    .await?;
+
+    let test_call_id = blueprint::TestCallIdEventHandler::new(
+        &env,
+        blueprint::MyContext {
+            config: env.clone(),
+            call_id: None,
+        },
+    )
+    .await?;
 
     info!(
         "Starting the event watcher for {} ...",
@@ -18,6 +34,7 @@ async fn main() {
     let tangle_config = TangleConfig::default();
     BlueprintRunner::new(tangle_config, env)
         .job(x_square)
+        .job(test_call_id)
         .run()
         .await?;
 
