@@ -37,7 +37,7 @@ pub fn xsquare(x: u64, context: MyContext) -> Result<u64, gadget_sdk::Error> {
     ),
 )]
 pub fn test_call_id(context: MyContext, call_id: u64) -> Result<u64, gadget_sdk::Error> {
-    gadget_sdk::error!("JOB CALL ID: {:?}, {}", context.call_id, call_id);
+    gadget_sdk::info!("JOB CALL ID: {:?}, {}", context.call_id, call_id);
     if context.call_id.unwrap() != call_id {
         return Err(gadget_sdk::Error::Other(String::from("Call ID mismatch!")));
     }

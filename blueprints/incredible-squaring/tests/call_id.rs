@@ -76,7 +76,10 @@ async fn call_id_valid() {
                     assert_eq!(result, expected);
                 }
 
-                gadget_sdk::info!("*** Finished iteration {} ***", CALL_ID.load(Ordering::Relaxed));
+                gadget_sdk::info!(
+                    "*** Finished iteration {} ***",
+                    CALL_ID.load(Ordering::Relaxed)
+                );
                 CALL_ID.fetch_add(1, Ordering::Relaxed);
             }
         })
