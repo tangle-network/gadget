@@ -19,6 +19,8 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{Jo
 use subxt::tx::TxProgress;
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::subxt_core::tx::signer::Signer;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{Assets, PaymentAsset};
 use crate::TestClient;
 
 /// Deploy a new MBSM revision and returns the result.
@@ -175,8 +177,9 @@ pub async fn request_service(
         test_nodes.clone(),
         test_nodes,
         Default::default(),
-        vec![0],
+        Assets::from([0]),
         1000,
+        PaymentAsset::from(Asset::Custom(0)),
         value,
     );
     let res = client
