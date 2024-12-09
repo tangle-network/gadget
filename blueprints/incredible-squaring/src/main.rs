@@ -16,6 +16,15 @@ async fn main() {
     )
     .await?;
 
+    let test_call_id = blueprint::TestCallIdEventHandler::new(
+        &env,
+        blueprint::MyContext {
+            config: env.clone(),
+            call_id: None,
+        },
+    )
+    .await?;
+
     info!(
         "Starting the event watcher for {} ...",
         x_square.signer.account_id()
@@ -25,6 +34,7 @@ async fn main() {
     let tangle_config = TangleConfig::default();
     BlueprintRunner::new(tangle_config, env)
         .job(x_square)
+        .job(test_call_id)
         .run()
         .await?;
 

@@ -26,3 +26,21 @@ pub fn xsquare(x: u64, context: MyContext) -> Result<u64, gadget_sdk::Error> {
     assert!(context.call_id.is_some());
     Ok(x.saturating_pow(2))
 }
+
+#[job(
+    id = 1,
+    params(call_id),
+    event_listener(
+        listener = TangleEventListener<MyContext, JobCalled>,
+        pre_processor = services_pre_processor,
+        post_processor = services_post_processor,
+    ),
+)]
+pub fn test_call_id(context: MyContext, call_id: u64) -> Result<u64, gadget_sdk::Error> {
+    gadget_sdk::error!("JOB CALL ID: {:?}, {}", context.call_id, call_id);
+    if context.call_id.unwrap() != call_id {
+        return Err(gadget_sdk::Error::Other(String::from("Call ID mismatch!")));
+    }
+
+    Ok(0)
+}

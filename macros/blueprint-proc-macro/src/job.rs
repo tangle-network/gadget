@@ -334,7 +334,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                                 let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
                                     results: job_result,
                                     service_id: ctx.service_id,
-                                    call_id: #call_id_static_name.load(std::sync::atomic::Ordering::Relaxed),
+                                    call_id: #call_id_static_name.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                                     client: ctx.client.clone(),
                                     signer: ctx.signer.clone(),
                                 };

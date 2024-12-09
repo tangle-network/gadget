@@ -72,11 +72,13 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
     override
     onlyFromMaster
     {
-        // Decode the inputs and outputs
-        uint256 input = abi.decode(inputs, (uint256));
-        uint256 output = abi.decode(outputs, (uint256));
-        // Check if the output is the square of the input
-        bool isValid = output == input * input;
-        require(isValid, "Invalid result");
+        if (jobCallId == 0) {
+            // Decode the inputs and outputs
+            uint256 input = abi.decode(inputs, (uint256));
+            uint256 output = abi.decode(outputs, (uint256));
+            // Check if the output is the square of the input
+            bool isValid = output == input * input;
+            require(isValid, "Invalid result");
+        }
     }
 }
