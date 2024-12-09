@@ -1,11 +1,13 @@
 use crate::{error::Error, key_types::KeyType};
-use gadget_std::any::TypeId;
+use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
+#[cfg(feature = "std")]
 pub mod fs;
 pub mod in_memory;
 
 // Re-export for convenience
+#[cfg(feature = "std")]
 pub use fs::FileStorage;
 pub use in_memory::InMemoryStorage;
 

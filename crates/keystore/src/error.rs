@@ -1,5 +1,5 @@
 //! Keystore Errors
-use gadget_std::string::String;
+use gadget_std::{error, string::String};
 
 /// Different errors that can occur in the [`crate::keystore`] module
 #[derive(Debug, thiserror::Error)]
@@ -7,8 +7,7 @@ use gadget_std::string::String;
 pub enum Error {
     /// An I/O error occurred
     #[error(transparent)]
-    #[cfg(feature = "std")]
-    Io(#[from] std::io::Error),
+    Io(#[from] gadget_std::io::Error),
     /// Invalid remote config
     #[error("Invalid remote config")]
     InvalidConfig,

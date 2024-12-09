@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::key_types::{KeyType, KeyTypeId};
 use crate::storage::RawStorage;
-use gadget_std::{any::TypeId, collections::BTreeMap};
+use gadget_std::{any::TypeId, boxed::Box, cmp, collections::BTreeMap, vec::Vec};
 use serde::de::DeserializeOwned;
 
 pub mod backend;
@@ -38,7 +38,7 @@ impl Keystore {
         let entry = StorageEntry { storage, priority };
         let backends = self.storages.entry(T::key_type_id()).or_default();
         backends.push(entry);
-        backends.sort_by_key(|e| std::cmp::Reverse(e.priority));
+        backends.sort_by_key(|e| cmp::Reverse(e.priority));
         Ok(())
     }
 
