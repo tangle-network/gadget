@@ -1,8 +1,8 @@
 use crate::{error::Error, key_types::KeyType, storage::RawStorage};
+use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
 /// Backend configuration for different storage types
-#[derive(Clone, Debug)]
 pub enum BackendConfig {
     /// Local storage backend
     Local(Box<dyn RawStorage>),
