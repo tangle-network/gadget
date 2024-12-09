@@ -82,7 +82,7 @@ pub async fn new_test_ext_blueprint_manager<
     let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
 
     tracing::info!("Starting Tangle node...");
-    let tangle_node = crate::tangle::run().unwrap();
+    let tangle_node = crate::tangle::run().await.unwrap();
     tracing::info!("Tangle node running on port: {}", tangle_node.ws_port());
 
     let mut opts = Opts {

@@ -66,9 +66,12 @@ pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Err
 /// Run a Tangle node with the default settings.
 /// The node will shut down when the returned handle is dropped.
 pub async fn run() -> Result<SubstrateNode, Error> {
-    let binary_path = download_tangle_binary()
-        .await
-        .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    let binary_path = download_tangle_binary().await.map_err(|e| {
+        Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            e.to_string(),
+        ))
+    })?;
     let builder = SubstrateNode::builder()
         .binary_paths([binary_path])
         .arg("validator")
