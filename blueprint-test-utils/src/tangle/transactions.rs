@@ -19,6 +19,8 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{Jo
 use subxt::tx::TxProgress;
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::subxt_core::tx::signer::Signer;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{Assets, PaymentAsset};
 use crate::TestClient;
 
 /// Deploy a new MBSM revision and returns the result.
@@ -138,6 +140,7 @@ pub async fn submit_job(
     service_id: u64,
     job_id: Job,
     job_params: Args,
+    call_id: u64,
 ) -> Result<JobCalled, Box<dyn Error>> {
     let call = api::tx().services().call(service_id, job_id, job_params);
     let events = client
@@ -153,6 +156,7 @@ pub async fn submit_job(
         if job_called.service_id == service_id
             && job_called.job == job_id
             && user.account_id() == job_called.caller
+            && job_called.call_id == call_id
         {
             return Ok(job_called);
         }
@@ -175,8 +179,9 @@ pub async fn request_service(
         test_nodes.clone(),
         test_nodes,
         Default::default(),
-        vec![0],
+        Assets::from([0]),
         1000,
+        PaymentAsset::from(Asset::Custom(0)),
         value,
     );
     let res = client
