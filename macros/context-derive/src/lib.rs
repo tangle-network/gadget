@@ -28,6 +28,8 @@ mod subxt;
 
 const CONFIG_TAG_NAME: &str = "config";
 const CONFIG_TAG_TYPE: &str = "gadget_sdk::config::GadgetConfiguration";
+const CALL_ID_TAG_NAME: &str = "call_id";
+const CALL_ID_TAG_TYPE: &str = "Option<u64>";
 
 /// Derive macro for generating Context Extensions trait implementation for `KeystoreContext`.
 #[proc_macro_derive(KeystoreContext, attributes(config))]
@@ -64,8 +66,12 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
             .and_then(|res| {
-                let call_id_field =
-                    cfg::find_config_field(&input.ident, &input.data, "call_id", "Option<u64>")?;
+                let call_id_field = cfg::find_config_field(
+                    &input.ident,
+                    &input.data,
+                    CALL_ID_TAG_NAME,
+                    CALL_ID_TAG_TYPE,
+                )?;
                 Ok((res, call_id_field))
             })
             .map(|(config_field, call_id_field)| {
