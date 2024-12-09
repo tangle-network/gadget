@@ -17,6 +17,10 @@ thiserror = { workspace = true, default-features = false }
 zeroize = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"], default-features = false }
 hex = { workspace = true, default-features = false }
+blake3 = { workspace = true, default-features = false }
+tempfile = { workspace = true, default-features = false }
+erased-serde = { workspace = true, default-features = false }
+paste = { workspace = true, default-features = false }
 
 # Crypto primitives (optional)
 k256 = { workspace = true, default-features = false, optional = true }
@@ -51,10 +55,13 @@ tokio = { workspace = true, features = ["full"], optional = true }
 alloy-signer-aws = { workspace = true, optional = true }
 alloy-signer-gcp = { workspace = true, optional = true }
 alloy-signer-ledger = { workspace = true, features = ["eip712"], optional = true }
-alloy-signer-trezor = { workspace = true, optional = true }
+aws-config = { workspace = true, optional = true }
+aws-sdk-kms = { workspace = true, optional = true }
+gcloud-sdk = { workspace = true, optional = true }
+ripemd = { workspace = true, optional = true }
 
 [features]
-default = ["std", "tangle-full", "eigenlayer-full"]
+default = ["std", "tangle-full", "eigenlayer-full", "all-remote-signers"]
 
 # Core features
 std = [
@@ -82,9 +89,10 @@ std = [
 ]
 
 # Crypto primitive features
-ecdsa = ["k256"]
+ecdsa = ["k256", "ripemd"]
 sr25519-schnorrkel = ["schnorrkel"]
 zebra = ["ed25519-zebra"]
+# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
 sp-core-bls381 = ["sp-core/bls-experimental"]
 bls381 = ["w3f-bls"]
 bn254 = ["rust-bls-bn254", "arkworks"]
@@ -116,17 +124,19 @@ symbiotic = [
     "evm",
 ]
 
+remote = []
+
 # Optional protocol crypto features
 tangle-full = ["tangle", "sp-core-bls381", "bn254"]
 eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
 symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
 
 # Hardware/Cloud wallet support
-aws-signer = ["alloy-signer-aws", "evm", "std"]
-gcp-signer = ["alloy-signer-gcp", "evm", "std"]
-ledger-browser = ["evm", "alloy-signer-ledger/browser"]
-ledger-node = ["evm", "alloy-signer-ledger/node"]
-trezor-signer = ["alloy-signer-trezor", "evm", "std"]
+aws-signer = ["remote", "alloy-signer-aws", "aws-config", "aws-sdk-kms", "evm", "std"]
+gcp-signer = ["remote", "alloy-signer-gcp", "gcloud-sdk", "evm", "std"]
+ledger-browser = ["remote", "evm", "alloy-signer-ledger/browser"]
+ledger-node = ["remote", "evm", "alloy-signer-ledger/node", "std"]
+all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "ledger-node", "std"]
 
 # Add a new feature for standalone bn254:
 standalone-bn254 = ["bn254"]

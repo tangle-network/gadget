@@ -2,7 +2,7 @@
 //! This module contains macros for logging to stdout a trace of wall-clock time required
 //! to execute annotated code. One can use this code as follows:
 //! ```
-//! use ark_std::{end_timer, start_timer};
+//! use gadget_std::{end_timer, start_timer};
 //! let start = start_timer!(|| "Addition of two integers");
 //! let c = 5 + 7;
 //! end_timer!(start);
@@ -16,7 +16,7 @@
 //! These macros can be arbitrarily nested, and the nested nature is made apparent
 //! in the output. For example, the following snippet:
 //! ```
-//! use ark_std::{end_timer, start_timer};
+//! use gadget_std::{end_timer, start_timer};
 //! let start = start_timer!(|| "Addition of two integers");
 //! let start2 = start_timer!(|| "Inner");
 //! let c = 5 + 7;
