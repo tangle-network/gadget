@@ -171,8 +171,34 @@ pub async fn new_test_ext_blueprint_manager<
     match latest_revision {
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
-            let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
-            // let bytecode_hex = include_str!("../dependencies/tnt-core-0.1.0/");
+            // Find the JSON file dynamically
+            let json_path = std::fs::read_dir("../dependencies")
+                .expect("Failed to read dependencies directory")
+                .filter_map(Result::ok)
+                .find_map(|entry| {
+                    let path = entry.path();
+                    if path.is_dir() && path.file_name().and_then(|n| n.to_str()).map_or(false, |s| s.starts_with("tnt-core")) {
+                        let json_path = path.join("out").join("MasterBlueprintServiceManager.sol").join("MasterBlueprintServiceManager.json");
+                        if json_path.exists() {
+                            Some(json_path)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "JSON file not found")).expect("Failed to find MBSM JSON file");
+            // Read the JSON file
+            let contents = std::fs::read_to_string(json_path).expect("Failed to read MBSM JSON file");
+            // Parse the JSON
+            let v: serde_json::Value = serde_json::from_str(&contents).expect("Failed to parse MBSM JSON file");
+            // Extract the bytecode
+            let bytecode_hex = v["bytecode"]
+                .as_str()
+                .ok_or("Bytecode not found or not a string")
+                .expect("MBSM bytecode not found")
+                .to_string();
             let mut raw_hex = bytecode_hex.replace("0x", "").replace("\n", "");
             // fix odd length
             if raw_hex.len() % 2 != 0 {
