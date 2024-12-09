@@ -60,7 +60,7 @@ pub use num_traits::{One, Zero};
 /// Returns the ceiling of the base-2 logarithm of `x`.
 ///
 /// ```
-/// use ark_std::log2;
+/// use gadget_std::log2;
 ///
 /// assert_eq!(log2(16), 4);
 /// assert_eq!(log2(17), 5);
