@@ -77,6 +77,7 @@ macro_rules! test_tangle_blueprint {
                     service_id,
                     $job_id as ::blueprint_test_utils::Job,
                     job_args,
+                    0
                 )
                 .await
                 .expect("Failed to submit job");
