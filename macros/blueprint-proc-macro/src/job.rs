@@ -297,7 +297,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     event_listeners,
                     &mut ordered_inputs,
                     fn_name_ident,
-                    &call_id_static_name,
                     &asyncness,
                     &return_type,
                     ctx_pos_in_ordered_inputs,

@@ -79,7 +79,6 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     event_listeners: &EventListenerArgs,
     ordered_inputs: &mut Vec<TokenStream>,
     fn_name_ident: &Ident,
-    _call_id_static_name: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
     ctx_post_in_ordered_inputs: usize,
@@ -91,8 +90,6 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let parameter_count_const = quote! {
         const PARAMETER_COUNT: usize = #parameter_count;
     };
-
-    // let non_job_param_map = get_non_job_arguments(param_map, job_params);
 
     let injected_context = ordered_inputs[ctx_post_in_ordered_inputs].clone();
     let call_id_injector = quote! {

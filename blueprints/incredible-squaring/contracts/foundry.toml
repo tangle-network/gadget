@@ -1,7 +1,5 @@
 [profile.default]
 src = "src"
 out = "out"
-libs = ["lib", "dependencies"]
+libs = ["lib"]
 solc_version = "0.8.20"
-
-[dependencies]
