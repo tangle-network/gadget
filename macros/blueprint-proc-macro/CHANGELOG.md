@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.5.0...gadget-blueprint-proc-macro-v0.5.1) - 2024-12-09
+
+### Other
+
+- Call ID Insertion and Resolution For [#520](https://github.com/tangle-network/gadget/pull/520) ([#533](https://github.com/tangle-network/gadget/pull/533))
+
 ## [0.5.0](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.4.0...gadget-blueprint-proc-macro-v0.5.0) - 2024-11-29
 
 ### Fixed
