@@ -55,10 +55,12 @@ alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
 # Utility
+dirs = { workspace = true }
 testcontainers = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 tempfile = { workspace = true }
 cargo_toml = { workspace = true }
+reqwest = { workspace = true }
 
 [dev-dependencies]
 cargo_metadata = { workspace = true }
