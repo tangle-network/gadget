@@ -30,10 +30,10 @@ pub async fn services_pre_processor<C: TangleClientContext, E: EventMatcher<Outp
             return Err(Error::SkipPreProcessedType);
         };
 
-    crate::info!("Pre-processing event for sid/bid = {service_id}/{job_id} ...");
+    crate::info!("Pre-processing event for service-id/job-id = {service_id}/{job_id} ...");
 
     if event_job_id == job_id && event_service_id == service_id {
-        crate::info!("Found actionable event for sid/bid = {event_service_id}/{event_job_id} ...");
+        crate::info!("Found actionable event for service-id/job-id = {event_service_id}/{event_job_id} ...");
         // Set the call ID that way the user can access it in the job function
         context.set_call_id(event_call_id);
         return Ok(TangleEvent {

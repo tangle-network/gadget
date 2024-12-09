@@ -382,8 +382,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let next_listener = quote! {
                 async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                     static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                    if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
-                        ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
                         let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
 
                         static CTX: gadget_sdk::tokio::sync::OnceCell<#autogen_struct_name> = gadget_sdk::tokio::sync::OnceCell::const_new();
