@@ -19,7 +19,7 @@ pub mod prelude {
 /// a single method.
 ///
 /// Readers are intended to be composable with one another. Many implementors
-/// throughout [`ark_std::io`] take and provide types which implement the `Read`
+/// throughout [`gadget_std::io`] take and provide types which implement the `Read`
 /// trait.
 ///
 /// Please note that each call to [`read()`] may involve a system call, and
@@ -30,8 +30,8 @@ pub mod prelude {
 /// Read from [`&str`] because [`&[u8]`][slice] implements `Read`:
 ///
 /// ```no_run
-/// # use ark_std::io;
-/// use ark_std::io::prelude::*;
+/// # use gadget_std::io;
+/// use gadget_std::io::prelude::*;
 ///
 /// fn main() -> Result<()> {
 ///     let mut b = "This string will be read".as_bytes();
@@ -45,7 +45,7 @@ pub mod prelude {
 /// ```
 ///
 /// [`read()`]: trait.Read.html#tymethod.read
-/// [`ark_std::io`]: ../../std/io/index.html
+/// [`gadget_std::io`]: ../../std/io/index.html
 /// [`BufRead`]: trait.BufRead.html
 /// [`BufReader`]: struct.BufReader.html
 /// [`&str`]: ../../std/primitive.str.html
@@ -109,8 +109,8 @@ pub trait Read {
                 Ok(n) => {
                     let tmp = buf;
                     buf = &mut tmp[n..];
-                },
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {},
+                }
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
@@ -204,9 +204,9 @@ pub trait Write {
                         ErrorKind::WriteZero,
                         "failed to write whole buffer",
                     ))
-                },
+                }
                 Ok(n) => buf = &buf[n..],
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {},
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
@@ -364,7 +364,7 @@ impl<T> Cursor<T> {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::Cursor;
+    /// use gadget_std::io::Cursor;
     ///
     /// let buff = Cursor::new(Vec::new());
     /// # fn force_inference(_: &Cursor<Vec<u8>>) {}
@@ -379,7 +379,7 @@ impl<T> Cursor<T> {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::Cursor;
+    /// use gadget_std::io::Cursor;
     ///
     /// let buff = Cursor::new(Vec::new());
     /// # fn force_inference(_: &Cursor<Vec<u8>>) {}
@@ -396,7 +396,7 @@ impl<T> Cursor<T> {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::Cursor;
+    /// use gadget_std::io::Cursor;
     ///
     /// let buff = Cursor::new(Vec::new());
     /// # fn force_inference(_: &Cursor<Vec<u8>>) {}
@@ -416,7 +416,7 @@ impl<T> Cursor<T> {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::Cursor;
+    /// use gadget_std::io::Cursor;
     ///
     /// let mut buff = Cursor::new(Vec::new());
     /// # fn force_inference(_: &Cursor<Vec<u8>>) {}
@@ -438,7 +438,7 @@ impl<T> Cursor<T> {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::Cursor;
+    /// use gadget_std::io::Cursor;
     ///
     /// let mut buff = Cursor::new(vec![1, 2, 3, 4, 5]);
     ///

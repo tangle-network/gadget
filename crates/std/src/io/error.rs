@@ -154,7 +154,7 @@ impl From<ErrorKind> for Error {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::{Error, ErrorKind};
+    /// use gadget_std::io::{Error, ErrorKind};
     ///
     /// let not_found = ErrorKind::NotFound;
     /// let error = Error::from(not_found);
@@ -179,7 +179,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use ark_std::io::{Error, ErrorKind};
+    /// use gadget_std::io::{Error, ErrorKind};
     ///
     /// // errors can be created from strings
     /// let custom_error = Error::new(ErrorKind::Other, "oh no!");
