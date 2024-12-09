@@ -2140,6 +2140,7 @@ dependencies = [
  "alloy-sol-types",
  "alloy-transport",
  "async-trait",
+ "blueprint-build-utils",
  "blueprint-manager",
  "cargo-tangle",
  "cargo_metadata",

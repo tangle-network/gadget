@@ -64,3 +64,6 @@ reqwest = { workspace = true }
 
 [dev-dependencies]
 cargo_metadata = { workspace = true }
+
+[build-dependencies]
+blueprint-build-utils = { workspace = true }

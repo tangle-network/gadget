@@ -172,6 +172,7 @@ pub async fn new_test_ext_blueprint_manager<
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
             let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
+            // let bytecode_hex = include_str!("../dependencies/tnt-core-0.1.0/");
             let mut raw_hex = bytecode_hex.replace("0x", "").replace("\n", "");
             // fix odd length
             if raw_hex.len() % 2 != 0 {
