@@ -23,40 +23,55 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
     mapping(uint64 => address) public serviceInstances;
 
     /**
-     * @dev Hook for service instance requests. Called when a user requests a service
-     * instance from the blueprint.
-     * @param serviceId The ID of the requested service.
-     * @param operatorsOfService The operators involved in the service in bytes array format.
-     * @param requestInputs Inputs required for the service request in bytes format.
+     * @dev Hook for service initialization. Called when a service is initialized.
+     * This hook is called after the service is approved from all of the operators.
+     *
+     * @param requestId The ID of the request.
+     * @param serviceId The ID of the service.
+     * @param owner The owner of the service.
+     * @param permittedCallers  The list of permitted callers for the service.
+     * @param ttl The time-to-live for the service.
      */
-    function onRequest(uint64 serviceId, bytes[] calldata operatorsOfService, bytes calldata requestInputs)
-        public
-        payable
-        virtual
-        onlyFromRootChain
+    function onServiceInitialized(
+        uint64 requestId,
+        uint64 serviceId,
+        address owner,
+        address[] calldata permittedCallers,
+        uint64 ttl
+    )
+    external
+    virtual
+    override
+    onlyFromMaster
     {
         IncredibleSquaringInstance deployed = new IncredibleSquaringInstance(serviceId);
         serviceInstances[serviceId] = address(deployed);
     }
 
     /**
-     * @dev Verifies the result of a job call. This function is used to validate the
-     * outputs of a job execution against the expected results.
+     * @dev Hook for handling job result. Called when operators send the result
+     * of a job execution.
      * @param serviceId The ID of the service related to the job.
      * @param job The job identifier.
      * @param jobCallId The unique ID for the job call.
-     * @param participant The participant (operator) whose result is being verified.
-     * @param inputs Inputs used for the job execution.
-     * @param outputs Outputs resulting from the job execution.
+     * @param operator The operator sending the result in bytes format.
+     * @param inputs Inputs used for the job execution in bytes format.
+     * @param outputs Outputs resulting from the job execution in bytes format.
      */
     function onJobResult(
         uint64 serviceId,
         uint8 job,
         uint64 jobCallId,
-        bytes calldata participant,
+        ServiceOperators.OperatorPreferences calldata operator,
         bytes calldata inputs,
         bytes calldata outputs
-    ) public payable {
+    )
+    external
+    payable
+    virtual
+    override
+    onlyFromMaster
+    {
         // Decode the inputs and outputs
         uint256 input = abi.decode(inputs, (uint256));
         uint256 output = abi.decode(outputs, (uint256));
