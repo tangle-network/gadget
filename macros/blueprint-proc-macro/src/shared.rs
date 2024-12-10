@@ -225,7 +225,10 @@ pub(crate) fn param_types(sig: &Signature) -> syn::Result<IndexMap<Ident, Type>>
     Ok(param_types)
 }
 
-pub fn get_return_type_wrapper(return_type: &Type, injected_context_var_name: Option<proc_macro2::TokenStream>) -> proc_macro2::TokenStream {
+pub fn get_return_type_wrapper(
+    return_type: &Type,
+    injected_context_var_name: Option<proc_macro2::TokenStream>,
+) -> proc_macro2::TokenStream {
     if let Some(context_var_name) = injected_context_var_name {
         if return_type.is_result_type() {
             quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())).map(|res| (#context_var_name, res)) }

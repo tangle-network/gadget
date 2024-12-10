@@ -1,7 +1,6 @@
 use crate::job::{
     declared_params_to_field_types, generate_autogen_struct, generate_specialized_logic,
-    get_job_id_field_name, get_return_type, EventListenerArgs,
-    ParameterType, ResultsKind,
+    get_job_id_field_name, get_return_type, EventListenerArgs, ParameterType, ResultsKind,
 };
 use crate::shared::{pascal_case, MacroExt};
 use gadget_blueprint_proc_macro_core::{

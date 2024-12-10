@@ -132,7 +132,8 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         }
     };
 
-    let job_processor_call_return = get_return_type_wrapper(return_type, Some(injected_context_var_name));
+    let job_processor_call_return =
+        get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
         move |tangle_event: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {
