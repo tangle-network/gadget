@@ -65,15 +65,26 @@ pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Err
 
 /// Run a Tangle node with the default settings.
 /// The node will shut down when the returned handle is dropped.
-pub async fn run() -> Result<SubstrateNode, Error> {
-    let binary_path = download_tangle_binary().await.map_err(|e| {
-        Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            e.to_string(),
-        ))
-    })?;
+pub async fn run(use_local_tangle: bool) -> Result<SubstrateNode, Error> {
     let builder = SubstrateNode::builder()
-        .binary_paths([binary_path])
+        .binary_paths(if use_local_tangle {
+            let tangle_from_env =
+                std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
+            vec![
+                tangle_from_env,
+                "../tangle/target/release/tangle".to_string(),
+                "../../tangle/target/release/tangle".to_string(),
+                "../../../tangle/target/release/tangle".to_string(),
+            ]
+        } else {
+            let binary_path = download_tangle_binary().await.map_err(|e| {
+                Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })?;
+            vec![binary_path.to_string_lossy().into_owned()]
+        })
         .arg("validator")
         .arg_val("rpc-cors", "all")
         .arg_val("rpc-methods", "unsafe")
@@ -89,6 +100,7 @@ macro_rules! tangle_blueprint_test_template {
     (
         $N:tt,
         $test_logic:expr,
+        $use_local_tangle:expr,
     ) => {
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
@@ -102,6 +114,7 @@ macro_rules! tangle_blueprint_test_template {
             ::blueprint_test_utils::test_ext::new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
                 tmp_dir_path,
                 ::blueprint_test_utils::run_test_blueprint_manager,
+                $use_local_tangle,
             )
             .await
             .execute_with_async($test_logic)
@@ -119,6 +132,7 @@ macro_rules! test_tangle_blueprint {
         [$($inputs:expr),*],
         [$($expected_output:expr),*],
         $call_id:expr,
+        $use_local_tangle:expr,
     ) => {
         ::blueprint_test_utils::tangle_blueprint_test_template!(
             $N,
@@ -169,6 +183,7 @@ macro_rules! test_tangle_blueprint {
                     assert_eq!(result, expected);
                 }
             },
+            $use_local_tangle,
         );
     };
     (

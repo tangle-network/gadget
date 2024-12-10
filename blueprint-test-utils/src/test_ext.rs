@@ -25,6 +25,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use libp2p::Multiaddr;
 use log::debug;
+use sp_core::crypto::Ss58AddressFormat;
 use std::collections::HashSet;
 use std::future::Future;
 use std::net::IpAddr;
@@ -63,6 +64,7 @@ pub async fn new_test_ext_blueprint_manager<
 >(
     additional_params: D,
     f: F,
+    use_local_tangle: bool,
 ) -> LocalhostTestExt {
     assert!(N > 0, "At least one node is required");
     assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
@@ -83,7 +85,7 @@ pub async fn new_test_ext_blueprint_manager<
     let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
 
     tracing::info!("Starting Tangle node...");
-    let tangle_node = crate::tangle::run().await.unwrap();
+    let tangle_node = crate::tangle::run(use_local_tangle).await.unwrap();
     tracing::info!("Tangle node running on port: {}", tangle_node.ws_port());
 
     let mut opts = Opts {
@@ -145,8 +147,8 @@ pub async fn new_test_ext_blueprint_manager<
 
         let tg_addr = handle.sr25519_id().account_id();
         let evm_addr = handle.ecdsa_id().account_id();
-        info!("Signer TG address: {tg_addr}");
-        info!("Signer EVM address: {evm_addr}");
+        info!("Signer TG account: {tg_addr}");
+        info!("Signer EVM public key: 0x{}", hex::encode(evm_addr.0));
         info!("Signer EVM(alloy) address: {}", priv_key.address());
 
         if node_index == 0 {

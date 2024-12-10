@@ -148,8 +148,7 @@ jobs:
         run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
 
       - name: Forge build
-        working-directory: gadget/blueprints/incredible-squaring
-        run: forge update && forge build
+        run: forge update && cd blueprints/incredible-squaring && forge build --root ./contracts && cd ../../
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly
