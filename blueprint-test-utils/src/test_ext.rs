@@ -43,7 +43,7 @@ use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesCl
 use gadget_sdk::subxt_core::config::Header;
 use gadget_sdk::utils::test_utils::get_client;
 use crate::tangle::node::SubstrateNode;
-use crate::tangle::transactions;
+use crate::tangle::{transactions, NodeConfig};
 use tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
@@ -64,7 +64,7 @@ pub async fn new_test_ext_blueprint_manager<
 >(
     additional_params: D,
     f: F,
-    use_local_tangle: bool,
+    node_config: NodeConfig,
 ) -> LocalhostTestExt {
     assert!(N > 0, "At least one node is required");
     assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
@@ -85,7 +85,7 @@ pub async fn new_test_ext_blueprint_manager<
     let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
 
     tracing::info!("Starting Tangle node...");
-    let tangle_node = crate::tangle::run(use_local_tangle).await.unwrap();
+    let tangle_node = crate::tangle::run(node_config).await.unwrap();
     tracing::info!("Tangle node running on port: {}", tangle_node.ws_port());
 
     let mut opts = Opts {

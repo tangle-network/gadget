@@ -46,7 +46,7 @@ type CowStr = Cow<'static, str>;
 
 #[derive(Debug, Clone)]
 pub struct SubstrateNodeBuilder {
-    binary_paths: Vec<OsString>,
+    binary_paths: Vec<String>,
     custom_flags: HashMap<CowStr, Option<CowStr>>,
 }
 
@@ -73,12 +73,18 @@ impl SubstrateNodeBuilder {
 
     /// Set the path to the `substrate` binary; defaults to "substrate-node"
     /// or "substrate".
-    pub fn binary_paths<Paths, S>(&mut self, paths: Paths) -> &mut Self
+    pub fn binary_paths<I, S>(&mut self, paths: I) -> &mut Self
     where
-        Paths: IntoIterator<Item = S>,
-        S: Into<OsString>,
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
     {
-        self.binary_paths = paths.into_iter().map(|p| p.into()).collect();
+        self.binary_paths = paths.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Add a single binary path.
+    pub fn add_binary_path<S: Into<String>>(&mut self, path: S) -> &mut Self {
+        self.binary_paths.push(path.into());
         self
     }
 
@@ -497,5 +503,48 @@ impl SubstrateNodeInfo {
     pub fn p2p_port(&self) -> Result<u32, Error> {
         self.p2p_port
             .ok_or_else(|| Error::CouldNotExtractP2pPort(self.log.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NodeConfig {
+    pub use_local_tangle: bool,
+    pub log_level: Option<String>,
+    pub log_targets: Vec<(String, String)>,
+}
+
+impl NodeConfig {
+    pub fn new(use_local_tangle: bool) -> Self {
+        Self {
+            use_local_tangle,
+            log_level: None,
+            log_targets: Vec::new(),
+        }
+    }
+
+    pub fn with_log_level(mut self, level: impl Into<String>) -> Self {
+        self.log_level = Some(level.into());
+        self
+    }
+
+    pub fn with_log_target(mut self, target: impl Into<String>, level: impl Into<String>) -> Self {
+        self.log_targets.push((target.into(), level.into()));
+        self
+    }
+
+    pub fn to_log_string(&self) -> String {
+        let mut parts = Vec::new();
+
+        // Add global level if set
+        if let Some(level) = &self.log_level {
+            parts.push(level.clone());
+        }
+
+        // Add target-specific levels
+        for (target, level) in &self.log_targets {
+            parts.push(format!("{}={}", target, level));
+        }
+
+        parts.join(",")
     }
 }

@@ -8,6 +8,8 @@ use std::path::PathBuf;
 pub mod node;
 pub mod transactions;
 
+pub use node::NodeConfig;
+
 const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/83f587f/tangle-testnet-manual-seal-darwin-amd64";
 const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/83f587f/tangle-testnet-manual-seal-linux-amd64";
 
@@ -63,34 +65,44 @@ pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Err
     Ok(binary_path)
 }
 
-/// Run a Tangle node with the default settings.
+/// Run a Tangle node with the given configuration.
 /// The node will shut down when the returned handle is dropped.
-pub async fn run(use_local_tangle: bool) -> Result<SubstrateNode, Error> {
-    let builder = SubstrateNode::builder()
-        .binary_paths(if use_local_tangle {
-            let tangle_from_env =
-                std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
-            vec![
-                tangle_from_env,
-                "../tangle/target/release/tangle".to_string(),
-                "../../tangle/target/release/tangle".to_string(),
-                "../../../tangle/target/release/tangle".to_string(),
-            ]
-        } else {
-            let binary_path = download_tangle_binary().await.map_err(|e| {
-                Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                ))
-            })?;
-            vec![binary_path.to_string_lossy().into_owned()]
-        })
+pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
+    let mut builder = SubstrateNode::builder();
+
+    // Add binary paths
+    if config.use_local_tangle {
+        let tangle_from_env =
+            std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
+        builder
+            .add_binary_path(tangle_from_env)
+            .add_binary_path("../tangle/target/release/tangle")
+            .add_binary_path("../../tangle/target/release/tangle")
+            .add_binary_path("../../../tangle/target/release/tangle");
+    } else {
+        let binary_path = download_tangle_binary().await.map_err(|e| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
+        builder.add_binary_path(binary_path.to_string_lossy().to_string());
+    }
+
+    // Add standard arguments
+    builder
         .arg("validator")
         .arg_val("rpc-cors", "all")
         .arg_val("rpc-methods", "unsafe")
         .arg("rpc-external")
-        .arg_val("sealing", "manual")
-        .clone();
+        .arg_val("sealing", "manual");
+
+    // Add log configuration
+    let log_string = config.to_log_string();
+    if !log_string.is_empty() {
+        builder.arg_val("log", log_string);
+    }
+
     builder.spawn()
 }
 
@@ -132,7 +144,7 @@ macro_rules! test_tangle_blueprint {
         [$($inputs:expr),*],
         [$($expected_output:expr),*],
         $call_id:expr,
-        $use_local_tangle:expr,
+        $node_config:expr,
     ) => {
         ::blueprint_test_utils::tangle_blueprint_test_template!(
             $N,
@@ -183,7 +195,7 @@ macro_rules! test_tangle_blueprint {
                     assert_eq!(result, expected);
                 }
             },
-            $use_local_tangle,
+            $node_config,
         );
     };
     (
