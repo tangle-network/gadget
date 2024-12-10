@@ -1,25 +1,108 @@
 use crate::tangle::node::{Error, SubstrateNode, TANGLE_NODE_ENV};
+use reqwest;
+use std::env;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 
 pub mod node;
 pub mod transactions;
 
-/// Run a Tangle node with the default settings.
+pub use node::NodeConfig;
+
+const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/83f587f/tangle-testnet-manual-seal-darwin-amd64";
+const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/83f587f/tangle-testnet-manual-seal-linux-amd64";
+
+/// Downloads the appropriate Tangle binary for the current platform and returns the path
+pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let download_url = if cfg!(target_os = "macos") {
+        TANGLE_RELEASE_MAC
+    } else if cfg!(target_os = "linux") {
+        TANGLE_RELEASE_LINUX
+    } else {
+        return Err("Unsupported platform".into());
+    };
+
+    // Create cache directory in user's home directory
+    let cache_dir = dirs::cache_dir()
+        .ok_or("Could not determine cache directory")?
+        .join("tangle-binary");
+    fs::create_dir_all(&cache_dir)?;
+
+    let binary_path = cache_dir.join("tangle");
+
+    let version_path = cache_dir.join("version.txt");
+    let commit_hash = download_url.split('/').nth(7).unwrap_or_default();
+
+    let should_download = if binary_path.exists() && version_path.exists() {
+        // Check if version matches
+        let stored_version = fs::read_to_string(&version_path)?;
+        stored_version.trim() != commit_hash
+    } else {
+        true
+    };
+
+    if should_download {
+        let response = reqwest::get(download_url).await?;
+        let bytes = response.bytes().await?;
+
+        let mut file = fs::File::create(&binary_path)?;
+        file.write_all(&bytes)?;
+
+        // Make binary executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&binary_path)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&binary_path, perms)?;
+        }
+
+        // Write version file
+        fs::write(&version_path, commit_hash)?;
+    }
+
+    Ok(binary_path)
+}
+
+/// Run a Tangle node with the given configuration.
 /// The node will shut down when the returned handle is dropped.
-pub fn run() -> Result<SubstrateNode, Error> {
-    let tangle_from_env = std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
-    let builder = SubstrateNode::builder()
-        .binary_paths([
-            &tangle_from_env,
-            "../tangle/target/release/tangle",
-            "../../tangle/target/release/tangle",
-            "../../../tangle/target/release/tangle",
-        ])
+pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
+    let mut builder = SubstrateNode::builder();
+
+    // Add binary paths
+    if config.use_local_tangle {
+        let tangle_from_env =
+            std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
+        builder
+            .add_binary_path(tangle_from_env)
+            .add_binary_path("../tangle/target/release/tangle")
+            .add_binary_path("../../tangle/target/release/tangle")
+            .add_binary_path("../../../tangle/target/release/tangle");
+    } else {
+        let binary_path = download_tangle_binary().await.map_err(|e| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
+        builder.add_binary_path(binary_path.to_string_lossy().to_string());
+    }
+
+    // Add standard arguments
+    builder
         .arg("validator")
         .arg_val("rpc-cors", "all")
         .arg_val("rpc-methods", "unsafe")
         .arg("rpc-external")
-        .arg_val("sealing", "manual")
-        .clone();
+        .arg_val("sealing", "manual");
+
+    // Add log configuration
+    let log_string = config.to_log_string();
+    if !log_string.is_empty() {
+        builder.arg_val("log", log_string);
+    }
+
     builder.spawn()
 }
 
@@ -29,6 +112,7 @@ macro_rules! tangle_blueprint_test_template {
     (
         $N:tt,
         $test_logic:expr,
+        $node_config:expr,
     ) => {
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
@@ -42,6 +126,7 @@ macro_rules! tangle_blueprint_test_template {
             ::blueprint_test_utils::test_ext::new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
                 tmp_dir_path,
                 ::blueprint_test_utils::run_test_blueprint_manager,
+                $node_config,
             )
             .await
             .execute_with_async($test_logic)
@@ -59,10 +144,11 @@ macro_rules! test_tangle_blueprint {
         [$($inputs:expr),*],
         [$($expected_output:expr),*],
         $call_id:expr,
+        $node_config:expr,
     ) => {
         ::blueprint_test_utils::tangle_blueprint_test_template!(
             $N,
-            |client, handles, blueprint| async move {
+            |client, handles, blueprint, _| async move {
                 let keypair = handles[0].sr25519_id().clone();
                 let selected_service = &blueprint.services[0];
                 let service_id = selected_service.id;
@@ -109,6 +195,7 @@ macro_rules! test_tangle_blueprint {
                     assert_eq!(result, expected);
                 }
             },
+            $node_config,
         );
     };
     (

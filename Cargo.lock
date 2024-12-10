@@ -2139,11 +2139,13 @@ dependencies = [
  "alloy-sol-types",
  "alloy-transport",
  "async-trait",
+ "blueprint-build-utils",
  "blueprint-manager",
  "cargo-tangle",
  "cargo_metadata",
  "cargo_toml",
  "color-eyre",
+ "dirs",
  "futures",
  "gadget-io",
  "gadget-sdk",
@@ -2151,13 +2153,16 @@ dependencies = [
  "libp2p",
  "log",
  "parking_lot 0.12.3",
+ "reqwest 0.12.9",
  "serde",
+ "serde_json",
  "sp-core",
  "sp-io",
  "subxt",
  "tempfile",
  "testcontainers",
  "thiserror 1.0.69",
+ "tnt-core-bytecode",
  "tokio",
  "tracing",
  "url",
@@ -12543,6 +12548,14 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "tnt-core-bytecode"
+version = "0.1.0"
+source = "git+https://github.com/tangle-network/tnt-core.git?branch=donovan%2Fbytecode#b85cc4f149edf48de413184334dcea5514e064de"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "tokio"

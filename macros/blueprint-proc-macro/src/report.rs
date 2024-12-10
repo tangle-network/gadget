@@ -1,7 +1,6 @@
 use crate::job::{
     declared_params_to_field_types, generate_autogen_struct, generate_specialized_logic,
-    get_current_call_id_field_name, get_job_id_field_name, get_return_type, EventListenerArgs,
-    ParameterType, ResultsKind,
+    get_job_id_field_name, get_return_type, EventListenerArgs, ParameterType, ResultsKind,
 };
 use crate::shared::{pascal_case, MacroExt};
 use gadget_blueprint_proc_macro_core::{
@@ -146,7 +145,6 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         )?
     };
 
-    let call_id_static_name = get_current_call_id_field_name(input);
     let job_id = if let Some(job_id) = job_id {
         quote! { #job_id }
     } else {
@@ -164,8 +162,6 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
             #[doc = "`]"]
             #[automatically_derived]
             pub const #job_id_name: u8 = #job_id;
-
-        static #call_id_static_name: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     };
 
     let gen = quote! {

@@ -81,7 +81,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     fn_name_ident: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
-    ctx_post_in_ordered_inputs: usize,
+    ctx_pos_in_ordered_inputs: usize,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(job_params, param_map)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
@@ -91,15 +91,18 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         const PARAMETER_COUNT: usize = #parameter_count;
     };
 
-    let injected_context = ordered_inputs[ctx_post_in_ordered_inputs].clone();
+    let injected_context_var_name = quote! { injected_context };
+
+    let injected_context = ordered_inputs[ctx_pos_in_ordered_inputs].clone();
     let call_id_injector = quote! {
-        let mut injected_context = #injected_context;
+        let mut #injected_context_var_name = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            gadget_sdk::contexts::TangleClientContext::set_call_id(&mut injected_context, call_id);
+            gadget_sdk::contexts::TangleClientContext::set_call_id(&mut #injected_context_var_name, call_id);
         }
     };
 
-    ordered_inputs[ctx_post_in_ordered_inputs] = quote! { injected_context };
+    // Clone to allow passing to the post-processor closure
+    ordered_inputs[ctx_pos_in_ordered_inputs] = quote! { injected_context.clone() };
 
     let job_processor_call = if params_tokens.is_empty() {
         let second_param = ordered_inputs
@@ -129,7 +132,8 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         }
     };
 
-    let job_processor_call_return = get_return_type_wrapper(return_type);
+    let job_processor_call_return =
+        get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
         move |tangle_event: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {

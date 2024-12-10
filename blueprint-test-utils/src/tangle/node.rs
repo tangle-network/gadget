@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::{self, BufRead, BufReader, Read};
 use std::process::{self, Child, Command};
+use std::sync::mpsc;
+use std::thread;
 
 /// Environment variable to set the path to the binary.
 pub const TANGLE_NODE_ENV: &str = "TANGLE_NODE";
@@ -44,7 +46,7 @@ type CowStr = Cow<'static, str>;
 
 #[derive(Debug, Clone)]
 pub struct SubstrateNodeBuilder {
-    binary_paths: Vec<OsString>,
+    binary_paths: Vec<String>,
     custom_flags: HashMap<CowStr, Option<CowStr>>,
 }
 
@@ -71,12 +73,18 @@ impl SubstrateNodeBuilder {
 
     /// Set the path to the `substrate` binary; defaults to "substrate-node"
     /// or "substrate".
-    pub fn binary_paths<Paths, S>(&mut self, paths: Paths) -> &mut Self
+    pub fn binary_paths<I, S>(&mut self, paths: I) -> &mut Self
     where
-        Paths: IntoIterator<Item = S>,
-        S: Into<OsString>,
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
     {
-        self.binary_paths = paths.into_iter().map(|p| p.into()).collect();
+        self.binary_paths = paths.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Add a single binary path.
+    pub fn add_binary_path<S: Into<String>>(&mut self, path: S) -> &mut Self {
+        self.binary_paths.push(path.into());
         self
     }
 
@@ -127,9 +135,40 @@ impl SubstrateNodeBuilder {
             Err(e) => return Err(Error::Io(e)),
         };
 
-        // Wait for RPC port to be logged (it's logged to stderr).
+        // Create channels for log capturing
+        let (init_tx, init_rx) = mpsc::channel();
+        let (log_tx, log_rx) = mpsc::channel();
+
+        // Take stderr for port detection and logging
         let stderr = proc.stderr.take().unwrap();
-        let running_node = try_find_substrate_port_from_output(stderr);
+        let init_tx_clone = init_tx.clone();
+        let log_tx_clone = log_tx.clone();
+
+        // Spawn thread to handle stderr
+        let stderr_handle = thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines().map_while(Result::ok) {
+                log::debug!(target: "node-stderr", "{}", line);
+                let _ = init_tx_clone.send(line.clone());
+                let _ = log_tx_clone.send(line);
+            }
+        });
+
+        // Take stdout for logging
+        let stdout = proc.stdout.take().unwrap();
+        let log_tx_stdout = log_tx.clone();
+
+        // Spawn thread to handle stdout
+        let stdout_handle = thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines().map_while(Result::ok) {
+                log::debug!(target: "node-stdout", "{}", line);
+                let _ = log_tx_stdout.send(line);
+            }
+        });
+
+        // Process initialization logs with timeout
+        let running_node = try_find_substrate_port_from_output(init_rx);
 
         let ws_port = running_node.ws_port()?;
         let p2p_address = running_node.p2p_address()?;
@@ -143,6 +182,9 @@ impl SubstrateNodeBuilder {
             p2p_address,
             p2p_port,
             base_path: path,
+            stdout_handle: Some(stdout_handle),
+            stderr_handle: Some(stderr_handle),
+            log_capture_tx: Some(log_tx),
         })
     }
 
@@ -167,6 +209,7 @@ impl SubstrateNodeBuilder {
             cmd.arg(arg);
         }
 
+        gadget_sdk::trace!("Spawning node with command: {cmd:?}");
         cmd.spawn()
     }
 }
@@ -179,6 +222,9 @@ pub struct SubstrateNode {
     p2p_address: String,
     p2p_port: u32,
     base_path: String,
+    stdout_handle: Option<thread::JoinHandle<()>>,
+    stderr_handle: Option<thread::JoinHandle<()>>,
+    log_capture_tx: Option<mpsc::Sender<String>>,
 }
 
 impl SubstrateNode {
@@ -214,20 +260,52 @@ impl SubstrateNode {
 
     /// restart the node, handing back an object which, when dropped, will stop it.
     pub fn restart(&mut self) -> Result<(), std::io::Error> {
-        let res: Result<(), io::Error> = self.kill();
+        // First kill the existing process
+        self.kill()?;
 
-        match res {
-            Ok(_) => (),
-            Err(e) => {
-                self.cleanup();
-                return Err(e);
-            }
+        // Drop existing log channels and handles
+        self.log_capture_tx.take();
+        if let Some(handle) = self.stdout_handle.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
         }
 
-        let proc = self.try_spawn()?;
+        // Create new channels for logging
+        let (log_tx, _log_rx) = mpsc::channel();
+
+        // Spawn new process
+        let mut proc = self.try_spawn()?;
+
+        // Setup new logging for stdout
+        if let Some(stdout) = proc.stdout.take() {
+            let log_tx_clone = log_tx.clone();
+            let handle = thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines().map_while(Result::ok) {
+                    log::debug!(target: "node-stdout", "{}", line);
+                    let _ = log_tx_clone.send(line);
+                }
+            });
+            self.stdout_handle = Some(handle);
+        }
+
+        // Setup new logging for stderr
+        if let Some(stderr) = proc.stderr.take() {
+            let log_tx_clone = log_tx.clone();
+            let handle = thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines().map_while(Result::ok) {
+                    log::debug!(target: "node-stderr", "{}", line);
+                    let _ = log_tx_clone.send(line);
+                }
+            });
+            self.stderr_handle = Some(handle);
+        }
 
         self.proc = proc;
-        // Wait for RPC port to be logged (it's logged to stderr).
+        self.log_capture_tx = Some(log_tx);
 
         Ok(())
     }
@@ -251,7 +329,39 @@ impl SubstrateNode {
 
         cmd.arg(format!("--rpc-port={}", self.ws_port));
         cmd.arg(format!("--port={}", self.p2p_port));
+
+        log::debug!(target: "gadget", "Restarting node with command: {:?}", cmd);
         cmd.spawn()
+    }
+
+    fn setup_log_handling(&mut self) {
+        if let Some(stdout) = self.proc.stdout.take() {
+            let log_tx = self.log_capture_tx.clone();
+            let handle = thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines().map_while(Result::ok) {
+                    log::debug!(target: "node-stdout", "{}", line);
+                    if let Some(tx) = &log_tx {
+                        let _ = tx.send(line);
+                    }
+                }
+            });
+            self.stdout_handle = Some(handle);
+        }
+
+        if let Some(stderr) = self.proc.stderr.take() {
+            let log_tx = self.log_capture_tx.clone();
+            let handle = thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines().map_while(Result::ok) {
+                    log::debug!(target: "node-stderr", "{}", line);
+                    if let Some(tx) = &log_tx {
+                        let _ = tx.send(line);
+                    }
+                }
+            });
+            self.stderr_handle = Some(handle);
+        }
     }
 
     fn cleanup(&self) {
@@ -264,23 +374,42 @@ impl SubstrateNode {
 
 impl Drop for SubstrateNode {
     fn drop(&mut self) {
+        // First drop the log capture channel to signal threads to exit
+        self.log_capture_tx.take();
+
+        // Kill the process
         let _ = self.kill();
+        if let Some(handle) = self.stdout_handle.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
+        }
+
         self.cleanup()
     }
 }
 
 // Consume a stderr reader from a spawned substrate command and
 // locate the port number that is logged out to it.
-fn try_find_substrate_port_from_output(r: impl Read + Send + 'static) -> SubstrateNodeInfo {
+fn try_find_substrate_port_from_output(rx: mpsc::Receiver<String>) -> SubstrateNodeInfo {
     let mut port = None;
     let mut p2p_address = None;
     let mut p2p_port = None;
-
     let mut log = String::new();
 
-    for line in BufReader::new(r).lines().take(100) {
-        let line = line.expect("failed to obtain next line from stdout for port discovery");
+    let timeout = std::time::Duration::from_secs(30);
+    let start = std::time::Instant::now();
 
+    while start.elapsed() < timeout {
+        // Try to receive with a small timeout to avoid blocking forever
+        let line = match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+            Ok(line) => line,
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        };
+
+        log::debug!(target: "gadget-init", "{}", line);
         log.push_str(&line);
         log.push('\n');
 
@@ -371,5 +500,48 @@ impl SubstrateNodeInfo {
     pub fn p2p_port(&self) -> Result<u32, Error> {
         self.p2p_port
             .ok_or_else(|| Error::CouldNotExtractP2pPort(self.log.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NodeConfig {
+    pub use_local_tangle: bool,
+    pub log_level: Option<String>,
+    pub log_targets: Vec<(String, String)>,
+}
+
+impl NodeConfig {
+    pub fn new(use_local_tangle: bool) -> Self {
+        Self {
+            use_local_tangle,
+            log_level: None,
+            log_targets: Vec::new(),
+        }
+    }
+
+    pub fn with_log_level(mut self, level: impl Into<String>) -> Self {
+        self.log_level = Some(level.into());
+        self
+    }
+
+    pub fn with_log_target(mut self, target: impl Into<String>, level: impl Into<String>) -> Self {
+        self.log_targets.push((target.into(), level.into()));
+        self
+    }
+
+    pub fn to_log_string(&self) -> String {
+        let mut parts = Vec::new();
+
+        // Add global level if set
+        if let Some(level) = &self.log_level {
+            parts.push(level.clone());
+        }
+
+        // Add target-specific levels
+        for (target, level) in &self.log_targets {
+            parts.push(format!("{}={}", target, level));
+        }
+
+        parts.join(",")
     }
 }

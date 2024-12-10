@@ -29,8 +29,8 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::contexts::TangleClientContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
 
-            fn set_call_id(&mut self, call_id: u64) {
-                #field_access_call_id = Some(call_id);
+            fn get_call_id(&mut self) -> &mut Option<u64> {
+                &mut #field_access_call_id
             }
 
             fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {

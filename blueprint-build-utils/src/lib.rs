@@ -67,7 +67,7 @@ pub fn soldeer_update() {
 
     let status = Command::new(&forge_executable)
         .current_dir(&root)
-        .args(["soldeer", "update"])
+        .args(["soldeer", "update", "-d"])
         .status()
         .expect("Failed to execute 'forge soldeer update'");
 
