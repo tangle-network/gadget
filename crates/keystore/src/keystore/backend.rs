@@ -2,6 +2,8 @@ use crate::{error::Error, key_types::KeyType, storage::RawStorage};
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
+use super::StorageEntry;
+
 /// Backend configuration for different storage types
 pub enum BackendConfig {
     /// Local storage backend
@@ -48,24 +50,25 @@ pub trait Backend: Send + Sync {
     where
         T::Public: DeserializeOwned;
 
-    /// Get a public key from either local or remote storage
-    fn get_public_key<T: KeyType>(
-        &self,
-        key_id: &str,
-        chain_id: Option<u64>,
-    ) -> Result<T::Public, Error>
+    /// Get a public key from either local
+    fn get_public_key_local<T: KeyType>(&self, key_id: &str) -> Result<T::Public, Error>
     where
         T::Public: DeserializeOwned;
 
-    /// Check if a key exists in either local or remote storage
-    fn contains<T: KeyType>(
-        &self,
-        public: &T::Public,
-        chain_id: Option<u64>,
-    ) -> Result<bool, Error>;
+    /// Check if a key exists in either local
+    fn contains_local<T: KeyType>(&self, public: &T::Public) -> Result<bool, Error>;
 
-    /// Remove a key from local storage (remote keys cannot be removed)
+    /// Remove a key from local storage
     fn remove<T: KeyType>(&self, public: &T::Public) -> Result<(), Error>
     where
         T::Public: DeserializeOwned;
+
+    /// Get a secret key from local storage
+    fn get_secret<T: KeyType>(&self, public: &T::Public) -> Result<T::Secret, Error>
+    where
+        T::Public: DeserializeOwned,
+        T::Secret: DeserializeOwned;
+
+    /// Get storage backends for a key type
+    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry], Error>;
 }

@@ -74,18 +74,22 @@ impl AwsRemoteSigner {
 impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
     type Public = K256VerifyingKey;
     type Signature = K256Signature;
-    type KeyId = (String, Option<u64>);
+    type KeyId = String;
     type Config = AwsRemoteSignerConfig;
 
     async fn build(config: RemoteConfig) -> Result<Self, Error> {
         Self::new(config.into()).await
     }
 
-    async fn get_public_key(&self, key_id: &Self::KeyId) -> Result<Self::Public, Error> {
+    async fn get_public_key(
+        &self,
+        key_id: &Self::KeyId,
+        chain_id: Option<u64>,
+    ) -> Result<Self::Public, Error> {
         // Find signer for the given key ID
         let signer = self
             .signers
-            .get(&key_id)
+            .get(&(key_id.clone(), chain_id))
             .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id)))?;
 
         Ok(K256VerifyingKey(
@@ -97,9 +101,16 @@ impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
         ))
     }
 
-    async fn iter_public_keys(&self) -> Result<Vec<Self::Public>, Error> {
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
         let mut public_keys = Vec::new();
-        for signer in self.signers.values() {
+        for ((_, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
             let pk = signer
                 .signer
                 .get_pubkey()
@@ -113,8 +124,16 @@ impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
     async fn get_key_id_from_public_key(
         &self,
         public_key: &Self::Public,
+        chain_id: Option<u64>,
     ) -> Result<Self::KeyId, Error> {
-        for (key_id, signer) in &self.signers {
+        for ((key_id, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
             let pk = signer
                 .signer
                 .get_pubkey()
@@ -133,13 +152,14 @@ impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
         &self,
         message: &[u8],
         key_id: &Self::KeyId,
+        chain_id: Option<u64>,
     ) -> Result<Self::Signature, Error> {
         let digest = keccak256(message);
 
         // Find signer for the given key ID
         let signer = self
             .signers
-            .get(&key_id)
+            .get(&(key_id.clone(), chain_id))
             .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id)))?;
 
         Ok(K256Signature(
@@ -170,13 +190,16 @@ mod tests {
 
         let signer = AwsRemoteSigner::new(config).await.unwrap();
         let message = b"test message";
-        let key_id = signer.signers.keys().next().unwrap().clone();
+
+        // Get first signer's key name
+        let ((key_name, _), _) = signer.signers.iter().next().unwrap();
+        let key_id = key_name.clone();
 
         let signature = signer
-            .sign_message_with_key_id(message, &key_id)
+            .sign_message_with_key_id(message, &key_id, Some(1))
             .await
             .unwrap();
-        let pk = signer.get_public_key(&key_id).await.unwrap();
+        let pk = signer.get_public_key(&key_id, Some(1)).await.unwrap();
 
         assert!(pk.0.verify(message, &signature.0).is_ok());
     }

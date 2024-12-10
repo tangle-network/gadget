@@ -27,13 +27,15 @@ w3f-bls = { workspace = true, default-features = false, optional = true }
 rust-bls-bn254 = { workspace = true, default-features = false, optional = true }
 
 # EVM dependencies (optional)
+alloy-network = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
 alloy-signer = { workspace = true, optional = true }
-alloy-signer-local = { workspace = true, optional = true }
+alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic", "yubihsm"] }
 
 # Substrate dependencies (optional)
 sp-core = { workspace = true, default-features = false, optional = true }
 sp-io = { workspace = true, default-features = false, optional = true }
+subxt = { workspace = true, default-features = false, features = ["substrate-compat"], optional = true }
 subxt-core = { workspace = true, default-features = false, optional = true }
 tangle-subxt = { workspace = true, default-features = false, optional = true }
 
@@ -76,6 +78,9 @@ std = [
 
     # Conditional std enables for misc
     "hex?/std",
+
+    # Condition std enables for alloy
+    "alloy-primitives?/std",
     
     # Conditional std enables for crypto
     "k256?/std",
@@ -89,6 +94,7 @@ std = [
     "sp-core?/std",
     "sp-io?/std",
     "subxt-core?/std",
+    "subxt?/native",
     "ark-serialize?/std",
 ]
 
@@ -97,8 +103,8 @@ ecdsa = ["k256", "ripemd", "hex"]
 sr25519-schnorrkel = ["schnorrkel", "hex"]
 zebra = ["ed25519-zebra", "hex"]
 # Meant to be used in conjunction with `tangle` feature (for `sp-core`)
-substrate = ["paste", "sp-core", "sp-io", "subxt-core", "tangle-subxt"]
-sp-core-bls381 = ["sp-core/bls-experimental"]
+substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt"]
+sp-core-bls = ["sp-core/bls-experimental"]
 
 bls381 = ["w3f-bls", "hex"]
 bn254 = ["rust-bls-bn254", "arkworks"]
@@ -110,6 +116,7 @@ evm = [
     "alloy-primitives",
     "alloy-signer",
     "alloy-signer-local",
+    "alloy-network",
 ]
 
 tangle = [
@@ -130,8 +137,8 @@ symbiotic = [
 remote = []
 
 # Optional protocol crypto features
-tangle-full = ["tangle", "sp-core-bls381", "bn254"]
-eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
+tangle-full = ["tangle", "sp-core-bls", "bn254"]
+eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381"]
 symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
 
 # Hardware/Cloud wallet support
@@ -141,5 +148,6 @@ ledger-browser = ["remote", "evm", "alloy-signer-ledger/browser"]
 ledger-node = ["remote", "evm", "alloy-signer-ledger/node", "std"]
 all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "ledger-node", "std"]
 
-# Add a new feature for standalone bn254:
-standalone-bn254 = ["bn254"]
+web = [
+    "subxt/web",
+]

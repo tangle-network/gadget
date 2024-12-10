@@ -142,17 +142,21 @@ impl From<K256VerifyingKey> for AddressWrapper {
 impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
     type Public = AddressWrapper;
     type Signature = Signature;
-    type KeyId = (Self::Public, Option<u64>);
+    type KeyId = Self::Public;
     type Config = LedgerRemoteSignerConfig;
 
     async fn build(config: RemoteConfig) -> Result<Self, Error> {
         Self::new(config.into()).await
     }
 
-    async fn get_public_key(&self, key_id: &Self::KeyId) -> Result<Self::Public, Error> {
+    async fn get_public_key(
+        &self,
+        key_id: &Self::KeyId,
+        chain_id: Option<u64>,
+    ) -> Result<Self::Public, Error> {
         let signer = self
             .signers
-            .get(&(key_id.0 .0, key_id.1))
+            .get(&(key_id.0, chain_id))
             .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id.0)))?;
 
         let address = signer
@@ -168,10 +172,11 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         &self,
         message: &[u8],
         key_id: &Self::KeyId,
+        chain_id: Option<u64>,
     ) -> Result<Self::Signature, Error> {
         let signer = self
             .signers
-            .get(&(key_id.0 .0, key_id.1))
+            .get(&(key_id.0, chain_id))
             .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id.0)))?;
 
         signer
@@ -184,29 +189,44 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
     async fn get_key_id_from_public_key(
         &self,
         address: &Self::Public,
+        chain_id: Option<u64>,
     ) -> Result<Self::KeyId, Error> {
-        for (key_id, signer) in &self.signers {
-            let signer_address = signer
+        for ((signer_address, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
+            let signer_address_check = signer
                 .signer
                 .get_address()
                 .await
                 .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
-            if signer_address == address.0 {
-                return Ok((AddressWrapper(signer_address), key_id.1));
+            if signer_address_check == address.0 {
+                return Ok(AddressWrapper(*signer_address));
             }
         }
         Err(Error::Other("Key not found".to_string()))
     }
 
-    async fn iter_public_keys(&self) -> Result<Vec<Self::Public>, Error> {
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
         let mut public_keys = Vec::new();
-        for signer in self.signers.values() {
-            let address = signer
+        for ((address, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
+            let address_check = signer
                 .signer
                 .get_address()
                 .await
                 .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
-            public_keys.push(AddressWrapper(address));
+            public_keys.push(AddressWrapper(address_check));
         }
         Ok(public_keys)
     }
@@ -230,14 +250,14 @@ mod tests {
         let message = b"test message";
 
         // Get first signer's address
-        let key_id_temp = signer.signers.keys().next().unwrap();
-        let key_id = (AddressWrapper(key_id_temp.0.clone()), key_id_temp.1);
+        let ((address, _), _) = signer.signers.iter().next().unwrap();
+        let key_id = AddressWrapper(*address);
 
         let signature = signer
-            .sign_message_with_key_id(message, &key_id)
+            .sign_message_with_key_id(message, &key_id, Some(1))
             .await
             .unwrap();
-        let address = signer.get_public_key(&key_id).await.unwrap();
+        let address = signer.get_public_key(&key_id, Some(1)).await.unwrap();
 
         assert_eq!(
             signature.recover_address_from_msg(message).unwrap(),
