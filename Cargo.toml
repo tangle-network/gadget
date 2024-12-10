@@ -63,7 +63,7 @@ cargo-tangle = { path = "./cli", version = "0.3.2" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-tangle-subxt = { git = "https://github.com/tangle-network/tangle", default-features = false }
+tangle-subxt = { version = "0.7.1", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
