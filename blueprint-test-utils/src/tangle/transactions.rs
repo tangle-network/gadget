@@ -184,6 +184,14 @@ pub async fn request_service(
         PaymentAsset::from(Asset::Custom(0)),
         value,
     );
+    let balance_call = api::storage().balances().account(user.account_id());
+    let balance = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&balance_call)
+        .await?;
+    println!("XXX | Balance: {:?}", balance);
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, user)

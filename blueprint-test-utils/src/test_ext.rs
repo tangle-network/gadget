@@ -21,11 +21,15 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use cargo_tangle::deploy::Opts;
 use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
+use subxt::ext::sp_runtime::traits::IdentifyAccount;
 use libp2p::Multiaddr;
 use log::debug;
 use sp_core::crypto::Ss58AddressFormat;
+use subxt::ext::sp_runtime::traits::Verify;
+use subxt::ext::sp_runtime::MultiSignature;
 use std::collections::HashSet;
 use std::future::Future;
 use std::net::IpAddr;
@@ -36,7 +40,7 @@ use url::Url;
 use std::path::PathBuf;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
-use sp_core::Pair;
+use sp_core::{sr25519, Pair, Public};
 use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
@@ -48,6 +52,11 @@ use tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
+
+/// Generate a crypto pair from seed.
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> TPublic::Pair {
+    TPublic::Pair::from_string(&format!("//{seed}"), None).expect("static values are valid; qed")
+}
 
 /// - `N`: number of nodes
 /// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
@@ -156,6 +165,21 @@ pub async fn new_test_ext_blueprint_manager<
             opts.signer_evm = Some(priv_key);
             opts.signer = Some(handle.sr25519_id().clone().into_inner());
         }
+
+        // Give the accounts balances
+        let client = get_client(&opts.ws_rpc_url, &opts.http_rpc_url)
+            .await
+            .expect("Failed to create an account-based localhost client");
+
+        let alice = get_from_seed::<sr25519::Public>("Alice");
+        let transfer_call = api::tx()
+            .balances()
+            .transfer_allow_death(tg_addr.into(), 1_000_000_000_000_000_000_000_000);
+        let res = client
+            .tx()
+            .sign_and_submit_then_watch_default(&transfer_call, alice)
+            .await
+            .expect("Failed to transfer funds to Alice");
 
         handles.push(handle);
     }
