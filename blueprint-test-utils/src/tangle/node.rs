@@ -379,9 +379,6 @@ impl Drop for SubstrateNode {
 
         // Kill the process
         let _ = self.kill();
-
-        // Wait for log handling threads to finish with timeout
-        let timeout = std::time::Duration::from_secs(5);
         if let Some(handle) = self.stdout_handle.take() {
             let _ = handle.join();
         }
