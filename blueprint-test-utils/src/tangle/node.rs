@@ -141,7 +141,7 @@ impl SubstrateNodeBuilder {
         // Spawn thread to handle stderr
         let stderr_handle = thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 log::debug!(target: "node-stderr", "{}", line);
                 let _ = init_tx_clone.send(line.clone());
                 let _ = log_tx_clone.send(line);
@@ -155,7 +155,7 @@ impl SubstrateNodeBuilder {
         // Spawn thread to handle stdout
         let stdout_handle = thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 log::debug!(target: "node-stdout", "{}", line);
                 let _ = log_tx_stdout.send(line);
             }
@@ -277,7 +277,7 @@ impl SubstrateNode {
             let log_tx_clone = log_tx.clone();
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     log::debug!(target: "node-stdout", "{}", line);
                     let _ = log_tx_clone.send(line);
                 }
@@ -290,7 +290,7 @@ impl SubstrateNode {
             let log_tx_clone = log_tx.clone();
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stderr);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     log::debug!(target: "node-stderr", "{}", line);
                     let _ = log_tx_clone.send(line);
                 }
@@ -333,7 +333,7 @@ impl SubstrateNode {
             let log_tx = self.log_capture_tx.clone();
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     log::debug!(target: "node-stdout", "{}", line);
                     if let Some(tx) = &log_tx {
                         let _ = tx.send(line);
@@ -347,7 +347,7 @@ impl SubstrateNode {
             let log_tx = self.log_capture_tx.clone();
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stderr);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     log::debug!(target: "node-stderr", "{}", line);
                     if let Some(tx) = &log_tx {
                         let _ = tx.send(line);
