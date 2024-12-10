@@ -61,16 +61,22 @@ pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
     async fn build(config: RemoteConfig) -> Result<Self, Error>
     where
         Self: Sized;
-    async fn get_public_key(&self, key_id: &Self::KeyId) -> Result<Self::Public, Error>;
-    async fn iter_public_keys(&self) -> Result<Vec<Self::Public>, Error>;
+    async fn get_public_key(
+        &self,
+        key_id: &Self::KeyId,
+        chain_id: Option<u64>,
+    ) -> Result<Self::Public, Error>;
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error>;
     async fn get_key_id_from_public_key(
         &self,
         public_key: &Self::Public,
+        chain_id: Option<u64>,
     ) -> Result<Self::KeyId, Error>;
     async fn sign_message_with_key_id(
         &self,
         message: &[u8],
         key_id: &Self::KeyId,
+        chain_id: Option<u64>,
     ) -> Result<Self::Signature, Error>;
 }
 

@@ -28,7 +28,7 @@ broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
 gadget-std = { version = "0.1.0", path = "./crates/std" }
-gadget-keystore = { version = "0.1.0", path = "./crates/gadget-keystore" }
+gadget-keystore = { version = "0.1.0", path = "./crates/keystore" }
 
 # Internal dependencies
 gadget-io = { version = "0.0.5", path = "./gadget-io", default-features = false }
@@ -63,7 +63,7 @@ sp-std = { version = "14.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
 sc-utils = { version = "17.0.0", default-features = false }
 sp-api = { version = "34.0.0", default-features = false }
-sp-application-crypto = { version = "33.0.0", default-features = false }
+sp-application-crypto = { version = "34.0.0", default-features = false }
 sp-keystore = { version = "0.37.0", default-features = false }
 sp-externalities = { version = "0.27.0", default-features = false }
 sc-client-api = { version = "37.0.0", default-features = false }

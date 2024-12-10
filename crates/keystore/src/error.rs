@@ -35,6 +35,10 @@ pub enum Error {
     /// Remote key fetch failed
     #[error("Remote key fetch failed: {0}")]
     RemoteKeyFetchFailed(String),
+    /// Secret string error
+    #[cfg(feature = "tangle")]
+    #[error(transparent)]
+    SecretStringError(#[from] sp_core::crypto::SecretStringError),
     /// Serde json error
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
