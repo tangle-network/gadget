@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -148,7 +148,7 @@ jobs:
         run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
 
       - name: Forge build
-        working-directory: gadget/blueprints/incredible-squaring
+        working-directory: gadget/blueprints/incredible-squaring/contracts
         run: forge update && forge build
 
       - name: install rust
