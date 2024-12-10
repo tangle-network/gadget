@@ -175,7 +175,7 @@ pub async fn new_test_ext_blueprint_manager<
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
             let bytecode = MASTER_BLUEPRINT_SERVICE_MANAGER.to_vec();
-            trace!("Using MBSM bytecode of length: {}", bytecode.len());
+            gadget_sdk::trace!("Using MBSM bytecode of length: {}", bytecode.len());
 
             let ev = transactions::deploy_new_mbsm_revision(
                 &local_tangle_node_ws,
