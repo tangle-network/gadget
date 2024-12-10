@@ -112,7 +112,7 @@ macro_rules! tangle_blueprint_test_template {
     (
         $N:tt,
         $test_logic:expr,
-        $use_local_tangle:expr,
+        $node_config:expr,
     ) => {
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
@@ -126,7 +126,7 @@ macro_rules! tangle_blueprint_test_template {
             ::blueprint_test_utils::test_ext::new_test_ext_blueprint_manager::<$N, 1, String, _, _>(
                 tmp_dir_path,
                 ::blueprint_test_utils::run_test_blueprint_manager,
-                $use_local_tangle,
+                $node_config,
             )
             .await
             .execute_with_async($test_logic)

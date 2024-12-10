@@ -12307,7 +12307,8 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.7.1"
-source = "git+https://github.com/tangle-network/tangle#a1dfdccab0d5dc2d9b4dfb7e937b0f1467f5c7d6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16af9ac9fa28eadfded616693fcb19a61055bcf5c42fda07a03b572996bb10e8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
