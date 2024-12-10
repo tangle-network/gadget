@@ -183,7 +183,7 @@ pub async fn new_test_ext_blueprint_manager<
     match latest_revision {
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
-            let bytecode = MASTER_BLUEPRINT_SERVICE_MANAGER.to_vec();
+            let bytecode = MASTER_BLUEPRINT_SERVICE_MANAGER;
             gadget_sdk::trace!("Using MBSM bytecode of length: {}", bytecode.len());
 
             let ev = transactions::deploy_new_mbsm_revision(
@@ -191,7 +191,7 @@ pub async fn new_test_ext_blueprint_manager<
                 &client,
                 handles[0].sr25519_id(),
                 opts.signer_evm.clone().expect("Signer EVM is set"),
-                &bytecode,
+                bytecode,
             )
             .await
             .expect("deploy new MBSM revision");
