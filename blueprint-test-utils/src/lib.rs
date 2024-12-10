@@ -267,6 +267,7 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
     let suri = format!("//{name}");
 
     let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
     let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");

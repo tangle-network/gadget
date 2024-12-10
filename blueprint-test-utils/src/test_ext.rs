@@ -21,11 +21,15 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use cargo_tangle::deploy::Opts;
 use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
+use subxt::ext::sp_runtime::traits::IdentifyAccount;
 use libp2p::Multiaddr;
 use log::debug;
 use sp_core::crypto::Ss58AddressFormat;
+use subxt::ext::sp_runtime::traits::Verify;
+use subxt::ext::sp_runtime::MultiSignature;
 use std::collections::HashSet;
 use std::future::Future;
 use std::net::IpAddr;
@@ -36,7 +40,7 @@ use url::Url;
 use std::path::PathBuf;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
-use sp_core::Pair;
+use sp_core::{sr25519, Pair, Public};
 use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
@@ -48,6 +52,11 @@ use tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
+
+/// Generate a crypto pair from seed.
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> TPublic::Pair {
+    TPublic::Pair::from_string(&format!("//{seed}"), None).expect("static values are valid; qed")
+}
 
 /// - `N`: number of nodes
 /// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
