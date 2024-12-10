@@ -350,6 +350,7 @@ pub async fn new_test_ext_blueprint_manager<
         handles,
         span,
         blueprint,
+        opts,
     }
 }
 
@@ -371,6 +372,7 @@ pub struct LocalhostTestExt {
     handles: Vec<BlueprintManagerHandle>,
     span: tracing::Span,
     blueprint: RpcServicesWithBlueprint,
+    opts: Opts,
 }
 
 impl LocalhostTestExt {
@@ -396,6 +398,7 @@ impl LocalhostTestExt {
                 &'a TangleClient,
                 &'a Vec<BlueprintManagerHandle>,
                 &'a RpcServicesWithBlueprint,
+                &'a Opts,
             ) -> R
             + Send
             + 'a,
@@ -405,7 +408,7 @@ impl LocalhostTestExt {
         &'a self,
         function: T,
     ) -> Out {
-        function(&self.client, &self.handles, &self.blueprint)
+        function(&self.client, &self.handles, &self.blueprint, &self.opts)
             .instrument(self.span.clone())
             .await
     }

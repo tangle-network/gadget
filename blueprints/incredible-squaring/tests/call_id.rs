@@ -21,7 +21,7 @@ async fn call_id_valid() {
 
     new_test_ext_blueprint_manager::<N, 1, String, _, _>(String::new(), run_test_blueprint_manager)
         .await
-        .execute_with_async(|client, handles, blueprint| async move {
+        .execute_with_async(|client, handles, blueprint, _| async move {
             let keypair = handles[0].sr25519_id().clone();
             let selected_service = &blueprint.services[0];
             let service_id = selected_service.id;
