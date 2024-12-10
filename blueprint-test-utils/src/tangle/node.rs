@@ -209,7 +209,7 @@ impl SubstrateNodeBuilder {
             cmd.arg(arg);
         }
 
-        log::debug!(target: "gadget", "Spawning node with command: {:?}", cmd);
+        gadget_sdk::trace!("Spawning node with command: {cmd:?}");
         cmd.spawn()
     }
 }
