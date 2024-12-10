@@ -1,6 +1,7 @@
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
+use blueprint_test_utils::tangle::NodeConfig;
 pub use blueprint_test_utils::{
     get_blueprint_base_dir, read_cargo_toml_file, run_test_blueprint_manager, setup_log,
     submit_job, tangle, wait_for_completion_of_tangle_job, Args, Job, Opts,
@@ -18,11 +19,10 @@ async fn call_id_valid() {
 
     const N: usize = 1;
     const JOB_ID: usize = 1;
-
     new_test_ext_blueprint_manager::<N, 1, String, _, _>(
         String::new(),
         run_test_blueprint_manager,
-        false,
+        NodeConfig::new(false),
     )
     .await
     .execute_with_async(|client, handles, blueprint, _| async move {

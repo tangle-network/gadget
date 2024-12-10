@@ -166,21 +166,6 @@ pub async fn new_test_ext_blueprint_manager<
             opts.signer = Some(handle.sr25519_id().clone().into_inner());
         }
 
-        // Give the accounts balances
-        let client = get_client(&opts.ws_rpc_url, &opts.http_rpc_url)
-            .await
-            .expect("Failed to create an account-based localhost client");
-
-        let alice = get_from_seed::<sr25519::Public>("Alice");
-        let transfer_call = api::tx()
-            .balances()
-            .transfer_allow_death(tg_addr.into(), 1_000_000_000_000_000_000_000_000);
-        let res = client
-            .tx()
-            .sign_and_submit_then_watch_default(&transfer_call, alice)
-            .await
-            .expect("Failed to transfer funds to Alice");
-
         handles.push(handle);
     }
 
