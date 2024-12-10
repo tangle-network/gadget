@@ -117,10 +117,12 @@ pub async fn deploy_to_tangle(
         .await?;
     #[cfg(test)]
     let result = progress.wait_for_in_block_success().await?;
-    println!("Waiting for the transaction to be finalized...");
     #[cfg(not(test))]
-    let result = progress.wait_for_finalized_success().await?;
-    println!("Transaction finalized...");
+    {
+        println!("Waiting for the transaction to be finalized...");
+        let result = progress.wait_for_finalized_success().await?;
+        println!("Transaction finalized...");
+    }
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()
