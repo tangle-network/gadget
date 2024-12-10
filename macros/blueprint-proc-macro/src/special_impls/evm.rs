@@ -128,7 +128,7 @@ pub(crate) fn get_evm_job_processor_wrapper(
         }
     };
 
-    let job_processor_call_return = get_return_type_wrapper(return_type);
+    let job_processor_call_return = get_return_type_wrapper(return_type, None);
 
     // We must type annotate param0 below as such: (_, _, _, ... ) using underscores for each input to
     // allow the rust type inferencer to count the number of inputs and correctly index them in the function call

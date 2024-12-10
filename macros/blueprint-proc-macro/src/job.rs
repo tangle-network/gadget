@@ -45,14 +45,6 @@ pub fn get_job_id_field_name(input: &ItemFn) -> (String, Ident, Ident) {
     (fn_name_string, job_def_name, job_id_name)
 }
 
-pub fn get_current_call_id_field_name(input: &ItemFn) -> Ident {
-    let fn_name = &input.sig.ident;
-    format_ident!(
-        "{}_ACTIVE_CALL_ID",
-        fn_name.to_string().to_ascii_uppercase()
-    )
-}
-
 /// Job Macro implementation
 pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     // Extract function name and arguments
@@ -177,7 +169,6 @@ pub fn generate_job_const_block(
         )
     })?;
 
-    let call_id_static_name = get_current_call_id_field_name(input);
     Ok(quote! {
             #[doc = "Job definition for the function "]
             #[doc = "[`"]
@@ -193,8 +184,6 @@ pub fn generate_job_const_block(
             #[doc = "`]"]
             #[automatically_derived]
             pub const #job_id_name: u8 = #job_id;
-
-            static #call_id_static_name: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     })
 }
 
@@ -243,7 +232,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
 
             let asyncness = get_asyncness(input);
-            let call_id_static_name = get_current_call_id_field_name(input);
 
             // TODO: task 001: find better way to identify which ident is the raw event
             // for now, we assume the raw event is always listed first
@@ -313,7 +301,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 )?,
 
                 ListenerType::Custom => {
-                    let job_processor_call_return = get_return_type_wrapper(&return_type);
+                    let job_processor_call_return = get_return_type_wrapper(&return_type, None);
 
                     quote! {
                         move |param0| async move {
@@ -329,12 +317,13 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 match listener_meta.listener_type {
                     ListenerType::Tangle => {
                         quote! {
-                            |job_result| async move {
+                            |(mut client_context, job_result)| async move {
                                 let ctx = CTX.get().unwrap();
+                                let call_id = gadget_sdk::contexts::TangleClientContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
                                 let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
                                     results: job_result,
                                     service_id: ctx.service_id,
-                                    call_id: #call_id_static_name.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                                    call_id,
                                     client: ctx.client.clone(),
                                     signer: ctx.signer.clone(),
                                 };

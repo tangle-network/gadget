@@ -8,6 +8,7 @@ pub use blueprint_test_utils::{
 
 use blueprint_test_utils::test_ext::new_test_ext_blueprint_manager;
 use blueprint_test_utils::{InputValue, OutputValue};
+use blueprint_test_utils::tangle::NodeConfig;
 
 #[gadget_sdk::tokio::test(crate = "::gadget_sdk::tokio")]
 async fn call_id_valid() {
@@ -22,7 +23,7 @@ async fn call_id_valid() {
     new_test_ext_blueprint_manager::<N, 1, String, _, _>(
         String::new(),
         run_test_blueprint_manager,
-        false,
+        NodeConfig::new(false),
     )
     .await
     .execute_with_async(|client, handles, blueprint, _| async move {
