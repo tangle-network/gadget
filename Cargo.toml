@@ -68,6 +68,7 @@ subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
 round-based = "0.3.0"
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
 
 sp-core = { version = "31.0.0", default-features = false }
 sp-io = { version = "33.0.0", default-features = false }
@@ -97,6 +98,7 @@ cargo-generate = { version = "0.21.3", default-features = false }
 cfg-if = "1.0.0"
 clap = "4.5.16"
 clap-cargo = "0.14"
+dirs = "5.0.1"
 eyre = { version = "0.6.12" }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace"] }
 ed25519-zebra = { version = "4" }
@@ -126,7 +128,7 @@ proc-macro2 = "1.0"
 prometheus = { version = "0.13.4", default-features = false }
 quote = "1.0"
 rand = { version = "0.8.5", default-features = false }
-reqwest = "0.12.7"
+reqwest = "0.12.9"
 rustdoc-types = "0.31.0"
 schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
 serde = { version = "1.0.208", default-features = false }

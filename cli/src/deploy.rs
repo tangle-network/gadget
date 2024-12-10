@@ -107,18 +107,20 @@ pub async fn deploy_to_tangle(
     };
 
     let my_account_id = signer.account_id();
-    let client = subxt::OnlineClient::from_url(ws_rpc_url).await?;
-
+    let client = subxt::OnlineClient::from_url(ws_rpc_url.clone()).await?;
+    println!("Connected to Tangle Network at: {}", ws_rpc_url);
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
-
+    println!("Created blueprint...");
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
     #[cfg(test)]
     let result = progress.wait_for_in_block_success().await?;
+    println!("Waiting for the transaction to be finalized...");
     #[cfg(not(test))]
     let result = progress.wait_for_finalized_success().await?;
+    println!("Transaction finalized...");
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()

@@ -25,6 +25,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use libp2p::Multiaddr;
 use log::debug;
+use sp_core::crypto::Ss58AddressFormat;
 use std::collections::HashSet;
 use std::future::Future;
 use std::net::IpAddr;
@@ -43,6 +44,7 @@ use gadget_sdk::subxt_core::config::Header;
 use gadget_sdk::utils::test_utils::get_client;
 use crate::tangle::node::SubstrateNode;
 use crate::tangle::transactions;
+use tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
@@ -62,6 +64,7 @@ pub async fn new_test_ext_blueprint_manager<
 >(
     additional_params: D,
     f: F,
+    use_local_tangle: bool,
 ) -> LocalhostTestExt {
     assert!(N > 0, "At least one node is required");
     assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
@@ -82,7 +85,7 @@ pub async fn new_test_ext_blueprint_manager<
     let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
 
     tracing::info!("Starting Tangle node...");
-    let tangle_node = crate::tangle::run().unwrap();
+    let tangle_node = crate::tangle::run(use_local_tangle).await.unwrap();
     tracing::info!("Tangle node running on port: {}", tangle_node.ws_port());
 
     let mut opts = Opts {
@@ -144,8 +147,8 @@ pub async fn new_test_ext_blueprint_manager<
 
         let tg_addr = handle.sr25519_id().account_id();
         let evm_addr = handle.ecdsa_id().account_id();
-        info!("Signer TG address: {tg_addr}");
-        info!("Signer EVM address: {evm_addr}");
+        info!("Signer TG account: {tg_addr}");
+        info!("Signer EVM public key: 0x{}", hex::encode(evm_addr.0));
         info!("Signer EVM(alloy) address: {}", priv_key.address());
 
         if node_index == 0 {
@@ -171,13 +174,9 @@ pub async fn new_test_ext_blueprint_manager<
     match latest_revision {
         Some((rev, addr)) => debug!("MBSM is deployed at revision #{rev} at address {addr}"),
         None => {
-            let bytecode_hex = include_str!("../tnt-core/MasterBlueprintServiceManager.hex");
-            let mut raw_hex = bytecode_hex.replace("0x", "").replace("\n", "");
-            // fix odd length
-            if raw_hex.len() % 2 != 0 {
-                raw_hex = format!("0{}", raw_hex);
-            }
-            let bytecode = hex::decode(&raw_hex).expect("valid bytecode in hex format");
+            let bytecode = MASTER_BLUEPRINT_SERVICE_MANAGER.to_vec();
+            debug!("Using MBSM bytecode of length: {}", bytecode.len());
+
             let ev = transactions::deploy_new_mbsm_revision(
                 &local_tangle_node_ws,
                 &client,
@@ -353,6 +352,7 @@ pub async fn new_test_ext_blueprint_manager<
         handles,
         span,
         blueprint,
+        opts,
     }
 }
 
@@ -374,6 +374,7 @@ pub struct LocalhostTestExt {
     handles: Vec<BlueprintManagerHandle>,
     span: tracing::Span,
     blueprint: RpcServicesWithBlueprint,
+    opts: Opts,
 }
 
 impl LocalhostTestExt {
@@ -399,6 +400,7 @@ impl LocalhostTestExt {
                 &'a TangleClient,
                 &'a Vec<BlueprintManagerHandle>,
                 &'a RpcServicesWithBlueprint,
+                &'a Opts,
             ) -> R
             + Send
             + 'a,
@@ -408,7 +410,7 @@ impl LocalhostTestExt {
         &'a self,
         function: T,
     ) -> Out {
-        function(&self.client, &self.handles, &self.blueprint)
+        function(&self.client, &self.handles, &self.blueprint, &self.opts)
             .instrument(self.span.clone())
             .await
     }

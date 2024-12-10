@@ -10,4 +10,5 @@ test_tangle_blueprint!(
     [InputValue::Uint64(5)],   // Inputs
     [OutputValue::Uint64(25)], // Expected output: input squared
     0,
+    true,
 );
