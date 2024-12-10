@@ -77,7 +77,7 @@ passing `--clean` as an argument to reset the chain and any keys.
 Then, you can run:
 
 ```bash
-cargo test --package blueprint-test-utils tests_standard::test_externalities_gadget_starts -- --nocapture
+cargo test --package blueprint-test-utils test_incredible_squaring -- --nocapture
 ```
 
 Since testing is in beta stage, each time the blueprint is run, you

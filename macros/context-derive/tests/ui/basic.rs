@@ -20,6 +20,8 @@ struct MyContext {
     #[config]
     config: StdGadgetConfiguration,
     store: Arc<LocalDatabase<u64>>,
+    #[call_id]
+    call_id: Option<u64>,
 }
 
 #[allow(dead_code)]
@@ -29,6 +31,7 @@ fn main() {
             foo: "bar".to_string(),
             config: GadgetConfiguration::default(),
             store: Arc::new(LocalDatabase::open("test.json")),
+            call_id: None,
         };
 
         // Test existing context functions

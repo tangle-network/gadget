@@ -26,12 +26,18 @@ mod services;
 /// Tangle Subxt Client context extension implementation.
 mod subxt;
 
+const CONFIG_TAG_NAME: &str = "config";
+const CONFIG_TAG_TYPE: &str = "gadget_sdk::config::GadgetConfiguration";
+const CALL_ID_TAG_NAME: &str = "call_id";
+const CALL_ID_TAG_TYPE: &str = "Option<u64>";
+
 /// Derive macro for generating Context Extensions trait implementation for `KeystoreContext`.
 #[proc_macro_derive(KeystoreContext, attributes(config))]
 pub fn derive_keystore_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| keystore::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .map(|config_field| keystore::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -43,8 +49,9 @@ pub fn derive_keystore_context(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(EVMProviderContext, attributes(config))]
 pub fn derive_evm_provider_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| evm::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .map(|config_field| evm::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -53,11 +60,23 @@ pub fn derive_evm_provider_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `TangleClientContext`.
-#[proc_macro_derive(TangleClientContext, attributes(config))]
+#[proc_macro_derive(TangleClientContext, attributes(config, call_id))]
 pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| subxt::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .and_then(|res| {
+                let call_id_field = cfg::find_config_field(
+                    &input.ident,
+                    &input.data,
+                    CALL_ID_TAG_NAME,
+                    CALL_ID_TAG_TYPE,
+                )?;
+                Ok((res, call_id_field))
+            })
+            .map(|(config_field, call_id_field)| {
+                subxt::generate_context_impl(input, config_field, call_id_field)
+            });
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -69,8 +88,9 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(ServicesContext, attributes(config))]
 pub fn derive_services_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| services::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .map(|config_field| services::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -82,8 +102,9 @@ pub fn derive_services_context(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(EigenlayerContext, attributes(config))]
 pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| eigenlayer::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .map(|config_field| eigenlayer::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -95,8 +116,9 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(MPCContext, attributes(config))]
 pub fn derive_mpc_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result = cfg::find_config_field(&input.ident, &input.data)
-        .map(|config_field| mpc::generate_context_impl(input, config_field));
+    let result =
+        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
+            .map(|config_field| mpc::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),

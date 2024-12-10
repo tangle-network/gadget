@@ -4865,6 +4865,7 @@ dependencies = [
  "gadget-sdk",
  "indexmap 2.6.0",
  "itertools 0.13.0",
+ "parking_lot 0.12.3",
  "proc-macro2",
  "quote",
  "serde_json",
@@ -12276,8 +12277,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cad370e154d2297ed658b566b3ed5320362dfebdcc0f1f38f5194d85bf85f02"
+source = "git+https://github.com/tangle-network/tangle#83f587fb4a720ac3936200abb568a346e5045277"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

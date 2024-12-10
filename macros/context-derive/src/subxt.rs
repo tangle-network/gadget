@@ -11,8 +11,14 @@ pub fn generate_context_impl(
         ..
     }: DeriveInput,
     config_field: FieldInfo,
+    call_id_field: FieldInfo,
 ) -> proc_macro2::TokenStream {
-    let field_access = match config_field {
+    let field_access_config = match config_field {
+        FieldInfo::Named(ident) => quote! { self.#ident },
+        FieldInfo::Unnamed(index) => quote! { self.#index },
+    };
+
+    let field_access_call_id = match call_id_field {
         FieldInfo::Named(ident) => quote! { self.#ident },
         FieldInfo::Unnamed(index) => quote! { self.#index },
     };
@@ -22,6 +28,11 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics gadget_sdk::contexts::TangleClientContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
+
+            fn set_call_id(&mut self, call_id: u64) {
+                #field_access_call_id = Some(call_id);
+            }
+
             fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {
                 use gadget_sdk::ext::subxt;
 
@@ -31,7 +42,7 @@ pub fn generate_context_impl(
                     match CLIENT.get() {
                         Some(client) => Ok(client.clone()),
                         None => {
-                            let rpc_url = #field_access.ws_rpc_endpoint.as_str();
+                            let rpc_url = #field_access_config.ws_rpc_endpoint.as_str();
                             let client = subxt::OnlineClient::from_url(rpc_url).await?;
                             CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
                                 subxt::Error::Io(std::io::Error::new(

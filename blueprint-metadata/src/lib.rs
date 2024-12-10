@@ -316,22 +316,44 @@ fn generate_gadget(package: &Package) -> Gadget<'static> {
     let root = Path::new(&root)
         .canonicalize()
         .expect("Failed to canonicalize root dir");
-    let Some(gadget) = package.metadata.get("gadget") else {
+    let mut sources = vec![];
+    if let Some(gadget) = package.metadata.get("gadget") {
+        let gadget: Gadget<'static> =
+            serde_json::from_value(gadget.clone()).expect("Failed to deserialize gadget.");
+        if let Gadget::Native(NativeGadget { sources: fetchers }) = gadget {
+            sources.extend(fetchers);
+        } else {
+            panic!("Currently unsupported gadget type has been parsed")
+        }
+    } else {
         eprintln!("No gadget metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
         eprintln!("<TODO>");
-        // For now, we just return an empty gadget
-        return Gadget::Native(NativeGadget {
-            sources: vec![GadgetSource {
-                fetcher: GadgetSourceFetcher::Testing(TestFetcher {
-                    cargo_package: package.name.clone().into(),
-                    cargo_bin: "main".into(),
-                    base_path: format!("{}", root.display()).into(),
-                }),
-            }],
-        });
     };
-    serde_json::from_value(gadget.clone()).expect("Failed to deserialize gadget.")
+
+    let has_test_fetcher = sources.iter().any(|fetcher| {
+        matches!(
+            fetcher,
+            GadgetSource {
+                fetcher: GadgetSourceFetcher::Testing(..)
+            }
+        )
+    });
+
+    if !has_test_fetcher {
+        println!("Adding test fetcher since none exists");
+        sources.push(GadgetSource {
+            fetcher: GadgetSourceFetcher::Testing(TestFetcher {
+                cargo_package: package.name.clone().into(),
+                cargo_bin: "main".into(),
+                base_path: format!("{}", root.display()).into(),
+            }),
+        })
+    }
+
+    assert_ne!(sources.len(), 0, "No sources found for the gadget");
+
+    Gadget::Native(NativeGadget { sources })
 }
 
 fn generate_rustdoc() -> Crate {
