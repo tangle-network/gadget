@@ -69,7 +69,7 @@ pub(crate) async fn check_blueprint_events(
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> EventPollResult {
-    let pre_registation_events = event.events.find::<PreRegistration>();
+    let pre_registration_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
@@ -78,16 +78,16 @@ pub(crate) async fn check_blueprint_events(
 
     let mut result = EventPollResult::default();
 
-    for evt in pre_registation_events {
+    for evt in pre_registration_events {
         match evt {
             Ok(evt) => {
                 if &evt.operator == account_id {
                     result.blueprint_registrations.push(evt.blueprint_id);
-                    info!("Pre-registered event: {evt:?}");
+                    info!("[Blueprint Manager] Pre-registered event: {evt:?}");
                 }
             }
             Err(err) => {
-                warn!("Error handling pre-registered event: {err:?}");
+                warn!("[Blueprint Manager] Error handling pre-registered event: {err:?}");
             }
         }
     }
@@ -96,11 +96,11 @@ pub(crate) async fn check_blueprint_events(
     for evt in registered_events {
         match evt {
             Ok(evt) => {
-                info!("Registered event: {evt:?}");
+                info!("[Blueprint Manager] Registered event: {evt:?}");
                 result.needs_update = true;
             }
             Err(err) => {
-                warn!("Error handling registered event: {err:?}");
+                warn!("[Blueprint Manager] Error handling registered event: {err:?}");
             }
         }
     }
@@ -109,16 +109,15 @@ pub(crate) async fn check_blueprint_events(
     for evt in unregistered_events {
         match evt {
             Ok(evt) => {
-                info!("Unregistered event: {evt:?}");
+                info!("[Blueprint Manager] Unregistered event: {evt:?}");
                 if &evt.operator == account_id && active_gadgets.remove(&evt.blueprint_id).is_some()
                 {
-                    info!("Removed services for blueprint_id: {}", evt.blueprint_id,);
-
+                    info!("[Blueprint Manager] Removed services for blueprint_id: {}", evt.blueprint_id,);
                     result.needs_update = true;
                 }
             }
             Err(err) => {
-                warn!("Error handling unregistered event: {err:?}");
+                warn!("[Blueprint Manager] Error handling unregistered event: {err:?}");
             }
         }
     }
@@ -127,10 +126,10 @@ pub(crate) async fn check_blueprint_events(
     for evt in service_initiated_events {
         match evt {
             Ok(evt) => {
-                info!("Service initiated event: {evt:?}");
+                info!("[Blueprint Manager] Service initiated event: {evt:?}");
             }
             Err(err) => {
-                warn!("Error handling service initiated event: {err:?}");
+                warn!("[Blueprint Manager] Error handling service initiated event: {err:?}");
             }
         }
     }
@@ -139,10 +138,10 @@ pub(crate) async fn check_blueprint_events(
     for evt in job_called_events {
         match evt {
             Ok(evt) => {
-                info!("Job called event: {evt:?}");
+                info!("[Blueprint Manager] Job called event: {evt:?}");
             }
             Err(err) => {
-                warn!("Error handling job called event: {err:?}");
+                warn!("[Blueprint Manager] Error handling job called event: {err:?}");
             }
         }
     }
@@ -151,10 +150,10 @@ pub(crate) async fn check_blueprint_events(
     for evt in job_result_submitted_events {
         match evt {
             Ok(evt) => {
-                info!("Job result submitted event: {evt:?}");
+                info!("[Blueprint Manager] Job result submitted event: {evt:?}");
             }
             Err(err) => {
-                warn!("Error handling job result submitted event: {err:?}");
+                warn!("[Blueprint Manager] Error handling job result submitted event: {err:?}");
             }
         }
     }

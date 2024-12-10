@@ -26,3 +26,15 @@ blueprint.lock
 
 blueprint-test-utils/db
 node_modules
+bin/
+blueprint-test-utils/keystores
+blueprints/incredible-squaring/bin
+blueprints/incredible-squaring/contracts/lib/eigenlayer-middleware
+blueprints/incredible-squaring/contracts/soldeer.lock
+blueprints/incredible-squaring/foundry.toml
+blueprints/incredible-squaring/keystores
+blueprints/incredible-squaring/remappings.txt
+blueprints/incredible-squaring/soldeer.lock
+foundry.toml
+remappings.txt
+soldeer.lock
