@@ -4,8 +4,6 @@ pub use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
-#[cfg(test)]
-use gadget_sdk::tx::tangle::TxProgressExt;
 pub use k256;
 use std::fmt::Debug;
 use std::path::PathBuf;

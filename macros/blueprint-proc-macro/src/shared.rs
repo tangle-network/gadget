@@ -235,12 +235,10 @@ pub fn get_return_type_wrapper(
         } else {
             quote! { Ok((#context_var_name, res)) }
         }
+    } else if return_type.is_result_type() {
+        quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())) }
     } else {
-        if return_type.is_result_type() {
-            quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())) }
-        } else {
-            quote! { Ok(res) }
-        }
+        quote! { Ok(res) }
     }
 }
 
