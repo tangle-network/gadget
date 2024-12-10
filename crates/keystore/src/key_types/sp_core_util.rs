@@ -227,9 +227,9 @@ macro_rules! impl_sp_core_crypto {
     };
 }
 
-#[cfg(feature = "sp-core-bls381")]
+#[cfg(feature = "sp-core-bls")]
 impl_sp_core_crypto!(SpBls377, bls377);
-#[cfg(feature = "sp-core-bls381")]
+#[cfg(feature = "sp-core-bls")]
 impl_sp_core_crypto!(SpBls381, bls381);
 impl_sp_core_crypto!(SpEcdsa, ecdsa);
 impl_sp_core_crypto!(SpEd25519, ed25519);

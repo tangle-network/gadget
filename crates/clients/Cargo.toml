@@ -1,0 +1,19 @@
+[package]
+name = "gadget-clients"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-std = { workspace = true, default-features = false }
+async-trait = { workspace = true, default-features = false }
+auto_impl = { workspace = true, default-features = false }
+subxt = { workspace = true, default-features = false }
+tokio = { workspace = true, default-features = false, features = ["sync", "time"] }
+sp-core = { workspace = true, default-features = false }
+
+[lints]
+workspace = true
