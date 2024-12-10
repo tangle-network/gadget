@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -77,12 +77,13 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        package: [
-          gadget-sdk,
-          gadget-context-derive,
-          gadget-blueprint-proc-macro,
-          gadget-blueprint-proc-macro-playground
-        ]
+        package:
+          [
+            gadget-sdk,
+            gadget-context-derive,
+            gadget-blueprint-proc-macro,
+            gadget-blueprint-proc-macro-playground,
+          ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -135,17 +136,6 @@ jobs:
         with:
           path: gadget
 
-      - name: Download Tangle node
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: tangle-network/tangle
-          latest: true
-          preRelease: true
-          fileName: tangle-testnet-manual-seal-linux-amd64
-          tarBall: false
-          zipBall: false
-          out-file-path: tangle
-
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
@@ -180,7 +170,7 @@ jobs:
 
       - name: tests
         working-directory: gadget
-        run: TANGLE_NODE="$(pwd)/../tangle" cargo nextest run --nocapture --package incredible-squaring-blueprint test_blueprint --retries 0
+        run: cargo nextest run --nocapture --package incredible-squaring-blueprint test_blueprint --retries 0
 
   eigenlayer-tests:
     timeout-minutes: 90
@@ -199,7 +189,6 @@ jobs:
 
       - name: Add Foundry to PATH
         run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
-
 
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
