@@ -9,7 +9,6 @@ pub use blueprint_test_utils::{
 
 use blueprint_test_utils::test_ext::new_test_ext_blueprint_manager;
 use blueprint_test_utils::{InputValue, OutputValue};
-use blueprint_test_utils::tangle::NodeConfig;
 
 #[gadget_sdk::tokio::test(crate = "::gadget_sdk::tokio")]
 async fn call_id_valid() {
