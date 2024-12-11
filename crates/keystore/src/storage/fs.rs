@@ -1,10 +1,8 @@
 use super::RawStorage;
 use crate::error::Error;
 use gadget_std::any::TypeId;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use gadget_std::fs;
+use gadget_std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct FileStorage {
@@ -14,7 +12,7 @@ pub struct FileStorage {
 impl FileStorage {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let root = path.as_ref().to_path_buf();
-        fs::create_dir_all(&root).map_err(|e| Error::Other(e.to_string()))?;
+        fs::create_dir_all(&root)?;
         Ok(Self { root })
     }
 
@@ -37,12 +35,12 @@ impl RawStorage for FileStorage {
     ) -> Result<(), Error> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| Error::Other(e.to_string()))?;
+            fs::create_dir_all(parent)?;
         }
 
         let data = (public_bytes.to_vec(), secret_bytes.to_vec());
-        let encoded = serde_json::to_vec(&data).map_err(|e| Error::Other(e.to_string()))?;
-        fs::write(path, encoded).map_err(|e| Error::Other(e.to_string()))?;
+        let encoded = serde_json::to_vec(&data)?;
+        fs::write(path, encoded)?;
         Ok(())
     }
 
@@ -52,9 +50,8 @@ impl RawStorage for FileStorage {
             return Ok(None);
         }
 
-        let data = fs::read(&path).map_err(|e| Error::Other(e.to_string()))?;
-        let (stored_pub, secret): (Vec<u8>, Vec<u8>) =
-            serde_json::from_slice(&data).map_err(|e| Error::Other(e.to_string()))?;
+        let data = fs::read(&path)?;
+        let (stored_pub, secret): (Vec<u8>, Vec<u8>) = serde_json::from_slice(&data)?;
 
         // Verify the public key matches
         if stored_pub != public_bytes {
@@ -67,7 +64,7 @@ impl RawStorage for FileStorage {
     fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if path.exists() {
-            fs::remove_file(path).map_err(|e| Error::Other(e.to_string()))?;
+            fs::remove_file(path)?;
         }
         Ok(())
     }
