@@ -1,8 +1,10 @@
-use crate::{error::Error, key_types::KeyType, storage::RawStorage};
+use super::StorageEntry;
+use crate::error::Error;
+use crate::key_types::KeyType;
+use crate::keystore::remote::RemoteConfig;
+use crate::storage::RawStorage;
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
-
-use super::StorageEntry;
 
 /// Backend configuration for different storage types
 pub enum BackendConfig {
@@ -10,7 +12,7 @@ pub enum BackendConfig {
     Local(Box<dyn RawStorage>),
 
     /// Remote signer backend
-    #[cfg(feature = "remote-signing")]
+    #[cfg(feature = "remote")]
     Remote(RemoteConfig),
 }
 

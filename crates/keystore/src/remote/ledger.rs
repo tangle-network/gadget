@@ -1,4 +1,4 @@
-use super::types::{EcdsaRemoteSigner, RemoteConfig};
+use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::{
     error::Error,
     key_types::k256_ecdsa::{K256Ecdsa, K256VerifyingKey},
