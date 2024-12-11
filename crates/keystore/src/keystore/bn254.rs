@@ -1,6 +1,6 @@
 use crate::{
     error::Error,
-    key_types::{arkworks_bn254, KeyType, KeyTypeId},
+    key_types::{arkworks_bn254, KeyType},
     storage::RawStorage,
 };
 use serde::de::DeserializeOwned;
@@ -32,6 +32,9 @@ pub trait Bn254Backend: Send + Sync {
     /// Iterate over all BN254 public keys
     fn iter_bls_bn254(&self) -> Box<dyn Iterator<Item = arkworks_bn254::Public> + '_>;
 }
+
+#[cfg(feature = "eigenlayer")]
+pub use eigenlayer::*;
 
 #[cfg(feature = "eigenlayer")]
 mod eigenlayer {
