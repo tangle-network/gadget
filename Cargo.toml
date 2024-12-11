@@ -117,8 +117,7 @@ color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace"] 
 eyre = { version = "0.6.12" }
 failure = "0.1.8"
 log = "0.4.22"
-thiserror = { version = "1.0.64", default-features = false }
-thiserror-no-std = { version = "2.0.2", default-features = false }
+thiserror = { version = "2.0.6", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 
@@ -214,7 +213,7 @@ secp256k1 = { version = "0.29.1", default-features = false }
 
 # Eigenlayer
 eigensdk = { version = "0.1.1", default-features = false }
-rust-bls-bn254 = { version = "0.2.1" , default-features = false }
+rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1" }
 
 # Symbiotic
