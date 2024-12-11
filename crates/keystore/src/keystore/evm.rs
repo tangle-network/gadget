@@ -1,12 +1,8 @@
-use crate::{
-    error::Error,
-    key_types::{KeyType, KeyTypeId},
-    storage::RawStorage,
-};
-use alloy_network::{Ethereum, EthereumWallet};
+use crate::{error::Error, key_types::KeyType};
+use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, B256};
-use alloy_signer_local::MnemonicBuilder;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_signer_local::{coins_bip39::English, MnemonicBuilder};
 use serde::de::DeserializeOwned;
 
 use super::Keystore;
@@ -32,15 +28,6 @@ pub trait EvmBackend: Send + Sync {
         mnemonic: &str,
         path: &str,
     ) -> Result<EthereumWallet, Error>;
-
-    // Optional YubiHSM features
-    fn create_wallet_from_yubihsm(
-        &self,
-        connector_url: &str,
-        auth_key_id: u16,
-        password: &str,
-        signing_key_id: u16,
-    ) -> Result<EthereumWallet, Error>;
 }
 
 impl EvmBackend for Keystore {
@@ -49,7 +36,8 @@ impl EvmBackend for Keystore {
             return Err(Error::InvalidSeed("Invalid private key length".to_string()));
         }
         let private_key: B256 = private_key.try_into().unwrap_or_default();
-        let private_key_signer = PrivateKeySigner::from_bytes(&private_key);
+        let private_key_signer =
+            PrivateKeySigner::from_bytes(&private_key).map_err(|e| Error::Other(e.to_string()))?;
         Ok(EthereumWallet::from(private_key_signer))
     }
 
@@ -67,8 +55,9 @@ impl EvmBackend for Keystore {
     }
 
     fn create_wallet_from_mnemonic(&self, mnemonic: &str) -> Result<EthereumWallet, Error> {
-        let builder = MnemonicBuilder::default().phrase(mnemonic);
-        let wallet = builder.build()?;
+        let builder: MnemonicBuilder<English> = MnemonicBuilder::default().phrase(mnemonic);
+        let signer = builder.build()?;
+        let wallet = EthereumWallet::from(signer);
         Ok(wallet)
     }
 
@@ -77,22 +66,12 @@ impl EvmBackend for Keystore {
         mnemonic: &str,
         path: &str,
     ) -> Result<EthereumWallet, Error> {
-        let builder = MnemonicBuilder::default()
+        let builder: MnemonicBuilder<English> = MnemonicBuilder::default()
             .phrase(mnemonic)
-            .derivation_path(path);
-        let wallet = builder.build()?;
+            .derivation_path(path)?;
+        let private_key = builder.build()?;
+        let wallet = EthereumWallet::from(private_key);
         Ok(wallet)
-    }
-
-    fn create_wallet_from_yubihsm(
-        &self,
-        connector_url: &str,
-        auth_key_id: u16,
-        password: &str,
-        signing_key_id: u16,
-    ) -> Result<EthereumWallet, Error> {
-        let signer = YubiHsmSigner::new(connector_url, auth_key_id, password, signing_key_id)?;
-        Ok(EthereumWallet::from(signer))
     }
 }
 
@@ -107,22 +86,21 @@ mod tests {
         // Test private key wallet
         let private_key = [1u8; 32];
         let wallet = keystore.create_wallet_from_private_key(&private_key)?;
-        assert!(wallet.address() != Address::ZERO);
+        assert!(wallet.default_signer().address() != Address::ZERO);
 
         // Test seed wallet
         let seed_wallet = keystore.create_wallet_from_string_seed("test seed")?;
-        assert!(seed_wallet.address() != Address::ZERO);
+        assert!(seed_wallet.default_signer().address() != Address::ZERO);
 
         Ok(())
     }
 
-    #[cfg(feature = "evm-mnemonic")]
     #[test]
     fn test_mnemonic_wallet() -> Result<(), Error> {
         let keystore = Keystore::new();
         let mnemonic = "test test test test test test test test test test test junk";
         let wallet = keystore.create_wallet_from_mnemonic(mnemonic)?;
-        assert!(wallet.address() != Address::ZERO);
+        assert!(wallet.default_signer().address() != Address::ZERO);
         Ok(())
     }
 }

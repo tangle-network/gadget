@@ -30,7 +30,7 @@ rust-bls-bn254 = { workspace = true, default-features = false, optional = true }
 alloy-network = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
 alloy-signer = { workspace = true, optional = true }
-alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic", "yubihsm"] }
+alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"] }
 
 # Substrate dependencies (optional)
 sp-core = { workspace = true, default-features = false, optional = true }

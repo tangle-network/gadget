@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
 use std::path::PathBuf;
 
@@ -9,7 +9,7 @@ pub mod supported_chains;
 
 pub use context_config::{ContextConfig, GadgetCLICoreSettings};
 pub use gadget_config::{GadgetConfiguration, StdGadgetConfiguration};
-pub use protocol::{Protocol, ProtocolSpecificSettings};
+pub use protocol::{Protocol, ProtocolSettings};
 
 /// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
@@ -77,30 +77,11 @@ pub enum Error {
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-#[cfg(feature = "std")]
 pub fn load(config: ContextConfig) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
-    load_with_lock::<parking_lot::RawRwLock>(config)
+    load_inner(config)
 }
 
-/// Loads the [`GadgetConfiguration`] from the current environment.
-///
-/// This allows callers to specify the `RwLock` implementation to use.
-///
-/// # Errors
-///
-/// This function will return an error if any of the required environment variables are missing.
-// TODO: Add no_std support
-#[cfg(feature = "std")]
-pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
-    config: ContextConfig,
-) -> Result<GadgetConfiguration<RwLock>, Error> {
-    load_inner::<RwLock>(config)
-}
-
-#[cfg(feature = "std")]
-fn load_inner<RwLock: lock_api::RawRwLock>(
-    config: ContextConfig,
-) -> Result<GadgetConfiguration<RwLock>, Error> {
+fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     use protocol::{
         EigenlayerContractAddresses, SymbioticContractAddresses, TangleInstanceSettings,
     };
@@ -146,8 +127,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         None => tracing::info_span!("gadget"),
     };
 
-    let protocol_specific = match protocol {
-        Protocol::Eigenlayer => ProtocolSpecificSettings::Eigenlayer(EigenlayerContractAddresses {
+    let protocol_settings = match protocol {
+        Protocol::Eigenlayer => ProtocolSettings::Eigenlayer(EigenlayerContractAddresses {
             registry_coordinator_address: registry_coordinator
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
             operator_state_retriever_address: operator_state_retriever
@@ -165,7 +146,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             rewards_coordinator_address: rewards_coordinator
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
         }),
-        Protocol::Symbiotic => ProtocolSpecificSettings::Symbiotic(SymbioticContractAddresses {
+        Protocol::Symbiotic => ProtocolSettings::Symbiotic(SymbioticContractAddresses {
             operator_registry_address: operator_registry
                 .ok_or(Error::MissingSymbioticContractAddresses)?,
             network_registry_address: network_registry
@@ -179,7 +160,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             slasher_address: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
             veto_slasher_address: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
         }),
-        Protocol::Tangle => ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
+        Protocol::Tangle => ProtocolSettings::Tangle(TangleInstanceSettings {
             blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
             // If we are in registration mode, we don't need a service id
             service_id: if !is_registration {
@@ -201,11 +182,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         keystore_uri,
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
         bootnodes: bootnodes.unwrap_or_default(),
-        is_registration,
-        skip_registration,
         protocol,
-        protocol_specific,
-        _lock: core::marker::PhantomData,
+        protocol_settings,
     })
 }
 

@@ -552,9 +552,9 @@ mod tests {
     use crate::storage::InMemoryStorage;
 
     #[test]
+    #[test]
     fn test_sr25519_operations() -> Result<(), Error> {
-        let mut keystore = Keystore::new();
-        keystore.register_storage::<sr25519::Pair>(Box::new(InMemoryStorage::new()), 0)?;
+        let keystore = Keystore::new();
 
         // Generate key
         let public = keystore.sr25519_generate_new(None)?;
@@ -566,19 +566,12 @@ mod tests {
         // Verify signature
         assert!(sr25519::Pair::verify(&signature, msg, &public));
 
-        // Test pair creation
-        let seed = [1u8; 32];
-        let original_pair = sr25519::Pair::from_seed_slice(&seed);
-        let signer = keystore.create_sr25519_from_pair(original_pair)?;
-        assert_eq!(signer.pair.signer().public(), public);
-
         Ok(())
     }
 
     #[test]
     fn test_ecdsa_operations() -> Result<(), Error> {
-        let mut keystore = Keystore::new();
-        keystore.register_storage::<ecdsa::Pair>(Box::new(InMemoryStorage::new()), 0)?;
+        let keystore = Keystore::new();
 
         // Generate from string
         let public = keystore.ecdsa_generate_from_string("test seed")?;

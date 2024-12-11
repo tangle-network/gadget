@@ -44,10 +44,15 @@ impl Backend for Keystore {
         storage: BackendConfig,
         priority: u8,
     ) -> Result<(), Error> {
-        let entry = StorageEntry { storage, priority };
-        let backends = self.storages.entry(T::key_type_id()).or_default();
-        backends.push(entry);
-        backends.sort_by_key(|e| cmp::Reverse(e.priority));
+        match storage {
+            BackendConfig::Local(storage) => {
+                let entry = StorageEntry { storage, priority };
+                let backends = self.storages.entry(T::key_type_id()).or_default();
+                backends.push(entry);
+                backends.sort_by_key(|e| cmp::Reverse(e.priority));
+            }
+            _ => return Err(Error::StorageNotSupported),
+        }
         Ok(())
     }
 
@@ -173,11 +178,7 @@ impl Backend for Keystore {
         Err(Error::KeyNotFound)
     }
 
-    fn contains_local<T: KeyType>(
-        &self,
-        public: &T::Public,
-        chain_id: Option<u64>,
-    ) -> Result<bool, Error> {
+    fn contains_local<T: KeyType>(&self, public: &T::Public) -> Result<bool, Error> {
         let public_bytes = serde_json::to_vec(public)?;
         let storages = self
             .storages
@@ -220,7 +221,6 @@ impl Backend for Keystore {
 mod tests {
     use super::*;
     use crate::key_types::k256_ecdsa::K256Ecdsa;
-    use crate::remote::aws::AwsRemoteSigner;
     use crate::storage::InMemoryStorage;
 
     #[test]
