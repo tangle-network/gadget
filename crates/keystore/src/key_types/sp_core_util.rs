@@ -4,7 +4,6 @@ use sp_core::Pair;
 /// Implements serde and KeyType trait for any sp_core crypto type.
 ///
 /// Implements common functionality for key pairs and public keys.
-#[macro_export]
 macro_rules! impl_sp_core_pair_public {
     ($key_type:ident, $pair_type:ty, $public:ty) => {
         paste::paste! {
@@ -119,7 +118,6 @@ macro_rules! impl_sp_core_pair_public {
 }
 
 /// Implements signature functionality for non-BLS signatures.
-#[macro_export]
 macro_rules! impl_sp_core_signature {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
@@ -169,7 +167,6 @@ macro_rules! impl_sp_core_signature {
 }
 
 /// Implements signature functionality for BLS signatures.
-#[macro_export]
 macro_rules! impl_sp_core_bls_signature {
     ($key_type:ident, $signature:ty) => {
         paste::paste! {
@@ -219,7 +216,6 @@ macro_rules! impl_sp_core_bls_signature {
 }
 
 /// Implements both pair/public and signature traits for a given sp_core crypto type
-#[macro_export]
 macro_rules! impl_sp_core_crypto {
     ($key_type:ident, $module:ident) => {
         impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, sp_core::$module::Public);
