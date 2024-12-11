@@ -63,15 +63,12 @@ impl GcpRemoteSigner {
                 "https://cloudkms.googleapis.com",
                 None,
             )
-            .await
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .await?;
 
             let key_specifier =
                 KeySpecifier::new(keyring, &key_config.key_name, key_config.key_version);
 
-            let signer = GcpSigner::new(client, key_specifier, key_config.chain_id)
-                .await
-                .map_err(|e| Error::Other(e.to_string()))?;
+            let signer = GcpSigner::new(client, key_specifier, key_config.chain_id).await?;
 
             signers.insert(
                 (key_config.key_name.clone(), key_config.chain_id),
@@ -167,7 +164,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
             }
         }
 
-        Err(Error::Other("Key not found".to_string()))
+        Err(Error::KeyNotFound)
     }
 
     async fn sign_message_with_key_id(

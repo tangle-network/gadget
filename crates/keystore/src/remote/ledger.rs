@@ -100,14 +100,9 @@ impl LedgerRemoteSigner {
         let mut signers = BTreeMap::new();
 
         for key_config in config.keys {
-            let signer = LedgerSigner::new(key_config.hd_path.0, key_config.chain_id)
-                .await
-                .map_err(|e| Error::Other(e.to_string()))?;
+            let signer = LedgerSigner::new(key_config.hd_path.0, key_config.chain_id).await?;
 
-            let address = signer
-                .get_address()
-                .await
-                .map_err(|e| Error::Other(e.to_string()))?;
+            let address = signer.get_address().await?;
 
             signers.insert(
                 (address, key_config.chain_id),
@@ -210,7 +205,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
                 return Ok(AddressWrapper(*signer_address));
             }
         }
-        Err(Error::Other("Key not found".to_string()))
+        Err(Error::KeyNotFound)
     }
 
     async fn sign_message_with_key_id(

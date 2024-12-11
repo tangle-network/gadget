@@ -52,9 +52,8 @@ impl AwsRemoteSigner {
                 .await;
             let client = aws_sdk_kms::Client::new(&aws_config);
 
-            let signer = AwsSigner::new(client, key_config.key_id.clone(), key_config.chain_id)
-                .await
-                .map_err(|e| Error::Other(e.to_string()))?;
+            let signer =
+                AwsSigner::new(client, key_config.key_id.clone(), key_config.chain_id).await?;
 
             signers.insert(
                 (key_config.key_id, key_config.chain_id),
@@ -144,7 +143,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
             }
         }
 
-        Err(Error::Other("Key not found".to_string()))
+        Err(Error::KeyNotFound)
     }
 
     async fn sign_message_with_key_id(
