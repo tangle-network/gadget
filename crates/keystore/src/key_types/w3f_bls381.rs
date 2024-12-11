@@ -1,5 +1,5 @@
-use crate::key_types::{from_bytes, to_bytes};
-use crate::{error::Error, key_types::KeyType};
+use crate::error::{Error, Result};
+use crate::key_types::{from_bytes, to_bytes, KeyType};
 use gadget_std::UniformRand;
 use w3f_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, TinyBLS381};
 /// BLS381 key type
@@ -39,13 +39,16 @@ macro_rules! impl_w3f_serde {
         }
 
         impl serde::Serialize for $name {
-            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            fn serialize<S: serde::Serializer>(
+                &self,
+                serializer: S,
+            ) -> core::result::Result<S::Ok, S::Error> {
                 serializer.serialize_bytes(&to_bytes(self.0.clone()))
             }
         }
 
         impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
             where
                 D: serde::Deserializer<'de>,
             {
@@ -74,7 +77,7 @@ impl KeyType for W3fBls381 {
         super::KeyTypeId::W3fBls381
     }
 
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error> {
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         if let Some(seed) = seed {
             Ok(Secret(SecretKey::from_seed(seed)))
         } else {
@@ -85,7 +88,7 @@ impl KeyType for W3fBls381 {
         }
     }
 
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error> {
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
         let hex_encoded = hex::decode(secret).map_err(|_| Error::InvalidHexDecoding)?;
         let secret =
             SecretKey::from_bytes(&hex_encoded).map_err(|e| Error::InvalidSeed(e.to_string()))?;
@@ -96,7 +99,7 @@ impl KeyType for W3fBls381 {
         Public(secret.0.into_public())
     }
 
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error> {
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
         let mut rng = Self::get_rng();
         let message: Message = Message::new(CONTEXT, msg);
         Ok(W3fBls381Signature(secret.0.sign(&message, &mut rng)))
@@ -105,7 +108,7 @@ impl KeyType for W3fBls381 {
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let mut rng = Self::get_rng();
         let message: Message = Message::new(CONTEXT, msg);
         Ok(W3fBls381Signature(secret.0.sign(&message, &mut rng)))

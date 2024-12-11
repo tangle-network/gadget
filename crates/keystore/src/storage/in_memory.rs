@@ -1,5 +1,5 @@
 use super::RawStorage;
-use crate::error::Error;
+use crate::error::Result;
 use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -30,14 +30,14 @@ impl RawStorage for InMemoryStorage {
         type_id: TypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut data = self.data.write();
         let type_map = data.entry(type_id).or_default();
         type_map.insert(public_bytes.to_vec(), secret_bytes.to_vec());
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>, Error> {
+    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let data = self.data.read();
         Ok(data
             .get(&type_id)
@@ -45,7 +45,7 @@ impl RawStorage for InMemoryStorage {
             .map(|v| v.clone().into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error> {
+    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<()> {
         let mut data = self.data.write();
         if let Some(type_map) = data.get_mut(&type_id) {
             type_map.remove(&public_bytes[..]);
@@ -83,7 +83,7 @@ mod tests {
     use crate::storage::TypedStorage;
 
     #[test]
-    fn test_basic_operations() -> Result<(), Error> {
+    fn test_basic_operations() -> Result<()> {
         let raw_storage = InMemoryStorage::new();
         let storage = TypedStorage::new(raw_storage);
 
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_key_types() -> Result<(), Error> {
+    fn test_multiple_key_types() -> Result<()> {
         let raw_storage = InMemoryStorage::new();
         let storage = TypedStorage::new(raw_storage);
 

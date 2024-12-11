@@ -1,5 +1,5 @@
 use super::RawStorage;
-use crate::error::Error;
+use crate::error::Result;
 use gadget_std::any::TypeId;
 use gadget_std::fs;
 use gadget_std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ pub struct FileStorage {
 }
 
 impl FileStorage {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let root = path.as_ref().to_path_buf();
         fs::create_dir_all(&root)?;
         Ok(Self { root })
@@ -32,7 +32,7 @@ impl RawStorage for FileStorage {
         type_id: TypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -44,7 +44,7 @@ impl RawStorage for FileStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>, Error> {
+    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if !path.exists() {
             return Ok(None);
@@ -61,7 +61,7 @@ impl RawStorage for FileStorage {
         Ok(Some(secret.into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error> {
+    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<()> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if path.exists() {
             fs::remove_file(path)?;
@@ -101,7 +101,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_basic_operations() -> Result<(), Error> {
+    fn test_basic_operations() -> Result<()> {
         let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);
@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_key_types() -> Result<(), Error> {
+    fn test_multiple_key_types() -> Result<()> {
         let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);

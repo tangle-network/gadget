@@ -5,7 +5,7 @@ pub mod gcp;
 #[cfg(any(feature = "ledger-browser", feature = "ledger-node"))]
 pub mod ledger;
 
-use crate::error::Error;
+use crate::error::Result;
 use crate::key_types::KeyType;
 use async_trait::async_trait;
 use gadget_std::future::Future;
@@ -43,16 +43,13 @@ pub trait RemoteBackend: Send + Sync {
 /// Trait for remote signing operations
 pub trait RemoteSigner<T: KeyType>: RemoteBackend {
     /// Get the public key
-    fn get_public_key(&self) -> impl Future<Output = Result<T::Public, Error>> + Send;
+    fn get_public_key(&self) -> impl Future<Output = Result<T::Public>> + Send;
 
     /// Sign a message
-    fn sign(&self, msg: &[u8]) -> impl Future<Output = Result<T::Signature, Error>> + Send;
+    fn sign(&self, msg: &[u8]) -> impl Future<Output = Result<T::Signature>> + Send;
 
     /// Sign a pre-hashed message
-    fn sign_prehashed(
-        &self,
-        msg: &[u8; 32],
-    ) -> impl Future<Output = Result<T::Signature, Error>> + Send;
+    fn sign_prehashed(&self, msg: &[u8; 32]) -> impl Future<Output = Result<T::Signature>> + Send;
 }
 
 // Keep existing EcdsaRemoteSigner for ECDSA-specific remote signing
@@ -69,26 +66,26 @@ pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
     type KeyId: Clone + Serialize + DeserializeOwned + std::fmt::Debug + Send;
     type Config: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
 
-    async fn build(config: RemoteConfig) -> Result<Self, Error>
+    async fn build(config: RemoteConfig) -> Result<Self>
     where
         Self: Sized;
     async fn get_public_key(
         &self,
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Public, Error>;
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error>;
+    ) -> Result<Self::Public>;
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>>;
     async fn get_key_id_from_public_key(
         &self,
         public_key: &Self::Public,
         chain_id: Option<u64>,
-    ) -> Result<Self::KeyId, Error>;
+    ) -> Result<Self::KeyId>;
     async fn sign_message_with_key_id(
         &self,
         message: &[u8],
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Signature, Error>;
+    ) -> Result<Self::Signature>;
 }
 
 // Generic remote operations trait for extensibility
@@ -101,5 +98,5 @@ pub trait RemoteOperations: Send + Sync {
     fn supports_operation(&self, operation: &str) -> bool;
 
     /// Execute a remote operation
-    async fn execute(&self, operation: &str, params: &[u8]) -> Result<Vec<u8>, Error>;
+    async fn execute(&self, operation: &str, params: &[u8]) -> Result<Vec<u8>>;
 }

@@ -1,7 +1,9 @@
 //! Keystore Errors
 use gadget_std::string::String;
 
-/// Different errors that can occur in the [`crate::keystore`] module
+pub type Result<T> = core::result::Result<T, Error>;
+
+/// Different errors that can occur in the keystore
 #[derive(Debug, thiserror::Error)]
 #[rustfmt::skip]
 #[non_exhaustive]
