@@ -1,7 +1,18 @@
+#[cfg(feature = "bn254")]
+pub mod bn254;
+#[cfg(feature = "evm")]
+pub mod evm;
+
+cfg_remote! {
+    pub mod remote;
+}
+
+#[cfg(feature = "tangle")]
+pub mod tangle;
+
 use super::StorageEntry;
 use crate::error::Result;
 use crate::key_types::KeyType;
-use crate::keystore::remote::RemoteConfig;
 use crate::storage::RawStorage;
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
@@ -13,7 +24,7 @@ pub enum BackendConfig {
 
     /// Remote signer backend
     #[cfg(feature = "remote")]
-    Remote(RemoteConfig),
+    Remote(remote::RemoteConfig),
 }
 
 /// Core trait for keystore backend operations
