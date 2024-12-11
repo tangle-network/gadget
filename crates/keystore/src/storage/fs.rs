@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_basic_operations() -> Result<(), Error> {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);
 
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_multiple_key_types() -> Result<(), Error> {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);
 
