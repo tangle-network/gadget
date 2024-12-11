@@ -142,6 +142,7 @@ pub struct ServiceMetadata<'a> {
 /// It contains the input and output fields of the job with the permitted caller.
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct JobDefinition<'a> {
+    pub job_id: u64,
     /// The metadata of the job.
     pub metadata: JobMetadata<'a>,
     /// These are parameters that are required for this job.
