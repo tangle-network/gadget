@@ -3,12 +3,10 @@ use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
 #[cfg(feature = "std")]
-pub mod fs;
-pub mod in_memory;
-
-// Re-export for convenience
+mod fs;
 #[cfg(feature = "std")]
 pub use fs::FileStorage;
+mod in_memory;
 pub use in_memory::InMemoryStorage;
 
 // Raw storage trait that can be made into a trait object
