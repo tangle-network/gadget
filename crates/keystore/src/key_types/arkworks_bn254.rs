@@ -4,7 +4,6 @@ use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
 use rust_bls_bn254::{sign, verify};
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 use super::{from_bytes, to_bytes};
@@ -29,7 +28,7 @@ macro_rules! impl_ark_serde {
             }
         }
 
-        impl Serialize for $name {
+        impl serde::Serialize for $name {
             fn serialize<S: serde::Serializer>(
                 &self,
                 serializer: S,

@@ -532,7 +532,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[test]
     fn test_sr25519_operations() -> Result<()> {
         let keystore = Keystore::new();
 
