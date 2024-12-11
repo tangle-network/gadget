@@ -152,3 +152,7 @@ all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "l
 web = [
     "subxt/web",
 ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
