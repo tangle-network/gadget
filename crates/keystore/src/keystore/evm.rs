@@ -86,11 +86,11 @@ mod tests {
         // Test private key wallet
         let private_key = [1u8; 32];
         let wallet = keystore.create_wallet_from_private_key(&private_key)?;
-        assert!(wallet.default_signer().address() != Address::ZERO);
+        assert_ne!(wallet.default_signer().address(), Address::ZERO);
 
         // Test seed wallet
         let seed_wallet = keystore.create_wallet_from_string_seed("test seed")?;
-        assert!(seed_wallet.default_signer().address() != Address::ZERO);
+        assert_ne!(seed_wallet.default_signer().address(), Address::ZERO);
 
         Ok(())
     }
@@ -100,7 +100,7 @@ mod tests {
         let keystore = Keystore::new();
         let mnemonic = "test test test test test test test test test test test junk";
         let wallet = keystore.create_wallet_from_mnemonic(mnemonic)?;
-        assert!(wallet.default_signer().address() != Address::ZERO);
+        assert_ne!(wallet.default_signer().address(), Address::ZERO);
         Ok(())
     }
 }
