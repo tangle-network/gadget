@@ -152,6 +152,10 @@ fn extract_jobs_from_module<'a>(
             _ => continue,
         }
     }
+
+    // Sort jobs by job_id field
+    jobs.sort_by(|a, b| a.job_id.cmp(&b.job_id));
+
     jobs
 }
 
