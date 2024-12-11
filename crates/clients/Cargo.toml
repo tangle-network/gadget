@@ -8,12 +8,12 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-std = { workspace = true, default-features = false }
-async-trait = { workspace = true, default-features = false }
-auto_impl = { workspace = true, default-features = false }
-subxt = { workspace = true, default-features = false }
-tokio = { workspace = true, default-features = false, features = ["sync", "time"] }
-sp-core = { workspace = true, default-features = false }
+gadget-std.workspace = true
+async-trait.workspace = true
+auto_impl.workspace = true
+subxt.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+sp-core.workspace = true
 
 [lints]
 workspace = true

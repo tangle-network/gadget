@@ -9,22 +9,22 @@ repository.workspace = true
 
 [dependencies]
 # Core dependencies (always included)
-gadget-std = { workspace = true, default-features = false }
-async-trait = { workspace = true, default-features = false }
-lock_api = { workspace = true, default-features = false }
-parking_lot = { workspace = true, default-features = false }
-thiserror = { workspace = true, default-features = false }
-zeroize = { workspace = true, default-features = false }
-serde = { workspace = true, features = ["derive"], default-features = false }
-blake3 = { workspace = true, default-features = false }
-serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+gadget-std.workspace = true
+async-trait.workspace = true
+lock_api.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+serde = { workspace = true, features = ["derive"] }
+blake3.workspace = true
+serde_json = { workspace = true, features = ["alloc"] }
 
 # Crypto primitives (optional)
-k256 = { workspace = true, default-features = false, optional = true }
-schnorrkel = { workspace = true, default-features = false, optional = true }
-ed25519-zebra = { workspace = true, default-features = false, optional = true }
-w3f-bls = { workspace = true, default-features = false, optional = true }
-rust-bls-bn254 = { workspace = true, default-features = false, optional = true }
+k256 = { workspace = true, optional = true }
+schnorrkel = { workspace = true, optional = true }
+ed25519-zebra = { workspace = true, optional = true }
+w3f-bls = { workspace = true, optional = true }
+rust-bls-bn254 = { workspace = true, optional = true }
 
 # EVM dependencies (optional)
 alloy-network = { workspace = true, optional = true }
@@ -33,22 +33,22 @@ alloy-signer = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"] }
 
 # Substrate dependencies (optional)
-sp-core = { workspace = true, default-features = false, optional = true }
-sp-io = { workspace = true, default-features = false, optional = true }
-subxt = { workspace = true, default-features = false, features = ["substrate-compat"], optional = true }
-subxt-core = { workspace = true, default-features = false, optional = true }
-tangle-subxt = { workspace = true, default-features = false, optional = true }
+sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+subxt = { workspace = true, features = ["substrate-compat"], optional = true }
+subxt-core = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
 
 # Eigenlayer dependencies (optional)
-eigensdk = { workspace = true, features = ["signer", "crypto-bls", "crypto-bn254"], default-features = false, optional = true }
-ark-serialize = { workspace = true, default-features = false, optional = true }
-ark-bn254 = { workspace = true, default-features = false, optional = true }
-ark-ec = { workspace = true, default-features = false, optional = true }
-ark-ff = { workspace = true, default-features = false, optional = true }
+eigensdk = { workspace = true, features = ["signer", "crypto-bls", "crypto-bn254"], optional = true }
+ark-serialize = { workspace = true, optional = true }
+ark-bn254 = { workspace = true, optional = true }
+ark-ec = { workspace = true, optional = true }
+ark-ff = { workspace = true, optional = true }
 
 # Optional dependencies
-hex = { workspace = true, default-features = false, optional = true }
-paste = { workspace = true, default-features = false, optional = true }
+hex = { workspace = true, optional = true }
+paste = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["full"], optional = true }
 
 # Hardware/Cloud wallet support (optional)
@@ -76,20 +76,16 @@ std = [
     "thiserror/std",
     "tokio",
     "serde_json/std",
-
     # Conditional std enables for misc
     "hex?/std",
-
     # Condition std enables for alloy
     "alloy-primitives?/std",
-    
     # Conditional std enables for crypto
     "k256?/std",
     "schnorrkel?/std",
     "ed25519-zebra?/std",
     "w3f-bls?/std",
     "rust-bls-bn254?/std",
-    
     # Conditional std enables for protocols
     "alloy-primitives?/std",
     "sp-core?/std",
