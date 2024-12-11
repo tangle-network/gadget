@@ -300,6 +300,32 @@ impl TangleBackend for Keystore {
         }
     }
 
+    #[cfg(feature = "sp-core-bls")]
+    fn bls381_sign(
+        &self,
+        public: &sp_core::bls381::Public,
+        msg: &[u8],
+    ) -> Result<Option<sp_core::bls381::Signature>, Error> {
+        if let Some(secret) = self.expose_bls381_secret(public)? {
+            Ok(Some(secret.sign(msg)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[cfg(feature = "sp-core-bls")]
+    fn bls377_sign(
+        &self,
+        public: &sp_core::bls377::Public,
+        msg: &[u8],
+    ) -> Result<Option<sp_core::bls377::Signature>, Error> {
+        if let Some(secret) = self.expose_bls377_secret(public)? {
+            Ok(Some(secret.sign(msg)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -360,95 +386,6 @@ impl TangleBackend for Keystore {
         Ok(None)
     }
 
-    fn iter_ed25519(&self) -> Box<dyn Iterator<Item = ed25519::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(TypeId::of::<ed25519::Pair>())
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpEd25519Public>(&bytes)
-                            .map(|SpEd25519Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn iter_ecdsa(&self) -> Box<dyn Iterator<Item = ecdsa::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(TypeId::of::<ecdsa::Pair>())
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpEcdsaPublic>(&bytes)
-                            .map(|SpEcdsaPublic(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn iter_sr25519(&self) -> Box<dyn Iterator<Item = sr25519::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(TypeId::of::<sr25519::Pair>())
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpSr25519Public>(&bytes)
-                            .map(|SpSr25519Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    #[cfg(feature = "sp-core-bls")]
-    fn bls381_sign(
-        &self,
-        public: &sp_core::bls381::Public,
-        msg: &[u8],
-    ) -> Result<Option<sp_core::bls381::Signature>, Error> {
-        if let Some(secret) = self.expose_bls381_secret(public)? {
-            Ok(Some(secret.sign(msg)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[cfg(feature = "sp-core-bls")]
-    fn bls377_sign(
-        &self,
-        public: &sp_core::bls377::Public,
-        msg: &[u8],
-    ) -> Result<Option<sp_core::bls377::Signature>, Error> {
-        if let Some(secret) = self.expose_bls377_secret(public)? {
-            Ok(Some(secret.sign(msg)))
-        } else {
-            Ok(None)
-        }
-    }
-
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls381_secret(
         &self,
@@ -495,6 +432,69 @@ impl TangleBackend for Keystore {
         }
 
         Ok(None)
+    }
+
+    fn iter_sr25519(&self) -> Box<dyn Iterator<Item = sr25519::Public> + '_> {
+        if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
+            let mut keys = Vec::new();
+            for entry in storages {
+                let mut storage_keys = entry
+                    .storage
+                    .list_raw(TypeId::of::<sr25519::Pair>())
+                    .filter_map(|bytes| {
+                        serde_json::from_slice::<SpSr25519Public>(&bytes)
+                            .map(|SpSr25519Public(public)| public)
+                            .ok()
+                    })
+                    .collect::<Vec<_>>();
+                keys.append(&mut storage_keys);
+            }
+            Box::new(keys.into_iter())
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    fn iter_ed25519(&self) -> Box<dyn Iterator<Item = ed25519::Public> + '_> {
+        if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
+            let mut keys = Vec::new();
+            for entry in storages {
+                let mut storage_keys = entry
+                    .storage
+                    .list_raw(TypeId::of::<ed25519::Pair>())
+                    .filter_map(|bytes| {
+                        serde_json::from_slice::<SpEd25519Public>(&bytes)
+                            .map(|SpEd25519Public(public)| public)
+                            .ok()
+                    })
+                    .collect::<Vec<_>>();
+                keys.append(&mut storage_keys);
+            }
+            Box::new(keys.into_iter())
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    fn iter_ecdsa(&self) -> Box<dyn Iterator<Item = ecdsa::Public> + '_> {
+        if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
+            let mut keys = Vec::new();
+            for entry in storages {
+                let mut storage_keys = entry
+                    .storage
+                    .list_raw(TypeId::of::<ecdsa::Pair>())
+                    .filter_map(|bytes| {
+                        serde_json::from_slice::<SpEcdsaPublic>(&bytes)
+                            .map(|SpEcdsaPublic(public)| public)
+                            .ok()
+                    })
+                    .collect::<Vec<_>>();
+                keys.append(&mut storage_keys);
+            }
+            Box::new(keys.into_iter())
+        } else {
+            Box::new(std::iter::empty())
+        }
     }
 
     #[cfg(feature = "sp-core-bls")]
@@ -549,7 +549,6 @@ impl TangleBackend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::InMemoryStorage;
 
     #[test]
     #[test]

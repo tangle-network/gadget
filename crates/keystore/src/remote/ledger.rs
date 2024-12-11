@@ -168,22 +168,24 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         Ok(AddressWrapper(address))
     }
 
-    async fn sign_message_with_key_id(
-        &self,
-        message: &[u8],
-        key_id: &Self::KeyId,
-        chain_id: Option<u64>,
-    ) -> Result<Self::Signature, Error> {
-        let signer = self
-            .signers
-            .get(&(key_id.0, chain_id))
-            .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id.0)))?;
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
+        let mut public_keys = Vec::new();
+        for ((address, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
 
-        signer
-            .signer
-            .sign_message(message)
-            .await
-            .map_err(|e| Error::SignatureFailed(e.to_string()))
+            let address_check = signer
+                .signer
+                .get_address()
+                .await
+                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
+            public_keys.push(AddressWrapper(address_check));
+        }
+        Ok(public_keys)
     }
 
     async fn get_key_id_from_public_key(
@@ -211,24 +213,22 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         Err(Error::Other("Key not found".to_string()))
     }
 
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
-        let mut public_keys = Vec::new();
-        for ((address, signer_chain_id), signer) in &self.signers {
-            // Skip if chain_id is Some and doesn't match
-            if let Some(chain_id) = chain_id {
-                if signer.chain_id != Some(chain_id) {
-                    continue;
-                }
-            }
+    async fn sign_message_with_key_id(
+        &self,
+        message: &[u8],
+        key_id: &Self::KeyId,
+        chain_id: Option<u64>,
+    ) -> Result<Self::Signature, Error> {
+        let signer = self
+            .signers
+            .get(&(key_id.0, chain_id))
+            .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id.0)))?;
 
-            let address_check = signer
-                .signer
-                .get_address()
-                .await
-                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
-            public_keys.push(AddressWrapper(address_check));
-        }
-        Ok(public_keys)
+        signer
+            .signer
+            .sign_message(message)
+            .await
+            .map_err(|e| Error::SignatureFailed(e.to_string()))
     }
 }
 
