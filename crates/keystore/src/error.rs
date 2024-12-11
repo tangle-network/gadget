@@ -3,8 +3,11 @@ use gadget_std::string::String;
 
 /// Different errors that can occur in the [`crate::keystore`] module
 #[derive(Debug, thiserror::Error)]
+#[rustfmt::skip]
 #[non_exhaustive]
 pub enum Error {
+    // Core errors, always available
+
     /// Storage unsupported
     #[error("Storage not supported")]
     StorageNotSupported,
@@ -38,6 +41,21 @@ pub enum Error {
     /// Remote key fetch failed
     #[error("Remote key fetch failed: {0}")]
     RemoteKeyFetchFailed(String),
+
+    // Feature-specific errors
+
+    #[cfg(feature = "aws-signer")]
+    #[error(transparent)]
+    AwsSigner(#[from] alloy_signer_aws::AwsSignerError),
+    #[cfg(feature = "gcp-signer")]
+    #[error(transparent)]
+    GCloud(#[from] gcloud_sdk::error::Error),
+    #[cfg(feature = "gcp-signer")]
+    #[error(transparent)]
+    GcpSigner(#[from] alloy_signer_gcp::GcpSignerError),
+    #[cfg(any(feature = "ledger-node", feature = "ledger-browser"))]
+    #[error(transparent)]
+    Ledger(#[from] alloy_signer_ledger::LedgerError),
     /// Secret string error
     #[cfg(feature = "tangle")]
     #[error(transparent)]
