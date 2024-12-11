@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::Error;
 use crate::key_types::KeyType;
-pub use crate::remote::types::{EcdsaRemoteSigner, RemoteCapabilities, RemoteConfig};
+pub use crate::remote::{EcdsaRemoteSigner, RemoteCapabilities, RemoteConfig};
 
 use super::{backend::Backend, Keystore};
 
