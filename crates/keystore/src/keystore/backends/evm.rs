@@ -1,12 +1,11 @@
 use crate::error::{Error, Result};
 use crate::key_types::KeyType;
+use crate::keystore::Keystore;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, B256};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_signer_local::{coins_bip39::English, MnemonicBuilder};
 use serde::de::DeserializeOwned;
-
-use super::Keystore;
 
 #[async_trait::async_trait]
 pub trait EvmBackend: Send + Sync {

@@ -1,24 +1,12 @@
-use crate::cfg_remote;
+pub mod backends;
+use backends::Backend;
+use backends::BackendConfig;
+
 use crate::error::{Error, Result};
 use crate::key_types::{KeyType, KeyTypeId};
 use crate::storage::RawStorage;
-use backend::{Backend, BackendConfig};
 use gadget_std::{any::TypeId, boxed::Box, cmp, collections::BTreeMap, vec::Vec};
 use serde::de::DeserializeOwned;
-
-mod backend;
-pub use backend::*;
-#[cfg(feature = "bn254")]
-pub mod bn254;
-#[cfg(feature = "evm")]
-pub mod evm;
-
-cfg_remote! {
-    pub mod remote;
-}
-
-#[cfg(feature = "tangle")]
-pub mod tangle;
 
 /// Represents a storage backend with its priority
 pub struct StorageEntry {
@@ -29,7 +17,7 @@ pub struct StorageEntry {
 pub struct Keystore {
     storages: BTreeMap<KeyTypeId, Vec<StorageEntry>>,
     #[cfg(feature = "remote")]
-    remotes: BTreeMap<KeyTypeId, Vec<remote::RemoteEntry>>,
+    remotes: BTreeMap<KeyTypeId, Vec<backends::remote::RemoteEntry>>,
 }
 
 impl Keystore {
