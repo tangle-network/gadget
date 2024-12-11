@@ -6,7 +6,6 @@ use crate::{
 use alloy_primitives::keccak256;
 use alloy_signer_aws::AwsSigner;
 use aws_config::{BehaviorVersion, Region};
-use k256::ecdsa::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
