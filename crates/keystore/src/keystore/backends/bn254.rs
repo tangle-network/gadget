@@ -1,7 +1,5 @@
 use crate::error::Result;
-use crate::key_types::{arkworks_bn254, KeyType};
-use crate::storage::RawStorage;
-use serde::de::DeserializeOwned;
+use crate::key_types::arkworks_bn254;
 
 #[async_trait::async_trait]
 pub trait Bn254Backend: Send + Sync {
@@ -9,10 +7,7 @@ pub trait Bn254Backend: Send + Sync {
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<arkworks_bn254::Public>;
 
     /// Generate a BN254 key pair from a string seed
-    fn bls_bn254_generate_from_string(
-        &self,
-        secret: String,
-    ) -> Result<arkworks_bn254::Public>;
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<arkworks_bn254::Public>;
 
     /// Sign a message using BN254 key
     fn bls_bn254_sign(
