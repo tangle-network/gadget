@@ -41,7 +41,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl serde::Serialize for [<$key_type Pair>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -51,7 +51,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Pair>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -93,7 +93,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl serde::Serialize for [<$key_type Public>]{
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -103,7 +103,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Public>]{
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -143,7 +143,7 @@ macro_rules! impl_sp_core_signature {
             }
 
             impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -152,7 +152,7 @@ macro_rules! impl_sp_core_signature {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -192,7 +192,7 @@ macro_rules! impl_sp_core_bls_signature {
             }
 
             impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -201,7 +201,7 @@ macro_rules! impl_sp_core_bls_signature {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {

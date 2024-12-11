@@ -1,8 +1,6 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
-use crate::{
-    error::Error,
-    key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey},
-};
+use crate::error::{Error, Result};
+use crate::key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use alloy_primitives::keccak256;
 use alloy_signer_gcp::{GcpKeyRingRef, GcpSigner, KeySpecifier};
 use gadget_std::collections::BTreeMap;
@@ -48,7 +46,7 @@ pub struct GcpRemoteSigner {
 }
 
 impl GcpRemoteSigner {
-    pub async fn new(config: GcpRemoteSignerConfig) -> Result<Self, Error> {
+    pub async fn new(config: GcpRemoteSignerConfig) -> Result<Self> {
         let mut signers = BTreeMap::new();
 
         for key_config in config.keys {
@@ -96,7 +94,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
     type KeyId = String;
     type Config = GcpRemoteSignerConfig;
 
-    async fn build(config: RemoteConfig) -> Result<Self, Error> {
+    async fn build(config: RemoteConfig) -> Result<Self> {
         Self::new(config.into()).await
     }
 
@@ -104,7 +102,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         &self,
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Public, Error> {
+    ) -> Result<Self::Public> {
         // Find signer for the given key ID
         let signer = self
             .signers
@@ -120,7 +118,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         ))
     }
 
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
         for ((_, signer_chain_id), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
@@ -144,7 +142,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         &self,
         public_key: &Self::Public,
         chain_id: Option<u64>,
-    ) -> Result<Self::KeyId, Error> {
+    ) -> Result<Self::KeyId> {
         for ((key_id, signer_chain_id), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
@@ -172,7 +170,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         message: &[u8],
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let digest = keccak256(message);
 
         // Find signer for the given key ID

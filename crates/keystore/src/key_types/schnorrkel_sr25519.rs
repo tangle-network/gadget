@@ -1,4 +1,5 @@
-use crate::{error::Error, key_types::KeyType};
+use crate::error::{Error, Result};
+use crate::key_types::KeyType;
 use gadget_std::UniformRand;
 
 /// Schnorrkel key type
@@ -22,13 +23,18 @@ macro_rules! impl_schnorrkel_serde {
         }
 
         impl serde::Serialize for $name {
-            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            fn serialize<S: serde::Serializer>(
+                &self,
+                serializer: S,
+            ) -> core::result::Result<S::Ok, S::Error> {
                 serializer.serialize_bytes(&self.0.to_bytes())
             }
         }
 
         impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            fn deserialize<D: serde::Deserializer<'de>>(
+                deserializer: D,
+            ) -> core::result::Result<Self, D::Error> {
                 let bytes = <Vec<u8>>::deserialize(deserializer)?;
                 let inner = <$inner>::from_bytes(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
@@ -51,7 +57,7 @@ impl KeyType for SchnorrkelEcdsa {
         super::KeyTypeId::SchnorrkelSr25519
     }
 
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error> {
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret_key = if let Some(seed) = seed {
             schnorrkel::SecretKey::from_bytes(seed).map_err(|e| Error::InvalidSeed(e.to_string()))
         } else {
@@ -64,7 +70,7 @@ impl KeyType for SchnorrkelEcdsa {
         secret_key.map(Secret)
     }
 
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error> {
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
         let hex_encoded = hex::decode(secret).map_err(|_| Error::InvalidHexDecoding)?;
         let secret_key = schnorrkel::SecretKey::from_bytes(&hex_encoded)
             .map_err(|e| Error::InvalidSeed(e.to_string()))?;
@@ -75,7 +81,7 @@ impl KeyType for SchnorrkelEcdsa {
         Public(secret.0.to_public())
     }
 
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error> {
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
         let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
         Ok(SchnorrkelSignature(
             secret.0.sign(ctx, &secret.0.to_public()),
@@ -85,7 +91,7 @@ impl KeyType for SchnorrkelEcdsa {
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
         Ok(SchnorrkelSignature(
             secret.0.sign(ctx, &secret.0.to_public()),
