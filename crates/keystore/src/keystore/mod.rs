@@ -1,3 +1,4 @@
+use crate::cfg_remote;
 use crate::error::Error;
 use crate::key_types::{KeyType, KeyTypeId};
 use crate::storage::RawStorage;
@@ -5,18 +6,22 @@ use backend::{Backend, BackendConfig};
 use gadget_std::{any::TypeId, boxed::Box, cmp, collections::BTreeMap, vec::Vec};
 use serde::de::DeserializeOwned;
 
-pub mod backend;
+mod backend;
+pub use backend::*;
 #[cfg(feature = "bn254")]
 pub mod bn254;
 #[cfg(feature = "evm")]
 pub mod evm;
-#[cfg(feature = "remote")]
-pub mod remote;
+
+cfg_remote! {
+    pub mod remote;
+}
+
 #[cfg(feature = "tangle")]
 pub mod tangle;
 
 /// Represents a storage backend with its priority
-struct StorageEntry {
+pub struct StorageEntry {
     storage: Box<dyn RawStorage>,
     priority: u8,
 }
@@ -51,6 +56,7 @@ impl Backend for Keystore {
                 backends.push(entry);
                 backends.sort_by_key(|e| cmp::Reverse(e.priority));
             }
+            #[cfg(feature = "remote")]
             _ => return Err(Error::StorageNotSupported),
         }
         Ok(())
