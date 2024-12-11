@@ -51,9 +51,9 @@ cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
 tangle-subxt = { version = "0.7.0", default-features = false }
-subxt-signer = { version = "0.37.0", default-features = false }
-subxt = { version = "0.37.0", default-features = false }
-subxt-core = { version = "0.37.0", default-features = false }
+subxt-signer = { version = "0.38.0", default-features = false }
+subxt = { version = "0.38.0", default-features = false }
+subxt-core = { version = "0.38.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
@@ -166,19 +166,19 @@ typed-builder = "0.19"
 alloy-primitives = { version = "0.8.12", default-features = false }
 alloy-json-abi = { version = "0.8.12", default-features = false }
 alloy-sol-types = { version = "0.8.12", default-features = false }
-alloy-rpc-client = { version = "0.5", default-features = false }
-alloy-rpc-types = { version = "0.5", default-features = false }
-alloy-rpc-types-eth = { version = "0.5", default-features = false }
-alloy-provider = { version = "0.5", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.5", default-features = false }
-alloy-signer = { version = "0.5", default-features = false }
-alloy-signer-local = { version = "0.5", default-features = false }
-alloy-network = { version = "0.5", default-features = false }
-alloy-node-bindings = { version = "0.5", default-features = false }
-alloy-contract = { version = "0.5", default-features = false }
-alloy-consensus = { version = "0.5", default-features = false }
-alloy-transport = { version = "0.5", default-features = false }
-alloy-transport-http = { version = "0.5", default-features = false }
+alloy-rpc-client = { version = "0.5.4", default-features = false }
+alloy-rpc-types = { version = "0.5.4", default-features = false }
+alloy-rpc-types-eth = { version = "0.5.4", default-features = false }
+alloy-provider = { version = "0.5.4", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.5.4", default-features = false }
+alloy-signer = { version = "0.5.4", default-features = false }
+alloy-signer-local = { version = "0.5.4", default-features = false }
+alloy-network = { version = "0.5.4", default-features = false }
+alloy-node-bindings = { version = "0.5.4", default-features = false }
+alloy-contract = { version = "0.5.4", default-features = false }
+alloy-consensus = { version = "0.5.4", default-features = false }
+alloy-transport = { version = "0.5.4", default-features = false }
+alloy-transport-http = { version = "0.5.4", default-features = false }
 ripemd = { version = "0.1.3", default-features = false }
 
 # Remote signing

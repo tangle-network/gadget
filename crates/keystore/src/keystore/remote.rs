@@ -36,35 +36,44 @@ impl RemoteEntry {
 #[async_trait::async_trait]
 pub trait RemoteBackend: Backend {
     /// Sign a message using a remote signer
-    async fn sign_with_remote<T: KeyType, R: EcdsaRemoteSigner<T>>(
+    async fn sign_with_remote<T, R>(
         &self,
         public: &T::Public,
         msg: &[u8],
         chain_id: Option<u64>,
     ) -> Result<T::Signature, Error>
     where
-        T::Public: DeserializeOwned;
+        T: KeyType,
+        R: EcdsaRemoteSigner<T>,
+        T::Public: DeserializeOwned + Send,
+        R::Public: Send,
+        R::KeyId: Send;
 
     /// List all public keys from remote signers
-    async fn list_remote<T: KeyType, R: EcdsaRemoteSigner<T>>(
-        &self,
-        chain_id: Option<u64>,
-    ) -> Result<Vec<T::Public>, Error>
+    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>, Error>
     where
-        T::Public: DeserializeOwned;
+        T: KeyType,
+        R: EcdsaRemoteSigner<T>,
+        T::Public: DeserializeOwned + Send,
+        R::Public: Send,
+        R::KeyId: Send;
 }
 
 #[async_trait::async_trait]
 impl RemoteBackend for Keystore {
     /// Sign a message using a remote signer
-    async fn sign_with_remote<T: KeyType, R: EcdsaRemoteSigner<T>>(
+    async fn sign_with_remote<T, R>(
         &self,
         public: &T::Public,
         msg: &[u8],
         chain_id: Option<u64>,
     ) -> Result<T::Signature, Error>
     where
-        T::Public: DeserializeOwned,
+        T: KeyType,
+        R: EcdsaRemoteSigner<T>,
+        T::Public: DeserializeOwned + Send,
+        R::Public: Send,
+        R::KeyId: Send,
     {
         let remotes = self
             .remotes
@@ -76,8 +85,12 @@ impl RemoteBackend for Keystore {
                 let remote = R::build(entry.config().clone()).await?;
                 let public_bytes = serde_json::to_vec(public)?;
                 let remote_public = serde_json::from_slice::<R::Public>(&public_bytes)?;
-                let key_id = remote.get_key_id_from_public_key(&remote_public).await?;
-                remote.sign_message_with_key_id(msg, &key_id).await?;
+                let key_id = remote
+                    .get_key_id_from_public_key(&remote_public, chain_id)
+                    .await?;
+                remote
+                    .sign_message_with_key_id(msg, &key_id, chain_id)
+                    .await?;
             }
         }
 
@@ -85,12 +98,13 @@ impl RemoteBackend for Keystore {
     }
 
     /// List all public keys from remote signers
-    async fn list_remote<T: KeyType, R: EcdsaRemoteSigner<T>>(
-        &self,
-        chain_id: Option<u64>,
-    ) -> Result<Vec<T::Public>, Error>
+    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>, Error>
     where
-        T::Public: DeserializeOwned,
+        T: KeyType,
+        R: EcdsaRemoteSigner<T>,
+        T::Public: DeserializeOwned + Send,
+        R::Public: Send,
+        R::KeyId: Send,
     {
         let mut keys = Vec::new();
         let key_type = T::key_type_id();
@@ -99,7 +113,7 @@ impl RemoteBackend for Keystore {
             for entry in remotes {
                 if entry.capabilities().signing {
                     let remote = R::build(entry.config().clone()).await?;
-                    let key_ids = remote.iter_public_keys().await?;
+                    let key_ids = remote.iter_public_keys(chain_id).await?;
                     for key_id in key_ids {
                         let public_bytes = serde_json::to_vec(&key_id)?;
                         let public = serde_json::from_slice(&public_bytes)?;

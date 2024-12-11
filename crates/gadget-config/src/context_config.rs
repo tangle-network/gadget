@@ -2,10 +2,9 @@ use super::*;
 use crate::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use alloc::string::String;
 use alloy_primitives::Address;
-use core::fmt::Debug;
-use core::net::IpAddr;
-use core::str::FromStr;
-use gadget_io::SupportedChains;
+use gadget_std::fmt::Debug;
+use gadget_std::net::IpAddr;
+use gadget_std::str::FromStr;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
@@ -13,7 +12,6 @@ use url::Url;
 
 #[derive(Debug, Default, Clone, clap::Parser, Serialize, Deserialize)]
 #[command(name = "General CLI Context")]
-#[cfg(feature = "std")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
     #[command(subcommand)]
@@ -21,7 +19,6 @@ pub struct ContextConfig {
 }
 
 #[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
-#[cfg(feature = "std")]
 pub enum GadgetCLICoreSettings {
     #[command(name = "run")]
     Run {

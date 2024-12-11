@@ -51,11 +51,17 @@ pub trait RemoteSigner<T: KeyType>: RemoteBackend {
 }
 
 // Keep existing EcdsaRemoteSigner for ECDSA-specific remote signing
-#[async_trait]
+#[async_trait::async_trait]
 pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
-    type Public: Clone + Ord + Serialize + DeserializeOwned + std::fmt::Debug + From<T::Public>;
+    type Public: Clone
+        + Ord
+        + Serialize
+        + DeserializeOwned
+        + std::fmt::Debug
+        + From<T::Public>
+        + Send;
     type Signature: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
-    type KeyId: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
+    type KeyId: Clone + Serialize + DeserializeOwned + std::fmt::Debug + Send;
     type Config: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
 
     async fn build(config: RemoteConfig) -> Result<Self, Error>

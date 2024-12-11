@@ -1,10 +1,13 @@
 //! Keystore Errors
-use gadget_std::{error, string::String};
+use gadget_std::string::String;
 
 /// Different errors that can occur in the [`crate::keystore`] module
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
+    /// Storage unsupported
+    #[error("Storage not supported")]
+    StorageNotSupported,
     /// An I/O error occurred
     #[error(transparent)]
     Io(#[from] gadget_std::io::Error),
@@ -62,13 +65,18 @@ pub enum Error {
     #[error("bls_bn254: {0}")]
     #[cfg(feature = "bn254")]
     BlsBn254(String),
-    /// An error occurred during alloy_ecdsa module operation
-    #[error("alloy_ecdsa: {0}")]
-    #[cfg(feature = "evm")]
-    Alloy(String),
     /// Other error
     #[error("{0}")]
     Other(String),
+
+    /// Alloy signer error
+    #[error(transparent)]
+    #[cfg(feature = "evm")]
+    AlloySigner(#[from] alloy_signer::Error),
+    /// Alloy local signer error
+    #[error(transparent)]
+    #[cfg(feature = "evm")]
+    LocalSignerError(#[from] alloy_signer_local::LocalSignerError),
 }
 
 #[cfg(feature = "sr25519-schnorrkel")]
