@@ -4,38 +4,38 @@ version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-homepage.workspace = true
-repository.workspace = true
 
 [dependencies]
-# Core dependencies
-gadget-std = { workspace = true, default-features = false }
-gadget-keystore = { workspace = true, default-features = false }
-
-# Serialization
-serde = { workspace = true, features = ["derive"], default-features = false }
-serde_json = { workspace = true, default-features = false }
-
-# Networking
-url = { workspace = true, default-features = false }
-libp2p = { workspace = true, default-features = false }
-
-# CLI
+# Core dependencies (always included)
 clap = { workspace = true, features = ["derive", "env"], default-features = false }
+gadget-std = { workspace = true }
+lock_api = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
 
-# Crypto/Blockchain
-alloy-primitives = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
-sp-io = { workspace = true, default-features = false }
-subxt = { workspace = true, default-features = false }
-tangle-subxt = { workspace = true, default-features = false }
-
-# Error handling
-thiserror = { workspace = true, default-features = false }
+# Optional dependencies (feature-gated)
+gadget-keystore = { workspace = true, optional = true }
+libp2p = { workspace = true, optional = true }
+eigensdk = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
 
 [features]
 default = ["std"]
 std = []
 
-[lints]
-workspace = true
+# Core feature groups
+keystore = ["dep:gadget-keystore"]
+networking = ["dep:libp2p"]
+
+# Protocol-specific features
+tangle = ["keystore", "dep:tangle-subxt"]
+eigenlayer = ["keystore", "dep:eigensdk", "dep:alloy-primitives"]
+symbiotic = ["keystore", "dep:alloy-primitives"]
+
+# Testing features
+test-utils = ["std"]

@@ -132,19 +132,19 @@ pub struct SymbioticContractAddresses {
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum ProtocolSpecificSettings {
+pub enum ProtocolSettings {
     Tangle(TangleInstanceSettings),
     Eigenlayer(EigenlayerContractAddresses),
     Symbiotic(SymbioticContractAddresses),
 }
 
-impl Default for ProtocolSpecificSettings {
+impl Default for ProtocolSettings {
     fn default() -> Self {
         Self::Tangle(TangleInstanceSettings::default())
     }
 }
 
-impl ProtocolSpecificSettings {
+impl ProtocolSettings {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Tangle(_) => "tangle",

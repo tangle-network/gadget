@@ -1,54 +1,37 @@
 use super::*;
 use crate::keystore::backend::GenericKeyStore;
-#[cfg(any(feature = "std", feature = "wasm"))]
-use crate::keystore::BackendExt;
-#[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
 use crate::network::setup::NetworkConfig;
+use crate::traits::*;
 use crate::utils::test_utils::get_client;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
+use gadget_keystore::keystore::Keystore;
 use libp2p::Multiaddr;
 use protocol::TangleInstanceSettings;
 use std::path::PathBuf;
 
-/// Gadget environment using the `parking_lot` RwLock.
-#[cfg(feature = "std")]
-pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
+pub type StdGadgetConfiguration = GadgetConfiguration;
 
 /// Gadget environment.
 #[non_exhaustive]
-pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
+pub struct GadgetConfiguration {
     /// HTTP RPC endpoint for host network.
     pub http_rpc_endpoint: String,
     /// WS RPC endpoint for host network.
     pub ws_rpc_endpoint: String,
-    /// Keystore URI
-    ///
-    /// * In Memory: `file::memory:` or `:memory:`
-    /// * Filesystem: `file:/path/to/keystore` or `file:///path/to/keystore`
-    pub keystore_uri: String,
     /// Data directory exclusively for this gadget
     ///
     /// This will be `None` if the blueprint manager was not provided a base directory.
     pub data_dir: Option<PathBuf>,
     /// The list of bootnodes to connect to
     pub bootnodes: Vec<Multiaddr>,
-    /// The Current Environment is for the `PreRegisteration` of the Gadget
-    ///
-    /// The gadget will now start in the Registration mode and will try to register the current operator on that blueprint
-    /// There is no Service ID for this mode, since we need to register the operator first on the blueprint.
-    ///
-    /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
-    pub is_registration: bool,
-    /// Whether to skip the registration process
-    pub skip_registration: bool,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
     /// Protocol-specific settings
-    pub protocol_specific: ProtocolSpecificSettings,
+    pub protocol_settings: ProtocolSpecificSettings,
     /// The Port of the Network that will be interacted with
     pub target_port: u16,
     /// The Address of the Network that will be interacted with
@@ -59,21 +42,19 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
-    pub(crate) _lock: core::marker::PhantomData<RwLock>,
 }
 
-impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
+impl Debug for GadgetConfiguration {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GadgetConfiguration")
             .field("http_rpc_endpoint", &self.http_rpc_endpoint)
             .field("ws_rpc_endpoint", &self.ws_rpc_endpoint)
-            .field("keystore_uri", &self.keystore_uri)
             .field("data_dir", &self.data_dir)
             .field("bootnodes", &self.bootnodes)
             .field("is_registration", &self.is_registration)
             .field("skip_registration", &self.skip_registration)
             .field("protocol", &self.protocol)
-            .field("protocol_specific", &self.protocol_specific)
+            .field("protocol_settings", &self.protocol_settings)
             .field("bind_port", &self.target_port)
             .field("bind_addr", &self.target_addr)
             .field("test_mode", &self.test_mode)
@@ -81,41 +62,34 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
     }
 }
 
-impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
+impl Clone for GadgetConfiguration {
     fn clone(&self) -> Self {
         Self {
             http_rpc_endpoint: self.http_rpc_endpoint.clone(),
             ws_rpc_endpoint: self.ws_rpc_endpoint.clone(),
-            keystore_uri: self.keystore_uri.clone(),
             data_dir: self.data_dir.clone(),
             bootnodes: self.bootnodes.clone(),
-            is_registration: self.is_registration,
-            skip_registration: self.skip_registration,
             protocol: self.protocol,
-            protocol_specific: self.protocol_specific,
+            protocol_settings: self.protocol_settings,
             target_port: self.target_port,
             target_addr: self.target_addr,
             use_secure_url: self.use_secure_url,
             span: self.span.clone(),
             test_mode: self.test_mode,
-            _lock: core::marker::PhantomData,
         }
     }
 }
 
 // Useful for quick testing
-impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
+impl Default for GadgetConfiguration {
     fn default() -> Self {
         Self {
             http_rpc_endpoint: "http://localhost:9944".to_string(),
             ws_rpc_endpoint: "ws://localhost:9944".to_string(),
-            keystore_uri: "file::memory:".to_string(),
             data_dir: None,
             bootnodes: Vec::new(),
-            is_registration: false,
-            skip_registration: false,
             protocol: Protocol::Tangle,
-            protocol_specific: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
+            protocol_settings: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
                 blueprint_id: 0,
                 service_id: Some(0),
             }),
@@ -124,59 +98,21 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             use_secure_url: false,
             span: tracing::Span::current(),
             test_mode: true,
-            _lock: core::marker::PhantomData,
         }
     }
 }
 
-impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
-    /// Returns a libp2p-friendly identity keypair.
-    pub fn libp2p_identity(&self) -> Result<libp2p::identity::Keypair, Error> {
-        let ed25519 = *self.first_ed25519_signer()?.signer();
-        let keypair = libp2p::identity::Keypair::ed25519_from_bytes(ed25519.seed())
-            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
-        Ok(keypair)
-    }
-
-    /// Returns a new `NetworkConfig` for the current environment.
-    pub fn libp2p_network_config<T: Into<String>>(
-        &self,
-        network_name: T,
-    ) -> Result<NetworkConfig, Error> {
-        let network_identity = self.libp2p_identity()?;
-
-        let my_ecdsa_key = self.first_ecdsa_signer()?;
-        let network_config = NetworkConfig::new_service_network(
-            network_identity,
-            my_ecdsa_key.signer().clone(),
-            self.bootnodes.clone(),
-            self.target_port,
-            network_name,
-        );
-
-        Ok(network_config)
-    }
+impl GadgetConfiguration {
     /// Loads the `KeyStore` from the current environment.
     ///
     /// # Errors
     ///
     /// This function will return an error if the keystore URI is unsupported.
-    pub fn keystore(&self) -> Result<GenericKeyStore<RwLock>, Error> {
-        #[cfg(feature = "std")]
-        use crate::keystore::backend::fs::FilesystemKeystore;
-        use crate::keystore::backend::{mem::InMemoryKeystore, GenericKeyStore};
-
+    pub fn keystore(&self) -> Result<gadget_keystore::keystore::Keystore, Error> {
         match self.keystore_uri.as_str() {
-            uri if uri == "file::memory:" || uri == ":memory:" => {
-                Ok(GenericKeyStore::Mem(InMemoryKeystore::new()))
-            }
+            uri if uri == "file::memory:" || uri == ":memory:" => Ok(Keystore::new()),
             #[cfg(feature = "std")]
-            uri if uri.starts_with("file:") || uri.starts_with("file://") => {
-                let path = uri
-                    .trim_start_matches("file://")
-                    .trim_start_matches("file:");
-                Ok(GenericKeyStore::Fs(FilesystemKeystore::open(path)?))
-            }
+            uri if uri.starts_with("file:") || uri.starts_with("file://") => Ok(Keystore::new()),
             otherwise => Err(Error::UnsupportedKeystoreUri(otherwise.to_string())),
         }
     }
@@ -188,7 +124,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No sr25519 keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
+
     pub fn first_sr25519_signer(&self) -> Result<TanglePairSigner<sp_core::sr25519::Pair>, Error> {
         self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
@@ -200,7 +136,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No ECDSA keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
+
     pub fn first_ecdsa_signer(&self) -> Result<TanglePairSigner<sp_core::ecdsa::Pair>, Error> {
         self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
@@ -212,7 +148,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No ED25519 keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "ed25519_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
+
     pub fn first_ed25519_signer(&self) -> Result<TanglePairSigner<sp_core::ed25519::Pair>, Error> {
         self.keystore()?.ed25519_key().map_err(Error::Keystore)
     }
@@ -223,7 +159,6 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_bls_bn254_signer(&self) -> Result<crypto_bls::BlsKeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }
@@ -244,7 +179,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
-    #[cfg(any(feature = "std", feature = "wasm"))]
+
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
         match self.protocol {
             Protocol::Tangle => get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
@@ -287,8 +222,106 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
 
     /// Only relevant if this is a Tangle protocol.
     pub fn service_id(&self) -> Option<u64> {
-        let tangle_settings = self.protocol_specific.tangle().ok()?;
+        let tangle_settings = self.protocol_settings.tangle().ok()?;
         let TangleInstanceSettings { service_id, .. } = tangle_settings;
         *service_id
+    }
+}
+
+impl ConfigCore for GadgetConfiguration {
+    fn data_dir(&self) -> Option<&PathBuf> {
+        self.data_dir.as_ref()
+    }
+
+    fn protocol(&self) -> Protocol {
+        self.protocol
+    }
+}
+
+#[cfg(feature = "keystore")]
+impl KeystoreConfig for GadgetConfiguration {
+    fn init_keystore(&self) -> Result<Keystore, Error> {
+        match self.keystore_uri.as_str() {
+            uri if uri == "file::memory:" || uri == ":memory:" => Ok(Keystore::new()),
+            uri if uri.starts_with("file:") || uri.starts_with("file://") => Ok(Keystore::new()),
+            otherwise => Err(Error::UnsupportedKeystoreUri(otherwise.to_string())),
+        }
+    }
+
+    fn keystore_uri(&self) -> &str {
+        &self.keystore_uri
+    }
+}
+
+#[cfg(feature = "networking")]
+impl NetworkConfig for GadgetConfiguration {
+    fn target_addr(&self) -> std::net::IpAddr {
+        self.target_addr
+    }
+
+    fn target_port(&self) -> u16 {
+        self.target_port
+    }
+
+    fn bootnodes(&self) -> &[libp2p::Multiaddr] {
+        &self.bootnodes
+    }
+
+    fn use_secure_url(&self) -> bool {
+        self.use_secure_url
+    }
+
+    /// Returns a libp2p-friendly identity keypair.
+    pub fn libp2p_identity(&self) -> Result<libp2p::identity::Keypair, Error> {
+        let ed25519 = *self.first_ed25519_signer()?.signer();
+        let keypair = libp2p::identity::Keypair::ed25519_from_bytes(ed25519.seed())
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        Ok(keypair)
+    }
+
+    /// Returns a new `NetworkConfig` for the current environment.
+    pub fn libp2p_network_config<T: Into<String>>(
+        &self,
+        network_name: T,
+    ) -> Result<NetworkConfig, Error> {
+        let network_identity = self.libp2p_identity()?;
+
+        let my_ecdsa_key = self.first_ecdsa_signer()?;
+        let network_config = NetworkConfig::new_service_network(
+            network_identity,
+            my_ecdsa_key.signer().clone(),
+            self.bootnodes.clone(),
+            self.target_port,
+            network_name,
+        );
+
+        Ok(network_config)
+    }
+}
+
+#[cfg(feature = "tangle")]
+impl TangleConfig for GadgetConfiguration {
+    fn blueprint_id(&self) -> u64 {
+        match self.protocol_settings {
+            ProtocolSpecificSettings::Tangle(ref settings) => settings.blueprint_id,
+            _ => panic!("Not a Tangle configuration"),
+        }
+    }
+
+    fn service_id(&self) -> Option<u64> {
+        match self.protocol_settings {
+            ProtocolSpecificSettings::Tangle(ref settings) => settings.service_id,
+            _ => panic!("Not a Tangle configuration"),
+        }
+    }
+}
+
+#[cfg(feature = "eigenlayer")]
+impl EigenlayerConfig for GadgetConfiguration {
+    fn contract_addresses(&self) -> &EigenlayerContractAddresses {
+        match self.protocol_settings {
+            ProtocolSpecificSettings::Eigenlayer(ref addresses) => addresses,
+            _ => panic!("Not an Eigenlayer configuration"),
+        }
     }
 }
