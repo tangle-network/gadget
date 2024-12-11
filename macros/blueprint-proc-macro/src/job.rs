@@ -151,7 +151,11 @@ pub fn generate_job_const_block(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (fn_name_string, job_def_name, job_id_name) = get_job_id_field_name(input);
     // Creates Job Definition using input parameters
+    let job_id_as_u64 = u64::from_str(&job_id.to_string()).map_err(|err| {
+        syn::Error::new_spanned(job_id, format!("Failed to convert job id to u64: {err}"))
+    })?;
     let job_def = JobDefinition {
+        job_id: job_id_as_u64,
         metadata: JobMetadata {
             name: fn_name_string.clone().into(),
             // filled later on during the rustdoc gen.
