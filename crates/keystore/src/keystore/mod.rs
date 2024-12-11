@@ -126,38 +126,6 @@ impl Backend for Keystore {
         Ok(keys)
     }
 
-    // Helper methods
-    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry], Error> {
-        self.storages
-            .get(&T::key_type_id())
-            .map(|v| v.as_slice())
-            .ok_or(Error::KeyTypeNotSupported)
-    }
-
-    fn get_secret<T: KeyType>(&self, public: &T::Public) -> Result<T::Secret, Error>
-    where
-        T::Public: DeserializeOwned,
-        T::Secret: DeserializeOwned,
-    {
-        let storages = self
-            .storages
-            .get(&T::key_type_id())
-            .ok_or(Error::KeyTypeNotSupported)?;
-
-        let public_bytes = serde_json::to_vec(public)?;
-        for entry in storages {
-            if let Some(bytes) = entry
-                .storage
-                .load_raw(TypeId::of::<T>(), public_bytes.clone())?
-            {
-                let secret: T::Secret = serde_json::from_slice(&bytes)?;
-                return Ok(secret);
-            }
-        }
-
-        Err(Error::KeyNotFound)
-    }
-
     fn get_public_key_local<T: KeyType>(&self, key_id: &str) -> Result<T::Public, Error>
     where
         T::Public: DeserializeOwned,
@@ -214,6 +182,38 @@ impl Backend for Keystore {
         }
 
         Ok(())
+    }
+
+    fn get_secret<T: KeyType>(&self, public: &T::Public) -> Result<T::Secret, Error>
+    where
+        T::Public: DeserializeOwned,
+        T::Secret: DeserializeOwned,
+    {
+        let storages = self
+            .storages
+            .get(&T::key_type_id())
+            .ok_or(Error::KeyTypeNotSupported)?;
+
+        let public_bytes = serde_json::to_vec(public)?;
+        for entry in storages {
+            if let Some(bytes) = entry
+                .storage
+                .load_raw(TypeId::of::<T>(), public_bytes.clone())?
+            {
+                let secret: T::Secret = serde_json::from_slice(&bytes)?;
+                return Ok(secret);
+            }
+        }
+
+        Err(Error::KeyNotFound)
+    }
+
+    // Helper methods
+    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry], Error> {
+        self.storages
+            .get(&T::key_type_id())
+            .map(|v| v.as_slice())
+            .ok_or(Error::KeyTypeNotSupported)
     }
 }
 

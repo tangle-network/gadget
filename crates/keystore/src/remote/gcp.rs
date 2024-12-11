@@ -124,6 +124,26 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         ))
     }
 
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
+        let mut public_keys = Vec::new();
+        for ((_, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
+            let pk = signer
+                .signer
+                .get_pubkey()
+                .await
+                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
+            public_keys.push(K256VerifyingKey(pk));
+        }
+        Ok(public_keys)
+    }
+
     async fn get_key_id_from_public_key(
         &self,
         public_key: &Self::Public,
@@ -149,26 +169,6 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         }
 
         Err(Error::Other("Key not found".to_string()))
-    }
-
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
-        let mut public_keys = Vec::new();
-        for ((_, signer_chain_id), signer) in &self.signers {
-            // Skip if chain_id is Some and doesn't match
-            if let Some(chain_id) = chain_id {
-                if signer.chain_id != Some(chain_id) {
-                    continue;
-                }
-            }
-
-            let pk = signer
-                .signer
-                .get_pubkey()
-                .await
-                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
-            public_keys.push(K256VerifyingKey(pk));
-        }
-        Ok(public_keys)
     }
 
     async fn sign_message_with_key_id(
