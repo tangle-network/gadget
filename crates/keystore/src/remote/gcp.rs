@@ -3,14 +3,13 @@ use crate::{
     error::Error,
     key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey},
 };
-use alloy_primitives::{keccak256, Address, B256};
+use alloy_primitives::keccak256;
 use alloy_signer_gcp::{GcpKeyRingRef, GcpSigner, KeySpecifier};
-use async_trait::async_trait;
 use gadget_std::collections::BTreeMap;
 use gcloud_sdk::{
     google::cloud::kms::v1::key_management_service_client::KeyManagementServiceClient, GoogleApi,
 };
-use k256::ecdsa::{Signature, VerifyingKey};
+use k256::ecdsa::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
