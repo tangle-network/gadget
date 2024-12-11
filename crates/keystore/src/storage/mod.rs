@@ -1,4 +1,5 @@
-use crate::{error::Error, key_types::KeyType};
+use crate::error::Result;
+use crate::key_types::KeyType;
 use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
@@ -16,9 +17,9 @@ pub trait RawStorage: Send + Sync {
         type_id: TypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
-    ) -> Result<(), Error>;
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>, Error>;
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error>;
+    ) -> Result<()>;
+    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>>;
+    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<()>;
     fn contains_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> bool;
     fn list_raw(&self, type_id: TypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_>;
 }
@@ -33,14 +34,14 @@ impl<S: RawStorage> TypedStorage<S> {
         Self { storage }
     }
 
-    pub fn store<T: KeyType>(&self, public: &T::Public, secret: &T::Secret) -> Result<(), Error> {
+    pub fn store<T: KeyType>(&self, public: &T::Public, secret: &T::Secret) -> Result<()> {
         let public_bytes = serde_json::to_vec(public)?;
         let secret_bytes = serde_json::to_vec(secret)?;
         self.storage
             .store_raw(TypeId::of::<T>(), public_bytes, secret_bytes)
     }
 
-    pub fn load<T: KeyType>(&self, public: &T::Public) -> Result<Option<T::Secret>, Error>
+    pub fn load<T: KeyType>(&self, public: &T::Public) -> Result<Option<T::Secret>>
     where
         T::Secret: DeserializeOwned,
     {
@@ -54,7 +55,7 @@ impl<S: RawStorage> TypedStorage<S> {
         }
     }
 
-    pub fn remove<T: KeyType>(&self, public: &T::Public) -> Result<(), Error> {
+    pub fn remove<T: KeyType>(&self, public: &T::Public) -> Result<()> {
         let public_bytes = serde_json::to_vec(public)?;
         self.storage.remove_raw(TypeId::of::<T>(), public_bytes)
     }

@@ -1,5 +1,5 @@
 use crate::cfg_remote;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use crate::key_types::{KeyType, KeyTypeId};
 use crate::storage::RawStorage;
 use backend::{Backend, BackendConfig};
@@ -44,11 +44,7 @@ impl Keystore {
 
 impl Backend for Keystore {
     /// Register a storage backend for a key type with priority
-    fn register_storage<T: KeyType>(
-        &mut self,
-        storage: BackendConfig,
-        priority: u8,
-    ) -> Result<(), Error> {
+    fn register_storage<T: KeyType>(&mut self, storage: BackendConfig, priority: u8) -> Result<()> {
         match storage {
             BackendConfig::Local(storage) => {
                 let entry = StorageEntry { storage, priority };
@@ -63,7 +59,7 @@ impl Backend for Keystore {
     }
 
     /// Generate a new key pair from random seed
-    fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public, Error>
+    fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
@@ -85,7 +81,7 @@ impl Backend for Keystore {
     }
 
     /// Generate a key pair from a string seed
-    fn generate_from_string<T: KeyType>(&self, seed_str: &str) -> Result<T::Public, Error>
+    fn generate_from_string<T: KeyType>(&self, seed_str: &str) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
@@ -95,11 +91,7 @@ impl Backend for Keystore {
     }
 
     /// Sign a message using a local key
-    fn sign_with_local<T: KeyType>(
-        &self,
-        public: &T::Public,
-        msg: &[u8],
-    ) -> Result<T::Signature, Error>
+    fn sign_with_local<T: KeyType>(&self, public: &T::Public, msg: &[u8]) -> Result<T::Signature>
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
@@ -109,7 +101,7 @@ impl Backend for Keystore {
     }
 
     /// List all public keys of a given type from storages
-    fn list_local<T: KeyType>(&self) -> Result<Vec<T::Public>, Error>
+    fn list_local<T: KeyType>(&self) -> Result<Vec<T::Public>>
     where
         T::Public: DeserializeOwned,
     {
@@ -132,7 +124,7 @@ impl Backend for Keystore {
         Ok(keys)
     }
 
-    fn get_public_key_local<T: KeyType>(&self, key_id: &str) -> Result<T::Public, Error>
+    fn get_public_key_local<T: KeyType>(&self, key_id: &str) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
     {
@@ -152,7 +144,7 @@ impl Backend for Keystore {
         Err(Error::KeyNotFound)
     }
 
-    fn contains_local<T: KeyType>(&self, public: &T::Public) -> Result<bool, Error> {
+    fn contains_local<T: KeyType>(&self, public: &T::Public) -> Result<bool> {
         let public_bytes = serde_json::to_vec(public)?;
         let storages = self
             .storages
@@ -171,7 +163,7 @@ impl Backend for Keystore {
         Ok(false)
     }
 
-    fn remove<T: KeyType>(&self, public: &T::Public) -> Result<(), Error>
+    fn remove<T: KeyType>(&self, public: &T::Public) -> Result<()>
     where
         T::Public: DeserializeOwned,
     {
@@ -190,7 +182,7 @@ impl Backend for Keystore {
         Ok(())
     }
 
-    fn get_secret<T: KeyType>(&self, public: &T::Public) -> Result<T::Secret, Error>
+    fn get_secret<T: KeyType>(&self, public: &T::Public) -> Result<T::Secret>
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
@@ -215,7 +207,7 @@ impl Backend for Keystore {
     }
 
     // Helper methods
-    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry], Error> {
+    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry]> {
         self.storages
             .get(&T::key_type_id())
             .map(|v| v.as_slice())
@@ -230,7 +222,7 @@ mod tests {
     use crate::storage::InMemoryStorage;
 
     #[test]
-    fn test_generate_from_string() -> Result<(), Error> {
+    fn test_generate_from_string() -> Result<()> {
         let mut keystore = Keystore::new();
         keystore.register_storage::<K256Ecdsa>(
             BackendConfig::Local(Box::new(InMemoryStorage::new())),
@@ -252,7 +244,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_local_operations() -> Result<(), Error> {
+    async fn test_local_operations() -> Result<()> {
         let mut keystore = Keystore::new();
         keystore.register_storage::<K256Ecdsa>(
             BackendConfig::Local(Box::new(InMemoryStorage::new())),

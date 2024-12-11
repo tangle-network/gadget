@@ -1,8 +1,9 @@
 use super::Keystore;
+use crate::error::{Result, Error};
+use crate::key_types::KeyTypeId;
 use crate::key_types::{
     SpEcdsaPair, SpEcdsaPublic, SpEd25519Pair, SpEd25519Public, SpSr25519Pair, SpSr25519Public,
 };
-use crate::{error::Error, key_types::KeyTypeId};
 use gadget_std::any::TypeId;
 use sp_core::Pair;
 use sp_core::{ecdsa, ed25519, sr25519};
@@ -16,74 +17,74 @@ pub struct TanglePairSigner<P: Pair> {
 #[async_trait::async_trait]
 pub trait TangleBackend: Send + Sync {
     // Key Generation Methods
-    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error>;
-    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error>;
-    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error>;
+    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public>;
+    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public>;
+    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public>;
     #[cfg(feature = "sp-core-bls")]
-    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public, Error>;
+    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public>;
     #[cfg(feature = "sp-core-bls")]
-    fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public, Error>;
+    fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public>;
 
     // String-based Key Generation
-    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error>;
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public>;
 
     // Signing Methods
     fn sr25519_sign(
         &self,
         public: &sr25519::Public,
         msg: &[u8],
-    ) -> Result<Option<sr25519::Signature>, Error>;
+    ) -> Result<Option<sr25519::Signature>>;
 
     fn ed25519_sign(
         &self,
         public: &ed25519::Public,
         msg: &[u8],
-    ) -> Result<Option<ed25519::Signature>, Error>;
+    ) -> Result<Option<ed25519::Signature>>;
 
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
         msg: &[u8],
-    ) -> Result<Option<ecdsa::Signature>, Error>;
+    ) -> Result<Option<ecdsa::Signature>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn bls381_sign(
         &self,
         public: &sp_core::bls381::Public,
         msg: &[u8],
-    ) -> Result<Option<sp_core::bls381::Signature>, Error>;
+    ) -> Result<Option<sp_core::bls381::Signature>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn bls377_sign(
         &self,
         public: &sp_core::bls377::Public,
         msg: &[u8],
-    ) -> Result<Option<sp_core::bls377::Signature>, Error>;
+    ) -> Result<Option<sp_core::bls377::Signature>>;
 
     // Secret Key Access
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
-    ) -> Result<Option<sr25519::Pair>, Error>;
+    ) -> Result<Option<sr25519::Pair>>;
 
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
-    ) -> Result<Option<ed25519::Pair>, Error>;
+    ) -> Result<Option<ed25519::Pair>>;
 
-    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Pair>, Error>;
+    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Pair>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls381_secret(
         &self,
         public: &sp_core::bls381::Public,
-    ) -> Result<Option<sp_core::bls381::Pair>, Error>;
+    ) -> Result<Option<sp_core::bls381::Pair>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls377_secret(
         &self,
         public: &sp_core::bls377::Public,
-    ) -> Result<Option<sp_core::bls377::Pair>, Error>;
+    ) -> Result<Option<sp_core::bls377::Pair>>;
 
     // Key Iteration
     fn iter_sr25519(&self) -> Box<dyn Iterator<Item = sr25519::Public> + '_>;
@@ -98,7 +99,7 @@ pub trait TangleBackend: Send + Sync {
     fn create_sr25519_from_pair<T: Into<sr25519::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<sr25519::Pair>, Error> {
+    ) -> Result<TanglePairSigner<sr25519::Pair>> {
         let pair = pair.into();
         let seed = pair.as_ref().secret.to_bytes();
         let _ = self.sr25519_generate_new(Some(&seed))?;
@@ -110,7 +111,7 @@ pub trait TangleBackend: Send + Sync {
     fn create_ed25519_from_pair<T: Into<ed25519::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<ed25519::Pair>, Error> {
+    ) -> Result<TanglePairSigner<ed25519::Pair>> {
         let pair = pair.into();
         let seed = pair.seed();
         let _ = self.ed25519_generate_new(Some(&seed))?;
@@ -122,7 +123,7 @@ pub trait TangleBackend: Send + Sync {
     fn create_ecdsa_from_pair<T: Into<ecdsa::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<ecdsa::Pair>, Error> {
+    ) -> Result<TanglePairSigner<ecdsa::Pair>> {
         let pair = pair.into();
         let seed = pair.seed();
         let _ = self.ecdsa_generate_new(Some(&seed))?;
@@ -133,7 +134,7 @@ pub trait TangleBackend: Send + Sync {
 }
 
 impl TangleBackend for Keystore {
-    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
+    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public> {
         let secret = SpSr25519Pair(
             sr25519::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -157,7 +158,7 @@ impl TangleBackend for Keystore {
         Ok(public.0)
     }
 
-    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error> {
+    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public> {
         let secret = SpEd25519Pair(
             ed25519::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -181,7 +182,7 @@ impl TangleBackend for Keystore {
         Ok(public.0)
     }
 
-    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
+    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public> {
         let secret = SpEcdsaPair(
             ecdsa::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -206,7 +207,7 @@ impl TangleBackend for Keystore {
     }
 
     #[cfg(feature = "sp-core-bls")]
-    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public, Error> {
+    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public> {
         use crate::key_types::{SpBls381Pair, SpBls381Public};
 
         let secret = SpBls381Pair(
@@ -233,7 +234,7 @@ impl TangleBackend for Keystore {
     }
 
     #[cfg(feature = "sp-core-bls")]
-    fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public, Error> {
+    fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public> {
         use crate::key_types::{SpBls377Pair, SpBls377Public};
 
         let secret = SpBls377Pair(
@@ -259,7 +260,7 @@ impl TangleBackend for Keystore {
         Ok(public.0)
     }
 
-    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error> {
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public> {
         let seed = blake3::hash(string.as_bytes()).as_bytes().to_vec();
         self.ecdsa_generate_new(Some(&seed))
     }
@@ -268,7 +269,7 @@ impl TangleBackend for Keystore {
         &self,
         public: &sr25519::Public,
         msg: &[u8],
-    ) -> Result<Option<sr25519::Signature>, Error> {
+    ) -> Result<Option<sr25519::Signature>> {
         if let Some(secret) = self.expose_sr25519_secret(public)? {
             Ok(Some(secret.sign(msg)))
         } else {
@@ -280,7 +281,7 @@ impl TangleBackend for Keystore {
         &self,
         public: &ed25519::Public,
         msg: &[u8],
-    ) -> Result<Option<ed25519::Signature>, Error> {
+    ) -> Result<Option<ed25519::Signature>> {
         if let Some(secret) = self.expose_ed25519_secret(public)? {
             Ok(Some(secret.sign(msg)))
         } else {
@@ -292,7 +293,7 @@ impl TangleBackend for Keystore {
         &self,
         public: &ecdsa::Public,
         msg: &[u8],
-    ) -> Result<Option<ecdsa::Signature>, Error> {
+    ) -> Result<Option<ecdsa::Signature>> {
         if let Some(secret) = self.expose_ecdsa_secret(public)? {
             Ok(Some(secret.sign(msg)))
         } else {
@@ -305,7 +306,7 @@ impl TangleBackend for Keystore {
         &self,
         public: &sp_core::bls381::Public,
         msg: &[u8],
-    ) -> Result<Option<sp_core::bls381::Signature>, Error> {
+    ) -> Result<Option<sp_core::bls381::Signature>> {
         if let Some(secret) = self.expose_bls381_secret(public)? {
             Ok(Some(secret.sign(msg)))
         } else {
@@ -318,7 +319,7 @@ impl TangleBackend for Keystore {
         &self,
         public: &sp_core::bls377::Public,
         msg: &[u8],
-    ) -> Result<Option<sp_core::bls377::Signature>, Error> {
+    ) -> Result<Option<sp_core::bls377::Signature>> {
         if let Some(secret) = self.expose_bls377_secret(public)? {
             Ok(Some(secret.sign(msg)))
         } else {
@@ -329,7 +330,7 @@ impl TangleBackend for Keystore {
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
-    ) -> Result<Option<sr25519::Pair>, Error> {
+    ) -> Result<Option<sr25519::Pair>> {
         let public_bytes = serde_json::to_vec(&SpSr25519Public(*public))?;
 
         if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
@@ -350,7 +351,7 @@ impl TangleBackend for Keystore {
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
-    ) -> Result<Option<ed25519::Pair>, Error> {
+    ) -> Result<Option<ed25519::Pair>> {
         let public_bytes = serde_json::to_vec(&SpEd25519Public(*public))?;
 
         if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
@@ -368,7 +369,7 @@ impl TangleBackend for Keystore {
         Ok(None)
     }
 
-    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Pair>, Error> {
+    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Pair>> {
         let public_bytes = serde_json::to_vec(&SpEcdsaPublic(*public))?;
 
         if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
@@ -390,7 +391,7 @@ impl TangleBackend for Keystore {
     fn expose_bls381_secret(
         &self,
         public: &sp_core::bls381::Public,
-    ) -> Result<Option<sp_core::bls381::Pair>, Error> {
+    ) -> Result<Option<sp_core::bls381::Pair>> {
         use crate::key_types::{SpBls381Pair, SpBls381Public};
 
         let public_bytes = serde_json::to_vec(&SpBls381Public(*public))?;
@@ -414,7 +415,7 @@ impl TangleBackend for Keystore {
     fn expose_bls377_secret(
         &self,
         public: &sp_core::bls377::Public,
-    ) -> Result<Option<sp_core::bls377::Pair>, Error> {
+    ) -> Result<Option<sp_core::bls377::Pair>> {
         use crate::key_types::{SpBls377Pair, SpBls377Public};
 
         let public_bytes = serde_json::to_vec(&SpBls377Public(*public))?;
@@ -552,7 +553,7 @@ mod tests {
 
     #[test]
     #[test]
-    fn test_sr25519_operations() -> Result<(), Error> {
+    fn test_sr25519_operations() -> Result<()> {
         let keystore = Keystore::new();
 
         // Generate key
@@ -569,7 +570,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ecdsa_operations() -> Result<(), Error> {
+    fn test_ecdsa_operations() -> Result<()> {
         let keystore = Keystore::new();
 
         // Generate from string

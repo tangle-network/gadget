@@ -1,6 +1,6 @@
 //! This module contains the key types that are supported by the keystore.
 
-use crate::error::Error;
+use crate::error::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -119,22 +119,22 @@ pub trait KeyType: Sized + 'static {
     }
 
     /// Generate a new keypair with an optional seed
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error>;
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret>;
 
     /// Generate a new keypair with the secret string
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error>;
+    fn generate_with_string(secret: String) -> Result<Self::Secret>;
 
     /// Get the public key from a secret key
     fn public_from_secret(secret: &Self::Secret) -> Self::Public;
 
     /// Sign a message with a secret key
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error>;
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature>;
 
     /// Sign a pre-hashed message with a secret key
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error>;
+    ) -> Result<Self::Signature>;
 
     /// Verify a signature
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool;

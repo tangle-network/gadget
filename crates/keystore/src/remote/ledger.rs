@@ -1,8 +1,6 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
-use crate::{
-    error::Error,
-    key_types::k256_ecdsa::{K256Ecdsa, K256VerifyingKey},
-};
+use crate::error::{Error, Result};
+use crate::key_types::k256_ecdsa::{K256Ecdsa, K256VerifyingKey};
 use alloy_primitives::Address;
 use alloy_signer::{Signature, Signer};
 use alloy_signer_ledger::{HDPath, LedgerSigner};
@@ -19,7 +17,7 @@ impl Default for HDPathWrapper {
 }
 
 impl Serialize for HDPathWrapper {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -34,7 +32,7 @@ impl Serialize for HDPathWrapper {
 }
 
 impl<'de> Deserialize<'de> for HDPathWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -96,7 +94,7 @@ pub struct LedgerRemoteSigner {
 }
 
 impl LedgerRemoteSigner {
-    pub async fn new(config: LedgerRemoteSignerConfig) -> Result<Self, Error> {
+    pub async fn new(config: LedgerRemoteSignerConfig) -> Result<Self> {
         let mut signers = BTreeMap::new();
 
         for key_config in config.keys {
@@ -116,7 +114,7 @@ impl LedgerRemoteSigner {
         Ok(Self { signers })
     }
 
-    fn get_signer_for_chain(&self, chain_id: Option<u64>) -> Result<&LedgerKeyInstance, Error> {
+    fn get_signer_for_chain(&self, chain_id: Option<u64>) -> Result<&LedgerKeyInstance> {
         self.signers
             .iter()
             .find(|(_, s)| s.chain_id == chain_id)
@@ -140,7 +138,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
     type KeyId = Self::Public;
     type Config = LedgerRemoteSignerConfig;
 
-    async fn build(config: RemoteConfig) -> Result<Self, Error> {
+    async fn build(config: RemoteConfig) -> Result<Self> {
         Self::new(config.into()).await
     }
 
@@ -148,7 +146,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         &self,
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Public, Error> {
+    ) -> Result<Self::Public> {
         let signer = self
             .signers
             .get(&(key_id.0, chain_id))
@@ -163,7 +161,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         Ok(AddressWrapper(address))
     }
 
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
         for ((address, signer_chain_id), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
@@ -187,7 +185,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         &self,
         address: &Self::Public,
         chain_id: Option<u64>,
-    ) -> Result<Self::KeyId, Error> {
+    ) -> Result<Self::KeyId> {
         for ((signer_address, signer_chain_id), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
@@ -213,7 +211,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         message: &[u8],
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let signer = self
             .signers
             .get(&(key_id.0, chain_id))
