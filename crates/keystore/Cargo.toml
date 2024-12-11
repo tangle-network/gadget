@@ -73,6 +73,7 @@ std = [
     "hex/std",
     "zeroize/std",
     "gadget-std/std",
+    "thiserror/std",
     "tokio",
     "serde_json/std",
 
