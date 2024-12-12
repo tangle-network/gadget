@@ -422,70 +422,70 @@ impl TangleBackend for Keystore {
     fn iter_sr25519(&self) -> Box<dyn Iterator<Item = sr25519::Public> + '_> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SchnorrkelSr25519;
 
-        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(KEY_TYPE_ID)
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpSr25519Public>(&bytes)
-                            .map(|SpSr25519Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
+        let Some(storages) = self.storages.get(&KEY_TYPE_ID) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut keys = Vec::new();
+        for entry in storages {
+            let mut storage_keys = entry
+                .storage
+                .list_raw(KEY_TYPE_ID)
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<SpSr25519Public>(&bytes)
+                        .map(|SpSr25519Public(public)| public)
+                        .ok()
+                })
+                .collect::<Vec<_>>();
+            keys.append(&mut storage_keys);
         }
+        Box::new(keys.into_iter())
     }
 
     fn iter_ed25519(&self) -> Box<dyn Iterator<Item = ed25519::Public> + '_> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::ZebraEd25519;
 
-        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(KEY_TYPE_ID)
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpEd25519Public>(&bytes)
-                            .map(|SpEd25519Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
+        let Some(storages) = self.storages.get(&KEY_TYPE_ID) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut keys = Vec::new();
+        for entry in storages {
+            let mut storage_keys = entry
+                .storage
+                .list_raw(KEY_TYPE_ID)
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<SpEd25519Public>(&bytes)
+                        .map(|SpEd25519Public(public)| public)
+                        .ok()
+                })
+                .collect::<Vec<_>>();
+            keys.append(&mut storage_keys);
         }
+        Box::new(keys.into_iter())
     }
 
     fn iter_ecdsa(&self) -> Box<dyn Iterator<Item = ecdsa::Public> + '_> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::K256Ecdsa;
 
-        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(KEY_TYPE_ID)
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpEcdsaPublic>(&bytes)
-                            .map(|SpEcdsaPublic(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
+        let Some(storages) = self.storages.get(&KEY_TYPE_ID) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut keys = Vec::new();
+        for entry in storages {
+            let mut storage_keys = entry
+                .storage
+                .list_raw(KEY_TYPE_ID)
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<SpEcdsaPublic>(&bytes)
+                        .map(|SpEcdsaPublic(public)| public)
+                        .ok()
+                })
+                .collect::<Vec<_>>();
+            keys.append(&mut storage_keys);
         }
+        Box::new(keys.into_iter())
     }
 
     #[cfg(feature = "sp-core-bls")]
@@ -494,24 +494,24 @@ impl TangleBackend for Keystore {
 
         use crate::key_types::SpBls381Public;
 
-        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(KEY_TYPE_ID)
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpBls381Public>(&bytes)
-                            .map(|SpBls381Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
+        let Some(storages) = self.storages.get(&KEY_TYPE_ID) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut keys = Vec::new();
+        for entry in storages {
+            let mut storage_keys = entry
+                .storage
+                .list_raw(KEY_TYPE_ID)
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<SpBls381Public>(&bytes)
+                        .map(|SpBls381Public(public)| public)
+                        .ok()
+                })
+                .collect::<Vec<_>>();
+            keys.append(&mut storage_keys);
         }
+        Box::new(keys.into_iter())
     }
 
     #[cfg(feature = "sp-core-bls")]
@@ -520,24 +520,24 @@ impl TangleBackend for Keystore {
 
         use crate::key_types::SpBls377Public;
 
-        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
-            let mut keys = Vec::new();
-            for entry in storages {
-                let mut storage_keys = entry
-                    .storage
-                    .list_raw(KEY_TYPE_ID)
-                    .filter_map(|bytes| {
-                        serde_json::from_slice::<SpBls377Public>(&bytes)
-                            .map(|SpBls377Public(public)| public)
-                            .ok()
-                    })
-                    .collect::<Vec<_>>();
-                keys.append(&mut storage_keys);
-            }
-            Box::new(keys.into_iter())
-        } else {
-            Box::new(std::iter::empty())
+        let Some(storages) = self.storages.get(&KEY_TYPE_ID) else {
+            return Box::new(std::iter::empty());
+        };
+
+        let mut keys = Vec::new();
+        for entry in storages {
+            let mut storage_keys = entry
+                .storage
+                .list_raw(KEY_TYPE_ID)
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<SpBls377Public>(&bytes)
+                        .map(|SpBls377Public(public)| public)
+                        .ok()
+                })
+                .collect::<Vec<_>>();
+            keys.append(&mut storage_keys);
         }
+        Box::new(keys.into_iter())
     }
 }
 
