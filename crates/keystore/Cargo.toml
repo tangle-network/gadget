@@ -103,6 +103,7 @@ zebra = ["ed25519-zebra", "hex"]
 substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt"]
 sp-core-bls = ["sp-core/bls-experimental"]
 
+bls377 = ["w3f-bls", "hex"]
 bls381 = ["w3f-bls", "hex"]
 bn254 = ["rust-bls-bn254", "arkworks"]
 arkworks = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize"]
@@ -135,8 +136,8 @@ remote = []
 
 # Optional protocol crypto features
 tangle-full = ["tangle", "sp-core-bls", "bn254"]
-eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381"]
-symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bn254"]
+eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381", "bls377"]
+symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bls377", "bn254"]
 
 # Hardware/Cloud wallet support
 aws-signer = ["remote", "alloy-signer-aws", "aws-config", "aws-sdk-kms", "evm", "std"]
