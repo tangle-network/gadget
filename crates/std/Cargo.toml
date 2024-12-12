@@ -18,7 +18,7 @@ rand = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
-std = ["thiserror/std"]
+std = ["thiserror/std", "getrandom"]
 parallel = ["rayon", "std"]
 print-trace = ["std"]
 getrandom = ["rand/std"]

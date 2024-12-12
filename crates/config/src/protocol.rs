@@ -69,6 +69,7 @@ impl core::str::FromStr for Protocol {
     }
 }
 
+#[cfg(feature = "tangle")]
 #[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct TangleInstanceSettings {
     /// The blueprint ID for the Tangle blueprint
