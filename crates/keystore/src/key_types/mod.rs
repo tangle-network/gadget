@@ -20,8 +20,8 @@ pub mod arkworks_bn254;
 pub mod k256_ecdsa;
 #[cfg(feature = "sr25519-schnorrkel")]
 pub mod schnorrkel_sr25519;
-#[cfg(feature = "bls381")]
-pub mod w3f_bls381;
+#[cfg(any(feature = "bls377", feature = "bls381"))]
+pub mod w3f_bls;
 #[cfg(feature = "zebra")]
 pub mod zebra_ed25519;
 
