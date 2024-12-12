@@ -1,3 +1,5 @@
+//! Backing storage implementations for remote keystores
+
 #[cfg(feature = "aws-signer")]
 pub mod aws;
 #[cfg(feature = "gcp-signer")]
