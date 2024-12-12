@@ -28,8 +28,12 @@ needless_late_init = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-std = { version = "0.1.0", path = "./crates/std" }
-gadget-keystore = { version = "0.1.0", path = "./crates/keystore" }
+gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
+gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
+gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
+gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
+gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-features = false }
+
 
 # Internal dependencies
 gadget-io = { version = "0.0.5", path = "./gadget-io", default-features = false }
@@ -52,9 +56,9 @@ cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
 tangle-subxt = { version = "0.7.0", default-features = false }
-subxt-signer = { version = "0.38.0", default-features = false }
-subxt = { version = "0.38.0", default-features = false }
-subxt-core = { version = "0.38.0", default-features = false }
+subxt-signer = { version = "0.37.0", default-features = false }
+subxt = { version = "0.37.0", default-features = false }
+subxt-core = { version = "0.37.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
