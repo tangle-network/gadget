@@ -2,15 +2,21 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Build the Smart contracts at the specified directories, automatically rerunning if changes are
-/// detected in this crate's Smart Contracts (`./contracts/lib` or `./contracts/src`).
+/// Build the Smart contracts at the specified directories.
+///
+/// This function will automatically rerun the build if changes are detected in the `src`
+/// directory within any of the directories specified. Due to this, it is recommended to
+/// ensure that you only pass in directories that contain the `src` directory and won't be
+/// modified by anything else in the build script (otherwise, the build will always rerun).
 ///
 /// # Panics
 /// - If the Cargo Manifest directory is not found.
 /// - If the `forge` executable is not found.
 pub fn build_contracts(contract_dirs: Vec<&str>) {
-    println!("cargo::rerun-if-changed=contracts/lib/*");
-    println!("cargo::rerun-if-changed=contracts/src/*");
+    for dir in contract_dirs.clone() {
+        let dir = format!("{}/src", dir);
+        println!("cargo::rerun-if-changed={dir}");
+    }
 
     // Get the project root directory
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -28,8 +34,6 @@ pub fn build_contracts(contract_dirs: Vec<&str>) {
         });
 
         if full_path.exists() {
-            println!("cargo:rerun-if-changed={}", full_path.display());
-
             let status = Command::new(&forge_executable)
                 .current_dir(&full_path)
                 .arg("build")
@@ -64,6 +68,13 @@ pub fn soldeer_update() {
     let forge_executable = find_forge_executable();
 
     println!("Populating dependencies directory");
+    let status = Command::new(&forge_executable)
+        .current_dir(&root)
+        .args(["soldeer", "install"])
+        .status()
+        .expect("Failed to execute 'forge soldeer update'");
+
+    assert!(status.success(), "'forge soldeer install' failed");
 
     let status = Command::new(&forge_executable)
         .current_dir(&root)
@@ -71,7 +82,7 @@ pub fn soldeer_update() {
         .status()
         .expect("Failed to execute 'forge soldeer update'");
 
-    assert!(status.success(), "'forge soldeer update' failed",);
+    assert!(status.success(), "'forge soldeer update' failed");
 }
 
 /// Returns a string with the path to the `forge` executable.
