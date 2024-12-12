@@ -1,7 +1,8 @@
 use super::RawStorage;
-use crate::error::Result;
-use gadget_std::any::TypeId;
+use crate::error::{Error, Result};
+use crate::key_types::KeyTypeId;
 use gadget_std::fs;
+use gadget_std::io;
 use gadget_std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -11,16 +12,22 @@ pub struct FileStorage {
 
 impl FileStorage {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let root = path.as_ref().to_path_buf();
+        let root = path.as_ref();
+        if !root.is_dir() {
+            return Err(Error::Io(io::Error::from(io::ErrorKind::NotADirectory)));
+        }
+
         fs::create_dir_all(&root)?;
-        Ok(Self { root })
+        Ok(Self {
+            root: root.to_path_buf(),
+        })
     }
 
-    fn type_dir(&self, type_id: TypeId) -> PathBuf {
+    fn type_dir(&self, type_id: KeyTypeId) -> PathBuf {
         self.root.join(format!("{:?}", type_id))
     }
 
-    fn key_path(&self, type_id: TypeId, public_bytes: &[u8]) -> PathBuf {
+    fn key_path(&self, type_id: KeyTypeId, public_bytes: &[u8]) -> PathBuf {
         let hash = blake3::hash(public_bytes);
         self.type_dir(type_id).join(hex::encode(hash.as_bytes()))
     }
@@ -29,7 +36,7 @@ impl FileStorage {
 impl RawStorage for FileStorage {
     fn store_raw(
         &self,
-        type_id: TypeId,
+        type_id: KeyTypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
     ) -> Result<()> {
@@ -44,7 +51,7 @@ impl RawStorage for FileStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if !path.exists() {
             return Ok(None);
@@ -61,7 +68,7 @@ impl RawStorage for FileStorage {
         Ok(Some(secret.into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<()> {
+    fn remove_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<()> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if path.exists() {
             fs::remove_file(path)?;
@@ -69,11 +76,11 @@ impl RawStorage for FileStorage {
         Ok(())
     }
 
-    fn contains_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> bool {
+    fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool {
         self.key_path(type_id, &public_bytes[..]).exists()
     }
 
-    fn list_raw(&self, type_id: TypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
+    fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
         let type_dir = self.type_dir(type_id);
         if !type_dir.exists() {
             return Box::new(std::iter::empty());

@@ -10,7 +10,7 @@ cfg_remote! {
 #[cfg(feature = "tangle")]
 pub mod tangle;
 
-use super::StorageEntry;
+use super::LocalStorageEntry;
 use crate::error::Result;
 use crate::key_types::KeyType;
 use crate::storage::RawStorage;
@@ -75,5 +75,5 @@ pub trait Backend: Send + Sync {
         T::Secret: DeserializeOwned;
 
     /// Get storage backends for a key type
-    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry]>;
+    fn get_storage_backends<T: KeyType>(&self) -> Result<&[LocalStorageEntry]>;
 }
