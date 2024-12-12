@@ -1,6 +1,8 @@
 #[cfg(feature = "std")]
 use rand::RngCore;
 
+use rand::{prelude::StdRng, SeedableRng};
+
 pub use rand::{
     self,
     distributions::{Distribution, Standard},
@@ -27,6 +29,7 @@ pub struct GadgetRng(RngImpl);
 
 #[cfg(feature = "std")]
 type RngImpl = rand::rngs::OsRng;
+
 #[cfg(not(feature = "std"))]
 type RngImpl = StdRng;
 
@@ -39,9 +42,7 @@ impl GadgetRng {
         }
         #[cfg(not(feature = "std"))]
         {
-            let mut seed = [0u8; 32];
-            getrandom::getrandom(&mut seed).expect("Failed to get random seed");
-            Self(StdRng::from_seed(seed))
+            test_rng()
         }
     }
 
@@ -61,6 +62,7 @@ impl GadgetRng {
 
 impl CryptoRng for GadgetRng {}
 
+#[cfg(feature = "std")]
 impl RngCore for GadgetRng {
     fn next_u32(&mut self) -> u32 {
         self.0.next_u32()
@@ -77,7 +79,7 @@ impl RngCore for GadgetRng {
 }
 
 /// Create a deterministic RNG for testing
-pub fn test_rng() -> impl CryptoRng + RngCore {
+pub fn test_rng() -> GadgetRng {
     const TEST_SEED: [u8; 32] = [
         1, 0, 0, 0, 23, 0, 0, 0, 200, 1, 0, 0, 210, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0,

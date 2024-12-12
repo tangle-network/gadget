@@ -9,11 +9,31 @@ repository.workspace = true
 
 [dependencies]
 gadget-std.workspace = true
+gadget-tokio-std.workspace = true
 async-trait.workspace = true
 auto_impl.workspace = true
-subxt.workspace = true
-tokio = { workspace = true, features = ["sync", "time"] }
-sp-core.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+
+sp-core = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true, features = ["jsonrpsee"] }
+tangle-subxt = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["sync", "time"], optional = true }
+
+[features]
+default = ["std", "tangle"]
+std = [
+    "gadget-std/std",
+    "gadget-tokio-std/std",
+    "hex/std",
+    "subxt/native",
+    "tokio/full", 
+    "sp-core/std",
+]
+no-std = [
+    "subxt/web"
+]
+tangle = ["sp-core", "tangle-subxt"]
 
 [lints]
 workspace = true

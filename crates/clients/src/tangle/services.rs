@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::tangle::Error;
 use sp_core::Encode;
 use subxt::backend::BlockRef;
 use subxt::utils::AccountId32;
@@ -87,8 +87,7 @@ where
     pub fn dispatch_error_to_sdk_error(&self, err: DispatchError, at: &[u8; 32]) -> Error {
         let metadata = self.rpc_client.metadata();
         let at_hex = hex::encode(at);
-        let dispatch_error =
-            tangle_subxt::subxt::error::DispatchError::decode_from(err.encode(), metadata);
+        let dispatch_error = subxt::error::DispatchError::decode_from(err.encode(), metadata);
         match dispatch_error {
             Ok(dispatch_error) => Error::Other(format!("{dispatch_error}")),
             Err(err) => Error::Other(format!(

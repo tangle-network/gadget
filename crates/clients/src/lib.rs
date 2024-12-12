@@ -1,8 +1,10 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_std::boxed::Box;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "tangle")]
 pub mod tangle;
 
 #[async_trait]

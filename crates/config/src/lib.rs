@@ -4,12 +4,10 @@ use protocol::TangleInstanceSettings;
 use std::path::PathBuf;
 
 pub mod context_config;
-pub mod gadget_config;
 pub mod protocol;
 pub mod supported_chains;
 
 pub use context_config::{ContextConfig, GadgetCLICoreSettings};
-pub use gadget_config::{GadgetConfiguration, StdGadgetConfiguration};
 pub use protocol::{Protocol, ProtocolSettings};
 
 /// Errors that can occur while loading and using the gadget configuration.
@@ -65,6 +63,36 @@ pub enum Error {
     BadRpcConnection(String),
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
+}
+
+#[cfg(feature = "networking")]
+use libp2p::Multiaddr;
+
+pub type StdGadgetConfiguration = GadgetConfiguration;
+
+/// Gadget environment.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default)]
+pub struct GadgetConfiguration {
+    /// HTTP RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
+    pub http_rpc_endpoint: String,
+    /// WS RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
+    pub ws_rpc_endpoint: String,
+    /// The keystore URI for the gadget
+    pub keystore_uri: String,
+    /// Data directory exclusively for this gadget
+    ///
+    /// This will be `None` if the blueprint manager was not provided a base directory.
+    pub data_dir: Option<PathBuf>,
+    /// The list of bootnodes to connect to
+    #[cfg(feature = "networking")]
+    pub bootnodes: Vec<Multiaddr>,
+    /// The type of protocol the gadget is executing on.
+    pub protocol: Protocol,
+    /// Protocol-specific settings
+    pub protocol_settings: ProtocolSettings,
+    /// Whether the gadget is in test mode
+    pub test_mode: bool,
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.

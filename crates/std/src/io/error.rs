@@ -9,7 +9,9 @@ pub use std::io::{Error, ErrorKind, Result};
 #[cfg(not(feature = "std"))]
 pub use no_std::*;
 
+#[cfg(not(feature = "std"))]
 mod no_std {
+    use crate::{boxed::Box, error, fmt};
     /// The error type for I/O operations of the [`Read`], [`Write`], [`Seek`], and
     /// associated traits.
     ///
