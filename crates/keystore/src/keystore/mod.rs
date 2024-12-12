@@ -1,23 +1,26 @@
 pub mod backends;
 use backends::Backend;
 use backends::BackendConfig;
+cfg_remote! {
+    use backends::remote::RemoteEntry;
+}
 
 use crate::error::{Error, Result};
 use crate::key_types::{KeyType, KeyTypeId};
 use crate::storage::RawStorage;
-use gadget_std::{any::TypeId, boxed::Box, cmp, collections::BTreeMap, vec::Vec};
+use gadget_std::{boxed::Box, cmp, collections::BTreeMap, vec::Vec};
 use serde::de::DeserializeOwned;
 
 /// Represents a storage backend with its priority
-pub struct StorageEntry {
+pub struct LocalStorageEntry {
     storage: Box<dyn RawStorage>,
     priority: u8,
 }
 
 pub struct Keystore {
-    storages: BTreeMap<KeyTypeId, Vec<StorageEntry>>,
+    storages: BTreeMap<KeyTypeId, Vec<LocalStorageEntry>>,
     #[cfg(feature = "remote")]
-    remotes: BTreeMap<KeyTypeId, Vec<backends::remote::RemoteEntry>>,
+    remotes: BTreeMap<KeyTypeId, Vec<RemoteEntry>>,
 }
 
 impl Keystore {
@@ -35,13 +38,17 @@ impl Backend for Keystore {
     fn register_storage<T: KeyType>(&mut self, storage: BackendConfig, priority: u8) -> Result<()> {
         match storage {
             BackendConfig::Local(storage) => {
-                let entry = StorageEntry { storage, priority };
+                let entry = LocalStorageEntry { storage, priority };
                 let backends = self.storages.entry(T::key_type_id()).or_default();
                 backends.push(entry);
                 backends.sort_by_key(|e| cmp::Reverse(e.priority));
             }
             #[cfg(feature = "remote")]
-            _ => return Err(Error::StorageNotSupported),
+            BackendConfig::Remote(config) => {
+                let entry = RemoteEntry::new(config, todo!());
+                let backends = self.remotes.entry(T::key_type_id()).or_default();
+                backends.push(entry);
+            }
         }
         Ok(())
     }
@@ -59,7 +66,7 @@ impl Backend for Keystore {
         // Store in all available storage backends
         for entry in backends {
             entry.storage.store_raw(
-                TypeId::of::<T>(),
+                T::key_type_id(),
                 serde_json::to_vec(&public)?,
                 serde_json::to_vec(&secret)?,
             )?;
@@ -100,7 +107,7 @@ impl Backend for Keystore {
             for entry in backends {
                 let mut backend_keys: Vec<T::Public> = entry
                     .storage
-                    .list_raw(TypeId::of::<T>())
+                    .list_raw(T::key_type_id())
                     .filter_map(|bytes| serde_json::from_slice(&bytes).ok())
                     .collect();
                 keys.append(&mut backend_keys);
@@ -123,7 +130,7 @@ impl Backend for Keystore {
             .ok_or(Error::KeyTypeNotSupported)?;
 
         for entry in storages {
-            if let Some(bytes) = entry.storage.load_raw(TypeId::of::<T>(), key_id.into())? {
+            if let Some(bytes) = entry.storage.load_raw(T::key_type_id(), key_id.into())? {
                 let public: T::Public = serde_json::from_slice(&bytes)?;
                 return Ok(public);
             }
@@ -142,7 +149,7 @@ impl Backend for Keystore {
         for entry in storages {
             if entry
                 .storage
-                .contains_raw(TypeId::of::<T>(), public_bytes.clone())
+                .contains_raw(T::key_type_id(), public_bytes.clone())
             {
                 return Ok(true);
             }
@@ -164,7 +171,7 @@ impl Backend for Keystore {
         for entry in storages {
             entry
                 .storage
-                .remove_raw(TypeId::of::<T>(), public_bytes.clone())?;
+                .remove_raw(T::key_type_id(), public_bytes.clone())?;
         }
 
         Ok(())
@@ -184,7 +191,7 @@ impl Backend for Keystore {
         for entry in storages {
             if let Some(bytes) = entry
                 .storage
-                .load_raw(TypeId::of::<T>(), public_bytes.clone())?
+                .load_raw(T::key_type_id(), public_bytes.clone())?
             {
                 let secret: T::Secret = serde_json::from_slice(&bytes)?;
                 return Ok(secret);
@@ -195,7 +202,7 @@ impl Backend for Keystore {
     }
 
     // Helper methods
-    fn get_storage_backends<T: KeyType>(&self) -> Result<&[StorageEntry]> {
+    fn get_storage_backends<T: KeyType>(&self) -> Result<&[LocalStorageEntry]> {
         self.storages
             .get(&T::key_type_id())
             .map(|v| v.as_slice())

@@ -4,7 +4,6 @@ use crate::key_types::{
     SpEcdsaPair, SpEcdsaPublic, SpEd25519Pair, SpEd25519Public, SpSr25519Pair, SpSr25519Public,
 };
 use crate::keystore::Keystore;
-use gadget_std::any::TypeId;
 use sp_core::Pair;
 use sp_core::{ecdsa, ed25519, sr25519};
 use subxt::tx::PairSigner;
@@ -46,14 +45,14 @@ pub trait TangleBackend: Send + Sync {
     #[cfg(feature = "sp-core-bls")]
     fn bls381_sign(
         &self,
-        public: &sp_core::bls381::Public,
+        public: sp_core::bls381::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls381::Signature>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn bls377_sign(
         &self,
-        public: &sp_core::bls377::Public,
+        public: sp_core::bls377::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls377::Signature>>;
 
@@ -67,13 +66,13 @@ pub trait TangleBackend: Send + Sync {
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls381_secret(
         &self,
-        public: &sp_core::bls381::Public,
+        public: sp_core::bls381::Public,
     ) -> Result<Option<sp_core::bls381::Pair>>;
 
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls377_secret(
         &self,
-        public: &sp_core::bls377::Public,
+        public: sp_core::bls377::Public,
     ) -> Result<Option<sp_core::bls377::Pair>>;
 
     // Key Iteration
@@ -125,6 +124,8 @@ pub trait TangleBackend: Send + Sync {
 
 impl TangleBackend for Keystore {
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SchnorrkelSr25519;
+
         let secret = SpSr25519Pair(
             sr25519::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -135,13 +136,11 @@ impl TangleBackend for Keystore {
         let public_bytes = serde_json::to_vec(&public)?;
         let secret_bytes = serde_json::to_vec(&secret)?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                entry.storage.store_raw(
-                    TypeId::of::<sr25519::Pair>(),
-                    public_bytes.clone(),
-                    secret_bytes.clone(),
-                )?;
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -149,6 +148,8 @@ impl TangleBackend for Keystore {
     }
 
     fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::ZebraEd25519;
+
         let secret = SpEd25519Pair(
             ed25519::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -159,13 +160,11 @@ impl TangleBackend for Keystore {
         let public_bytes = serde_json::to_vec(&public)?;
         let secret_bytes = serde_json::to_vec(&secret)?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                entry.storage.store_raw(
-                    TypeId::of::<ed25519::Pair>(),
-                    public_bytes.clone(),
-                    secret_bytes.clone(),
-                )?;
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -173,6 +172,8 @@ impl TangleBackend for Keystore {
     }
 
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::K256Ecdsa;
+
         let secret = SpEcdsaPair(
             ecdsa::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
                 .map_err(|e| Error::Other(e.to_string()))?,
@@ -183,13 +184,11 @@ impl TangleBackend for Keystore {
         let public_bytes = serde_json::to_vec(&public)?;
         let secret_bytes = serde_json::to_vec(&secret)?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                entry.storage.store_raw(
-                    TypeId::of::<ecdsa::Pair>(),
-                    public_bytes.clone(),
-                    secret_bytes.clone(),
-                )?;
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -198,6 +197,8 @@ impl TangleBackend for Keystore {
 
     #[cfg(feature = "sp-core-bls")]
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls381;
+
         use crate::key_types::{SpBls381Pair, SpBls381Public};
 
         let secret = SpBls381Pair(
@@ -210,13 +211,11 @@ impl TangleBackend for Keystore {
         let public_bytes = serde_json::to_vec(&public)?;
         let secret_bytes = serde_json::to_vec(&secret)?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                entry.storage.store_raw(
-                    TypeId::of::<sp_core::bls381::Pair>(),
-                    public_bytes.clone(),
-                    secret_bytes.clone(),
-                )?;
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -225,6 +224,8 @@ impl TangleBackend for Keystore {
 
     #[cfg(feature = "sp-core-bls")]
     fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls377;
+
         use crate::key_types::{SpBls377Pair, SpBls377Public};
 
         let secret = SpBls377Pair(
@@ -237,13 +238,11 @@ impl TangleBackend for Keystore {
         let public_bytes = serde_json::to_vec(&public)?;
         let secret_bytes = serde_json::to_vec(&secret)?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                entry.storage.store_raw(
-                    TypeId::of::<sp_core::bls377::Pair>(),
-                    public_bytes.clone(),
-                    secret_bytes.clone(),
-                )?;
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -290,7 +289,7 @@ impl TangleBackend for Keystore {
     #[cfg(feature = "sp-core-bls")]
     fn bls381_sign(
         &self,
-        public: &sp_core::bls381::Public,
+        public: sp_core::bls381::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls381::Signature>> {
         if let Some(secret) = self.expose_bls381_secret(public)? {
@@ -303,7 +302,7 @@ impl TangleBackend for Keystore {
     #[cfg(feature = "sp-core-bls")]
     fn bls377_sign(
         &self,
-        public: &sp_core::bls377::Public,
+        public: sp_core::bls377::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls377::Signature>> {
         if let Some(secret) = self.expose_bls377_secret(public)? {
@@ -314,13 +313,14 @@ impl TangleBackend for Keystore {
     }
 
     fn expose_sr25519_secret(&self, public: &sr25519::Public) -> Result<Option<sr25519::Pair>> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SchnorrkelSr25519;
+
         let public_bytes = serde_json::to_vec(&SpSr25519Public(*public))?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                if let Some(secret_bytes) = entry
-                    .storage
-                    .load_raw(TypeId::of::<sr25519::Pair>(), public_bytes.clone())?
+                if let Some(secret_bytes) =
+                    entry.storage.load_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
                     let SpSr25519Pair(pair) = serde_json::from_slice(&secret_bytes)?;
                     return Ok(Some(pair));
@@ -332,13 +332,14 @@ impl TangleBackend for Keystore {
     }
 
     fn expose_ed25519_secret(&self, public: &ed25519::Public) -> Result<Option<ed25519::Pair>> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::ZebraEd25519;
+
         let public_bytes = serde_json::to_vec(&SpEd25519Public(*public))?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                if let Some(secret_bytes) = entry
-                    .storage
-                    .load_raw(TypeId::of::<ed25519::Pair>(), public_bytes.clone())?
+                if let Some(secret_bytes) =
+                    entry.storage.load_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
                     let SpEd25519Pair(pair) = serde_json::from_slice(&secret_bytes)?;
                     return Ok(Some(pair));
@@ -350,13 +351,14 @@ impl TangleBackend for Keystore {
     }
 
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Pair>> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::K256Ecdsa;
+
         let public_bytes = serde_json::to_vec(&SpEcdsaPublic(*public))?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                if let Some(secret_bytes) = entry
-                    .storage
-                    .load_raw(TypeId::of::<ecdsa::Pair>(), public_bytes.clone())?
+                if let Some(secret_bytes) =
+                    entry.storage.load_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
                     let SpEcdsaPair(pair) = serde_json::from_slice(&secret_bytes)?;
                     return Ok(Some(pair));
@@ -370,17 +372,18 @@ impl TangleBackend for Keystore {
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls381_secret(
         &self,
-        public: &sp_core::bls381::Public,
+        public: sp_core::bls381::Public,
     ) -> Result<Option<sp_core::bls381::Pair>> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls381;
+
         use crate::key_types::{SpBls381Pair, SpBls381Public};
 
-        let public_bytes = serde_json::to_vec(&SpBls381Public(*public))?;
+        let public_bytes = serde_json::to_vec(&SpBls381Public(public))?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                if let Some(secret_bytes) = entry
-                    .storage
-                    .load_raw(TypeId::of::<sp_core::bls381::Pair>(), public_bytes.clone())?
+                if let Some(secret_bytes) =
+                    entry.storage.load_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
                     let SpBls381Pair(pair) = serde_json::from_slice(&secret_bytes)?;
                     return Ok(Some(pair));
@@ -394,17 +397,18 @@ impl TangleBackend for Keystore {
     #[cfg(feature = "sp-core-bls")]
     fn expose_bls377_secret(
         &self,
-        public: &sp_core::bls377::Public,
+        public: sp_core::bls377::Public,
     ) -> Result<Option<sp_core::bls377::Pair>> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls377;
+
         use crate::key_types::{SpBls377Pair, SpBls377Public};
 
-        let public_bytes = serde_json::to_vec(&SpBls377Public(*public))?;
+        let public_bytes = serde_json::to_vec(&SpBls377Public(public))?;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
-                if let Some(secret_bytes) = entry
-                    .storage
-                    .load_raw(TypeId::of::<sp_core::bls377::Pair>(), public_bytes.clone())?
+                if let Some(secret_bytes) =
+                    entry.storage.load_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
                     let SpBls377Pair(pair) = serde_json::from_slice(&secret_bytes)?;
                     return Ok(Some(pair));
@@ -416,12 +420,14 @@ impl TangleBackend for Keystore {
     }
 
     fn iter_sr25519(&self) -> Box<dyn Iterator<Item = sr25519::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::SchnorrkelSr25519) {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SchnorrkelSr25519;
+
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             let mut keys = Vec::new();
             for entry in storages {
                 let mut storage_keys = entry
                     .storage
-                    .list_raw(TypeId::of::<sr25519::Pair>())
+                    .list_raw(KEY_TYPE_ID)
                     .filter_map(|bytes| {
                         serde_json::from_slice::<SpSr25519Public>(&bytes)
                             .map(|SpSr25519Public(public)| public)
@@ -437,12 +443,14 @@ impl TangleBackend for Keystore {
     }
 
     fn iter_ed25519(&self) -> Box<dyn Iterator<Item = ed25519::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::ZebraEd25519) {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::ZebraEd25519;
+
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             let mut keys = Vec::new();
             for entry in storages {
                 let mut storage_keys = entry
                     .storage
-                    .list_raw(TypeId::of::<ed25519::Pair>())
+                    .list_raw(KEY_TYPE_ID)
                     .filter_map(|bytes| {
                         serde_json::from_slice::<SpEd25519Public>(&bytes)
                             .map(|SpEd25519Public(public)| public)
@@ -458,12 +466,14 @@ impl TangleBackend for Keystore {
     }
 
     fn iter_ecdsa(&self) -> Box<dyn Iterator<Item = ecdsa::Public> + '_> {
-        if let Some(storages) = self.storages.get(&KeyTypeId::K256Ecdsa) {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::K256Ecdsa;
+
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             let mut keys = Vec::new();
             for entry in storages {
                 let mut storage_keys = entry
                     .storage
-                    .list_raw(TypeId::of::<ecdsa::Pair>())
+                    .list_raw(KEY_TYPE_ID)
                     .filter_map(|bytes| {
                         serde_json::from_slice::<SpEcdsaPublic>(&bytes)
                             .map(|SpEcdsaPublic(public)| public)
@@ -480,14 +490,16 @@ impl TangleBackend for Keystore {
 
     #[cfg(feature = "sp-core-bls")]
     fn iter_bls381(&self) -> Box<dyn Iterator<Item = sp_core::bls381::Public> + '_> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls381;
+
         use crate::key_types::SpBls381Public;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             let mut keys = Vec::new();
             for entry in storages {
                 let mut storage_keys = entry
                     .storage
-                    .list_raw(TypeId::of::<sp_core::bls381::Pair>())
+                    .list_raw(KEY_TYPE_ID)
                     .filter_map(|bytes| {
                         serde_json::from_slice::<SpBls381Public>(&bytes)
                             .map(|SpBls381Public(public)| public)
@@ -504,14 +516,16 @@ impl TangleBackend for Keystore {
 
     #[cfg(feature = "sp-core-bls")]
     fn iter_bls377(&self) -> Box<dyn Iterator<Item = sp_core::bls377::Public> + '_> {
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::W3fBls377;
+
         use crate::key_types::SpBls377Public;
 
-        if let Some(storages) = self.storages.get(&KeyTypeId::W3fBls381) {
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             let mut keys = Vec::new();
             for entry in storages {
                 let mut storage_keys = entry
                     .storage
-                    .list_raw(TypeId::of::<sp_core::bls377::Pair>())
+                    .list_raw(KEY_TYPE_ID)
                     .filter_map(|bytes| {
                         serde_json::from_slice::<SpBls377Public>(&bytes)
                             .map(|SpBls377Public(public)| public)
