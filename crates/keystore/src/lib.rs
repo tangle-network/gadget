@@ -12,7 +12,7 @@ macro_rules! cfg_remote {
         ))]
         $item
         )*
-    }
+    };
 }
 
 pub(crate) use cfg_remote;

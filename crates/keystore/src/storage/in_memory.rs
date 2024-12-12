@@ -1,10 +1,11 @@
 use super::RawStorage;
 use crate::error::Result;
-use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
+use crate::key_types::KeyTypeId;
+use gadget_std::{boxed::Box, vec::Vec};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 
-type StorageMap = HashMap<TypeId, HashMap<Vec<u8>, Vec<u8>>>;
+type StorageMap = HashMap<KeyTypeId, HashMap<Vec<u8>, Vec<u8>>>;
 
 pub struct InMemoryStorage {
     data: RwLock<StorageMap>,
@@ -27,7 +28,7 @@ impl Default for InMemoryStorage {
 impl RawStorage for InMemoryStorage {
     fn store_raw(
         &self,
-        type_id: TypeId,
+        type_id: KeyTypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
     ) -> Result<()> {
@@ -37,7 +38,7 @@ impl RawStorage for InMemoryStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let data = self.data.read();
         Ok(data
             .get(&type_id)
@@ -45,7 +46,7 @@ impl RawStorage for InMemoryStorage {
             .map(|v| v.clone().into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<()> {
+    fn remove_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<()> {
         let mut data = self.data.write();
         if let Some(type_map) = data.get_mut(&type_id) {
             type_map.remove(&public_bytes[..]);
@@ -53,14 +54,14 @@ impl RawStorage for InMemoryStorage {
         Ok(())
     }
 
-    fn contains_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> bool {
+    fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool {
         let data = self.data.read();
         data.get(&type_id)
             .map(|type_map| type_map.contains_key(&public_bytes[..]))
             .unwrap_or(false)
     }
 
-    fn list_raw(&self, type_id: TypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
+    fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
         let data = self.data.read();
         let keys = data
             .get(&type_id)
