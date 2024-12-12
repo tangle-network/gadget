@@ -5,12 +5,39 @@ use gadget_std::fs;
 use gadget_std::io;
 use gadget_std::path::{Path, PathBuf};
 
+/// A filesystem-backed local storage
 #[derive(Clone)]
 pub struct FileStorage {
     root: PathBuf,
 }
 
 impl FileStorage {
+    /// Create a new `FileStorage`
+    ///
+    /// NOTE: This will create a directory at `path` if it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// * `path` exists and is not a directory
+    /// * Unable to create a directory at `path`
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use gadget_keystore::backends::{Backend, BackendConfig};
+    /// use gadget_keystore::key_types::schnorrkel_sr25519::SchnorrkelSr25519;
+    /// use gadget_keystore::storage::FileStorage;
+    /// use gadget_keystore::Keystore;
+    ///
+    /// # fn main() -> gadget_keystore::Result<()> {
+    /// // Create storage at the specified path
+    /// let storage = FileStorage::new("/path/to/keystore")?;
+    ///
+    /// // Our storage is now ready for use. We can add it to a `KeyStore`.
+    /// let mut keystore = Keystore::new();
+    /// keystore.register_storage::<SchnorrkelSr25519>(BackendConfig::Local(Box::new(storage)), 0)?;
+    /// # Ok(()) }
+    /// ```
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let root = path.as_ref();
         if !root.is_dir() {
