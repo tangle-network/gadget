@@ -1,5 +1,6 @@
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
+use protocol::TangleInstanceSettings;
 use std::path::PathBuf;
 
 pub mod context_config;
@@ -36,13 +37,6 @@ pub enum Error {
     /// Unsupported keystore URI.
     #[error("Unsupported keystore URI: {0}")]
     UnsupportedKeystoreUri(String),
-    /// Error opening the filesystem keystore.
-    #[error(transparent)]
-    Keystore(#[from] crate::keystore::Error),
-    /// Subxt error.
-    #[error(transparent)]
-    #[cfg(any(feature = "std", feature = "wasm"))]
-    Subxt(#[from] subxt::Error),
     /// Error parsing the protocol, from the `PROTOCOL` environment variable.
     #[error("Unsupported protocol: {0}")]
     UnsupportedProtocol(String),
@@ -77,110 +71,102 @@ pub enum Error {
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-pub fn load(config: ContextConfig) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
+pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     load_inner(config)
 }
 
 fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
-    use protocol::{
-        EigenlayerContractAddresses, SymbioticContractAddresses, TangleInstanceSettings,
-    };
-    let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
+    tracing::info_span!("gadget");
     let ContextConfig {
         gadget_core_settings:
             GadgetCLICoreSettings::Run {
-                target_addr: bind_addr,
-                target_port: bind_port,
-                use_secure_url,
                 test_mode,
-                log_id,
                 http_rpc_url,
                 ws_rpc_url,
+                #[cfg(feature = "networking")]
                 bootnodes,
                 keystore_uri,
                 protocol,
+                #[cfg(feature = "tangle")]
                 blueprint_id,
+                #[cfg(feature = "tangle")]
                 service_id,
-                skip_registration,
+                #[cfg(feature = "eigenlayer")]
                 registry_coordinator,
+                #[cfg(feature = "eigenlayer")]
                 operator_state_retriever,
+                #[cfg(feature = "eigenlayer")]
                 delegation_manager,
+                #[cfg(feature = "eigenlayer")]
                 service_manager,
+                #[cfg(feature = "eigenlayer")]
                 stake_registry,
+                #[cfg(feature = "eigenlayer")]
                 strategy_manager,
+                #[cfg(feature = "eigenlayer")]
                 avs_directory,
+                #[cfg(feature = "eigenlayer")]
                 rewards_coordinator,
+                #[cfg(feature = "symbiotic")]
                 operator_registry,
+                #[cfg(feature = "symbiotic")]
                 network_registry,
+                #[cfg(feature = "symbiotic")]
                 base_delegator,
+                #[cfg(feature = "symbiotic")]
                 network_opt_in_service,
+                #[cfg(feature = "symbiotic")]
                 vault_opt_in_service,
+                #[cfg(feature = "symbiotic")]
                 slasher,
+                #[cfg(feature = "symbiotic")]
                 veto_slasher,
                 ..
             },
         ..
     } = config;
 
-    let span = match log_id {
-        Some(id) => tracing::info_span!("gadget", id = id),
-        None => tracing::info_span!("gadget"),
-    };
+    #[cfg(feature = "eigenlayer")]
+    let protocol_settings = ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses {
+        registry_coordinator: registry_coordinator
+            .ok_or(Error::MissingEigenlayerContractAddresses)?,
+        operator_state_retriever: operator_state_retriever
+            .ok_or(Error::MissingEigenlayerContractAddresses)?,
+        delegation_manager: delegation_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
+        service_manager: service_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
+        stake_registry: stake_registry.ok_or(Error::MissingEigenlayerContractAddresses)?,
+        strategy_manager: strategy_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
+        avs_directory: avs_directory.ok_or(Error::MissingEigenlayerContractAddresses)?,
+        rewards_coordinator: rewards_coordinator
+            .ok_or(Error::MissingEigenlayerContractAddresses)?,
+    });
 
-    let protocol_settings = match protocol {
-        Protocol::Eigenlayer => ProtocolSettings::Eigenlayer(EigenlayerContractAddresses {
-            registry_coordinator_address: registry_coordinator
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            operator_state_retriever_address: operator_state_retriever
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            delegation_manager_address: delegation_manager
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            service_manager_address: service_manager
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            stake_registry_address: stake_registry
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            strategy_manager_address: strategy_manager
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            avs_directory_address: avs_directory
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            rewards_coordinator_address: rewards_coordinator
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-        }),
-        Protocol::Symbiotic => ProtocolSettings::Symbiotic(SymbioticContractAddresses {
-            operator_registry_address: operator_registry
-                .ok_or(Error::MissingSymbioticContractAddresses)?,
-            network_registry_address: network_registry
-                .ok_or(Error::MissingSymbioticContractAddresses)?,
-            base_delegator_address: base_delegator
-                .ok_or(Error::MissingSymbioticContractAddresses)?,
-            network_opt_in_service_address: network_opt_in_service
-                .ok_or(Error::MissingSymbioticContractAddresses)?,
-            vault_opt_in_service_address: vault_opt_in_service
-                .ok_or(Error::MissingSymbioticContractAddresses)?,
-            slasher_address: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
-            veto_slasher_address: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
-        }),
-        Protocol::Tangle => ProtocolSettings::Tangle(TangleInstanceSettings {
-            blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
-            // If we are in registration mode, we don't need a service id
-            service_id: if !is_registration {
-                Some(service_id.ok_or(Error::MissingServiceId)?)
-            } else {
-                None
-            },
-        }),
-    };
+    #[cfg(feature = "symbiotic")]
+    let protocol_settings = ProtocolSettings::from_symbiotic(SymbioticContractAddresses {
+        operator_registry: operator_registry.ok_or(Error::MissingSymbioticContractAddresses)?,
+        network_registry: network_registry.ok_or(Error::MissingSymbioticContractAddresses)?,
+        base_delegator: base_delegator.ok_or(Error::MissingSymbioticContractAddresses)?,
+        network_opt_in_service: network_opt_in_service
+            .ok_or(Error::MissingSymbioticContractAddresses)?,
+        vault_opt_in_service: vault_opt_in_service
+            .ok_or(Error::MissingSymbioticContractAddresses)?,
+        slasher: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+        veto_slasher: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+    });
+
+    #[cfg(feature = "tangle")]
+    let protocol_settings = ProtocolSettings::from_tangle(TangleInstanceSettings {
+        blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
+        service_id: Some(service_id.ok_or(Error::MissingServiceId)?),
+    });
 
     Ok(GadgetConfiguration {
-        target_addr: bind_addr,
-        target_port: bind_port,
-        use_secure_url,
         test_mode,
-        span,
         http_rpc_endpoint: http_rpc_url.to_string(),
         ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
+        #[cfg(feature = "networking")]
         bootnodes: bootnodes.unwrap_or_default(),
         protocol,
         protocol_settings,
