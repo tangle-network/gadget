@@ -53,6 +53,8 @@ pub enum KeyTypeId {
     K256Ecdsa,
     #[cfg(feature = "sr25519-schnorrkel")]
     SchnorrkelSr25519,
+    #[cfg(feature = "bls377")]
+    W3fBls377,
     #[cfg(feature = "bls381")]
     W3fBls381,
     #[cfg(feature = "zebra")]
@@ -78,6 +80,8 @@ impl KeyTypeId {
             KeyTypeId::K256Ecdsa => "k256_ecdsa",
             #[cfg(feature = "sr25519-schnorrkel")]
             KeyTypeId::SchnorrkelSr25519 => "schnorrkel_sr25519",
+            #[cfg(feature = "bls377")]
+            KeyTypeId::W3fBls377 => "w3f_bls377",
             #[cfg(feature = "bls381")]
             KeyTypeId::W3fBls381 => "w3f_bls381",
             #[cfg(feature = "zebra")]
