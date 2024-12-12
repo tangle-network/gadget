@@ -83,7 +83,7 @@ tokio-util = { version = "0.7.12", default-features = false }
 # CLI & Configuration
 cargo-generate = { version = "0.21.3", default-features = false }
 cargo_toml = { version = "0.20.5", default-features = false }
-clap = { version = "4.5.16", default-features = false }
+clap = { version = "4.5.16" }
 clap-cargo = { version = "0.14", default-features = false }
 cfg-if = { version = "1.0.0", default-features = false }
 toml = { version = "0.8.19", default-features = false }

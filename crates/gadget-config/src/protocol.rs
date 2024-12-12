@@ -1,5 +1,5 @@
 use super::*;
-use alloc::string::ToString;
+#[cfg(any(feature = "eigenlayer", feature = "symbiotic"))]
 use alloy_primitives::{address, Address};
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
@@ -79,6 +79,7 @@ pub struct TangleInstanceSettings {
     pub service_id: Option<u64>,
 }
 
+#[cfg(feature = "eigenlayer")]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct EigenlayerContractAddresses {
     /// The address of the registry coordinator contract
@@ -98,6 +99,7 @@ pub struct EigenlayerContractAddresses {
     pub rewards_coordinator_address: Address,
 }
 
+#[cfg(feature = "eigenlayer")]
 impl Default for EigenlayerContractAddresses {
     fn default() -> Self {
         Self {
@@ -113,6 +115,7 @@ impl Default for EigenlayerContractAddresses {
     }
 }
 
+#[cfg(feature = "symbiotic")]
 #[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct SymbioticContractAddresses {
     /// The address of the operator registry contract
@@ -133,26 +136,62 @@ pub struct SymbioticContractAddresses {
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum ProtocolSettings {
+    None,
+    #[cfg(feature = "tangle")]
     Tangle(TangleInstanceSettings),
+    #[cfg(feature = "eigenlayer")]
     Eigenlayer(EigenlayerContractAddresses),
+    #[cfg(feature = "symbiotic")]
     Symbiotic(SymbioticContractAddresses),
 }
 
 impl Default for ProtocolSettings {
     fn default() -> Self {
-        Self::Tangle(TangleInstanceSettings::default())
+        #[cfg(all(
+            feature = "tangle",
+            not(feature = "eigenlayer"),
+            not(feature = "symbiotic")
+        ))]
+        {
+            Self::Tangle(TangleInstanceSettings::default())
+        }
+        #[cfg(all(
+            feature = "eigenlayer",
+            not(feature = "tangle"),
+            not(feature = "symbiotic")
+        ))]
+        {
+            Self::Eigenlayer(EigenlayerContractAddresses::default())
+        }
+        #[cfg(all(
+            feature = "symbiotic",
+            not(feature = "tangle"),
+            not(feature = "eigenlayer")
+        ))]
+        {
+            Self::Symbiotic(SymbioticContractAddresses::default())
+        }
+        #[cfg(not(any(feature = "tangle", feature = "eigenlayer", feature = "symbiotic")))]
+        {
+            Self::None
+        }
     }
 }
 
 impl ProtocolSettings {
     pub fn as_str(&self) -> &'static str {
         match self {
+            #[cfg(feature = "tangle")]
             Self::Tangle(_) => "tangle",
+            #[cfg(feature = "eigenlayer")]
             Self::Eigenlayer(_) => "eigenlayer",
+            #[cfg(feature = "symbiotic")]
             Self::Symbiotic(_) => "symbiotic",
+            Self::None => "none",
         }
     }
 
+    #[cfg(feature = "tangle")]
     pub fn tangle(&self) -> Result<&TangleInstanceSettings, &'static str> {
         match self {
             Self::Tangle(settings) => Ok(settings),
@@ -160,6 +199,7 @@ impl ProtocolSettings {
         }
     }
 
+    #[cfg(feature = "eigenlayer")]
     pub fn eigenlayer(&self) -> Result<&EigenlayerContractAddresses, &'static str> {
         match self {
             Self::Eigenlayer(settings) => Ok(settings),
@@ -167,10 +207,26 @@ impl ProtocolSettings {
         }
     }
 
+    #[cfg(feature = "symbiotic")]
     pub fn symbiotic(&self) -> Result<&SymbioticContractAddresses, &'static str> {
         match self {
             Self::Symbiotic(settings) => Ok(settings),
             _ => Err("Not a Symbiotic instance"),
         }
+    }
+
+    #[cfg(feature = "tangle")]
+    pub fn from_tangle(settings: TangleInstanceSettings) -> Self {
+        Self::Tangle(settings)
+    }
+
+    #[cfg(feature = "eigenlayer")]
+    pub fn from_eigenlayer(settings: EigenlayerContractAddresses) -> Self {
+        Self::Eigenlayer(settings)
+    }
+
+    #[cfg(feature = "symbiotic")]
+    pub fn from_symbiotic(settings: SymbioticContractAddresses) -> Self {
+        Self::Symbiotic(settings)
     }
 }
