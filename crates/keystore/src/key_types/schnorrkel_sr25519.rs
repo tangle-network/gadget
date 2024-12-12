@@ -3,7 +3,7 @@ use crate::key_types::KeyType;
 use gadget_std::UniformRand;
 
 /// Schnorrkel key type
-pub struct SchnorrkelEcdsa;
+pub struct SchnorrkelSr25519;
 
 macro_rules! impl_schnorrkel_serde {
     ($name:ident, $inner:ty) => {
@@ -48,7 +48,7 @@ impl_schnorrkel_serde!(Public, schnorrkel::PublicKey);
 impl_schnorrkel_serde!(Secret, schnorrkel::SecretKey);
 impl_schnorrkel_serde!(SchnorrkelSignature, schnorrkel::Signature);
 
-impl KeyType for SchnorrkelEcdsa {
+impl KeyType for SchnorrkelSr25519 {
     type Public = Public;
     type Secret = Secret;
     type Signature = SchnorrkelSignature;
