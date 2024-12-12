@@ -57,8 +57,8 @@ cargo_metadata = { version = "0.18.1" }
 # Tangle-related dependencies
 tangle-subxt = { version = "0.7.0", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
-subxt = { version = "0.37.0", default-features = false }
-subxt-core = { version = "0.37.0", default-features = false }
+subxt = { version = "0.38.0", default-features = false }
+subxt-core = { version = "0.38.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
