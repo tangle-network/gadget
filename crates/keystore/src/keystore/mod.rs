@@ -5,9 +5,14 @@ cfg_remote! {
     use backends::remote::RemoteEntry;
 }
 
+mod config;
+pub use config::KeystoreConfig;
+
 use crate::error::{Error, Result};
 use crate::key_types::{KeyType, KeyTypeId};
-use crate::storage::RawStorage;
+#[cfg(feature = "std")]
+use crate::storage::FileStorage;
+use crate::storage::{InMemoryStorage, RawStorage};
 use gadget_std::{boxed::Box, cmp, collections::BTreeMap, vec::Vec};
 use serde::de::DeserializeOwned;
 
@@ -19,40 +24,117 @@ pub struct LocalStorageEntry {
 
 pub struct Keystore {
     storages: BTreeMap<KeyTypeId, Vec<LocalStorageEntry>>,
-    #[cfg(feature = "remote")]
+    #[cfg(any(
+        feature = "aws-signer",
+        feature = "gcp-signer",
+        feature = "ledger-browser",
+        feature = "ledger-node"
+    ))]
     remotes: BTreeMap<KeyTypeId, Vec<RemoteEntry>>,
 }
 
 impl Keystore {
-    pub fn new() -> Self {
-        Self {
+    /// Create a new `Keystore`
+    ///
+    /// See [`KeystoreConfig`] for notes on the backing storing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use gadget_keystore::backends::Backend;
+    /// use gadget_keystore::key_types::zebra_ed25519::Ed25519Zebra;
+    /// use gadget_keystore::{Keystore, KeystoreConfig};
+    ///
+    /// # fn main() -> gadget_keystore::Result<()> {
+    /// // Create a simple in-memory keystore
+    /// let config = KeystoreConfig::new().in_memory(true);
+    /// let keystore = Keystore::new(config)?;
+    ///
+    /// // Generate a new key pair
+    /// keystore.generate::<Ed25519Zebra>(None)?;
+    /// # Ok(()) }
+    /// ```
+    pub fn new(config: KeystoreConfig) -> Result<Self> {
+        let config = config.finalize();
+
+        let mut keystore = Self {
             storages: BTreeMap::new(),
-            #[cfg(feature = "remote")]
+            #[cfg(any(
+                feature = "aws-signer",
+                feature = "gcp-signer",
+                feature = "ledger-browser",
+                feature = "ledger-node"
+            ))]
             remotes: BTreeMap::new(),
+        };
+
+        if config.in_memory {
+            for key_type in KeyTypeId::ENABLED {
+                keystore.register_storage(
+                    *key_type,
+                    BackendConfig::Local(Box::new(InMemoryStorage::new())),
+                    0,
+                )?;
+            }
         }
+
+        #[cfg(feature = "std")]
+        if let Some(fs_root) = config.fs_root {
+            for key_type in KeyTypeId::ENABLED {
+                keystore.register_storage(
+                    *key_type,
+                    BackendConfig::Local(Box::new(FileStorage::new(fs_root.as_path())?)),
+                    0,
+                )?;
+            }
+        }
+
+        #[cfg(any(
+            feature = "aws-signer",
+            feature = "gcp-signer",
+            feature = "ledger-browser",
+            feature = "ledger-node"
+        ))]
+        for remote_config in config.remote_configs {
+            for key_type in KeyTypeId::ENABLED {
+                keystore.register_storage(
+                    *key_type,
+                    BackendConfig::Remote(remote_config.clone()),
+                    0,
+                )?;
+            }
+        }
+
+        Ok(keystore)
+    }
+
+    /// Register a storage backend for a key type with priority
+    fn register_storage(
+        &mut self,
+        key_type_id: KeyTypeId,
+        storage: BackendConfig,
+        priority: u8,
+    ) -> Result<()> {
+        match storage {
+            BackendConfig::Local(storage) => {
+                let entry = LocalStorageEntry { storage, priority };
+                let backends = self.storages.entry(key_type_id).or_default();
+                backends.push(entry);
+                backends.sort_by_key(|e| cmp::Reverse(e.priority));
+            }
+            #[cfg(any(
+                feature = "aws-signer",
+                feature = "gcp-signer",
+                feature = "ledger-browser",
+                feature = "ledger-node"
+            ))]
+            BackendConfig::Remote(_config) => return Err(Error::StorageNotSupported),
+        }
+        Ok(())
     }
 }
 
 impl Backend for Keystore {
-    /// Register a storage backend for a key type with priority
-    fn register_storage<T: KeyType>(&mut self, storage: BackendConfig, priority: u8) -> Result<()> {
-        match storage {
-            BackendConfig::Local(storage) => {
-                let entry = LocalStorageEntry { storage, priority };
-                let backends = self.storages.entry(T::key_type_id()).or_default();
-                backends.push(entry);
-                backends.sort_by_key(|e| cmp::Reverse(e.priority));
-            }
-            #[cfg(feature = "remote")]
-            BackendConfig::Remote(config) => {
-                let entry = RemoteEntry::new(config, todo!());
-                let backends = self.remotes.entry(T::key_type_id()).or_default();
-                backends.push(entry);
-            }
-        }
-        Ok(())
-    }
-
     /// Generate a new key pair from random seed
     fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public>
     where
@@ -214,15 +296,10 @@ impl Backend for Keystore {
 mod tests {
     use super::*;
     use crate::key_types::k256_ecdsa::K256Ecdsa;
-    use crate::storage::InMemoryStorage;
 
     #[test]
     fn test_generate_from_string() -> Result<()> {
-        let mut keystore = Keystore::new();
-        keystore.register_storage::<K256Ecdsa>(
-            BackendConfig::Local(Box::new(InMemoryStorage::new())),
-            0,
-        )?;
+        let keystore = Keystore::new(KeystoreConfig::new())?;
 
         let seed = "test seed string";
         let public1 = keystore.generate_from_string::<K256Ecdsa>(seed)?;
@@ -240,11 +317,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_local_operations() -> Result<()> {
-        let mut keystore = Keystore::new();
-        keystore.register_storage::<K256Ecdsa>(
-            BackendConfig::Local(Box::new(InMemoryStorage::new())),
-            0,
-        )?;
+        let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate and test local key
         let public = keystore.generate::<K256Ecdsa>(None)?;
