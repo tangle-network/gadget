@@ -29,9 +29,6 @@ pub enum BackendConfig {
 
 /// Core trait for keystore backend operations
 pub trait Backend: Send + Sync {
-    /// Register a storage backend for a key type with priority
-    fn register_storage<T: KeyType>(&mut self, config: BackendConfig, priority: u8) -> Result<()>;
-
     /// Generate a new key pair
     fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public>
     where
