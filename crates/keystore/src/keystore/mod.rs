@@ -34,6 +34,26 @@ pub struct Keystore {
 }
 
 impl Keystore {
+    /// Create a new `Keystore`
+    ///
+    /// See [`KeystoreConfig`] for notes on the backing storing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use gadget_keystore::backends::Backend;
+    /// use gadget_keystore::key_types::zebra_ed25519::Ed25519Zebra;
+    /// use gadget_keystore::{Keystore, KeystoreConfig};
+    ///
+    /// # fn main() -> gadget_keystore::Result<()> {
+    /// // Create a simple in-memory keystore
+    /// let config = KeystoreConfig::new().in_memory(true);
+    /// let keystore = Keystore::new(config)?;
+    ///
+    /// // Generate a new key pair
+    /// keystore.generate::<Ed25519Zebra>(None)?;
+    /// # Ok(()) }
+    /// ```
     pub fn new(config: KeystoreConfig) -> Result<Self> {
         let config = config.finalize();
 
