@@ -10,15 +10,25 @@ repository.workspace = true
 [dependencies]
 gadget-std.workspace = true
 gadget-tokio-std.workspace = true
+gadget-config.workspace = true
 async-trait.workspace = true
 auto_impl.workspace = true
 hex.workspace = true
 thiserror.workspace = true
+proc-macro2.workspace = true
+round-based.workspace = true
 
 sp-core = { workspace = true, optional = true }
 subxt = { workspace = true, optional = true, features = ["jsonrpsee"] }
 tangle-subxt = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "time"], optional = true }
+
+alloy-primitives = { workspace = true, optional = true }
+alloy-provider = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
+alloy-network = { workspace = true, optional = true }
+eigensdk = { workspace = true, optional = true }
+num-bigint = { workspace = true, optional = true }
 
 [features]
 default = ["std", "tangle"]
@@ -34,6 +44,14 @@ no-std = [
     "subxt/web"
 ]
 tangle = ["sp-core", "tangle-subxt"]
+evm = [
+    "alloy-primitives",
+    "alloy-provider",
+    "alloy-transport",
+    "alloy-network",
+    "eigensdk",
+    "num-bigint",
+]
 
 [lints]
 workspace = true
