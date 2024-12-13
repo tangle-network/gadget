@@ -115,8 +115,8 @@ impl EigenlayerClient {
             operator_state_retriever_address,
             http_rpc_endpoint,
         )
-            .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
     }
 
     /// Provides a writer for the AVS registry.
@@ -162,8 +162,8 @@ impl EigenlayerClient {
             avs_registry_reader,
             ws_endpoint,
         )
-            .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
     }
 
     /// Provides an AVS registry service chain caller.

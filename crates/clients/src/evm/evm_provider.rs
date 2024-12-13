@@ -1,11 +1,15 @@
-use std::future::Future;
 use gadget_config::GadgetConfiguration;
+use std::future::Future;
 
-pub struct EVMProviderClient<N: alloy_network::Network, T: alloy_transport::Transport, P: alloy_provider::Provider<T, N>> {
+pub struct EVMProviderClient<
+    N: alloy_network::Network,
+    T: alloy_transport::Transport,
+    P: alloy_provider::Provider<T, N>,
+> {
     pub config: GadgetConfiguration,
 }
 
-impl <N, T, P>EVMProviderClient<N, T, P> {
+impl<N, T, P> EVMProviderClient<N, T, P> {
     pub fn evm_provider(&self) -> impl Future<Output = Result<P, std::io::Error>> {
         static PROVIDER: std::sync::OnceLock<P> = std::sync::OnceLock::new();
         async {
@@ -22,10 +26,7 @@ impl <N, T, P>EVMProviderClient<N, T, P> {
                         .set(provider.clone())
                         .map(|_| provider)
                         .map_err(|_| {
-                            std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Failed to set provider",
-                            )
+                            std::io::Error::new(std::io::ErrorKind::Other, "Failed to set provider")
                         })
                 }
             }
