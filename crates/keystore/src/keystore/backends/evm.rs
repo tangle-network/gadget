@@ -78,10 +78,11 @@ impl EvmBackend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::KeystoreConfig;
 
     #[test]
     fn test_basic_wallet_creation() -> Result<()> {
-        let keystore = Keystore::new();
+        let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Test private key wallet
         let private_key = [1u8; 32];
@@ -97,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_mnemonic_wallet() -> Result<()> {
-        let keystore = Keystore::new();
+        let keystore = Keystore::new(KeystoreConfig::new())?;
         let mnemonic = "test test test test test test test test test test test junk";
         let wallet = keystore.create_wallet_from_mnemonic(mnemonic)?;
         assert_ne!(wallet.default_signer().address(), Address::ZERO);

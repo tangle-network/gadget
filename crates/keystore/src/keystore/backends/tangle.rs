@@ -544,10 +544,11 @@ impl TangleBackend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::KeystoreConfig;
 
     #[test]
     fn test_sr25519_operations() -> Result<()> {
-        let keystore = Keystore::new();
+        let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate key
         let public = keystore.sr25519_generate_new(None)?;
@@ -564,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_ecdsa_operations() -> Result<()> {
-        let keystore = Keystore::new();
+        let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate from string
         let public = keystore.ecdsa_generate_from_string("test seed")?;
