@@ -82,6 +82,7 @@ pub const fn log2(x: usize) -> u32 {
 }
 
 /// Creates parallel iterator over refs if `parallel` feature is enabled.
+///
 /// Additionally, if the object being iterated implements
 /// `IndexedParallelIterator`, then one can specify a minimum size for
 /// iteration.
@@ -108,6 +109,7 @@ macro_rules! cfg_iter {
 }
 
 /// Creates parallel iterator over mut refs if `parallel` feature is enabled.
+///
 /// Additionally, if the object being iterated implements
 /// `IndexedParallelIterator`, then one can specify a minimum size for
 /// iteration.

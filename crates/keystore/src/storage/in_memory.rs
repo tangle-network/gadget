@@ -1,9 +1,13 @@
+#[cfg(not(feature = "std"))]
+use gadget_std::collections::HashMap;
+#[cfg(feature = "std")]
+use std::collections::HashMap;
+
 use super::RawStorage;
 use crate::error::Result;
 use crate::key_types::KeyTypeId;
-use gadget_std::{boxed::Box, vec::Vec};
+use gadget_std::{boxed::Box, collections::HashMap, vec::Vec};
 use parking_lot::RwLock;
-use std::collections::HashMap;
 
 type StorageMap = HashMap<KeyTypeId, HashMap<Vec<u8>, Vec<u8>>>;
 
