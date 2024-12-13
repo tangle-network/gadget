@@ -166,55 +166,6 @@ macro_rules! impl_sp_core_signature {
     };
 }
 
-/// Implements signature functionality for BLS signatures.
-macro_rules! impl_sp_core_bls_signature {
-    ($key_type:ident, $signature:ty) => {
-        paste::paste! {
-            #[derive(Clone, PartialEq, Eq)]
-            pub struct [<$key_type Signature>](pub $signature);
-
-            impl PartialOrd for [<$key_type Signature>] {
-                fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                    self.0.as_ref().partial_cmp(other.0.as_ref())
-                }
-            }
-
-            impl Ord for [<$key_type Signature>] {
-                fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                    self.0.as_ref().cmp(other.0.as_ref())
-                }
-            }
-
-            impl gadget_std::fmt::Debug for [<$key_type Signature>] {
-                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                    write!(f, "{:?}", self.0.as_ref())
-                }
-            }
-
-            impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    serializer.serialize_bytes(self.0.as_ref())
-                }
-            }
-
-            impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let sig = <$signature>::from_slice(&bytes)
-                        .ok_or_else(|| serde::de::Error::custom("Invalid signature length"))?;
-                    Ok([<$key_type Signature>](sig))
-                }
-            }
-        }
-    };
-}
-
 /// Implements both pair/public and signature traits for a given sp_core crypto type
 macro_rules! impl_sp_core_crypto {
     ($key_type:ident, $module:ident) => {

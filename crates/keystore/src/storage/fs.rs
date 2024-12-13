@@ -25,17 +25,22 @@ impl FileStorage {
     ///
     /// ```rust,no_run
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::key_types::schnorrkel_sr25519::SchnorrkelSr25519;
-    /// use gadget_keystore::storage::FileStorage;
+    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::storage::{FileStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
     ///
     /// # fn main() -> gadget_keystore::Result<()> {
     /// // Create storage at the specified path
     /// let storage = FileStorage::new("/path/to/keystore")?;
+    /// let storage = TypedStorage::new(storage);
     ///
-    /// // Our storage is now ready for use. We can add it to a `KeyStore`.
-    /// let mut keystore = Keystore::new();
-    /// keystore.register_storage::<SchnorrkelSr25519>(BackendConfig::Local(Box::new(storage)), 0)?;
+    /// // Generate a key pair
+    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let public = K256Ecdsa::public_from_secret(&secret);
+    ///
+    /// // Start storing
+    /// storage.store::<K256Ecdsa>(&public, &secret)?;
     /// # Ok(()) }
     /// ```
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {

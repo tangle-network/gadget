@@ -72,6 +72,31 @@ pub enum KeyTypeId {
 }
 
 impl KeyTypeId {
+    pub const ENABLED: &'static [Self] = &[
+        #[cfg(feature = "bn254")]
+        Self::ArkBn254,
+        #[cfg(feature = "ecdsa")]
+        Self::K256Ecdsa,
+        #[cfg(feature = "sr25519-schnorrkel")]
+        Self::SchnorrkelSr25519,
+        #[cfg(feature = "bls377")]
+        Self::W3fBls377,
+        #[cfg(feature = "bls381")]
+        Self::W3fBls381,
+        #[cfg(feature = "zebra")]
+        Self::ZebraEd25519,
+        #[cfg(feature = "tangle")]
+        Self::SpBls377,
+        #[cfg(feature = "tangle")]
+        Self::SpBls381,
+        #[cfg(feature = "tangle")]
+        Self::SpEcdsa,
+        #[cfg(feature = "tangle")]
+        Self::SpEd25519,
+        #[cfg(feature = "tangle")]
+        Self::SpSr25519,
+    ];
+
     pub fn name(&self) -> &'static str {
         match self {
             #[cfg(feature = "bn254")]
