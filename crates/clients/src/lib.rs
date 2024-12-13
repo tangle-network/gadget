@@ -6,6 +6,9 @@ use gadget_std::boxed::Box;
 
 #[cfg(feature = "tangle")]
 pub mod tangle;
+#[cfg(feature = "evm")]
+pub mod evm;
+mod network;
 
 #[async_trait]
 #[auto_impl(Arc)]

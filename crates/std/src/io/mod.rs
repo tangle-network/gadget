@@ -77,7 +77,6 @@ pub trait Read {
     ///
     /// An error of the [`ErrorKind::Interrupted`] kind is non-fatal and the read
     /// operation should be retried if there is nothing else to do.
-    ///
     fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
 
     /// Read the exact number of bytes required to fill `buf`.
@@ -177,7 +176,6 @@ pub trait Write {
     ///
     /// It is considered an error if not all bytes could be written due to
     /// I/O errors or EOF being reached.
-    ///
     fn flush(&mut self) -> Result<()>;
 
     /// Attempts to write an entire buffer into this writer.
