@@ -1,6 +1,7 @@
 //! This module contains the key types that are supported by the keystore.
 
 use crate::error::Result;
+use gadget_std::string::String;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -53,22 +54,12 @@ pub enum KeyTypeId {
     K256Ecdsa,
     #[cfg(feature = "sr25519-schnorrkel")]
     SchnorrkelSr25519,
-    #[cfg(feature = "bls377")]
-    W3fBls377,
-    #[cfg(feature = "bls381")]
-    W3fBls381,
+    #[cfg(any(feature = "bls377", feature = "bls381"))]
+    W3fBls,
     #[cfg(feature = "zebra")]
     ZebraEd25519,
     #[cfg(feature = "tangle")]
-    SpBls377,
-    #[cfg(feature = "tangle")]
-    SpBls381,
-    #[cfg(feature = "tangle")]
-    SpEcdsa,
-    #[cfg(feature = "tangle")]
-    SpEd25519,
-    #[cfg(feature = "tangle")]
-    SpSr25519,
+    TangleSr25519,
 }
 
 impl KeyTypeId {
@@ -98,39 +89,38 @@ impl KeyTypeId {
     ];
 
     pub fn name(&self) -> &'static str {
-        match self {
+        match *self {
             #[cfg(feature = "bn254")]
-            KeyTypeId::ArkBn254 => "ark_bn254",
+            Self::ArkBn254 => "ark-bn254",
             #[cfg(feature = "ecdsa")]
-            KeyTypeId::K256Ecdsa => "k256_ecdsa",
+            Self::K256Ecdsa => "k256-ecdsa",
             #[cfg(feature = "sr25519-schnorrkel")]
-            KeyTypeId::SchnorrkelSr25519 => "schnorrkel_sr25519",
-            #[cfg(feature = "bls377")]
-            KeyTypeId::W3fBls377 => "w3f_bls377",
-            #[cfg(feature = "bls381")]
-            KeyTypeId::W3fBls381 => "w3f_bls381",
+            Self::SchnorrkelSr25519 => "schnorrkel-sr25519",
+            #[cfg(any(feature = "bls377", feature = "bls381"))]
+            Self::W3fBls => "w3f-bls",
             #[cfg(feature = "zebra")]
-            KeyTypeId::ZebraEd25519 => "zebra_ed25519",
+            Self::ZebraEd25519 => "zebra-ed25519",
             #[cfg(feature = "tangle")]
-            KeyTypeId::SpBls377 => "sp_bls377",
-            #[cfg(feature = "tangle")]
-            KeyTypeId::SpBls381 => "sp_bls381",
-            #[cfg(feature = "tangle")]
-            KeyTypeId::SpEcdsa => "sp_ecdsa",
-            #[cfg(feature = "tangle")]
-            KeyTypeId::SpEd25519 => "sp_ed25519",
-            #[cfg(feature = "tangle")]
-            KeyTypeId::SpSr25519 => "sp_sr25519",
+            Self::TangleSr25519 => "tangle-sr25519",
+            #[cfg(all(
+                not(feature = "bn254"),
+                not(feature = "ecdsa"),
+                not(feature = "sr25519-schnorrkel"),
+                not(any(feature = "bls377", feature = "bls381")),
+                not(feature = "zebra"),
+                not(feature = "tangle")
+            ))]
+            _ => unreachable!("All possible variants are feature-gated"),
         }
     }
 }
 
 /// Trait for key types that can be stored in the keystore
 pub trait KeyType: Sized + 'static {
-    /// The public key type
-    type Public: Clone + Serialize + serde::de::DeserializeOwned + Ord + Send + Sync;
     /// The secret key type
     type Secret: Clone + Serialize + serde::de::DeserializeOwned + Ord + Send + Sync;
+    /// The public key type
+    type Public: Clone + Serialize + serde::de::DeserializeOwned + Ord + Send + Sync;
     /// The signature type
     type Signature: Clone + Serialize + serde::de::DeserializeOwned + Ord + Send + Sync;
 
@@ -138,8 +128,14 @@ pub trait KeyType: Sized + 'static {
     fn key_type_id() -> KeyTypeId;
 
     /// Get a cryptographically secure random number generator
-    fn get_rng() -> gadget_std::GadgetRng {
-        gadget_std::GadgetRng::new()
+    #[cfg(feature = "std")]
+    fn get_rng() -> impl gadget_std::CryptoRng + gadget_std::Rng {
+        gadget_std::rand::thread_rng()
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn get_rng() -> impl gadget_std::CryptoRng + gadget_std::Rng {
+        gadget_std::test_rng()
     }
 
     /// Get a deterministic random number generator for testing

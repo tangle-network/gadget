@@ -5,6 +5,7 @@ use tokio::{sync::MutexGuard, time::error::Elapsed};
 ///
 /// This allows for locking a mutex with a given timeout.
 #[async_trait::async_trait]
+#[allow(clippy::module_name_repetitions)]
 pub trait TokioMutexExt<T: Send> {
     /// Attempts to lock the mutex with a given timeout.
     ///

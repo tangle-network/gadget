@@ -1,13 +1,13 @@
-use crate::tangle::Error;
-use sp_core::Encode;
+use std::io::Error;
 use subxt::backend::BlockRef;
 use subxt::utils::AccountId32;
 use subxt::utils::H256;
 use subxt::{Config, OnlineClient};
 use tangle_subxt::tangle_testnet_runtime::api;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_runtime::DispatchError;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    self, ServiceBlueprint,
+};
 
 /// A client for interacting with the services API
 #[derive(Debug)]
@@ -19,11 +19,6 @@ impl<C: Config> ServicesClient<C> {
     /// Create a new services client
     pub fn new(rpc_client: OnlineClient<C>) -> Self {
         Self { rpc_client }
-    }
-
-    /// Get the associated RPC client
-    pub fn rpc_client(&self) -> &OnlineClient<C> {
-        &self.rpc_client
     }
 }
 
@@ -52,7 +47,7 @@ where
             .at(at)
             .fetch(&call)
             .await
-            .map_err(|e| Error::Client(e.to_string()))?
+            .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?
             .map(|r| r.1);
 
         Ok(ret)
@@ -78,21 +73,54 @@ where
             .at(at)
             .call(call)
             .await
-            .map_err(|e| Error::Client(e.to_string()))?
+            .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?
             .map_err(|err| self.dispatch_error_to_sdk_error(err, &at_block))?;
 
         Ok(ret)
     }
 
-    pub fn dispatch_error_to_sdk_error(&self, err: DispatchError, at: &[u8; 32]) -> Error {
-        let metadata = self.rpc_client.metadata();
-        let at_hex = hex::encode(at);
-        let dispatch_error = subxt::error::DispatchError::decode_from(err.encode(), metadata);
-        match dispatch_error {
-            Ok(dispatch_error) => Error::Other(format!("{dispatch_error}")),
-            Err(err) => Error::Other(format!(
-                "Failed to construct DispatchError at block 0x{at_hex}: {err}"
-            )),
-        }
+    /// Get the current blueprint information
+    pub async fn current_blueprint(&self, at: [u8; 32]) -> Result<ServiceBlueprint, subxt::Error> {
+        let call = api::storage().services().blueprints(0);
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret = self
+            .rpc_client
+            .storage()
+            .at(at)
+            .fetch(&call)
+            .await?
+            .ok_or_else(|| Error::new(std::io::ErrorKind::Other, "Blueprint not found"))?;
+        Ok(ret)
+    }
+
+    /// Query the current blueprint owner
+    pub async fn current_blueprint_owner(&self, at: [u8; 32]) -> Result<AccountId32, subxt::Error> {
+        let call = api::storage().services().blueprint_owners(0);
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret = self
+            .rpc_client
+            .storage()
+            .at(at)
+            .fetch(&call)
+            .await?
+            .ok_or_else(|| Error::new(std::io::ErrorKind::Other, "Blueprint owner not found"))?;
+        Ok(ret)
+    }
+
+    /// Get the current service operators with their restake exposure
+    pub async fn current_service_operators(
+        &self,
+        at: [u8; 32],
+    ) -> Result<Vec<(AccountId32, Percent)>, subxt::Error> {
+        let call = api::storage().services().service_operators(0);
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret = self
+            .rpc_client
+            .storage()
+            .at(at)
+            .fetch(&call)
+            .await?
+            .ok_or_else(|| subxt::Error::Other("Service operators not found".into()))?;
+        Ok(ret)
     }
 }
