@@ -10,4 +10,4 @@ pub mod p2p;
 #[cfg(feature = "tangle")]
 pub mod services;
 #[cfg(feature = "tangle")]
-pub mod tangle_client;
+pub mod tangle;

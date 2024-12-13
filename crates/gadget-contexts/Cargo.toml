@@ -8,99 +8,51 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-# Gadget dependencies
+# Core dependencies (always required)
 gadget-config = { workspace = true }
-gadget-clients = { workspace = true }
 gadget-keystore = { workspace = true }
-
-# Core dependencies
 itertools = { workspace = true }
 auto_impl = { workspace = true }
 uuid = { workspace = true }
 failure = { workspace = true }
 lazy_static = { workspace = true }
-num-bigint = { workspace = true }
-
-# Cryptography and Security
-elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
-getrandom = { workspace = true, optional = true }
-hex = { workspace = true, features = ["alloc"] }
-rand = { workspace = true, features = ["alloc"] }
-
-# Asynchronous and Concurrency
-tokio = { workspace = true, optional = true }
-tokio-stream = { workspace = true, features = ["io-util", "sync"] }
-tokio-util = { workspace = true }
-lock_api = { workspace = true }
-parking_lot = { workspace = true, optional = true }
-
-# CLI and Parsing
-clap = { workspace = true, features = ["derive", "wrap_help"] }
-
-# Docker
-bollard = { workspace = true }
-
-# Database
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
-
-# Operating System
-nix = { workspace = true, optional = true }
-
-# HTTP and Networking
-url = { workspace = true, features = ["serde"] }
-http-body-util = { workspace = true, optional = true }
-hyper = { workspace = true, features = ["http1", "server"], optional = true }
-hyper-util = { workspace = true, features = ["server"], optional = true }
-
-# Keystore
-ed25519-zebra = { workspace = true }
-k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
-schnorrkel = { workspace = true }
-w3f-bls = { workspace = true }
-eigensdk = { workspace = true, features = ["full", "utils", "types"] }
-ark-serialize = { workspace = true }
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
-ark-bn254 = { workspace = true }
-
-# Substrate and Blockchain
-subxt-core = { workspace = true, features = ["substrate-compat"] }
-sp-core = { workspace = true, features = ["full_crypto"] }
-sp-io = { workspace = true }
-scale-info = { workspace = true }
-tangle-subxt = { workspace = true }
-
-# Metrics
-prometheus = { workspace = true }
-
-# Logging and Errors
 thiserror = { workspace = true }
 color-eyre = { workspace = true }
 log = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
-tracing = { workspace = true, features = ["log"] }
-
-# Networking and Serialization
-async-trait = { workspace = true }
-bincode = { workspace = true }
-futures = { workspace = true }
-round-based = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
 
-# Symbiotic
+# Cryptography (core)
+elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
+hex = { workspace = true, features = ["alloc"] }
+rand = { workspace = true, features = ["alloc"] }
+
+# Optional dependencies based on features
+tokio = { workspace = true, optional = true }
+tokio-stream = { workspace = true, features = ["io-util", "sync"], optional = true }
+tokio-util = { workspace = true, optional = true }
+parking_lot = { workspace = true, optional = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
+nix = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
+hyper = { workspace = true, features = ["http1", "server"], optional = true }
+hyper-util = { workspace = true, features = ["server"], optional = true }
 symbiotic-rs = { workspace = true, optional = true }
-
-# Event Watchers and Handlers
 backon = { workspace = true, optional = true }
-subxt = { workspace = true, optional = true, features = ["substrate-compat"] }
-subxt-signer = { workspace = true, features = ["sr25519"] }
 
-# EVM Event Watchers and Handlers
+# Keystore-related (moved to keystore feature)
+ed25519-zebra = { workspace = true, optional = true }
+k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"], optional = true }
+schnorrkel = { workspace = true, optional = true }
+w3f-bls = { workspace = true, optional = true }
+
+# EVM-related
 alloy-contract = { workspace = true, optional = true }
 alloy-network = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
-alloy-json-abi = { workspace = true, features = ["serde_json"] }
+alloy-json-abi = { workspace = true, features = ["serde_json"], optional = true }
 alloy-provider = { workspace = true, optional = true }
 alloy-rpc-types = { workspace = true, optional = true }
 alloy-sol-types = { workspace = true, optional = true }
@@ -108,16 +60,78 @@ alloy-transport = { workspace = true, optional = true }
 alloy-transport-http = { workspace = true, optional = true }
 alloy-signer = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true }
+eigensdk = { workspace = true, features = ["full", "utils", "types"], optional = true }
 
-# Caching
-lru-mem = { workspace = true }
+# Tangle-related
+subxt = { workspace = true, optional = true, features = ["substrate-compat"] }
+subxt-core = { workspace = true, features = ["substrate-compat"], optional = true }
+subxt-signer = { workspace = true, features = ["sr25519"], optional = true }
+sp-core = { workspace = true, features = ["full_crypto", "std"], optional = true }
+sp-io = { workspace = true, features = ["std"], optional = true }
+sp-externalities = { workspace = true, features = ["std"], optional = true }
+scale-info = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
 
-# Benchmarking
-sysinfo = { workspace = true }
-dashmap = { workspace = true }
+# Network-related
+gadget-clients = { workspace = true, optional = true }
+bollard = { workspace = true, optional = true }
+url = { workspace = true, features = ["serde"], optional = true }
 
 [features]
-default = ["std", "tangle", "evm"]
-std = []
-tangle = []
-evm = ["gadget-clients/evm"]
+default = ["std", "tangle", "evm", "network"]
+
+std = [
+    "tokio",
+    "tokio-stream",
+    "tokio-util",
+    "parking_lot",
+    "sqlx",
+    "nix",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-externalities/std",
+    "scale-info/std"
+]
+
+network = [
+    "gadget-clients",
+    "bollard",
+    "url",
+    "http-body-util",
+    "hyper",
+    "hyper-util"
+]
+
+tangle = [
+    "subxt",
+    "subxt-core",
+    "subxt-signer",
+    "sp-core",
+    "sp-io",
+    "sp-externalities",
+    "scale-info",
+    "tangle-subxt"
+]
+
+evm = [
+    "gadget-clients/evm",
+    "alloy-contract",
+    "alloy-network",
+    "alloy-primitives",
+    "alloy-json-abi",
+    "alloy-provider",
+    "alloy-rpc-types",
+    "alloy-sol-types",
+    "alloy-transport",
+    "alloy-transport-http",
+    "alloy-signer",
+    "alloy-signer-local",
+    "eigensdk"
+]
+
+keystore = [
+    "ed25519-zebra",
+    "k256",
+    "schnorrkel",
+    "w3f-bls"
+]
