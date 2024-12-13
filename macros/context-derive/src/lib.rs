@@ -24,7 +24,7 @@ mod mpc;
 /// Services context extension implementation.
 mod services;
 /// Tangle Subxt Client context extension implementation.
-mod subxt;
+mod tangle;
 
 const CONFIG_TAG_NAME: &str = "config";
 const CONFIG_TAG_TYPE: &str = "gadget_sdk::config::GadgetConfiguration";
@@ -75,7 +75,7 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
                 Ok((res, call_id_field))
             })
             .map(|(config_field, call_id_field)| {
-                subxt::generate_context_impl(input, config_field, call_id_field)
+                tangle::generate_context_impl(input, config_field, call_id_field)
             });
 
     match result {

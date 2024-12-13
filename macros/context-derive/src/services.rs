@@ -21,20 +21,19 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
+        #[gadget_sdk::async_trait::async_trait]
         impl #impl_generics gadget_sdk::contexts::ServicesContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
-            fn current_blueprint(
+            async fn current_blueprint(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<
-                Output = Result<
+            ) -> Result<
                     gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint,
                     gadget_sdk::ext::subxt::Error
-                >> {
+                > {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
-                async move {
                     let blueprint_id = match #field_access.protocol_specific {
                         gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
                             settings.blueprint_id
@@ -54,16 +53,14 @@ pub fn generate_context_impl(
                             "Blueprint with id {blueprint_id} not found"
                         ))),
                     }
-                }
             }
 
-            fn current_blueprint_owner(
+            async fn current_blueprint_owner(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error>> {
+            ) -> Result<gadget_sdk::ext::subxt::utils::AccountId32, gadget_sdk::ext::subxt::Error> {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-                async move {
                     let blueprint_id = match #field_access.protocol_specific {
                         gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
                             settings.blueprint_id
@@ -83,25 +80,21 @@ pub fn generate_context_impl(
                             "Blueprint with id {blueprint_id} not found"
                         ))),
                     }
-                }
             }
 
-            fn current_service_operators(
+            async fn current_service_operators(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<
-                Output = Result<
+            ) -> Result<
                     Vec<(
                             gadget_sdk::ext::subxt::utils::AccountId32,
                             gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent,
                         )>,
                     gadget_sdk::ext::subxt::Error
-                >
-            > {
+                > {
                 use gadget_sdk::ext::subxt;
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
-                async move {
                     let service_instance_id = match #field_access.protocol_specific {
                         gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => {
                             settings.service_id
@@ -129,15 +122,13 @@ pub fn generate_context_impl(
                             "Service instance {service_id} is not created, yet"
                         ))),
                     }
-                }
             }
 
-            fn operators_metadata(
+            async fn operators_metadata(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
                 operators: Vec<gadget_sdk::ext::subxt::utils::AccountId32>,
-            ) -> impl core::future::Future<
-                Output = Result<
+            ) -> Result<
                     Vec<(
                         gadget_sdk::ext::subxt::utils::AccountId32,
                         gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
@@ -149,11 +140,9 @@ pub fn generate_context_impl(
                         >
                     )>,
                     gadget_sdk::ext::subxt::Error
-                >
-            > {
+                > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 
-                async move {
                     let storage = client.storage().at_latest().await?;
                     let mut operator_metadata = Vec::new();
 
@@ -168,7 +157,6 @@ pub fn generate_context_impl(
                     }
 
                     Ok(operator_metadata)
-                }
             }
 
             async fn operator_metadata(
