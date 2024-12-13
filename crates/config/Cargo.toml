@@ -7,35 +7,32 @@ license.workspace = true
 
 [dependencies]
 # Core dependencies (always included)
-clap = { workspace = true, features = ["derive", "env"], default-features = false }
+clap = { workspace = true, features = ["derive", "env"] }
 gadget-std = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-url = { workspace = true }
+url = { workspace = true, features = ["serde"] }
 
 # Optional dependencies (feature-gated)
-gadget-keystore = { workspace = true, optional = true }
 libp2p = { workspace = true, optional = true }
-eigensdk = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
-tangle-subxt = { workspace = true, optional = true }
 
 [features]
-default = ["std"]
-std = []
+default = ["std", "tangle"]
+std = ["gadget-std/std", "serde_json"]
 
 # Core feature groups
-keystore = ["dep:gadget-keystore"]
+keystore = []
 networking = ["dep:libp2p"]
 
 # Protocol-specific features
-tangle = ["keystore", "dep:tangle-subxt"]
-eigenlayer = ["keystore", "dep:eigensdk", "dep:alloy-primitives"]
-symbiotic = ["keystore", "dep:alloy-primitives"]
+tangle = []
+eigenlayer = ["dep:alloy-primitives"]
+symbiotic = ["dep:alloy-primitives"]
 
 # Testing features
 test-utils = ["std"]

@@ -4,7 +4,6 @@ use sp_core::Pair;
 /// Implements serde and KeyType trait for any sp_core crypto type.
 ///
 /// Implements common functionality for key pairs and public keys.
-#[macro_export]
 macro_rules! impl_sp_core_pair_public {
     ($key_type:ident, $pair_type:ty, $public:ty) => {
         paste::paste! {
@@ -42,7 +41,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl serde::Serialize for [<$key_type Pair>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -52,7 +51,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Pair>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -94,7 +93,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl serde::Serialize for [<$key_type Public>]{
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -104,7 +103,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Public>]{
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -119,7 +118,6 @@ macro_rules! impl_sp_core_pair_public {
 }
 
 /// Implements signature functionality for non-BLS signatures.
-#[macro_export]
 macro_rules! impl_sp_core_signature {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
@@ -145,7 +143,7 @@ macro_rules! impl_sp_core_signature {
             }
 
             impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
@@ -154,7 +152,7 @@ macro_rules! impl_sp_core_signature {
             }
 
             impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
@@ -168,58 +166,7 @@ macro_rules! impl_sp_core_signature {
     };
 }
 
-/// Implements signature functionality for BLS signatures.
-#[macro_export]
-macro_rules! impl_sp_core_bls_signature {
-    ($key_type:ident, $signature:ty) => {
-        paste::paste! {
-            #[derive(Clone, PartialEq, Eq)]
-            pub struct [<$key_type Signature>](pub $signature);
-
-            impl PartialOrd for [<$key_type Signature>] {
-                fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                    self.0.as_ref().partial_cmp(other.0.as_ref())
-                }
-            }
-
-            impl Ord for [<$key_type Signature>] {
-                fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                    self.0.as_ref().cmp(other.0.as_ref())
-                }
-            }
-
-            impl gadget_std::fmt::Debug for [<$key_type Signature>] {
-                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                    write!(f, "{:?}", self.0.as_ref())
-                }
-            }
-
-            impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    serializer.serialize_bytes(self.0.as_ref())
-                }
-            }
-
-            impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let sig = <$signature>::from_slice(&bytes)
-                        .ok_or_else(|| serde::de::Error::custom("Invalid signature length"))?;
-                    Ok([<$key_type Signature>](sig))
-                }
-            }
-        }
-    };
-}
-
 /// Implements both pair/public and signature traits for a given sp_core crypto type
-#[macro_export]
 macro_rules! impl_sp_core_crypto {
     ($key_type:ident, $module:ident) => {
         impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, sp_core::$module::Public);

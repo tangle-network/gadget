@@ -1,4 +1,5 @@
-use crate::{error::Error, key_types::KeyType};
+use crate::error::{Error, Result};
+use crate::key_types::KeyType;
 
 /// Ed25519 key type
 pub struct Ed25519Zebra;
@@ -35,7 +36,7 @@ macro_rules! impl_zebra_serde {
         }
 
         impl serde::Serialize for $name {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
@@ -46,7 +47,7 @@ macro_rules! impl_zebra_serde {
         }
 
         impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
             where
                 D: serde::Deserializer<'de>,
             {
@@ -81,7 +82,7 @@ impl Ord for Ed25519Signature {
 }
 
 impl serde::Serialize for Ed25519Signature {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -92,7 +93,7 @@ impl serde::Serialize for Ed25519Signature {
 }
 
 impl<'de> serde::Deserialize<'de> for Ed25519Signature {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -116,7 +117,7 @@ impl KeyType for Ed25519Zebra {
         super::KeyTypeId::ZebraEd25519
     }
 
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error> {
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         if let Some(seed) = seed {
             let seed = <[u8; 32]>::try_from(seed)
                 .map_err(|_| Error::InvalidSeed("Seed is not 32 bytes!".to_string()))?;
@@ -127,7 +128,7 @@ impl KeyType for Ed25519Zebra {
         }
     }
 
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error> {
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
         let hex_encoded = hex::decode(secret).map_err(|_| Error::InvalidHexDecoding)?;
         let secret = ed25519_zebra::SigningKey::try_from(hex_encoded.as_slice())
             .map_err(|e| Error::InvalidSeed(e.to_string()))?;
@@ -138,14 +139,14 @@ impl KeyType for Ed25519Zebra {
         Ed25519VerificationKey((&secret.0).into())
     }
 
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error> {
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
         Ok(Ed25519Signature(secret.0.sign(msg)))
     }
 
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         Ok(Ed25519Signature(secret.0.sign(msg)))
     }
 

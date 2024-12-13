@@ -1,10 +1,10 @@
 use serde::de::DeserializeOwned;
 
-use crate::error::Error;
+use super::Backend;
+use crate::error::{Error, Result};
 use crate::key_types::KeyType;
-pub use crate::remote::types::{EcdsaRemoteSigner, RemoteCapabilities, RemoteConfig};
-
-use super::{backend::Backend, Keystore};
+use crate::keystore::Keystore;
+pub use crate::remote::{EcdsaRemoteSigner, RemoteCapabilities, RemoteConfig};
 
 #[derive(Clone)]
 /// Represents a remote signer configuration and its capabilities
@@ -41,7 +41,7 @@ pub trait RemoteBackend: Backend {
         public: &T::Public,
         msg: &[u8],
         chain_id: Option<u64>,
-    ) -> Result<T::Signature, Error>
+    ) -> Result<T::Signature>
     where
         T: KeyType,
         R: EcdsaRemoteSigner<T>,
@@ -50,7 +50,7 @@ pub trait RemoteBackend: Backend {
         R::KeyId: Send;
 
     /// List all public keys from remote signers
-    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>, Error>
+    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>>
     where
         T: KeyType,
         R: EcdsaRemoteSigner<T>,
@@ -67,7 +67,7 @@ impl RemoteBackend for Keystore {
         public: &T::Public,
         msg: &[u8],
         chain_id: Option<u64>,
-    ) -> Result<T::Signature, Error>
+    ) -> Result<T::Signature>
     where
         T: KeyType,
         R: EcdsaRemoteSigner<T>,
@@ -98,7 +98,7 @@ impl RemoteBackend for Keystore {
     }
 
     /// List all public keys from remote signers
-    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>, Error>
+    async fn list_remote<T, R>(&self, chain_id: Option<u64>) -> Result<Vec<T::Public>>
     where
         T: KeyType,
         R: EcdsaRemoteSigner<T>,

@@ -1,16 +1,42 @@
 use super::RawStorage;
-use crate::error::Error;
-use gadget_std::{any::TypeId, boxed::Box, vec::Vec};
+use crate::error::Result;
+use crate::key_types::KeyTypeId;
+use gadget_std::{boxed::Box, vec::Vec};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 
-type StorageMap = HashMap<TypeId, HashMap<Vec<u8>, Vec<u8>>>;
+type StorageMap = HashMap<KeyTypeId, HashMap<Vec<u8>, Vec<u8>>>;
 
+/// A memory-backed local storage
 pub struct InMemoryStorage {
     data: RwLock<StorageMap>,
 }
 
 impl InMemoryStorage {
+    /// Create a new `InMemoryStorage`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use gadget_keystore::backends::{Backend, BackendConfig};
+    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::storage::{InMemoryStorage, TypedStorage};
+    /// use gadget_keystore::Keystore;
+    ///
+    /// # fn main() -> gadget_keystore::Result<()> {
+    /// // Create the storage
+    /// let storage = InMemoryStorage::new();
+    /// let storage = TypedStorage::new(storage);
+    ///
+    /// // Generate a key pair
+    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let public = K256Ecdsa::public_from_secret(&secret);
+    ///
+    /// // Start storing
+    /// storage.store::<K256Ecdsa>(&public, &secret)?;
+    /// # Ok(()) }
+    /// ```
     pub fn new() -> Self {
         Self {
             data: RwLock::new(HashMap::new()),
@@ -27,17 +53,17 @@ impl Default for InMemoryStorage {
 impl RawStorage for InMemoryStorage {
     fn store_raw(
         &self,
-        type_id: TypeId,
+        type_id: KeyTypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut data = self.data.write();
         let type_map = data.entry(type_id).or_default();
         type_map.insert(public_bytes.to_vec(), secret_bytes.to_vec());
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>, Error> {
+    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let data = self.data.read();
         Ok(data
             .get(&type_id)
@@ -45,7 +71,7 @@ impl RawStorage for InMemoryStorage {
             .map(|v| v.clone().into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error> {
+    fn remove_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<()> {
         let mut data = self.data.write();
         if let Some(type_map) = data.get_mut(&type_id) {
             type_map.remove(&public_bytes[..]);
@@ -53,14 +79,14 @@ impl RawStorage for InMemoryStorage {
         Ok(())
     }
 
-    fn contains_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> bool {
+    fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool {
         let data = self.data.read();
         data.get(&type_id)
             .map(|type_map| type_map.contains_key(&public_bytes[..]))
             .unwrap_or(false)
     }
 
-    fn list_raw(&self, type_id: TypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
+    fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
         let data = self.data.read();
         let keys = data
             .get(&type_id)
@@ -83,7 +109,7 @@ mod tests {
     use crate::storage::TypedStorage;
 
     #[test]
-    fn test_basic_operations() -> Result<(), Error> {
+    fn test_basic_operations() -> Result<()> {
         let raw_storage = InMemoryStorage::new();
         let storage = TypedStorage::new(raw_storage);
 
@@ -113,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_key_types() -> Result<(), Error> {
+    fn test_multiple_key_types() -> Result<()> {
         let raw_storage = InMemoryStorage::new();
         let storage = TypedStorage::new(raw_storage);
 

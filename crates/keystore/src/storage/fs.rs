@@ -1,28 +1,65 @@
 use super::RawStorage;
-use crate::error::Error;
-use gadget_std::any::TypeId;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use crate::error::{Error, Result};
+use crate::key_types::KeyTypeId;
+use gadget_std::fs;
+use gadget_std::io;
+use gadget_std::path::{Path, PathBuf};
 
+/// A filesystem-backed local storage
 #[derive(Clone)]
 pub struct FileStorage {
     root: PathBuf,
 }
 
 impl FileStorage {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let root = path.as_ref().to_path_buf();
-        fs::create_dir_all(&root).map_err(|e| Error::Other(e.to_string()))?;
-        Ok(Self { root })
+    /// Create a new `FileStorage`
+    ///
+    /// NOTE: This will create a directory at `path` if it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// * `path` exists and is not a directory
+    /// * Unable to create a directory at `path`
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use gadget_keystore::backends::{Backend, BackendConfig};
+    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::storage::{FileStorage, TypedStorage};
+    /// use gadget_keystore::Keystore;
+    ///
+    /// # fn main() -> gadget_keystore::Result<()> {
+    /// // Create storage at the specified path
+    /// let storage = FileStorage::new("/path/to/keystore")?;
+    /// let storage = TypedStorage::new(storage);
+    ///
+    /// // Generate a key pair
+    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let public = K256Ecdsa::public_from_secret(&secret);
+    ///
+    /// // Start storing
+    /// storage.store::<K256Ecdsa>(&public, &secret)?;
+    /// # Ok(()) }
+    /// ```
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let root = path.as_ref();
+        if !root.is_dir() {
+            return Err(Error::Io(io::Error::from(io::ErrorKind::NotADirectory)));
+        }
+
+        fs::create_dir_all(&root)?;
+        Ok(Self {
+            root: root.to_path_buf(),
+        })
     }
 
-    fn type_dir(&self, type_id: TypeId) -> PathBuf {
+    fn type_dir(&self, type_id: KeyTypeId) -> PathBuf {
         self.root.join(format!("{:?}", type_id))
     }
 
-    fn key_path(&self, type_id: TypeId, public_bytes: &[u8]) -> PathBuf {
+    fn key_path(&self, type_id: KeyTypeId, public_bytes: &[u8]) -> PathBuf {
         let hash = blake3::hash(public_bytes);
         self.type_dir(type_id).join(hex::encode(hash.as_bytes()))
     }
@@ -31,30 +68,29 @@ impl FileStorage {
 impl RawStorage for FileStorage {
     fn store_raw(
         &self,
-        type_id: TypeId,
+        type_id: KeyTypeId,
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| Error::Other(e.to_string()))?;
+            fs::create_dir_all(parent)?;
         }
 
         let data = (public_bytes.to_vec(), secret_bytes.to_vec());
-        let encoded = serde_json::to_vec(&data).map_err(|e| Error::Other(e.to_string()))?;
-        fs::write(path, encoded).map_err(|e| Error::Other(e.to_string()))?;
+        let encoded = serde_json::to_vec(&data)?;
+        fs::write(path, encoded)?;
         Ok(())
     }
 
-    fn load_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>, Error> {
+    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if !path.exists() {
             return Ok(None);
         }
 
-        let data = fs::read(&path).map_err(|e| Error::Other(e.to_string()))?;
-        let (stored_pub, secret): (Vec<u8>, Vec<u8>) =
-            serde_json::from_slice(&data).map_err(|e| Error::Other(e.to_string()))?;
+        let data = fs::read(&path)?;
+        let (stored_pub, secret): (Vec<u8>, Vec<u8>) = serde_json::from_slice(&data)?;
 
         // Verify the public key matches
         if stored_pub != public_bytes {
@@ -64,19 +100,19 @@ impl RawStorage for FileStorage {
         Ok(Some(secret.into_boxed_slice()))
     }
 
-    fn remove_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> Result<(), Error> {
+    fn remove_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<()> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if path.exists() {
-            fs::remove_file(path).map_err(|e| Error::Other(e.to_string()))?;
+            fs::remove_file(path)?;
         }
         Ok(())
     }
 
-    fn contains_raw(&self, type_id: TypeId, public_bytes: Vec<u8>) -> bool {
+    fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool {
         self.key_path(type_id, &public_bytes[..]).exists()
     }
 
-    fn list_raw(&self, type_id: TypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
+    fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {
         let type_dir = self.type_dir(type_id);
         if !type_dir.exists() {
             return Box::new(std::iter::empty());
@@ -104,8 +140,8 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_basic_operations() -> Result<(), Error> {
-        let temp_dir = tempdir().unwrap();
+    fn test_basic_operations() -> Result<()> {
+        let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);
 
@@ -135,8 +171,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_key_types() -> Result<(), Error> {
-        let temp_dir = tempdir().unwrap();
+    fn test_multiple_key_types() -> Result<()> {
+        let temp_dir = tempdir()?;
         let raw_storage = FileStorage::new(temp_dir.path())?;
         let storage = TypedStorage::new(raw_storage);
 

@@ -1,9 +1,9 @@
-use crate::{error::Error, key_types::KeyType};
+use crate::error::{Error, Result};
+use crate::key_types::KeyType;
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
 use rust_bls_bn254::{sign, verify};
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 use super::{from_bytes, to_bytes};
@@ -28,14 +28,17 @@ macro_rules! impl_ark_serde {
             }
         }
 
-        impl Serialize for $name {
-            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        impl serde::Serialize for $name {
+            fn serialize<S: serde::Serializer>(
+                &self,
+                serializer: S,
+            ) -> core::result::Result<S::Ok, S::Error> {
                 serializer.serialize_bytes(&to_bytes(self.0))
             }
         }
 
         impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
             where
                 D: serde::Deserializer<'de>,
             {
@@ -64,7 +67,7 @@ impl KeyType for ArkBlsBn254 {
         super::KeyTypeId::ArkBn254
     }
 
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error> {
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret = if let Some(seed) = seed {
             let seed = std::str::from_utf8(seed).map_err(|e| Error::InvalidSeed(e.to_string()))?;
             Fr::from_str(seed).map_err(|e| Error::InvalidSeed(format!("{:?}", e)))?
@@ -76,7 +79,7 @@ impl KeyType for ArkBlsBn254 {
         Ok(Secret(secret))
     }
 
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error> {
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
         let secret = Fr::from_str(&secret).map_err(|e| Error::InvalidSeed(format!("{:?}", e)))?;
         Ok(Secret(secret))
     }
@@ -89,7 +92,7 @@ impl KeyType for ArkBlsBn254 {
         )
     }
 
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error> {
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
         // Bn254 signing hashes to curve in the signature function
         let signature = sign(secret.0, &msg).map_err(|e| Error::SignatureFailed(e.to_string()))?;
         Ok(ArkBlsBn254Signature(signature))
@@ -98,7 +101,7 @@ impl KeyType for ArkBlsBn254 {
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let signature = sign(secret.0, msg).map_err(|e| Error::SignatureFailed(e.to_string()))?;
         Ok(ArkBlsBn254Signature(signature))
     }

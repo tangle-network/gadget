@@ -1,6 +1,6 @@
 //! This module contains the key types that are supported by the keystore.
 
-use crate::error::Error;
+use crate::error::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -20,8 +20,8 @@ pub mod arkworks_bn254;
 pub mod k256_ecdsa;
 #[cfg(feature = "sr25519-schnorrkel")]
 pub mod schnorrkel_sr25519;
-#[cfg(feature = "bls381")]
-pub mod w3f_bls381;
+#[cfg(any(feature = "bls377", feature = "bls381"))]
+pub mod w3f_bls;
 #[cfg(feature = "zebra")]
 pub mod zebra_ed25519;
 
@@ -53,6 +53,8 @@ pub enum KeyTypeId {
     K256Ecdsa,
     #[cfg(feature = "sr25519-schnorrkel")]
     SchnorrkelSr25519,
+    #[cfg(feature = "bls377")]
+    W3fBls377,
     #[cfg(feature = "bls381")]
     W3fBls381,
     #[cfg(feature = "zebra")]
@@ -70,6 +72,31 @@ pub enum KeyTypeId {
 }
 
 impl KeyTypeId {
+    pub const ENABLED: &'static [Self] = &[
+        #[cfg(feature = "bn254")]
+        Self::ArkBn254,
+        #[cfg(feature = "ecdsa")]
+        Self::K256Ecdsa,
+        #[cfg(feature = "sr25519-schnorrkel")]
+        Self::SchnorrkelSr25519,
+        #[cfg(feature = "bls377")]
+        Self::W3fBls377,
+        #[cfg(feature = "bls381")]
+        Self::W3fBls381,
+        #[cfg(feature = "zebra")]
+        Self::ZebraEd25519,
+        #[cfg(feature = "tangle")]
+        Self::SpBls377,
+        #[cfg(feature = "tangle")]
+        Self::SpBls381,
+        #[cfg(feature = "tangle")]
+        Self::SpEcdsa,
+        #[cfg(feature = "tangle")]
+        Self::SpEd25519,
+        #[cfg(feature = "tangle")]
+        Self::SpSr25519,
+    ];
+
     pub fn name(&self) -> &'static str {
         match self {
             #[cfg(feature = "bn254")]
@@ -78,6 +105,8 @@ impl KeyTypeId {
             KeyTypeId::K256Ecdsa => "k256_ecdsa",
             #[cfg(feature = "sr25519-schnorrkel")]
             KeyTypeId::SchnorrkelSr25519 => "schnorrkel_sr25519",
+            #[cfg(feature = "bls377")]
+            KeyTypeId::W3fBls377 => "w3f_bls377",
             #[cfg(feature = "bls381")]
             KeyTypeId::W3fBls381 => "w3f_bls381",
             #[cfg(feature = "zebra")]
@@ -119,22 +148,22 @@ pub trait KeyType: Sized + 'static {
     }
 
     /// Generate a new keypair with an optional seed
-    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret, Error>;
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret>;
 
     /// Generate a new keypair with the secret string
-    fn generate_with_string(secret: String) -> Result<Self::Secret, Error>;
+    fn generate_with_string(secret: String) -> Result<Self::Secret>;
 
     /// Get the public key from a secret key
     fn public_from_secret(secret: &Self::Secret) -> Self::Public;
 
     /// Sign a message with a secret key
-    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature, Error>;
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature>;
 
     /// Sign a pre-hashed message with a secret key
     fn sign_with_secret_pre_hashed(
         secret: &mut Self::Secret,
         msg: &[u8; 32],
-    ) -> Result<Self::Signature, Error>;
+    ) -> Result<Self::Signature>;
 
     /// Verify a signature
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool;

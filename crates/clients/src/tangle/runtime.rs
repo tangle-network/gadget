@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::clients::Client;
-use crate::error::Error;
-use crate::mutex_ext::TokioMutexExt;
+use crate::{tangle::Error, Client};
+use gadget_tokio_std::mutex_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;

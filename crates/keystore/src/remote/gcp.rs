@@ -1,16 +1,13 @@
-use super::types::{EcdsaRemoteSigner, RemoteConfig};
-use crate::{
-    error::Error,
-    key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey},
-};
-use alloy_primitives::{keccak256, Address, B256};
+use super::{EcdsaRemoteSigner, RemoteConfig};
+use crate::error::{Error, Result};
+use crate::key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey};
+use alloy_primitives::keccak256;
 use alloy_signer_gcp::{GcpKeyRingRef, GcpSigner, KeySpecifier};
-use async_trait::async_trait;
 use gadget_std::collections::BTreeMap;
 use gcloud_sdk::{
     google::cloud::kms::v1::key_management_service_client::KeyManagementServiceClient, GoogleApi,
 };
-use k256::ecdsa::{Signature, VerifyingKey};
+use k256::ecdsa::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -49,7 +46,7 @@ pub struct GcpRemoteSigner {
 }
 
 impl GcpRemoteSigner {
-    pub async fn new(config: GcpRemoteSignerConfig) -> Result<Self, Error> {
+    pub async fn new(config: GcpRemoteSignerConfig) -> Result<Self> {
         let mut signers = BTreeMap::new();
 
         for key_config in config.keys {
@@ -64,15 +61,12 @@ impl GcpRemoteSigner {
                 "https://cloudkms.googleapis.com",
                 None,
             )
-            .await
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .await?;
 
             let key_specifier =
                 KeySpecifier::new(keyring, &key_config.key_name, key_config.key_version);
 
-            let signer = GcpSigner::new(client, key_specifier, key_config.chain_id)
-                .await
-                .map_err(|e| Error::Other(e.to_string()))?;
+            let signer = GcpSigner::new(client, key_specifier, key_config.chain_id).await?;
 
             signers.insert(
                 (key_config.key_name.clone(), key_config.chain_id),
@@ -100,7 +94,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
     type KeyId = String;
     type Config = GcpRemoteSignerConfig;
 
-    async fn build(config: RemoteConfig) -> Result<Self, Error> {
+    async fn build(config: RemoteConfig) -> Result<Self> {
         Self::new(config.into()).await
     }
 
@@ -108,7 +102,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         &self,
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Public, Error> {
+    ) -> Result<Self::Public> {
         // Find signer for the given key ID
         let signer = self
             .signers
@@ -124,34 +118,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         ))
     }
 
-    async fn get_key_id_from_public_key(
-        &self,
-        public_key: &Self::Public,
-        chain_id: Option<u64>,
-    ) -> Result<Self::KeyId, Error> {
-        for ((key_id, signer_chain_id), signer) in &self.signers {
-            // Skip if chain_id is Some and doesn't match
-            if let Some(chain_id) = chain_id {
-                if signer.chain_id != Some(chain_id) {
-                    continue;
-                }
-            }
-
-            let pk = signer
-                .signer
-                .get_pubkey()
-                .await
-                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
-
-            if pk == public_key.0 {
-                return Ok(key_id.clone());
-            }
-        }
-
-        Err(Error::Other("Key not found".to_string()))
-    }
-
-    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>, Error> {
+    async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
         for ((_, signer_chain_id), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
@@ -171,12 +138,39 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         Ok(public_keys)
     }
 
+    async fn get_key_id_from_public_key(
+        &self,
+        public_key: &Self::Public,
+        chain_id: Option<u64>,
+    ) -> Result<Self::KeyId> {
+        for ((key_id, signer_chain_id), signer) in &self.signers {
+            // Skip if chain_id is Some and doesn't match
+            if let Some(chain_id) = chain_id {
+                if signer.chain_id != Some(chain_id) {
+                    continue;
+                }
+            }
+
+            let pk = signer
+                .signer
+                .get_pubkey()
+                .await
+                .map_err(|e| Error::RemoteKeyFetchFailed(e.to_string()))?;
+
+            if pk == public_key.0 {
+                return Ok(key_id.clone());
+            }
+        }
+
+        Err(Error::KeyNotFound)
+    }
+
     async fn sign_message_with_key_id(
         &self,
         message: &[u8],
         key_id: &Self::KeyId,
         chain_id: Option<u64>,
-    ) -> Result<Self::Signature, Error> {
+    ) -> Result<Self::Signature> {
         let digest = keccak256(message);
 
         // Find signer for the given key ID

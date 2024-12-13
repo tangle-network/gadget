@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "crates/*",
 ]
@@ -27,8 +28,12 @@ needless_late_init = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-std = { version = "0.1.0", path = "./crates/std" }
-gadget-keystore = { version = "0.1.0", path = "./crates/keystore" }
+gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
+gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
+gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
+gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
+gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-features = false }
+
 
 # Internal dependencies
 gadget-io = { version = "0.0.5", path = "./gadget-io", default-features = false }
@@ -51,7 +56,7 @@ cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
 tangle-subxt = { version = "0.7.0", default-features = false }
-subxt-signer = { version = "0.38.0", default-features = false }
+subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.38.0", default-features = false }
 subxt-core = { version = "0.38.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
@@ -73,22 +78,22 @@ scale-info = { version = "2.11.3", default-features = false }
 
 # Async & Runtime
 async-trait = { version = "0.1.82", default-features = false }
-futures = "0.3.30"
-futures-util = "0.3.31"
+futures = { version = "0.3.30", default-features = false }
+futures-util = { version = "0.3.31", default-features = false }
 tokio = { version = "1.40", default-features = false }
 tokio-stream = { version = "0.1.16", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.21.3", default-features = false }
-cargo_toml = { version = "0.20.5" }
-clap = "4.5.16"
-clap-cargo = "0.14"
-cfg-if = "1.0.0"
-toml = "0.8.19"
+cargo_toml = { version = "0.20.5", default-features = false }
+clap = { version = "4.5.16" }
+clap-cargo = { version = "0.14", default-features = false }
+cfg-if = { version = "1.0.0", default-features = false }
+toml = { version = "0.8.19", default-features = false }
 
 # Cryptography & Blockchain
-bip39 = "2.1.0"
+bip39 = { version = "2.1.0", default-features = false }
 ed25519-zebra = { version = "4", default-features = false }
 elliptic-curve = { version = "0.13.8", default-features = false }
 ethereum-types = { version = "0.14.1", default-features = false }
@@ -96,71 +101,70 @@ getrandom = { version = "0.2.15", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 k256 = { version = "0.13.3", default-features = false }
 rand = { version = "0.8.5", default-features = false }
-schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
-sha2 = "0.10.8"
+schnorrkel = { version = "0.11.4", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
 w3f-bls = { git = "https://github.com/drewstone/bls.git", branch = "drew/bump-ark-versions", default-features = false }
 
 # Data Structures & Serialization
-bincode = "1.3.3"
-cid = { version = "0.11.1" }
-indexmap = "2.5.0"
-num-bigint = "0.4.6"
+bincode = { version = "1.3.3", default-features = false }
+cid = { version = "0.11.1", default-features = false }
+indexmap = { version = "2.5.0", default-features = false }
+num-bigint = { version = "0.4.6", default-features = false }
 serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
-serde_test = "1.0.177"
+serde_test = { version = "1.0.177", default-features = false }
 
 # Error Handling & Logging
-anyhow = "1.0.93"
+anyhow = { version = "1.0.93", default-features = false }
 backon = { version = "1.2.0", default-features = false }
-color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace"] }
-eyre = { version = "0.6.12" }
-failure = "0.1.8"
-log = "0.4.22"
-thiserror = { version = "1.0.64", default-features = false }
-thiserror-no-std = { version = "2.0.2", default-features = false }
+color-eyre = { version = "0.6", default-features = false }
+eyre = { version = "0.6.12", default-features = false }
+failure = { version = "0.1.8", default-features = false }
+log = { version = "0.4.22", default-features = false }
+thiserror = { version = "2.0.6", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 
 # Networking & HTTP
-bollard = "0.17"
-http-body-util = "0.1.2"
+bollard = { version = "0.17", default-features = false }
+http-body-util = { version = "0.1.2", default-features = false }
 hyper = { version = "1.4.1", default-features = false }
-hyper-util = "0.1.7"
-jsonrpc-core = "18.0.0"
-jsonrpc-http-server = "18.0.0"
+hyper-util = { version = "0.1.7", default-features = false }
+jsonrpc-core = { version = "18.0.0", default-features = false }
+jsonrpc-http-server = { version = "18.0.0", default-features = false }
 libp2p = { version = "0.54", default-features = false }
 multiaddr = { version = "0.18.1", default-features = false }
-reqwest = "0.12.7"
+reqwest = { version = "0.12.7", default-features = false }
 url = { version = "2.5.2", default-features = false }
 
 # System & OS
-fs2 = "0.4"
-lazy_static = "1.5.0"
+fs2 = { version = "0.4", default-features = false }
+lazy_static = { version = "1.5.0", default-features = false }
 lock_api = { version = "0.4.12", default-features = false }
-nix = { version = "0.29.0", features = ["process", "signal"] }
+nix = { version = "0.29.0", default-features = false }
 parking_lot = { version = "0.12.3", default-features = false }
-sysinfo = "0.31.2"
-tempfile = "3.10.1"
-uuid = "1.10.0"
-blake3 = "1.5.5"
-erased-serde = "0.4"
+sysinfo = { version = "0.31.2", default-features = false }
+tempfile = { version = "3.10.1", default-features = false }
+uuid = { version = "1.10.0", default-features = false }
+blake3 = { version = "1.5.5", default-features = false }
+erased-serde = { version = "0.4", default-features = false }
 
 # Development & Testing
-auto_impl = "1.2.0"
-derive_more = { version = "1.0.0", features = ["display"] }
-escargot = "0.5.12"
-itertools = "0.13.0"
-paste = "1.0.15"
-proc-macro2 = "1.0"
-prometheus = { version = "0.13.4" }
-quote = "1.0"
-rustdoc-types = "0.31.0"
-sqlx = "=0.7.3"
-syn = "2.0.75"
-trybuild = "1.0"
-tsify = "0.4.5"
-typed-builder = "0.19"
+auto_impl = { version = "1.2.0", default-features = false }
+derive_more = { version = "1.0.0", default-features = false }
+escargot = { version = "0.5.12", default-features = false }
+itertools = { version = "0.13.0", default-features = false }
+paste = { version = "1.0.15", default-features = false }
+proc-macro2 = { version = "1.0", default-features = false }
+prometheus = { version = "0.13.4", default-features = false }
+quote = { version = "1.0", default-features = false }
+rustdoc-types = { version = "0.31.0", default-features = false }
+sqlx = { version = "=0.7.3", default-features = false }
+syn = { version = "2.0.75", default-features = false }
+trybuild = { version = "1.0", default-features = false }
+tsify = { version = "0.4.5", default-features = false }
+typed-builder = { version = "0.19", default-features = false }
 
 # Alloy (EVM)
 alloy-primitives = { version = "0.8.12", default-features = false }
@@ -188,39 +192,36 @@ alloy-signer-ledger = { version = "0.5", default-features = false, features = ["
 alloy-signer-trezor = { version = "0.7.3", default-features = false }
 aws-config = { version = "1", default-features = false }
 aws-sdk-kms = { version = "1", default-features = false }
-gcloud-sdk = { version = "0.25", features = [
-    "google-cloud-kms-v1",
-    "google-longrunning",
-] }
+gcloud-sdk = { version = "0.25", default-features = false }
 
 # Arkworks
 ark-bn254 = { version = "0.5.0", default-features = false }
 ark-ec = { version = "0.5.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 ark-std = { version = "0.5.0", default-features = false }
-ark-serialize = { version = "0.5.0", default-features = false, features = [ "derive" ] }
+ark-serialize = { version = "0.5.0", default-features = false, features = ["derive"] }
 num-traits = { version = "0.2", default-features = false }
-rayon = { version = "1" }
+rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # WebAssembly
-js-sys = "0.3.70"
-serde-wasm-bindgen = "0.6.5"
-wasm-bindgen = "0.2.93"
-wasm-bindgen-futures = "0.4.43"
-wasmtime = { version = "23.0.2" }
-wasmtimer = "0.2"
+js-sys = { version = "0.3.70", default-features = false }
+serde-wasm-bindgen = { version = "0.6.5", default-features = false }
+wasm-bindgen = { version = "0.2.93", default-features = false }
+wasm-bindgen-futures = { version = "0.4.43", default-features = false }
+wasmtime = { version = "23.0.2", default-features = false }
+wasmtimer = { version = "0.2", default-features = false }
 secp256k1 = { version = "0.29.1", default-features = false }
 
 # Eigenlayer
 eigensdk = { version = "0.1.1", default-features = false }
-rust-bls-bn254 = { version = "0.2.1" , default-features = false }
-testcontainers = { version = "0.23.1" }
+rust-bls-bn254 = { version = "0.2.1", default-features = false }
+testcontainers = { version = "0.23.1", default-features = false }
 
 # Symbiotic
 symbiotic-rs = { version = "0.1.1" }
-dashmap = "6.1.0"
-lru-mem = "0.3.0"
+dashmap = { version = "6.1.0", default-features = false }
+lru-mem = { version = "0.3.0", default-features = false }
 
 [profile.dev.package.backtrace]
 opt-level = 3

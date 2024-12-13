@@ -8,35 +8,17 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-rand = { workspace = true, default-features = false, features = ["std_rng"]}
+rand = { workspace = true, features = ["std_rng"] }
 rayon = { workspace = true, optional = true }
-num-traits = { workspace = true, default-features = false }
+num-traits.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-rand = { workspace = true, features = ["std"]}
-
+rand = { workspace = true, features = ["std"] }
 
 [features]
-default = [ "std" ]
-std = []
-parallel = [ "rayon", "std" ]
-print-trace = [ "std" ]
+default = ["std"]
+std = ["thiserror/std", "getrandom"]
+parallel = ["rayon", "std"]
+print-trace = ["std"]
 getrandom = ["rand/std"]
-
-[profile.bench]
-opt-level = 3
-debug = false
-rpath = false
-lto = "thin"
-incremental = true
-debug-assertions = false
-
-[profile.dev]
-opt-level = 0
-
-[profile.test]
-opt-level = 3
-lto = "thin"
-incremental = true
-debug-assertions = true
-debug = true

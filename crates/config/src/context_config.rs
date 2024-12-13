@@ -1,14 +1,12 @@
 use super::*;
-use crate::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
-use alloc::string::String;
-use alloy_primitives::Address;
 use gadget_std::fmt::Debug;
-use gadget_std::net::IpAddr;
 use gadget_std::str::FromStr;
-use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::net::Ipv4Addr;
+use supported_chains::SupportedChains;
 use url::Url;
+
+#[cfg(feature = "networking")]
+use libp2p::Multiaddr;
 
 #[derive(Debug, Default, Clone, clap::Parser, Serialize, Deserialize)]
 #[command(name = "General CLI Context")]
@@ -22,22 +20,15 @@ pub struct ContextConfig {
 pub enum GadgetCLICoreSettings {
     #[command(name = "run")]
     Run {
-        #[arg(long, short = 'b', env)]
-        target_addr: IpAddr,
-        #[arg(long, short = 'p', env)]
-        target_port: u16,
-        #[arg(long, short = 's', env)]
-        use_secure_url: bool,
         #[arg(long, short = 't', env)]
         test_mode: bool,
-        #[arg(long, short = 'l', env)]
-        log_id: Option<String>,
         #[arg(long, env)]
-        #[serde(default = "gadget_io::defaults::http_rpc_url")]
+        #[serde(default = "default_http_rpc_url")]
         http_rpc_url: Url,
         #[arg(long, env)]
-        #[serde(default = "gadget_io::defaults::ws_rpc_url")]
+        #[serde(default = "default_ws_rpc_url")]
         ws_rpc_url: Url,
+        #[cfg(feature = "networking")]
         #[arg(long, value_parser = <Multiaddr as std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
@@ -57,6 +48,7 @@ pub enum GadgetCLICoreSettings {
         #[serde(default = "default_protocol")]
         protocol: Protocol,
         /// The blueprint ID for Tangle protocol
+        #[cfg(feature = "tangle")]
         #[arg(
             long,
             value_name = "ID",
@@ -65,6 +57,7 @@ pub enum GadgetCLICoreSettings {
         )]
         blueprint_id: Option<u64>,
         /// The service ID for Tangle protocol
+        #[cfg(feature = "tangle")]
         #[arg(
             long,
             value_name = "ID",
@@ -72,10 +65,8 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Tangle.as_str())
         )]
         service_id: Option<u64>,
-        /// Whether to skip the registration process for a Blueprint
-        #[arg(long, env = "SKIP_REGISTRATION")]
-        skip_registration: bool,
         /// The address of the registry coordinator
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -84,6 +75,7 @@ pub enum GadgetCLICoreSettings {
         )]
         registry_coordinator: Option<Address>,
         /// The address of the operator state retriever
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -92,6 +84,7 @@ pub enum GadgetCLICoreSettings {
         )]
         operator_state_retriever: Option<Address>,
         /// The address of the delegation manager
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -100,6 +93,7 @@ pub enum GadgetCLICoreSettings {
         )]
         delegation_manager: Option<Address>,
         /// The address of the strategy manager
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -108,6 +102,7 @@ pub enum GadgetCLICoreSettings {
         )]
         strategy_manager: Option<Address>,
         /// The address of the Service Manager
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -116,6 +111,7 @@ pub enum GadgetCLICoreSettings {
         )]
         service_manager: Option<Address>,
         /// The address of the Stake Registry
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -124,6 +120,7 @@ pub enum GadgetCLICoreSettings {
         )]
         stake_registry: Option<Address>,
         /// The address of the AVS directory
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -132,6 +129,7 @@ pub enum GadgetCLICoreSettings {
         )]
         avs_directory: Option<Address>,
         /// The address of the rewards coordinator
+        #[cfg(feature = "eigenlayer")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -140,6 +138,7 @@ pub enum GadgetCLICoreSettings {
         )]
         rewards_coordinator: Option<Address>,
         /// The address of the operator registry
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -148,6 +147,7 @@ pub enum GadgetCLICoreSettings {
         )]
         operator_registry: Option<Address>,
         /// The address of the network registry
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -156,6 +156,7 @@ pub enum GadgetCLICoreSettings {
         )]
         network_registry: Option<Address>,
         /// The address of the base delegator
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -164,6 +165,7 @@ pub enum GadgetCLICoreSettings {
         )]
         base_delegator: Option<Address>,
         /// The address of the network opt-in service
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -172,6 +174,7 @@ pub enum GadgetCLICoreSettings {
         )]
         network_opt_in_service: Option<Address>,
         /// The address of the vault opt-in service
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -180,6 +183,7 @@ pub enum GadgetCLICoreSettings {
         )]
         vault_opt_in_service: Option<Address>,
         /// The address of the slasher
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -188,6 +192,7 @@ pub enum GadgetCLICoreSettings {
         )]
         slasher: Option<Address>,
         /// The address of the veto slasher
+        #[cfg(feature = "symbiotic")]
         #[arg(
             long,
             value_name = "ADDR",
@@ -201,13 +206,10 @@ pub enum GadgetCLICoreSettings {
 impl Default for GadgetCLICoreSettings {
     fn default() -> Self {
         Self::Run {
-            target_addr: "127.0.0.1".parse().unwrap(),
-            target_port: 8080,
-            use_secure_url: false,
             test_mode: false,
-            log_id: None,
-            http_rpc_url: gadget_io::defaults::http_rpc_url(),
-            ws_rpc_url: gadget_io::defaults::ws_rpc_url(),
+            http_rpc_url: default_http_rpc_url(),
+            ws_rpc_url: default_ws_rpc_url(),
+            #[cfg(feature = "networking")]
             bootnodes: None,
             keystore_uri: String::new(),
             chain: SupportedChains::default(),
@@ -215,23 +217,39 @@ impl Default for GadgetCLICoreSettings {
             pretty: false,
             keystore_password: None,
             protocol: Protocol::default(),
+            #[cfg(feature = "tangle")]
             blueprint_id: Some(1),
+            #[cfg(feature = "tangle")]
             service_id: Some(1),
-            skip_registration: false,
+            #[cfg(feature = "eigenlayer")]
             registry_coordinator: None,
+            #[cfg(feature = "eigenlayer")]
             operator_state_retriever: None,
+            #[cfg(feature = "eigenlayer")]
             delegation_manager: None,
+            #[cfg(feature = "eigenlayer")]
             service_manager: None,
+            #[cfg(feature = "eigenlayer")]
             stake_registry: None,
+            #[cfg(feature = "eigenlayer")]
             strategy_manager: None,
+            #[cfg(feature = "eigenlayer")]
             avs_directory: None,
+            #[cfg(feature = "eigenlayer")]
             rewards_coordinator: None,
+            #[cfg(feature = "symbiotic")]
             operator_registry: None,
+            #[cfg(feature = "symbiotic")]
             network_registry: None,
+            #[cfg(feature = "symbiotic")]
             base_delegator: None,
+            #[cfg(feature = "symbiotic")]
             network_opt_in_service: None,
+            #[cfg(feature = "symbiotic")]
             vault_opt_in_service: None,
+            #[cfg(feature = "symbiotic")]
             slasher: None,
+            #[cfg(feature = "symbiotic")]
             veto_slasher: None,
         }
     }
@@ -253,79 +271,116 @@ impl ContextConfig {
     /// - `service_id`: The service ID - only required for Tangle
     #[allow(clippy::too_many_arguments)]
     pub fn create_config(
-        target_addr: IpAddr,
-        target_port: u16,
         http_rpc_url: Url,
         ws_rpc_url: Url,
-        use_secure_url: bool,
-        skip_registration: bool,
         keystore_uri: String,
         keystore_password: Option<String>,
         chain: SupportedChains,
         protocol: Protocol,
-        eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
-        symbiotic_contract_addresses: Option<SymbioticContractAddresses>,
-        blueprint_id: Option<u64>,
-        service_id: Option<u64>,
+        protocol_settings: ProtocolSettings,
     ) -> Self {
         // Eigenlayer addresses
-        let registry_coordinator =
-            eigenlayer_contract_addresses.map(|a| a.registry_coordinator_address);
+        #[cfg(feature = "eigenlayer")]
+        let eigenlayer_settings = match protocol_settings {
+            ProtocolSettings::Eigenlayer(settings) => Some(settings),
+            _ => None,
+        };
+        #[cfg(feature = "eigenlayer")]
+        let registry_coordinator = eigenlayer_settings.map(|s| s.registry_coordinator_address);
+        #[cfg(feature = "eigenlayer")]
         let operator_state_retriever =
-            eigenlayer_contract_addresses.map(|a| a.operator_state_retriever_address);
-        let delegation_manager =
-            eigenlayer_contract_addresses.map(|a| a.delegation_manager_address);
-        let service_manager = eigenlayer_contract_addresses.map(|a| a.service_manager_address);
-        let stake_registry = eigenlayer_contract_addresses.map(|a| a.stake_registry_address);
-        let strategy_manager = eigenlayer_contract_addresses.map(|a| a.strategy_manager_address);
-        let avs_directory = eigenlayer_contract_addresses.map(|a| a.avs_directory_address);
-        let rewards_coordinator =
-            eigenlayer_contract_addresses.map(|a| a.rewards_coordinator_address);
+            eigenlayer_settings.map(|s| s.operator_state_retriever_address);
+        #[cfg(feature = "eigenlayer")]
+        let delegation_manager = eigenlayer_settings.map(|s| s.delegation_manager_address);
+        #[cfg(feature = "eigenlayer")]
+        let service_manager = eigenlayer_settings.map(|s| s.service_manager_address);
+        #[cfg(feature = "eigenlayer")]
+        let stake_registry = eigenlayer_settings.map(|s| s.stake_registry_address);
+        #[cfg(feature = "eigenlayer")]
+        let strategy_manager = eigenlayer_settings.map(|s| s.strategy_manager_address);
+        #[cfg(feature = "eigenlayer")]
+        let avs_directory = eigenlayer_settings.map(|s| s.avs_directory_address);
+        #[cfg(feature = "eigenlayer")]
+        let rewards_coordinator = eigenlayer_settings.map(|s| s.rewards_coordinator_address);
 
         // Symbiotic addresses
-        let operator_registry = symbiotic_contract_addresses.map(|a| a.operator_registry_address);
-        let network_registry = symbiotic_contract_addresses.map(|a| a.network_registry_address);
-        let base_delegator = symbiotic_contract_addresses.map(|a| a.base_delegator_address);
-        let network_opt_in_service =
-            symbiotic_contract_addresses.map(|a| a.network_opt_in_service_address);
-        let vault_opt_in_service =
-            symbiotic_contract_addresses.map(|a| a.vault_opt_in_service_address);
-        let slasher = symbiotic_contract_addresses.map(|a| a.slasher_address);
-        let veto_slasher = symbiotic_contract_addresses.map(|a| a.veto_slasher_address);
+        #[cfg(feature = "symbiotic")]
+        let symbiotic_settings = match protocol_settings {
+            ProtocolSettings::Symbiotic(settings) => Some(settings),
+            _ => None,
+        };
+        #[cfg(feature = "symbiotic")]
+        let operator_registry = symbiotic_settings.map(|s| s.operator_registry_address);
+        #[cfg(feature = "symbiotic")]
+        let network_registry = symbiotic_settings.map(|s| s.network_registry_address);
+        #[cfg(feature = "symbiotic")]
+        let base_delegator = symbiotic_settings.map(|s| s.base_delegator_address);
+        #[cfg(feature = "symbiotic")]
+        let network_opt_in_service = symbiotic_settings.map(|s| s.network_opt_in_service_address);
+        #[cfg(feature = "symbiotic")]
+        let vault_opt_in_service = symbiotic_settings.map(|s| s.vault_opt_in_service_address);
+        #[cfg(feature = "symbiotic")]
+        let slasher = symbiotic_settings.map(|s| s.slasher_address);
+        #[cfg(feature = "symbiotic")]
+        let veto_slasher = symbiotic_settings.map(|s| s.veto_slasher_address);
+
+        // Tangle settings
+        #[cfg(feature = "tangle")]
+        let tangle_settings = match protocol_settings {
+            ProtocolSettings::Tangle(settings) => Some(settings),
+            _ => None,
+        };
+        #[cfg(feature = "tangle")]
+        let blueprint_id = tangle_settings.map(|s| s.blueprint_id);
+        #[cfg(feature = "tangle")]
+        let service_id = tangle_settings.and_then(|s| s.service_id);
 
         ContextConfig {
             gadget_core_settings: GadgetCLICoreSettings::Run {
-                target_addr,
-                target_port,
-                use_secure_url,
                 test_mode: false,
-                log_id: None,
                 http_rpc_url,
+                #[cfg(feature = "networking")]
                 bootnodes: None,
                 keystore_uri,
                 chain,
                 verbose: 3,
                 pretty: true,
                 keystore_password,
-                blueprint_id,
-                service_id,
-                skip_registration,
                 protocol,
-                registry_coordinator,
-                operator_state_retriever,
-                delegation_manager,
                 ws_rpc_url,
+                #[cfg(feature = "tangle")]
+                blueprint_id,
+                #[cfg(feature = "tangle")]
+                service_id,
+                #[cfg(feature = "eigenlayer")]
+                registry_coordinator,
+                #[cfg(feature = "eigenlayer")]
+                operator_state_retriever,
+                #[cfg(feature = "eigenlayer")]
+                delegation_manager,
+                #[cfg(feature = "eigenlayer")]
                 stake_registry,
+                #[cfg(feature = "eigenlayer")]
                 service_manager,
+                #[cfg(feature = "eigenlayer")]
                 strategy_manager,
+                #[cfg(feature = "eigenlayer")]
                 avs_directory,
+                #[cfg(feature = "eigenlayer")]
                 rewards_coordinator,
+                #[cfg(feature = "symbiotic")]
                 operator_registry,
+                #[cfg(feature = "symbiotic")]
                 network_registry,
+                #[cfg(feature = "symbiotic")]
                 base_delegator,
+                #[cfg(feature = "symbiotic")]
                 network_opt_in_service,
+                #[cfg(feature = "symbiotic")]
                 vault_opt_in_service,
+                #[cfg(feature = "symbiotic")]
                 slasher,
+                #[cfg(feature = "symbiotic")]
                 veto_slasher,
             },
         }
@@ -336,7 +391,6 @@ impl ContextConfig {
     /// # Defaults
     /// - `target_addr`: The same host address as the given http_rpc_url, defaulting to 127.0.0.1 if an error occurs
     /// - `target_port`: The same port as the given http_rpc_url, defaulting to 0 if an error occurs
-    /// - `use_secure_url`: false
     /// - `skip_registration`: false
     /// - `keystore_password`: None
     #[allow(clippy::too_many_arguments)]
@@ -344,42 +398,29 @@ impl ContextConfig {
         http_rpc_url: Url,
         ws_rpc_url: Url,
         keystore_uri: String,
+        keystore_password: Option<String>,
         chain: SupportedChains,
         protocol: Protocol,
-        eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
-        symbiotic_contract_addresses: Option<SymbioticContractAddresses>,
-        blueprint_id: Option<u64>,
-        service_id: Option<u64>,
+        protocol_settings: ProtocolSettings,
     ) -> Self {
-        let target_port = http_rpc_url.port().unwrap_or_default();
-        let target_addr = http_rpc_url
-            .host_str()
-            .and_then(|host| IpAddr::from_str(host).ok())
-            .unwrap_or_else(|| IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
-
         ContextConfig::create_config(
-            target_addr,
-            target_port,
             http_rpc_url,
             ws_rpc_url,
-            false,
-            false,
             keystore_uri,
-            None,
+            keystore_password,
             chain,
             protocol,
-            eigenlayer_contract_addresses,
-            symbiotic_contract_addresses,
-            blueprint_id,
-            service_id,
+            protocol_settings,
         )
     }
 
     /// Creates a new context config with defaults for Eigenlayer
+    #[cfg(feature = "eigenlayer")]
     pub fn create_eigenlayer_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
         keystore_uri: String,
+        keystore_password: Option<String>,
         chain: SupportedChains,
         eigenlayer_contract_addresses: EigenlayerContractAddresses,
     ) -> Self {
@@ -387,20 +428,20 @@ impl ContextConfig {
             http_rpc_url,
             ws_rpc_url,
             keystore_uri,
+            keystore_password,
             chain,
             Protocol::Eigenlayer,
-            Some(eigenlayer_contract_addresses),
-            None,
-            None,
-            None,
+            ProtocolSettings::Eigenlayer(eigenlayer_contract_addresses),
         )
     }
 
     /// Creates a new context config with defaults for Symbiotic
+    #[cfg(feature = "symbiotic")]
     pub fn create_symbiotic_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
         keystore_uri: String,
+        keystore_password: Option<String>,
         chain: SupportedChains,
         symbiotic_contract_addresses: SymbioticContractAddresses,
     ) -> Self {
@@ -408,36 +449,49 @@ impl ContextConfig {
             http_rpc_url,
             ws_rpc_url,
             keystore_uri,
+            keystore_password,
             chain,
             Protocol::Symbiotic,
-            None,
-            Some(symbiotic_contract_addresses),
-            None,
-            None,
+            ProtocolSettings::Symbiotic(symbiotic_contract_addresses),
         )
     }
 
     /// Creates a new context config with defaults for Tangle
+    #[cfg(feature = "tangle")]
     pub fn create_tangle_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
         keystore_uri: String,
+        keystore_password: Option<String>,
         chain: SupportedChains,
+        blueprint_id: u64,
+        service_id: Option<u64>,
     ) -> Self {
+        use protocol::TangleInstanceSettings;
+
         Self::create_config_with_defaults(
             http_rpc_url,
             ws_rpc_url,
             keystore_uri,
+            keystore_password,
             chain,
             Protocol::Tangle,
-            None,
-            None,
-            None,
-            None,
+            ProtocolSettings::Tangle(TangleInstanceSettings {
+                blueprint_id,
+                service_id,
+            }),
         )
     }
 }
 
 fn default_protocol() -> Protocol {
     Protocol::Tangle
+}
+
+fn default_http_rpc_url() -> Url {
+    Url::from_str("http://127.0.0.1:9944").unwrap()
+}
+
+fn default_ws_rpc_url() -> Url {
+    Url::from_str("ws://127.0.0.1:9944").unwrap()
 }
