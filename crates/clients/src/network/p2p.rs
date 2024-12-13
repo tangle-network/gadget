@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use gadget_config::GadgetConfiguration;
 use gadget_network::network::NetworkMultiplexer;
 use round_based::PartyIndex;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::sync::Arc;
 use subxt_core::utils::AccountId32;
 
@@ -31,32 +31,27 @@ impl P2PClient {
     >
     where
         M: Clone
-        + Send
-        + Unpin
-        + 'static
-        + serde::Serialize
-        + serde::de::DeserializeOwned
-        + round_based::ProtocolMessage {
-
+            + Send
+            + Unpin
+            + 'static
+            + serde::Serialize
+            + serde::de::DeserializeOwned
+            + round_based::ProtocolMessage,
+    {
     }
 
     /// Gets the party index from the participants map
-    async fn get_party_index(&self) -> color_eyre::Result<PartyIndex, crate::Error> {
-
-    }
+    async fn get_party_index(&self) -> color_eyre::Result<PartyIndex, crate::Error> {}
 
     /// Gets the participants in the MPC protocol
     async fn get_participants(
         &self,
         client: &subxt::OnlineClient<crate::clients::tangle::runtime::TangleConfig>,
     ) -> color_eyre::Result<BTreeMap<PartyIndex, AccountId32>, crate::Error> {
-
     }
 
     /// Gets the current blueprint ID
-    fn blueprint_id(&self) -> color_eyre::Result<u64> {
-
-    }
+    fn blueprint_id(&self) -> color_eyre::Result<u64> {}
 
     /// Gets the party index and operator mapping
     async fn get_party_index_and_operators(
@@ -65,18 +60,15 @@ impl P2PClient {
         usize,
         BTreeMap<AccountId32, crate::subxt_core::ext::sp_core::ecdsa::Public>,
     )> {
-
     }
 
     /// Gets the ECDSA keys for all current service operators
     async fn current_service_operators_ecdsa_keys(
         &self,
-    ) -> color_eyre::Result<BTreeMap<AccountId32, crate::subxt_core::ext::sp_core::ecdsa::Public>> {
-
+    ) -> color_eyre::Result<BTreeMap<AccountId32, crate::subxt_core::ext::sp_core::ecdsa::Public>>
+    {
     }
 
     /// Gets the current call ID for this job
-    async fn current_call_id(&self) -> color_eyre::Result<u64> {
-
-    }
+    async fn current_call_id(&self) -> color_eyre::Result<u64> {}
 }

@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_std::boxed::Box;
 
-#[cfg(feature = "tangle")]
-pub mod tangle;
 #[cfg(feature = "evm")]
 pub mod evm;
 mod network;
+#[cfg(feature = "tangle")]
+pub mod tangle;
 
 #[async_trait]
 #[auto_impl(Arc)]

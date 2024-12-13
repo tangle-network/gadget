@@ -6,5 +6,11 @@ pub trait EVMProviderContext {
     type Transport: alloy_transport::Transport + Clone;
     type Provider: alloy_provider::Provider<Self::Transport, Self::Network>;
 
-    fn client<N: alloy_network::Network, T: alloy_transport::Transport, P: alloy_provider::Provider<T, N>>(&self) -> EVMProviderClient<N, T, P>;
+    fn client<
+        N: alloy_network::Network,
+        T: alloy_transport::Transport,
+        P: alloy_provider::Provider<T, N>,
+    >(
+        &self,
+    ) -> EVMProviderClient<N, T, P>;
 }
