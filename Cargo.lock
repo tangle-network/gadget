@@ -12298,7 +12298,6 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.7.1"
-source = "git+https://github.com/tangle-network/tangle?branch=drew%2Fsubxt-update#a7e8ae1ebf87d200004c60564d1236f0760f66ca"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
