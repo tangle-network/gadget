@@ -11,6 +11,8 @@ use ark_serialize::CanonicalDeserialize;
 use ark_serialize::CanonicalSerialize;
 
 /// Tangle specific key types
+#[cfg(all(feature = "tangle", feature = "sp-core-bls"))]
+pub mod sp_core_bls_util;
 #[cfg(feature = "tangle")]
 pub mod sp_core_util;
 
@@ -27,6 +29,8 @@ pub mod w3f_bls;
 pub mod zebra_ed25519;
 
 // Re-export the types
+#[cfg(all(feature = "tangle", feature = "sp-core-bls"))]
+pub use self::sp_core_bls_util::*;
 #[cfg(feature = "tangle")]
 pub use self::sp_core_util::*;
 
@@ -54,12 +58,22 @@ pub enum KeyTypeId {
     K256Ecdsa,
     #[cfg(feature = "sr25519-schnorrkel")]
     SchnorrkelSr25519,
-    #[cfg(any(feature = "bls377", feature = "bls381"))]
-    W3fBls,
+    #[cfg(feature = "bls381")]
+    W3fBls381,
+    #[cfg(feature = "bls377")]
+    W3fBls377,
     #[cfg(feature = "zebra")]
     ZebraEd25519,
     #[cfg(feature = "tangle")]
-    TangleSr25519,
+    SpBls377,
+    #[cfg(feature = "tangle")]
+    SpBls381,
+    #[cfg(feature = "tangle")]
+    SpEcdsa,
+    #[cfg(feature = "tangle")]
+    SpEd25519,
+    #[cfg(feature = "tangle")]
+    SpSr25519,
 }
 
 impl KeyTypeId {
@@ -96,12 +110,22 @@ impl KeyTypeId {
             Self::K256Ecdsa => "k256-ecdsa",
             #[cfg(feature = "sr25519-schnorrkel")]
             Self::SchnorrkelSr25519 => "schnorrkel-sr25519",
-            #[cfg(any(feature = "bls377", feature = "bls381"))]
-            Self::W3fBls => "w3f-bls",
+            #[cfg(feature = "bls381")]
+            Self::W3fBls381 => "w3f-bls381",
+            #[cfg(feature = "bls377")]
+            Self::W3fBls377 => "w3f-bls377",
             #[cfg(feature = "zebra")]
             Self::ZebraEd25519 => "zebra-ed25519",
             #[cfg(feature = "tangle")]
-            Self::TangleSr25519 => "tangle-sr25519",
+            Self::SpBls377 => "sp-bls377",
+            #[cfg(feature = "tangle")]
+            Self::SpBls381 => "sp-bls381",
+            #[cfg(feature = "tangle")]
+            Self::SpEcdsa => "sp-ecdsa",
+            #[cfg(feature = "tangle")]
+            Self::SpEd25519 => "sp-ed25519",
+            #[cfg(feature = "tangle")]
+            Self::SpSr25519 => "sp-sr25519",
             #[cfg(all(
                 not(feature = "bn254"),
                 not(feature = "ecdsa"),
