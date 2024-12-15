@@ -30,6 +30,7 @@ broken_intra_doc_links = "deny"
 [workspace.dependencies]
 gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
+gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-features = false }
@@ -62,7 +63,7 @@ subxt-core = { version = "0.37.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
-sp-core = { version = "34.0.0", default-features = false }
+sp-core = { version = "31.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
@@ -134,6 +135,7 @@ hyper-util = { version = "0.1.7", default-features = false }
 jsonrpc-core = { version = "18.0.0", default-features = false }
 jsonrpc-http-server = { version = "18.0.0", default-features = false }
 libp2p = { version = "0.54", default-features = false }
+matchbox_socket = { version = "0.10.0", default-features = false }
 multiaddr = { version = "0.18.1", default-features = false }
 reqwest = { version = "0.12.7", default-features = false }
 url = { version = "2.5.2", default-features = false }

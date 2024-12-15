@@ -1,17 +1,19 @@
+use alloy_network::Ethereum;
+use alloy_provider::{Provider, RootProvider};
+use alloy_transport::BoxTransport;
 use gadget_config::GadgetConfiguration;
 use std::future::Future;
 
-pub struct EVMProviderClient<
-    N: alloy_network::Network,
-    T: alloy_transport::Transport,
-    P: alloy_provider::Provider<T, N>,
-> {
+pub struct EVMProviderClient {
     pub config: GadgetConfiguration,
 }
 
-impl<N, T, P> EVMProviderClient<N, T, P> {
-    pub fn evm_provider(&self) -> impl Future<Output = Result<P, std::io::Error>> {
-        static PROVIDER: std::sync::OnceLock<P> = std::sync::OnceLock::new();
+impl EVMProviderClient {
+    pub fn evm_provider(
+        &self,
+    ) -> impl Future<Output = Result<RootProvider<BoxTransport, Ethereum>, Error>> {
+        static PROVIDER: std::sync::OnceLock<RootProvider<BoxTransport, Ethereum>> =
+            std::sync::OnceLock::new();
         async {
             match PROVIDER.get() {
                 Some(provider) => Ok(provider.clone()),
@@ -21,10 +23,11 @@ impl<N, T, P> EVMProviderClient<N, T, P> {
                         .with_recommended_fillers()
                         .on_builtin(&rpc_url)
                         .await
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                        .root();
                     PROVIDER
                         .set(provider.clone())
-                        .map(|_| provider)
+                        .map(|_| provider.clone())
                         .map_err(|_| {
                             std::io::Error::new(std::io::ErrorKind::Other, "Failed to set provider")
                         })
