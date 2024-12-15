@@ -120,7 +120,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
 
     async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
-        for ((_, signer_chain_id), signer) in &self.signers {
+        for ((_, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {
@@ -143,7 +143,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         public_key: &Self::Public,
         chain_id: Option<u64>,
     ) -> Result<Self::KeyId> {
-        for ((key_id, signer_chain_id), signer) in &self.signers {
+        for ((key_id, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {

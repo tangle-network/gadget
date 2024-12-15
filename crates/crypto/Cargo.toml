@@ -1,0 +1,26 @@
+[package]
+name = "gadget-crypto"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+k256 = { workspace = true }
+
+# Substrate dependencies
+sp-core = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true, features = ["jsonrpsee"] }
+tangle-subxt = { workspace = true, optional = true }
+
+
+[features]
+default = ["std", "tangle"]
+std = ["k256/std", "sp-core?/std"]
+
+tangle = ["sp-core", "tangle-subxt", "subxt"]
+
+[lints]
+workspace = true

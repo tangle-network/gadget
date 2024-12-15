@@ -57,6 +57,7 @@ impl GadgetRng {
         }
         #[cfg(not(feature = "std"))]
         {
+            use rand::SeedableRng;
             Self(StdRng::from_seed(seed))
         }
     }

@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_std::boxed::Box;
 
+#[cfg(feature = "eigenlayer")]
+pub mod eigenlayer;
 #[cfg(feature = "evm")]
 pub mod evm;
 mod network;

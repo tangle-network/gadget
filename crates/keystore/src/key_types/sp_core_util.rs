@@ -4,6 +4,7 @@ use sp_core::Pair;
 /// Implements serde and KeyType trait for any sp_core crypto type.
 ///
 /// Implements common functionality for key pairs and public keys.
+#[macro_export]
 macro_rules! impl_sp_core_pair_public {
     ($key_type:ident, $pair_type:ty, $public:ty) => {
         paste::paste! {
@@ -158,7 +159,7 @@ macro_rules! impl_sp_core_signature {
                 {
                     let bytes = <Vec<u8>>::deserialize(deserializer)?;
                     let sig = <$pair_type as sp_core::Pair>::Signature::from_slice(&bytes)
-                        .map_err(|_| serde::de::Error::custom("Invalid signature length"))?;
+                        .ok_or_else(|| serde::de::Error::custom("Invalid signature length"))?;
                     Ok([<$key_type Signature>](sig))
                 }
             }
@@ -174,10 +175,6 @@ macro_rules! impl_sp_core_crypto {
     };
 }
 
-#[cfg(feature = "sp-core-bls")]
-impl_sp_core_crypto!(SpBls377, bls377);
-#[cfg(feature = "sp-core-bls")]
-impl_sp_core_crypto!(SpBls381, bls381);
 impl_sp_core_crypto!(SpEcdsa, ecdsa);
 impl_sp_core_crypto!(SpEd25519, ed25519);
 impl_sp_core_crypto!(SpSr25519, sr25519);
