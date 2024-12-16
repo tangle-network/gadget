@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/crypto",
+    "crates/crypto-core", 
+    "crates/crypto-k256",
+    "crates/crypto-sr25519",
+    "crates/crypto-ed25519",
+    "crates/crypto-bls",
+    "crates/crypto-bn254",
+    "crates/crypto-sp-core"
+] 

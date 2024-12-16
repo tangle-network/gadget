@@ -1,10 +1,8 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
-use crate::network::gossip::{MyBehaviourRequest, NetworkService};
-use crate::{error, trace, warn};
+use crate::gossip::{MyBehaviourRequest, NetworkService};
 use itertools::Itertools;
 use libp2p::PeerId;
-use sp_core::{keccak_256, Pair};
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self))]
@@ -13,7 +11,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         num_established: u32,
     ) {
-        crate::debug!("Connection established");
+        gadget_logging::debug!("Connection established");
         if num_established == 1 {
             let my_peer_id = self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
@@ -41,7 +39,7 @@ impl NetworkService<'_> {
         num_established: u32,
         _cause: Option<libp2p::swarm::ConnectionError>,
     ) {
-        trace!("Connection closed");
+        gadget_logging::trace!("Connection closed");
         if num_established == 0 {
             self.swarm
                 .behaviour_mut()
@@ -57,7 +55,7 @@ impl NetworkService<'_> {
         _local_addr: libp2p::Multiaddr,
         _send_back_addr: libp2p::Multiaddr,
     ) {
-        trace!("Incoming connection");
+        gadget_logging::trace!("Incoming connection");
     }
 
     #[tracing::instrument(skip(self))]
@@ -66,7 +64,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         _connection_id: libp2p::swarm::ConnectionId,
     ) {
-        trace!("Outgoing connection to peer: {peer_id}");
+        gadget_logging::trace!("Outgoing connection to peer: {peer_id}");
     }
 
     #[tracing::instrument(skip(self, error))]
@@ -77,7 +75,7 @@ impl NetworkService<'_> {
         _send_back_addr: libp2p::Multiaddr,
         error: libp2p::swarm::ListenError,
     ) {
-        error!("Incoming connection error: {error}");
+        gadget_logging::error!("Incoming connection error: {error}");
     }
 
     #[tracing::instrument(skip(self, error))]
@@ -92,7 +90,7 @@ impl NetworkService<'_> {
             for (addr, err) in addrs {
                 if let Some(peer_id) = get_peer_id_from_multiaddr(&addr) {
                     if !read.values().contains(&peer_id) {
-                        warn!(
+                        gadget_logging::warn!(
                             "Outgoing connection error to peer: {peer_id} at {addr}: {err}",
                             peer_id = peer_id,
                             addr = addr,
@@ -102,7 +100,7 @@ impl NetworkService<'_> {
                 }
             }
         } else {
-            error!("Outgoing connection error to peer: {error}");
+            gadget_logging::error!("Outgoing connection error to peer: {error}");
         }
     }
 }

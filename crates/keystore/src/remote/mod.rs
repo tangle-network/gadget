@@ -8,8 +8,8 @@ pub mod gcp;
 pub mod ledger;
 
 use crate::error::Result;
-use crate::key_types::KeyType;
 use async_trait::async_trait;
+use gadget_crypto::KeyType;
 use gadget_std::future::Future;
 use serde::{de::DeserializeOwned, Serialize};
 

@@ -8,7 +8,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[rustfmt::skip]
 #[non_exhaustive]
 pub enum Error {
-    // Core errors, always available
+    /* Core errors, always available */
 
     /// Storage unsupported
     #[error("Storage not supported")]
@@ -44,7 +44,11 @@ pub enum Error {
     #[error("Remote key fetch failed: {0}")]
     RemoteKeyFetchFailed(String),
 
-    // Feature-specific errors
+    /* Crypto errors */
+    #[error(transparent)]
+    Crypto(#[from] gadget_crypto::CryptoCoreError),
+
+    /* Feature-specific errors */
 
     #[cfg(feature = "aws-signer")]
     #[error(transparent)]

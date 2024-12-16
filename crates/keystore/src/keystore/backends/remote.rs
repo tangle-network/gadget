@@ -1,8 +1,8 @@
+use gadget_crypto::KeyType;
 use serde::de::DeserializeOwned;
 
 use super::Backend;
 use crate::error::{Error, Result};
-use crate::key_types::KeyType;
 use crate::keystore::Keystore;
 pub use crate::remote::{EcdsaRemoteSigner, RemoteCapabilities, RemoteConfig};
 

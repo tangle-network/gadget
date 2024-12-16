@@ -10,10 +10,10 @@ use crate::networking::{
 use futures::prelude::*;
 use round_based::{Delivery, Incoming, MessageType, Outgoing};
 use round_based::{MessageDestination, MsgId, PartyIndex};
+use sp_core::ecdsa;
 use stream::{SplitSink, SplitStream};
-use subxt_core::ext::sp_core::ecdsa;
 
-use super::ParticipantInfo;
+use crate::networking::ParticipantInfo;
 
 pub struct NetworkDeliveryWrapper<M> {
     /// The wrapped network implementation.
@@ -153,7 +153,7 @@ where
 
         let round_id = out.msg.round();
 
-        crate::info!(
+        gadget_logging::info!(
             "Round {}: Sending message from {} to {:?} (id: {})",
             round_id,
             this.me,
@@ -204,11 +204,11 @@ where
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 }

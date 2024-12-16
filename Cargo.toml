@@ -28,13 +28,21 @@ needless_late_init = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
+gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
+gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
+gadget-crypto-sr25519 = { version = "0.1.0", path = "./crates/crypto/sr25519", default-features = false }
+gadget-crypto-ed25519 = { version = "0.1.0", path = "./crates/crypto/ed25519", default-features = false }
+gadget-crypto-bls = { version = "0.1.0", path = "./crates/crypto/bls", default-features = false }
+gadget-crypto-bn254 = { version = "0.1.0", path = "./crates/crypto/bn254", default-features = false }
+gadget-crypto-sp-core = { version = "0.1.0", path = "./crates/crypto/sp-core", default-features = false }
+gadget-crypto = { version = "0.1.0", path = "./crates/crypto", default-features = false }
+
 gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-features = false }
-
 
 # Internal dependencies
 gadget-io = { version = "0.0.5", path = "./gadget-io", default-features = false }
@@ -104,13 +112,13 @@ k256 = { version = "0.13.3", default-features = false }
 rand = { version = "0.8.5", default-features = false }
 schnorrkel = { version = "0.11.4", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
 w3f-bls = { git = "https://github.com/drewstone/bls.git", branch = "drew/bump-ark-versions", default-features = false }
 
 # Data Structures & Serialization
 bincode = { version = "1.3.3", default-features = false }
 cid = { version = "0.11.1", default-features = false }
 indexmap = { version = "2.5.0", default-features = false }
-num-bigint = { version = "0.4.6", default-features = false }
 serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
@@ -202,7 +210,8 @@ ark-ec = { version = "0.5.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 ark-std = { version = "0.5.0", default-features = false }
 ark-serialize = { version = "0.5.0", default-features = false, features = ["derive"] }
-num-traits = { version = "0.2", default-features = false }
+num-bigint = { version = "0.4.6", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
 rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 

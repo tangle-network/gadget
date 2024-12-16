@@ -1,6 +1,6 @@
 use super::RawStorage;
 use crate::error::Result;
-use crate::key_types::KeyTypeId;
+use gadget_crypto::KeyTypeId;
 use gadget_std::{boxed::Box, collections::BTreeMap, vec::Vec};
 use parking_lot::RwLock;
 
@@ -103,8 +103,8 @@ impl RawStorage for InMemoryStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::key_types::k256_ecdsa::K256Ecdsa;
-    use crate::key_types::KeyType;
+    use crate::_key_types::k256_ecdsa::K256Ecdsa;
+    use crate::_key_types::KeyType;
     use crate::storage::TypedStorage;
 
     #[test]

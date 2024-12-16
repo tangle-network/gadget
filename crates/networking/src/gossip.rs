@@ -4,8 +4,7 @@
     clippy::module_name_repetitions,
     clippy::exhaustive_enums
 )]
-use crate::error::Error;
-use crate::{error, trace, warn};
+use crate::Error;
 use async_trait::async_trait;
 use ecdsa::Public;
 use libp2p::gossipsub::IdentTopic;
@@ -22,7 +21,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
-use super::{Network, ParticipantInfo, ProtocolMessage};
+use crate::networking::{Network, ParticipantInfo, ProtocolMessage};
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -70,8 +69,8 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
-    pub ecdsa_key: &'a ecdsa::Pair,
+    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<k256::ecdsa::VerifyingKey, PeerId>>>,
+    pub ecdsa_key: &'a k256::ecdsa::SigningKey,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -89,7 +88,7 @@ impl NetworkService<'_> {
                     .gossipsub
                     .publish(msg.topic, gossip_message)
                 {
-                    error!("Publish error: {e:?}");
+                    gadget_logging::error!("Publish error: {e:?}");
                 }
             }
 
@@ -100,13 +99,13 @@ impl NetworkService<'_> {
                 self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
             }
             (MessageType::Broadcast, GossipOrRequestResponse::Request(_)) => {
-                error!("Broadcasting a request is not supported");
+                gadget_logging::error!("Broadcasting a request is not supported");
             }
             (MessageType::Broadcast, GossipOrRequestResponse::Response(_)) => {
-                error!("Broadcasting a response is not supported");
+                gadget_logging::error!("Broadcasting a response is not supported");
             }
             (MessageType::P2P(_), GossipOrRequestResponse::Gossip(_)) => {
-                error!("P2P message should be a request or response");
+                gadget_logging::error!("P2P message should be a request or response");
             }
             (MessageType::P2P(_), GossipOrRequestResponse::Response(_)) => {
                 // TODO: Send the response to the peer.
@@ -141,7 +140,7 @@ impl NetworkService<'_> {
                 self.handle_identify_event(event).await;
             }
             Behaviour(Kadmelia(event)) => {
-                trace!("Kadmelia event: {event:?}");
+                gadget_logging::trace!("Kadmelia event: {event:?}");
             }
             Behaviour(Dcutr(event)) => {
                 self.handle_dcutr_event(event).await;
@@ -160,7 +159,7 @@ impl NetworkService<'_> {
                 address,
                 listener_id,
             } => {
-                trace!("{listener_id} has a new address: {address}");
+                gadget_logging::trace!("{listener_id} has a new address: {address}");
             }
             ConnectionEstablished {
                 peer_id,
@@ -213,38 +212,44 @@ impl NetworkService<'_> {
                 listener_id,
                 address,
             } => {
-                trace!("{listener_id} has an expired address: {address}");
+                gadget_logging::trace!("{listener_id} has an expired address: {address}");
             }
             ListenerClosed {
                 listener_id,
                 addresses,
                 reason,
             } => {
-                trace!("{listener_id} on {addresses:?} has been closed: {reason:?}");
+                gadget_logging::trace!(
+                    "{listener_id} on {addresses:?} has been closed: {reason:?}"
+                );
             }
             ListenerError { listener_id, error } => {
-                error!("{listener_id} has an error: {error}");
+                gadget_logging::error!("{listener_id} has an error: {error}");
             }
             Dialing {
                 peer_id,
                 connection_id,
             } => {
-                trace!("Dialing peer: {peer_id:?} with connection_id: {connection_id}");
+                gadget_logging::trace!(
+                    "Dialing peer: {peer_id:?} with connection_id: {connection_id}"
+                );
             }
             NewExternalAddrCandidate { address } => {
-                trace!("New external address candidate: {address}");
+                gadget_logging::trace!("New external address candidate: {address}");
             }
             ExternalAddrConfirmed { address } => {
-                trace!("External address confirmed: {address}");
+                gadget_logging::trace!("External address confirmed: {address}");
             }
             ExternalAddrExpired { address } => {
-                trace!("External address expired: {address}");
+                gadget_logging::trace!("External address expired: {address}");
             }
             NewExternalAddrOfPeer { peer_id, address } => {
-                trace!("New external address of peer: {peer_id} with address: {address}");
+                gadget_logging::trace!(
+                    "New external address of peer: {peer_id} with address: {address}"
+                );
             }
             unknown => {
-                warn!("Unknown swarm event: {unknown:?}");
+                gadget_logging::warn!("Unknown swarm event: {unknown:?}");
             }
         }
     }
@@ -324,12 +329,39 @@ pub enum MyBehaviourRequest {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct EcdsaSignatureWrapper(pub [u8; 65]);
+
+impl serde::Serialize for EcdsaSignatureWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_bytes(&self.0)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for EcdsaSignatureWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes = <Vec<u8>>::deserialize(deserializer)?;
+        if bytes.len() != 65 {
+            return Err(serde::de::Error::custom("Invalid signature length"));
+        }
+        let mut signature = [0u8; 65];
+        signature.copy_from_slice(&bytes);
+        Ok(EcdsaSignatureWrapper(signature))
+    }
+}
+
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        ecdsa_public_key: ecdsa::Public,
-        signature: ecdsa::Signature,
+        ecdsa_public_key: k256::ecdsa::VerifyingKey,
+        ecdsa_signature: k256::ecdsa::Signature,
     },
     MessageHandled,
 }
@@ -363,7 +395,7 @@ impl Network for GossipHandle {
                     }
                 }
                 Err(e) => {
-                    error!("Failed to deserialize message: {e}");
+                    gadget_logging::error!("Failed to deserialize message: {e}");
                 }
             }
         }
@@ -381,10 +413,10 @@ impl Network for GossipHandle {
                 .await
                 .get(&Public::from_raw(to.0))
                 .copied()
-                .ok_or_else(|| Error::Network {
-                    reason: format!(
+                .ok_or_else(|| {
+                    Error::NetworkError(format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
-                    ),
+                    ))
                 })?;
 
             MessageType::P2P(libp2p_id)
@@ -392,9 +424,7 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
-        let raw_payload = bincode::serialize(&message).map_err(|e| Error::Network {
-            reason: format!("Failed to serialize message: {e}"),
-        })?;
+        let raw_payload = serde_json::to_vec(&message).map_err(|e| Error::SerdeJson(e))?;
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),
@@ -414,8 +444,6 @@ impl Network for GossipHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| Error::Network {
-                reason: format!("Failed to send intra-node payload: {e}"),
-            })
+            .map_err(|e| Error::NetworkError(format!("Failed to send intra-node payload: {e}")))
     }
 }

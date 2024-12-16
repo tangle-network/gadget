@@ -1,6 +1,6 @@
 #[async_trait::async_trait]
 impl P2PClient {
-    type Key = k256::PublicKey;
+    type PublicKey = k256::ecdsa::VerifyingKey;
 
     /// Returns the network protocol identifier
     fn network_protocol(&self) -> String {

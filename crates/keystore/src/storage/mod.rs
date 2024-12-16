@@ -1,7 +1,7 @@
 //! Backing storage implementations for local keystores
 
 use crate::error::Result;
-use crate::key_types::{KeyType, KeyTypeId};
+use gadget_crypto::{KeyType, KeyTypeId};
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 

@@ -1,5 +1,5 @@
 #![allow(unused_results, missing_docs)]
-use crate::network::gossip::{
+use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use futures::StreamExt;
