@@ -1,12 +1,11 @@
 #![allow(unused_results)]
 
 use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
-use k256::ecdsa::VerifyingKey;
+use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::k256_crypto::K256Ecdsa;
+use gadget_crypto::KeyType;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::{request_response, PeerId};
-use sha3::keccak_256;
-// use sp_core::{keccak_256, Pair};
-// use sp_io::crypto::ecdsa_verify_prehashed;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
@@ -88,7 +87,8 @@ impl NetworkService<'_> {
             } => {
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
-                let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
+                let valid =
+                    <K256Ecdsa as KeyType>::verify(&ecdsa_public_key, &hash, &ecdsa_signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     // TODO: report this peer.
@@ -126,7 +126,7 @@ impl NetworkService<'_> {
                 // Verify the signature
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
-                let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
+                let valid = <K256Ecdsa as KeyType>::verify(&ecdsa_public_key, &hash, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
@@ -140,14 +140,22 @@ impl NetworkService<'_> {
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
                 let hash = keccak_256(&msg);
-                let signature = self.ecdsa_key.sign_prehashed(&hash);
-                self.swarm.behaviour_mut().p2p.send_response(
-                    channel,
-                    MyBehaviourResponse::Handshaked {
-                        ecdsa_public_key: self.ecdsa_key.public(),
-                        ecdsa_signature: signature,
-                    },
-                )
+                match <K256Ecdsa as KeyType>::sign_with_secret_pre_hashed(
+                    &mut self.ecdsa_secret_key.clone(),
+                    &hash,
+                ) {
+                    Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
+                        channel,
+                        MyBehaviourResponse::Handshaked {
+                            ecdsa_public_key: self.ecdsa_secret_key.verifying_key(),
+                            ecdsa_signature: signature,
+                        },
+                    ),
+                    Err(e) => {
+                        gadget_logging::error!("Failed to sign message: {e}");
+                        return;
+                    }
+                }
             }
             Message { topic, raw_payload } => {
                 // Reject messages from self

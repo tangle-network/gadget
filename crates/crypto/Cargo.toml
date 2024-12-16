@@ -11,11 +11,12 @@ gadget-crypto-ed25519 = { path = "ed25519", optional = true }
 gadget-crypto-bls = { path = "bls", optional = true }
 gadget-crypto-bn254 = { path = "bn254", optional = true }
 gadget-crypto-sp-core = { path = "sp-core", optional = true }
-
+sha2 = { workspace = true, optional = true }
+sha3 = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
-default = ["std", "k256", "sr25519-schnorrkel", "ed25519", "bls", "bn254", "sp-core"]
+default = ["std", "k256", "sr25519-schnorrkel", "ed25519", "bls", "bn254", "sp-core", "hashing"]
 std = [
     "gadget-crypto-core/std",
     "gadget-crypto-k256?/std",
@@ -25,10 +26,12 @@ std = [
     "gadget-crypto-bn254?/std",
     "gadget-crypto-sp-core?/std",
 ]
-k256 = ["gadget-crypto-k256", "gadget-crypto-core/ecdsa"]
+k256 = ["gadget-crypto-k256", "gadget-crypto-core/k256"]
 sr25519-schnorrkel = ["gadget-crypto-sr25519", "gadget-crypto-core/sr25519-schnorrkel"]
 ed25519 = ["gadget-crypto-ed25519", "gadget-crypto-core/zebra"]
-bls = ["gadget-crypto-bls", "gadget-crypto-core/bls377", "gadget-crypto-core/bls381"]
+bls = ["gadget-crypto-bls", "gadget-crypto-core/bls"]
 bn254 = ["gadget-crypto-bn254", "gadget-crypto-core/bn254"]
 sp-core = ["gadget-crypto-sp-core", "gadget-crypto-core/tangle"]
-sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/bls377", "gadget-crypto-core/bls381"]
+sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/tangle"]
+
+hashing = ["sha2", "sha3"]

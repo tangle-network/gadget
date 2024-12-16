@@ -11,7 +11,7 @@ cfg_remote! {
 
 #[cfg(feature = "tangle")]
 pub mod tangle;
-#[cfg(feature = "sp-core-bls")]
+#[cfg(feature = "tangle-bls")]
 pub mod tangle_bls;
 
 use super::LocalStorageEntry;

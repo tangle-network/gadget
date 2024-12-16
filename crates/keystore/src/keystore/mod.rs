@@ -301,7 +301,7 @@ impl Backend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::_key_types::k256_ecdsa::K256Ecdsa;
+    use gadget_crypto::k256_crypto::K256Ecdsa;
 
     #[test]
     fn test_generate_from_string() -> Result<()> {

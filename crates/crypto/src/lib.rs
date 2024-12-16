@@ -22,6 +22,9 @@ pub use gadget_crypto_bn254 as bn254_crypto;
 #[cfg(feature = "sp-core")]
 pub use gadget_crypto_sp_core as sp_core_crypto;
 
+#[cfg(feature = "hashing")]
+pub mod hashing;
+
 #[derive(Debug, Error)]
 pub enum CryptoCoreError {
     #[cfg(feature = "k256")]

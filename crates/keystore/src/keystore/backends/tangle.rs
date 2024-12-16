@@ -160,15 +160,30 @@ impl TangleBackend for Keystore {
     }
 
     fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public> {
-        self.ecdsa_generate_new(Some(&string.as_bytes()))
+        let seed = if string.as_bytes().len() == 32 {
+            string.as_bytes().to_vec()
+        } else {
+            blake3::hash(string.as_bytes()).as_bytes().to_vec()
+        };
+        self.ecdsa_generate_new(Some(&seed))
     }
 
     fn ed25519_generate_from_string(&self, string: &str) -> Result<ed25519::Public> {
-        self.ed25519_generate_new(Some(&string.as_bytes()))
+        let seed = if string.as_bytes().len() == 32 {
+            string.as_bytes().to_vec()
+        } else {
+            blake3::hash(string.as_bytes()).as_bytes().to_vec()
+        };
+        self.ed25519_generate_new(Some(&seed))
     }
 
     fn sr25519_generate_from_string(&self, string: &str) -> Result<sr25519::Public> {
-        self.sr25519_generate_new(Some(&string.as_bytes()))
+        let seed = if string.as_bytes().len() == 32 {
+            string.as_bytes().to_vec()
+        } else {
+            blake3::hash(string.as_bytes()).as_bytes().to_vec()
+        };
+        self.sr25519_generate_new(Some(&seed))
     }
 
     fn sr25519_sign(

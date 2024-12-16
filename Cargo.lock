@@ -5202,6 +5202,8 @@ dependencies = [
  "gadget-crypto-k256",
  "gadget-crypto-sp-core",
  "gadget-crypto-sr25519",
+ "sha2 0.10.8",
+ "sha3",
  "thiserror 2.0.7",
 ]
 
@@ -5385,6 +5387,7 @@ dependencies = [
  "bincode",
  "dashmap",
  "futures",
+ "gadget-crypto",
  "gadget-logging",
  "gadget-std",
  "gadget-tokio-std",
@@ -5398,10 +5401,6 @@ dependencies = [
  "round-based",
  "serde",
  "serde_json",
- "sha3",
- "sp-core 31.0.0",
- "sp-io 38.0.0",
- "subxt-core",
  "thiserror 2.0.7",
  "tokio",
  "tracing",

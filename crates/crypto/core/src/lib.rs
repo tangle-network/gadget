@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 pub enum KeyTypeId {
     #[cfg(feature = "bn254")]
     ArkBn254,
-    #[cfg(feature = "ecdsa")]
+    #[cfg(feature = "k256")]
     K256Ecdsa,
     #[cfg(feature = "sr25519-schnorrkel")]
     SchnorrkelSr25519,
-    #[cfg(feature = "bls381")]
+    #[cfg(feature = "bls")]
     W3fBls381,
-    #[cfg(feature = "bls377")]
+    #[cfg(feature = "bls")]
     W3fBls377,
     #[cfg(feature = "zebra")]
     ZebraEd25519,
@@ -33,13 +33,13 @@ impl KeyTypeId {
     pub const ENABLED: &'static [Self] = &[
         #[cfg(feature = "bn254")]
         Self::ArkBn254,
-        #[cfg(feature = "ecdsa")]
+        #[cfg(feature = "k256")]
         Self::K256Ecdsa,
         #[cfg(feature = "sr25519-schnorrkel")]
         Self::SchnorrkelSr25519,
-        #[cfg(feature = "bls377")]
+        #[cfg(feature = "bls")]
         Self::W3fBls377,
-        #[cfg(feature = "bls381")]
+        #[cfg(feature = "bls")]
         Self::W3fBls381,
         #[cfg(feature = "zebra")]
         Self::ZebraEd25519,
@@ -59,13 +59,13 @@ impl KeyTypeId {
         match *self {
             #[cfg(feature = "bn254")]
             Self::ArkBn254 => "ark-bn254",
-            #[cfg(feature = "ecdsa")]
+            #[cfg(feature = "k256")]
             Self::K256Ecdsa => "k256-ecdsa",
             #[cfg(feature = "sr25519-schnorrkel")]
             Self::SchnorrkelSr25519 => "schnorrkel-sr25519",
-            #[cfg(feature = "bls381")]
+            #[cfg(feature = "bls")]
             Self::W3fBls381 => "w3f-bls381",
-            #[cfg(feature = "bls377")]
+            #[cfg(feature = "bls")]
             Self::W3fBls377 => "w3f-bls377",
             #[cfg(feature = "zebra")]
             Self::ZebraEd25519 => "zebra-ed25519",
@@ -81,9 +81,9 @@ impl KeyTypeId {
             Self::SpSr25519 => "sp-sr25519",
             #[cfg(all(
                 not(feature = "bn254"),
-                not(feature = "ecdsa"),
+                not(feature = "k256"),
                 not(feature = "sr25519-schnorrkel"),
-                not(any(feature = "bls377", feature = "bls381")),
+                not(feature = "bls"),
                 not(feature = "zebra"),
                 not(feature = "tangle")
             ))]

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 gadget-std = { workspace = true }
-gadget-crypto-core = { workspace = true }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
 sp-core = { workspace = true, features = ["full_crypto"] }
 paste = { workspace = true }
 serde = { workspace = true }

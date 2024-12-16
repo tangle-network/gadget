@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::keystore::backends::TangleBackend;
+use crate::keystore::backends::tangle::TangleBackend;
 use crate::keystore::Keystore;
 use gadget_crypto::sp_core_crypto::{SpBls377Pair, SpBls377Public, SpBls381Pair, SpBls381Public};
 use gadget_crypto::KeyTypeId;
@@ -14,25 +14,25 @@ pub trait TangleBlsBackend: TangleBackend {
     // BLS Signing Methods
     fn bls381_sign(
         &self,
-        public: sp_core::bls381::Public,
+        public: &sp_core::bls381::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls381::Signature>>;
 
     fn bls377_sign(
         &self,
-        public: sp_core::bls377::Public,
+        public: &sp_core::bls377::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls377::Signature>>;
 
     // BLS Secret Key Access
     fn expose_bls381_secret(
         &self,
-        public: sp_core::bls381::Public,
+        public: &sp_core::bls381::Public,
     ) -> Result<Option<sp_core::bls381::Pair>>;
 
     fn expose_bls377_secret(
         &self,
-        public: sp_core::bls377::Public,
+        public: &sp_core::bls377::Public,
     ) -> Result<Option<sp_core::bls377::Pair>>;
 
     // BLS Key Iteration
@@ -91,7 +91,7 @@ impl TangleBlsBackend for Keystore {
 
     fn bls381_sign(
         &self,
-        public: sp_core::bls381::Public,
+        public: &sp_core::bls381::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls381::Signature>> {
         if let Some(secret) = self.expose_bls381_secret(public)? {
@@ -103,7 +103,7 @@ impl TangleBlsBackend for Keystore {
 
     fn bls377_sign(
         &self,
-        public: sp_core::bls377::Public,
+        public: &sp_core::bls377::Public,
         msg: &[u8],
     ) -> Result<Option<sp_core::bls377::Signature>> {
         if let Some(secret) = self.expose_bls377_secret(public)? {
@@ -115,11 +115,11 @@ impl TangleBlsBackend for Keystore {
 
     fn expose_bls381_secret(
         &self,
-        public: sp_core::bls381::Public,
+        public: &sp_core::bls381::Public,
     ) -> Result<Option<sp_core::bls381::Pair>> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SpBls381;
 
-        let public_bytes = serde_json::to_vec(&SpBls381Public(public))?;
+        let public_bytes = serde_json::to_vec(&SpBls381Public(public.clone()))?;
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -137,11 +137,11 @@ impl TangleBlsBackend for Keystore {
 
     fn expose_bls377_secret(
         &self,
-        public: sp_core::bls377::Public,
+        public: &sp_core::bls377::Public,
     ) -> Result<Option<sp_core::bls377::Pair>> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::SpBls377;
 
-        let public_bytes = serde_json::to_vec(&SpBls377Public(public))?;
+        let public_bytes = serde_json::to_vec(&SpBls377Public(public.clone()))?;
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -218,8 +218,8 @@ mod tests {
 
         // Sign message
         let msg = b"test message";
-        let signature = keystore.bls381_sign(public, msg)?.unwrap();
-
+        let signature = keystore.bls381_sign(&public, msg)?.unwrap();
+        println!("{:?}", signature);
         // Verify signature
         assert!(sp_core::bls381::Pair::verify(&signature, msg, &public));
 
@@ -235,8 +235,8 @@ mod tests {
 
         // Sign message
         let msg = b"test message";
-        let signature = keystore.bls377_sign(public, msg)?.unwrap();
-
+        let signature = keystore.bls377_sign(&public, msg)?.unwrap();
+        println!("{:?}", signature);
         // Verify signature
         assert!(sp_core::bls377::Pair::verify(&signature, msg, &public));
 
