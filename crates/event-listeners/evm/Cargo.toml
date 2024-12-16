@@ -1,0 +1,30 @@
+[package]
+name = "gadget-event-listeners-evm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-event-listeners-core = { workspace = true }
+gadget-logging = { workspace = true }
+gadget-stores = { workspace = true, features = ["local"] }
+alloy-contract = { workspace = true }
+alloy-network = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true, features = ["eth"] }
+alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-std/std",
+    "gadget-event-listeners-core/std",
+    "gadget-logging/std",
+    "gadget-stores/std",
+    "tokio/full",
+]

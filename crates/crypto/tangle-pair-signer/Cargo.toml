@@ -1,0 +1,39 @@
+[package]
+name = "gadget-crypto-tangle-pair-signer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
+gadget-crypto-sp-core = { workspace = true }
+k256 = { workspace = true, optional = true }
+sp-core = { workspace = true, features = ["full_crypto"] }
+paste = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+subxt = { workspace = true }
+subxt-core = { workspace = true }
+thiserror = { workspace = true }
+
+alloy-primitives = { workspace = true, optional = true }
+alloy-signer-local = { workspace = true, optional = true }
+
+[features]
+default = ["std", "evm"]
+std = [
+    "gadget-crypto-core/std",
+    "gadget-crypto-sp-core/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+    "sp-core/std",
+    "subxt/native",
+    "subxt/substrate-compat",
+    "subxt-core/std",
+] 
+evm = [
+    "alloy-primitives",
+    "alloy-signer-local",
+    "k256",
+]
