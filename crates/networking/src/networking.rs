@@ -1,4 +1,5 @@
-use crate::error::Error;
+use crate::channels::UserID;
+use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
@@ -13,8 +14,6 @@ use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, sha2_256};
 use tokio::sync::Mutex;
 use tracing::trace;
-
-use self::channels::UserID;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 pub struct IdentifierInfo {
@@ -360,7 +359,7 @@ impl NetworkMultiplexer {
                                     break;
                                 }
 
-                                crate::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+                                gadget_logging::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
 
                                 *expected_seq += 1;
 
@@ -428,7 +427,7 @@ impl NetworkMultiplexer {
         let forwarding_task = async move {
             let mut rx = rx.into_inner();
             while let Some(msg) = rx.recv().await {
-                crate::info!(
+                gadget_logging::info!(
                     "Round {}: Received message from {} to {:?} (id: {})",
                     msg.identifier_info.round_id,
                     msg.sender.user_id,
@@ -455,7 +454,7 @@ impl NetworkMultiplexer {
     ) -> (MultiplexedSender, MultiplexedReceiver) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         if active_streams.insert(stream_id, tx).is_some() {
-            crate::warn!(
+            gadget_logging::warn!(
                 "Stream ID {stream_id:?} already exists! Existing stream will be replaced"
             );
         }
@@ -809,7 +808,7 @@ mod tests {
         }
         gadget_logging::debug!("Done r3 w/ {i}");
 
-        crate::info!(node = i, "Protocol completed");
+        gadget_logging::info!(node = i, "Protocol completed");
 
         Ok(())
     }
@@ -837,7 +836,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_stress_test_multiplexer() {
         setup_log();
-        crate::info!("Starting test_stress_test_multiplexer");
+        gadget_logging::info!("Starting test_stress_test_multiplexer");
 
         let (network0, id0) = node_with_id();
         let (network1, id1) = node_with_id();
@@ -946,7 +945,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_nested_multiplexer() {
         setup_log();
-        crate::info!("Starting test_nested_multiplexer");
+        gadget_logging::info!("Starting test_nested_multiplexer");
         let network0 = node();
         let network1 = node();
 
@@ -962,7 +961,7 @@ mod tests {
             network0: N,
             network1: N,
         ) {
-            crate::info!("At nested depth = {cur_depth}/{max_depth}");
+            gadget_logging::info!("At nested depth = {cur_depth}/{max_depth}");
 
             if cur_depth == max_depth {
                 return;

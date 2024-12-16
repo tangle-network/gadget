@@ -1,12 +1,12 @@
 #![allow(unused_results)]
 
-use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
-use crate::{debug, error, trace, warn};
-
+use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
+use k256::ecdsa::VerifyingKey;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::{request_response, PeerId};
-use sp_core::{keccak_256, Pair};
-use sp_io::crypto::ecdsa_verify_prehashed;
+use sha3::keccak_256;
+// use sp_core::{keccak_256, Pair};
+// use sp_io::crypto::ecdsa_verify_prehashed;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
@@ -17,7 +17,7 @@ impl NetworkService<'_> {
         use request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
         match event {
             Message { peer, message } => {
-                trace!("Received P2P message from: {peer}");
+                gadget_logging::trace!("Received P2P message from: {peer}");
                 self.handle_p2p_message(peer, message).await;
             }
             OutboundFailure {
@@ -25,17 +25,19 @@ impl NetworkService<'_> {
                 request_id,
                 error,
             } => {
-                error!("Failed to send message to peer: {peer} with request_id: {request_id} and error: {error}");
+                gadget_logging::error!("Failed to send message to peer: {peer} with request_id: {request_id} and error: {error}");
             }
             InboundFailure {
                 peer,
                 request_id,
                 error,
             } => {
-                error!("Failed to receive message from peer: {peer} with request_id: {request_id} and error: {error}");
+                gadget_logging::error!("Failed to receive message from peer: {peer} with request_id: {request_id} and error: {error}");
             }
             ResponseSent { peer, request_id } => {
-                debug!("Sent response to peer: {peer} with request_id: {request_id}");
+                gadget_logging::debug!(
+                    "Sent response to peer: {peer} with request_id: {request_id}"
+                );
             }
         }
     }
@@ -53,7 +55,9 @@ impl NetworkService<'_> {
                 channel,
                 request_id,
             } => {
-                trace!("Received request with request_id: {request_id} from peer: {peer}");
+                gadget_logging::trace!(
+                    "Received request with request_id: {request_id} from peer: {peer}"
+                );
                 self.handle_p2p_request(peer, request_id, request, channel)
                     .await;
             }
@@ -61,7 +65,9 @@ impl NetworkService<'_> {
                 response,
                 request_id,
             } => {
-                trace!("Received response from peer: {peer} with request_id: {request_id}");
+                gadget_logging::trace!(
+                    "Received response from peer: {peer} with request_id: {request_id}"
+                );
                 self.handle_p2p_response(peer, request_id, response).await;
             }
         }
@@ -74,17 +80,17 @@ impl NetworkService<'_> {
         request_id: request_response::OutboundRequestId,
         message: MyBehaviourResponse,
     ) {
-        use crate::network::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
+        use crate::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
         match message {
             Handshaked {
                 ecdsa_public_key,
-                signature,
+                ecdsa_signature,
             } => {
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
                 let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
                 if !valid {
-                    warn!("Invalid signature from peer: {peer}");
+                    gadget_logging::warn!("Invalid signature from peer: {peer}");
                     // TODO: report this peer.
                     self.ecdsa_peer_id_to_libp2p_id
                         .write()
@@ -110,19 +116,19 @@ impl NetworkService<'_> {
         req: MyBehaviourRequest,
         channel: request_response::ResponseChannel<MyBehaviourResponse>,
     ) {
-        use crate::network::gossip::MyBehaviourRequest::{Handshake, Message};
+        use crate::gossip::MyBehaviourRequest::{Handshake, Message};
         let result = match req {
             Handshake {
                 ecdsa_public_key,
                 signature,
             } => {
-                trace!("Received handshake from peer: {peer}");
+                gadget_logging::trace!("Received handshake from peer: {peer}");
                 // Verify the signature
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
                 let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
                 if !valid {
-                    warn!("Invalid signature from peer: {peer}");
+                    gadget_logging::warn!("Invalid signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
                     return;
                 }
@@ -139,7 +145,7 @@ impl NetworkService<'_> {
                     channel,
                     MyBehaviourResponse::Handshaked {
                         ecdsa_public_key: self.ecdsa_key.public(),
-                        signature,
+                        ecdsa_signature: signature,
                     },
                 )
             }
@@ -156,10 +162,10 @@ impl NetworkService<'_> {
                     .find(|r| r.0.to_string() == topic.to_string())
                 {
                     if let Err(e) = tx.send(raw_payload) {
-                        error!("Failed to send message to worker: {e}");
+                        gadget_logging::error!("Failed to send message to worker: {e}");
                     }
                 } else {
-                    error!("No registered worker for topic: {topic}!");
+                    gadget_logging::error!("No registered worker for topic: {topic}!");
                 }
                 self.swarm
                     .behaviour_mut()
@@ -168,7 +174,7 @@ impl NetworkService<'_> {
             }
         };
         if result.is_err() {
-            error!("Failed to send response for {request_id}");
+            gadget_logging::error!("Failed to send response for {request_id}");
         }
     }
 }

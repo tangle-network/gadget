@@ -1,10 +1,11 @@
 use crate::error::{Error, Result};
-use crate::key_types::KeyType;
+
 use crate::keystore::Keystore;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, B256};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_signer_local::{coins_bip39::English, MnemonicBuilder};
+use gadget_crypto::KeyType;
 use serde::de::DeserializeOwned;
 
 #[async_trait::async_trait]

@@ -1,5 +1,4 @@
 use crate::error::{Error, Result};
-use crate::key_types::KeyType;
 
 /// Ed25519 key type
 pub struct Ed25519Zebra;

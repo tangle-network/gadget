@@ -1,5 +1,4 @@
 use crate::error::{Error, Result};
-use crate::key_types::KeyType;
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
 

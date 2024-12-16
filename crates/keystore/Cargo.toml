@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 # Core dependencies (always included)
+gadget-crypto.workspace = true
 gadget-std.workspace = true
 async-trait.workspace = true
 lock_api.workspace = true
@@ -72,6 +73,7 @@ std = [
     "serde/std",
     "hex/std",
     "zeroize/std",
+    "gadget-crypto/std",
     "gadget-std/std",
     "thiserror/std",
     "tokio",
@@ -96,17 +98,16 @@ std = [
 ]
 
 # Crypto primitive features
-ecdsa = ["k256", "ripemd", "hex"]
-sr25519-schnorrkel = ["schnorrkel", "hex"]
-zebra = ["ed25519-zebra", "hex"]
-# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
-substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt"]
-sp-core-bls = ["sp-core/bls-experimental"]
+ecdsa = ["k256", "ripemd", "hex", "gadget-crypto/k256"]
+sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
+zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
+bls377 = ["w3f-bls", "hex", "gadget-crypto/bls"]
+bls381 = ["w3f-bls", "hex", "gadget-crypto/bls"]
+bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
 
-bls377 = ["w3f-bls", "hex"]
-bls381 = ["w3f-bls", "hex"]
-bn254 = ["rust-bls-bn254", "arkworks"]
-arkworks = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize"]
+# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
+substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]
+sp-core-bls = ["sp-core/bls-experimental", "gadget-crypto/sp-core-bls"]
 
 # Protocol features
 evm = [
@@ -125,6 +126,7 @@ tangle = [
 eigenlayer = [
     "evm",
     "eigensdk",
+    "rust-bls-bn254",
     "bn254",
 ]
 

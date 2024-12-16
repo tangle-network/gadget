@@ -1,8 +1,8 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::error::{Error, Result};
-use crate::key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use alloy_primitives::keccak256;
 use alloy_signer_gcp::{GcpKeyRingRef, GcpSigner, KeySpecifier};
+use gadget_crypto::k256_crypto::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;
 use gcloud_sdk::{
     google::cloud::kms::v1::key_management_service_client::KeyManagementServiceClient, GoogleApi,
@@ -78,12 +78,6 @@ impl GcpRemoteSigner {
         }
 
         Ok(Self { signers })
-    }
-}
-
-impl From<K256VerifyingKey> for VerifyingKey {
-    fn from(key: K256VerifyingKey) -> Self {
-        key.0
     }
 }
 

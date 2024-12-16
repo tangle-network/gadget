@@ -13,8 +13,9 @@ gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 gadget-tokio-std = { workspace = true }
 
-
 # Core dependencies
+auto_impl = { workspace = true }
+dashmap = { workspace = true }
 libp2p = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
@@ -25,16 +26,19 @@ lru-mem = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 hex = { workspace = true }
-itertools = { workspace = true }
+itertools = { workspace = true, features = ["use_alloc"]}
 matchbox_socket = { workspace = true }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
 
 # Crypto dependencies
 k256 = { workspace = true }
+sha3 = { workspace = true }
 
 # Substrate dependencies
 sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+subxt-core = { workspace = true, optional = true }
 
 # Optional dependencies for round-based protocol support
 round-based = { workspace = true, optional = true }
@@ -67,14 +71,17 @@ std = [
     "gadget-std/std",
     "gadget-tokio-std/std",
     "k256/std",
+    "sha3/std",
     "tokio/full",
     "serde/std",
     "serde_json/std",
     "sp-core?/std",
+    "sp-io?/std",
+    "subxt-core?/std",
     "round-based?/std",
 ]
 rounds = ["round-based"]
-tangle = ["sp-core"]
+tangle = ["sp-core", "sp-io", "subxt-core"]
 
 [lints]
 workspace = true

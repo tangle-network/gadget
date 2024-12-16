@@ -1,9 +1,8 @@
-use crate::network::gossip::NetworkService;
-use crate::trace;
+use crate::gossip::NetworkService;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub async fn handle_dcutr_event(&mut self, event: libp2p::dcutr::Event) {
-        trace!("DCUTR event: {event:?}");
+        gadget_logging::trace!("DCUTR event: {event:?}");
     }
 }

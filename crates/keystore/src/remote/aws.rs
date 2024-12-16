@@ -1,9 +1,9 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::error::{Error, Result};
-use crate::key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use alloy_primitives::keccak256;
 use alloy_signer_aws::AwsSigner;
 use aws_config::{BehaviorVersion, Region};
+use gadget_crypto::k256_crypto::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

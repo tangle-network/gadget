@@ -1,6 +1,6 @@
 use super::RawStorage;
 use crate::error::{Error, Result};
-use crate::key_types::KeyTypeId;
+use gadget_crypto::KeyTypeId;
 use gadget_std::fs;
 use gadget_std::io;
 use gadget_std::path::{Path, PathBuf};
@@ -136,7 +136,7 @@ impl RawStorage for FileStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{key_types::k256_ecdsa::K256Ecdsa, key_types::KeyType, storage::TypedStorage};
+    use crate::{_key_types::k256_ecdsa::K256Ecdsa, _key_types::KeyType, storage::TypedStorage};
     use tempfile::tempdir;
 
     #[test]
