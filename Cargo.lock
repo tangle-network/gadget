@@ -4804,6 +4804,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-blueprint-serde"
+version = "0.3.1"
+dependencies = [
+ "paste",
+ "serde",
+ "serde_bytes",
+ "serde_test",
+ "tangle-subxt",
+]
+
+[[package]]
 name = "gadget-client-eigenlayer"
 version = "0.1.0"
 dependencies = [
@@ -4937,6 +4948,7 @@ dependencies = [
  "gadget-crypto-k256",
  "gadget-crypto-sp-core",
  "gadget-crypto-sr25519",
+ "gadget-crypto-tangle-pair-signer",
  "sha2 0.10.8",
  "sha3",
  "thiserror 2.0.7",
@@ -5037,6 +5049,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-crypto-tangle-pair-signer"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-signer-local",
+ "gadget-crypto-core",
+ "gadget-crypto-sp-core",
+ "gadget-std",
+ "k256",
+ "paste",
+ "serde",
+ "serde_json",
+ "sp-core 31.0.0",
+ "subxt",
+ "subxt-core",
+ "thiserror 2.0.7",
+]
+
+[[package]]
 name = "gadget-eigenlayer-bindings"
 version = "0.1.0"
 dependencies = [
@@ -5057,6 +5088,81 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "serde",
+]
+
+[[package]]
+name = "gadget-event-listeners"
+version = "0.1.0"
+dependencies = [
+ "gadget-event-listeners-core",
+ "gadget-event-listeners-evm",
+ "gadget-event-listeners-periodic",
+ "gadget-event-listeners-tangle",
+ "gadget-std",
+]
+
+[[package]]
+name = "gadget-event-listeners-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-std",
+]
+
+[[package]]
+name = "gadget-event-listeners-evm"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-network 0.5.4",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-sol-types",
+ "alloy-transport",
+ "async-trait",
+ "gadget-event-listeners-core",
+ "gadget-logging",
+ "gadget-std",
+ "gadget-stores",
+ "thiserror 2.0.7",
+ "tokio",
+ "uuid 1.11.0",
+]
+
+[[package]]
+name = "gadget-event-listeners-periodic"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-event-listeners-core",
+ "gadget-logging",
+ "gadget-std",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-event-listeners-tangle"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-blueprint-serde",
+ "gadget-clients",
+ "gadget-contexts",
+ "gadget-crypto-tangle-pair-signer",
+ "gadget-event-listeners-core",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-std",
+ "gadget-utils-tangle",
+ "parking_lot",
+ "serde",
+ "sp-core 31.0.0",
+ "subxt",
+ "subxt-core",
+ "tangle-subxt",
+ "thiserror 2.0.7",
+ "tokio",
 ]
 
 [[package]]
@@ -5160,6 +5266,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-store-local-database"
+version = "0.1.0"
+dependencies = [
+ "gadget-std",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "gadget-stores"
+version = "0.1.0"
+dependencies = [
+ "gadget-store-local-database",
+]
+
+[[package]]
 name = "gadget-testing-utils"
 version = "0.1.0"
 dependencies = [
@@ -5215,6 +5337,13 @@ dependencies = [
 [[package]]
 name = "gadget-utils-tangle"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-logging",
+ "gadget-std",
+ "subxt",
+ "tracing",
+]
 
 [[package]]
 name = "gcloud-sdk"
@@ -9984,6 +10113,15 @@ name = "serde_spanned"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde_test"
+version = "1.0.177"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f901ee573cab6b3060453d2d5f0bae4e6d628c23c0a962ff9b5f1d7c8d4f1ed"
 dependencies = [
  "serde",
 ]

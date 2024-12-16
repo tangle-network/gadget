@@ -11,6 +11,7 @@ gadget-crypto-ed25519 = { path = "ed25519", optional = true }
 gadget-crypto-bls = { path = "bls", optional = true }
 gadget-crypto-bn254 = { path = "bn254", optional = true }
 gadget-crypto-sp-core = { path = "sp-core", optional = true }
+gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 sha3 = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -25,6 +26,7 @@ std = [
     "gadget-crypto-bls?/std",
     "gadget-crypto-bn254?/std",
     "gadget-crypto-sp-core?/std",
+    "gadget-crypto-tangle-pair-signer?/std",
 ]
 k256 = ["gadget-crypto-k256", "gadget-crypto-core/k256"]
 sr25519-schnorrkel = ["gadget-crypto-sr25519", "gadget-crypto-core/sr25519-schnorrkel"]
@@ -33,5 +35,6 @@ bls = ["gadget-crypto-bls", "gadget-crypto-core/bls"]
 bn254 = ["gadget-crypto-bn254", "gadget-crypto-core/bn254"]
 sp-core = ["gadget-crypto-sp-core", "gadget-crypto-core/tangle"]
 sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/tangle"]
+tangle-pair-signer = ["gadget-crypto-tangle-pair-signer"]
 
 hashing = ["sha2", "sha3"]

@@ -37,6 +37,7 @@ gadget-crypto-bls = { version = "0.1.0", path = "./crates/crypto/bls", default-f
 gadget-crypto-bn254 = { version = "0.1.0", path = "./crates/crypto/bn254", default-features = false }
 gadget-crypto-sp-core = { version = "0.1.0", path = "./crates/crypto/sp-core", default-features = false }
 gadget-crypto = { version = "0.1.0", path = "./crates/crypto", default-features = false }
+gadget-crypto-tangle-pair-signer = { version = "0.1.0", path = "./crates/crypto/tangle-pair-signer", default-features = false }
 
 # Clients
 gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
@@ -44,8 +45,21 @@ gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenla
 gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
 gadget-client-networking = { version = "0.1.0", path = "./crates/clients/networking", default-features = false }
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
+gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
+
+# Event listeners
+gadget-event-listeners = { version = "0.1.0", path = "./crates/event-listeners", default-features = false }
+gadget-event-listeners-core = { version = "0.1.0", path = "./crates/event-listeners/core", default-features = false }
+gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listeners/evm", default-features = false }
+gadget-event-listeners-periodic = { version = "0.1.0", path = "./crates/event-listeners/periodic", default-features = false }
+gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
+
+# Stores
+gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
+gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
 
 # SDK
+gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint-serde", default-features = false }
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
