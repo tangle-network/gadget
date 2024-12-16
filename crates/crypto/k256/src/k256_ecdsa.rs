@@ -11,7 +11,7 @@ use crate::error::{K256Error, Result};
 /// ECDSA key type
 pub struct K256Ecdsa;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct K256VerifyingKey(pub k256::ecdsa::VerifyingKey);
 
 impl PartialOrd for K256VerifyingKey {
@@ -146,5 +146,11 @@ impl KeyType for K256Ecdsa {
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
         use k256::ecdsa::signature::Verifier;
         public.0.verify(msg, &signature.0).is_ok()
+    }
+}
+
+impl K256SigningKey {
+    pub fn verifying_key(&self) -> K256VerifyingKey {
+        K256VerifyingKey(self.0.verifying_key().clone())
     }
 }

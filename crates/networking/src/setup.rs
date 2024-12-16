@@ -3,23 +3,21 @@ use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use futures::StreamExt;
-
+use gadget_crypto::k256_crypto::K256SigningKey;
+use gadget_std::collections::BTreeMap;
+use gadget_std::error::Error;
+use gadget_std::io;
+use gadget_std::net::IpAddr;
+use gadget_std::str::FromStr;
+use gadget_std::sync::atomic::AtomicU32;
+use gadget_std::sync::Arc;
+use gadget_std::time::Duration;
+use libp2p::Multiaddr;
 use libp2p::{
     gossipsub, gossipsub::IdentTopic, kad::store::MemoryStore, mdns, request_response,
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
-
-use libp2p::Multiaddr;
 use lru_mem::LruCache;
-use sp_core::ecdsa;
-use std::collections::BTreeMap;
-use std::error::Error;
-use std::io;
-use std::net::IpAddr;
-use std::str::FromStr;
-use std::sync::atomic::AtomicU32;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::select;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn, JoinHandle};
@@ -36,7 +34,7 @@ pub const CLIENT_VERSION: &str = "1.0.0";
 /// [`NetworkConfig::new_service_network`] ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
-    pub ecdsa_key: ecdsa::Pair,
+    pub ecdsa_secret_key: K256SigningKey,
     pub bootnodes: Vec<Multiaddr>,
     pub bind_port: u16,
     pub topics: Vec<String>,
@@ -59,14 +57,14 @@ impl NetworkConfig {
     #[must_use]
     pub fn new(
         identity: libp2p::identity::Keypair,
-        ecdsa_key: ecdsa::Pair,
+        ecdsa_secret_key: K256SigningKey,
         bootnodes: Vec<Multiaddr>,
         bind_port: u16,
         topics: Vec<String>,
     ) -> Self {
         Self {
             identity,
-            ecdsa_key,
+            ecdsa_secret_key,
             bootnodes,
             bind_port,
             topics,
@@ -77,14 +75,14 @@ impl NetworkConfig {
     /// Each service within a blueprint must have a unique network name.
     pub fn new_service_network<T: Into<String>>(
         identity: libp2p::identity::Keypair,
-        ecdsa_key: ecdsa::Pair,
+        ecdsa_secret_key: K256SigningKey,
         bootnodes: Vec<Multiaddr>,
         bind_port: u16,
         service_name: T,
     ) -> Self {
         Self::new(
             identity,
-            ecdsa_key,
+            ecdsa_secret_key,
             bootnodes,
             bind_port,
             vec![service_name.into()],
@@ -140,7 +138,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bootnodes,
         bind_port,
         topics,
-        ecdsa_key,
+        ecdsa_secret_key,
     } = config;
 
     // Ensure all topics are unique
@@ -301,7 +299,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         let service = NetworkServiceWithoutSwarm {
             inbound_mapping: &inbound_mapping,
             ecdsa_peer_id_to_libp2p_id,
-            ecdsa_key: &ecdsa_key,
+            ecdsa_secret_key: &ecdsa_secret_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
             my_id,
         };

@@ -6,7 +6,11 @@
 )]
 use crate::Error;
 use async_trait::async_trait;
-use ecdsa::Public;
+use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::k256_crypto::{K256Signature, K256SigningKey, K256VerifyingKey};
+use gadget_std::collections::BTreeMap;
+use gadget_std::sync::atomic::AtomicU32;
+use gadget_std::sync::Arc;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::{
@@ -14,10 +18,6 @@ use libp2p::{
 };
 use lru_mem::LruCache;
 use serde::{Deserialize, Serialize};
-use sp_core::{ecdsa, sha2_256};
-use std::collections::BTreeMap;
-use std::sync::atomic::AtomicU32;
-use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
@@ -44,8 +44,8 @@ pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>)
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
-    pub ecdsa_key: &'a ecdsa::Pair,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
+    pub ecdsa_secret_key: &'a K256SigningKey,
     pub span: tracing::Span,
     pub my_id: PeerId,
 }
@@ -59,7 +59,7 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
             swarm,
             inbound_mapping: self.inbound_mapping,
             ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
-            ecdsa_key: self.ecdsa_key,
+            ecdsa_secret_key: self.ecdsa_secret_key,
             span: &self.span,
             my_id: self.my_id,
         }
@@ -69,8 +69,8 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<k256::ecdsa::VerifyingKey, PeerId>>>,
-    pub ecdsa_key: &'a k256::ecdsa::SigningKey,
+    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
+    pub ecdsa_secret_key: &'a K256SigningKey,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -260,7 +260,7 @@ pub struct GossipHandle {
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicU32>,
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
     pub my_id: PeerId,
 }
@@ -278,7 +278,7 @@ impl GossipHandle {
     }
 
     /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
-    pub async fn peers(&self) -> Vec<ecdsa::Public> {
+    pub async fn peers(&self) -> Vec<K256VerifyingKey> {
         self.ecdsa_peer_id_to_libp2p_id
             .read()
             .await
@@ -320,8 +320,8 @@ pub struct GossipMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
-        ecdsa_public_key: ecdsa::Public,
-        signature: ecdsa::Signature,
+        ecdsa_public_key: K256VerifyingKey,
+        signature: K256Signature,
     },
     Message {
         topic: String,
@@ -360,8 +360,8 @@ impl<'de> serde::Deserialize<'de> for EcdsaSignatureWrapper {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        ecdsa_public_key: k256::ecdsa::VerifyingKey,
-        ecdsa_signature: k256::ecdsa::Signature,
+        ecdsa_public_key: K256VerifyingKey,
+        ecdsa_signature: K256Signature,
     },
     MessageHandled,
 }
@@ -384,7 +384,7 @@ impl Network for GossipHandle {
             drop(lock);
             match bincode::deserialize::<ProtocolMessage>(&message_bytes) {
                 Ok(message) => {
-                    let hash = sha2_256(&message.payload);
+                    let hash = keccak_256(&message.payload);
                     let mut map = self.recent_messages.lock();
                     if map
                         .insert(hash, ())
@@ -403,7 +403,7 @@ impl Network for GossipHandle {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         let message_type = if let Some(ParticipantInfo {
-            ecdsa_key: Some(to),
+            ecdsa_public_key: Some(to),
             ..
         }) = message.recipient
         {
@@ -411,11 +411,12 @@ impl Network for GossipHandle {
                 .ecdsa_peer_id_to_libp2p_id
                 .read()
                 .await
-                .get(&Public::from_raw(to.0))
+                .get(&to)
                 .copied()
                 .ok_or_else(|| {
                     Error::NetworkError(format!(
-                        "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
+                        "No libp2p ID found for ecdsa public key: {:?}. No handshake happened?",
+                        to
                     ))
                 })?;
 

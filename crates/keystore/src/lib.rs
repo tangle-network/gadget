@@ -19,7 +19,6 @@ pub(crate) use cfg_remote;
 
 pub mod error;
 pub use error::*;
-// pub mod _key_types;
 mod keystore;
 pub use keystore::*;
 

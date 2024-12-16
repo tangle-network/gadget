@@ -1,6 +1,7 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
 use crate::gossip::{MyBehaviourRequest, NetworkService};
+use gadget_crypto::{hashing::keccak_256, k256_crypto::K256Ecdsa, KeyType};
 use itertools::Itertools;
 use libp2p::PeerId;
 
@@ -16,19 +17,28 @@ impl NetworkService<'_> {
             let my_peer_id = self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
             let hash = keccak_256(&msg);
-            let signature = self.ecdsa_key.sign_prehashed(&hash);
-            let handshake = MyBehaviourRequest::Handshake {
-                ecdsa_public_key: self.ecdsa_key.public(),
-                signature,
-            };
-            self.swarm
-                .behaviour_mut()
-                .p2p
-                .send_request(&peer_id, handshake);
-            self.swarm
-                .behaviour_mut()
-                .gossipsub
-                .add_explicit_peer(&peer_id);
+            match <K256Ecdsa as KeyType>::sign_with_secret_pre_hashed(
+                &mut self.ecdsa_secret_key.clone(),
+                &hash,
+            ) {
+                Ok(signature) => {
+                    let handshake = MyBehaviourRequest::Handshake {
+                        ecdsa_public_key: self.ecdsa_secret_key.verifying_key(),
+                        signature,
+                    };
+                    self.swarm
+                        .behaviour_mut()
+                        .p2p
+                        .send_request(&peer_id, handshake);
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .add_explicit_peer(&peer_id);
+                }
+                Err(e) => {
+                    gadget_logging::error!("Failed to sign handshake: {e}");
+                }
+            }
         }
     }
 

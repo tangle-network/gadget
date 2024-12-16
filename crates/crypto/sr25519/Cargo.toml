@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gadget-crypto-core = { workspace = true }
+gadget-crypto-core = { workspace = true, features = ["sr25519-schnorrkel"]}
 gadget-std = { workspace = true }
 schnorrkel = { workspace = true }
 serde = { workspace = true }

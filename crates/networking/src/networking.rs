@@ -3,6 +3,8 @@ use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
+use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::k256_crypto::K256VerifyingKey;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
 use gadget_std::fmt::Display;
@@ -11,7 +13,6 @@ use gadget_std::pin::Pin;
 use gadget_std::sync::Arc;
 use gadget_std::task::{Context, Poll};
 use serde::{Deserialize, Serialize};
-use sp_core::{ecdsa, sha2_256};
 use tokio::sync::Mutex;
 use tracing::trace;
 
@@ -32,16 +33,16 @@ impl Display for IdentifierInfo {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct ParticipantInfo {
     pub user_id: u16,
-    pub ecdsa_key: Option<sp_core::ecdsa::Public>,
+    pub ecdsa_public_key: Option<K256VerifyingKey>,
 }
 
 impl Display for ParticipantInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ecdsa_key = self
-            .ecdsa_key
-            .map(|key| format!("ecdsa_key: {}", key))
+        let ecdsa_public_key = self
+            .ecdsa_public_key
+            .map(|key| format!("ecdsa_public_key: {:?}", key))
             .unwrap_or_default();
-        write!(f, "user_id: {}, {}", self.user_id, ecdsa_key)
+        write!(f, "user_id: {}, {}", self.user_id, ecdsa_public_key)
     }
 }
 
@@ -74,16 +75,16 @@ pub trait Network: Send + Sync + 'static {
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,
-        from_account_id: Option<ecdsa::Public>,
-        to_network_id: Option<ecdsa::Public>,
+        from_account_id: Option<K256VerifyingKey>,
+        to_network_id: Option<K256VerifyingKey>,
     ) -> ProtocolMessage {
         let sender_participant_info = ParticipantInfo {
             user_id: from,
-            ecdsa_key: from_account_id,
+            ecdsa_public_key: from_account_id,
         };
         let receiver_participant_info = to.map(|to| ParticipantInfo {
             user_id: to,
-            ecdsa_key: to_network_id,
+            ecdsa_public_key: to_network_id,
         });
         ProtocolMessage {
             identifier_info,
@@ -150,7 +151,7 @@ pub struct StreamKey {
 impl From<IdentifierInfo> for StreamKey {
     fn from(identifier_info: IdentifierInfo) -> Self {
         let str_repr = identifier_info.to_string();
-        let task_hash = sha2_256(str_repr.as_bytes());
+        let task_hash = keccak_256(str_repr.as_bytes());
         Self {
             task_hash,
             round_id: -1,

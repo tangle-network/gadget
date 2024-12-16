@@ -17,9 +17,8 @@ std = [
 
 # Crypto primitive features
 bn254 = []
-ecdsa = []
+k256 = []
 sr25519-schnorrkel = []
-bls381 = []
-bls377 = []
+bls = []
 zebra = []
 tangle = []
