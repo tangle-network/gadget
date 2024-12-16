@@ -1,6 +1,10 @@
-use crate::error::{Error, Result};
-use crate::key_types::KeyType;
+use crate::error::{Result, Sr25519Error};
+use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::UniformRand;
+use gadget_std::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 /// Schnorrkel key type
 pub struct SchnorrkelSr25519;
@@ -11,13 +15,13 @@ macro_rules! impl_schnorrkel_serde {
         pub struct $name(pub $inner);
 
         impl PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
                 self.0.to_bytes().partial_cmp(&other.0.to_bytes())
             }
         }
 
         impl Ord for $name {
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
                 self.0.to_bytes().cmp(&other.0.to_bytes())
             }
         }
@@ -52,28 +56,30 @@ impl KeyType for SchnorrkelSr25519 {
     type Public = Public;
     type Secret = Secret;
     type Signature = SchnorrkelSignature;
+    type Error = Sr25519Error;
 
-    fn key_type_id() -> super::KeyTypeId {
-        super::KeyTypeId::SchnorrkelSr25519
+    fn key_type_id() -> KeyTypeId {
+        KeyTypeId::SchnorrkelSr25519
     }
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret_key = if let Some(seed) = seed {
-            schnorrkel::SecretKey::from_bytes(seed).map_err(|e| Error::InvalidSeed(e.to_string()))
+            schnorrkel::SecretKey::from_bytes(seed)
+                .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))
         } else {
             let mut rng = Self::get_rng();
             let rand_bytes: [u8; 32] = <[u8; 32]>::rand(&mut rng);
             schnorrkel::SecretKey::from_bytes(&rand_bytes)
-                .map_err(|e| Error::InvalidSeed(e.to_string()))
+                .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))
         };
 
         secret_key.map(Secret)
     }
 
     fn generate_with_string(secret: String) -> Result<Self::Secret> {
-        let hex_encoded = hex::decode(secret).map_err(|_| Error::InvalidHexDecoding)?;
+        let hex_encoded = hex::decode(secret)?;
         let secret_key = schnorrkel::SecretKey::from_bytes(&hex_encoded)
-            .map_err(|e| Error::InvalidSeed(e.to_string()))?;
+            .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))?;
         Ok(Secret(secret_key))
     }
 

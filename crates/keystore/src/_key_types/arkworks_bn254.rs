@@ -1,5 +1,4 @@
 use crate::error::{Error, Result};
-use crate::key_types::KeyType;
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};

@@ -7,9 +7,11 @@ cfg_remote! {
 
 mod config;
 pub use config::KeystoreConfig;
+use gadget_crypto::IntoCryptoError;
+use gadget_crypto::KeyType;
+use gadget_crypto::KeyTypeId;
 
 use crate::error::{Error, Result};
-use crate::key_types::{KeyType, KeyTypeId};
 #[cfg(feature = "std")]
 use crate::storage::FileStorage;
 use crate::storage::{InMemoryStorage, RawStorage};
@@ -140,9 +142,10 @@ impl Backend for Keystore {
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError,
     {
         let backends = self.get_storage_backends::<T>()?;
-        let secret = T::generate_with_seed(seed)?;
+        let secret = T::generate_with_seed(seed).map_err(IntoCryptoError::into_crypto_error)?;
         let public = T::public_from_secret(&secret);
 
         // Store in all available storage backends
@@ -162,6 +165,7 @@ impl Backend for Keystore {
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError,
     {
         let seed = blake3::hash(seed_str.as_bytes()).as_bytes().to_vec();
         self.generate::<T>(Some(&seed))
@@ -172,9 +176,11 @@ impl Backend for Keystore {
     where
         T::Public: DeserializeOwned,
         T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError,
     {
         let secret = self.get_secret::<T>(public)?;
-        T::sign_with_secret(&mut secret.clone(), msg)
+        Ok(T::sign_with_secret(&mut secret.clone(), msg)
+            .map_err(IntoCryptoError::into_crypto_error)?)
     }
 
     /// List all public keys of a given type from storages
@@ -295,7 +301,7 @@ impl Backend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::key_types::k256_ecdsa::K256Ecdsa;
+    use crate::_key_types::k256_ecdsa::K256Ecdsa;
 
     #[test]
     fn test_generate_from_string() -> Result<()> {

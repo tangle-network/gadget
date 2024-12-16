@@ -1,0 +1,26 @@
+[package]
+name = "gadget-crypto-bls"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-crypto-core = { workspace = true }
+gadget-std = { workspace = true }
+w3f-bls = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+ark-serialize = { workspace = true }
+hex = { workspace = true, features = ["alloc"] }
+paste = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "ark-serialize/std",
+    "gadget-crypto-core/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+    "w3f-bls/std",
+] 

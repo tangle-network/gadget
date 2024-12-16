@@ -1,5 +1,4 @@
-use crate::network::gossip::NetworkService;
-use crate::{error, trace};
+use crate::gossip::NetworkService;
 use libp2p::mdns;
 
 impl NetworkService<'_> {
@@ -9,19 +8,19 @@ impl NetworkService<'_> {
         match event {
             Discovered(list) => {
                 for (peer_id, multiaddr) in list {
-                    trace!("discovered a new peer: {peer_id} on {multiaddr}");
+                    gadget_logging::trace!("discovered a new peer: {peer_id} on {multiaddr}");
                     self.swarm
                         .behaviour_mut()
                         .gossipsub
                         .add_explicit_peer(&peer_id);
                     if let Err(err) = self.swarm.dial(multiaddr) {
-                        error!("Failed to dial peer: {err}");
+                        gadget_logging::error!("Failed to dial peer: {err}");
                     }
                 }
             }
             Expired(list) => {
                 for (peer_id, multiaddr) in list {
-                    trace!("discover peer has expired: {peer_id} with {multiaddr}");
+                    gadget_logging::trace!("discover peer has expired: {peer_id} with {multiaddr}");
                     self.swarm
                         .behaviour_mut()
                         .gossipsub
