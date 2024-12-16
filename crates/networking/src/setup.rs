@@ -4,14 +4,17 @@ use crate::gossip::{
 };
 use futures::StreamExt;
 use gadget_crypto::k256_crypto::K256SigningKey;
+use gadget_std::boxed::Box;
 use gadget_std::collections::BTreeMap;
 use gadget_std::error::Error;
 use gadget_std::io;
 use gadget_std::net::IpAddr;
 use gadget_std::str::FromStr;
+use gadget_std::string::String;
 use gadget_std::sync::atomic::AtomicU32;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
+use gadget_std::vec::Vec;
 use libp2p::Multiaddr;
 use libp2p::{
     gossipsub, gossipsub::IdentTopic, kad::store::MemoryStore, mdns, request_response,
@@ -40,8 +43,8 @@ pub struct NetworkConfig {
     pub topics: Vec<String>,
 }
 
-impl std::fmt::Debug for NetworkConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl gadget_std::fmt::Debug for NetworkConfig {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         f.debug_struct("NetworkConfig")
             .field("identity", &self.identity)
             .field("bootnodes", &self.bootnodes)
@@ -132,7 +135,7 @@ pub type NetworkResult = Result<(BTreeMap<String, GossipHandle>, JoinHandle<()>)
 pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
 
-    use std::collections::BTreeMap;
+    use gadget_std::collections::BTreeMap;
     let NetworkConfig {
         identity,
         bootnodes,

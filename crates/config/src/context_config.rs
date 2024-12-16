@@ -29,7 +29,7 @@ pub enum GadgetCLICoreSettings {
         #[serde(default = "default_ws_rpc_url")]
         ws_rpc_url: Url,
         #[cfg(feature = "networking")]
-        #[arg(long, value_parser = <Multiaddr as std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
+        #[arg(long, value_parser = <Multiaddr as gadget_std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
         #[arg(long, short = 'd', env)]
@@ -73,7 +73,7 @@ pub enum GadgetCLICoreSettings {
             env = "REGISTRY_COORDINATOR_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
         )]
-        registry_coordinator: Option<Address>,
+        registry_coordinator: Option<alloy_primitives::Address>,
         /// The address of the operator state retriever
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -82,7 +82,7 @@ pub enum GadgetCLICoreSettings {
             env = "OPERATOR_STATE_RETRIEVER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        operator_state_retriever: Option<Address>,
+        operator_state_retriever: Option<alloy_primitives::Address>,
         /// The address of the delegation manager
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -91,7 +91,7 @@ pub enum GadgetCLICoreSettings {
             env = "DELEGATION_MANAGER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        delegation_manager: Option<Address>,
+        delegation_manager: Option<alloy_primitives::Address>,
         /// The address of the strategy manager
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -100,7 +100,7 @@ pub enum GadgetCLICoreSettings {
             env = "STRATEGY_MANAGER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        strategy_manager: Option<Address>,
+        strategy_manager: Option<alloy_primitives::Address>,
         /// The address of the Service Manager
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -109,7 +109,7 @@ pub enum GadgetCLICoreSettings {
             env = "SERVICE_MANAGER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        service_manager: Option<Address>,
+        service_manager: Option<alloy_primitives::Address>,
         /// The address of the Stake Registry
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -118,7 +118,7 @@ pub enum GadgetCLICoreSettings {
             env = "STAKE_REGISTRY_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        stake_registry: Option<Address>,
+        stake_registry: Option<alloy_primitives::Address>,
         /// The address of the AVS directory
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -127,7 +127,7 @@ pub enum GadgetCLICoreSettings {
             env = "AVS_DIRECTORY_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        avs_directory: Option<Address>,
+        avs_directory: Option<alloy_primitives::Address>,
         /// The address of the rewards coordinator
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -136,7 +136,7 @@ pub enum GadgetCLICoreSettings {
             env = "REWARDS_COORDINATOR_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        rewards_coordinator: Option<Address>,
+        rewards_coordinator: Option<alloy_primitives::Address>,
         /// The address of the operator registry
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -145,7 +145,7 @@ pub enum GadgetCLICoreSettings {
             env = "OPERATOR_REGISTRY_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        operator_registry: Option<Address>,
+        operator_registry: Option<alloy_primitives::Address>,
         /// The address of the network registry
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -154,7 +154,7 @@ pub enum GadgetCLICoreSettings {
             env = "NETWORK_REGISTRY_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        network_registry: Option<Address>,
+        network_registry: Option<alloy_primitives::Address>,
         /// The address of the base delegator
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -163,7 +163,7 @@ pub enum GadgetCLICoreSettings {
             env = "BASE_DELEGATOR_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        base_delegator: Option<Address>,
+        base_delegator: Option<alloy_primitives::Address>,
         /// The address of the network opt-in service
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -172,7 +172,7 @@ pub enum GadgetCLICoreSettings {
             env = "NETWORK_OPT_IN_SERVICE_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        network_opt_in_service: Option<Address>,
+        network_opt_in_service: Option<alloy_primitives::Address>,
         /// The address of the vault opt-in service
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -181,7 +181,7 @@ pub enum GadgetCLICoreSettings {
             env = "VAULT_OPT_IN_SERVICE_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        vault_opt_in_service: Option<Address>,
+        vault_opt_in_service: Option<alloy_primitives::Address>,
         /// The address of the slasher
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -190,7 +190,7 @@ pub enum GadgetCLICoreSettings {
             env = "SLASHER_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        slasher: Option<Address>,
+        slasher: Option<alloy_primitives::Address>,
         /// The address of the veto slasher
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -199,7 +199,7 @@ pub enum GadgetCLICoreSettings {
             env = "VETO_SLASHER_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
-        veto_slasher: Option<Address>,
+        veto_slasher: Option<alloy_primitives::Address>,
     },
 }
 
@@ -422,7 +422,7 @@ impl ContextConfig {
         keystore_uri: String,
         keystore_password: Option<String>,
         chain: SupportedChains,
-        eigenlayer_contract_addresses: EigenlayerContractAddresses,
+        eigenlayer_contract_addresses: crate::protocol::EigenlayerContractAddresses,
     ) -> Self {
         Self::create_config_with_defaults(
             http_rpc_url,

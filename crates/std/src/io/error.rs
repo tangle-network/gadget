@@ -4,7 +4,7 @@ use crate::error;
 use crate::fmt;
 
 #[cfg(feature = "std")]
-pub use std::io::{Error, ErrorKind, Result};
+pub use gadget_std::io::{Error, ErrorKind, Result};
 
 #[cfg(not(feature = "std"))]
 pub use no_std::*;

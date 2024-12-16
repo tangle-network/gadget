@@ -1,7 +1,7 @@
-use gadget_keystore::backends::Backend;
+use gadget_keystore::Keystore;
 
 /// `KeystoreContext` trait provides access to the generic keystore from the context.
-pub trait KeystoreContext<RwLock: lock_api::RawRwLock> {
+pub trait KeystoreContext {
     /// Get the keystore client from the context.
-    fn keystore(&self) -> color_eyre::Result<dyn Backend, gadget_keystore::Error>;
+    fn keystore(&self) -> Keystore;
 }

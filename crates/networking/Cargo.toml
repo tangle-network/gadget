@@ -35,8 +35,8 @@ thiserror = { workspace = true }
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
 k256 = { workspace = true }
 
-# Optional dependencies for round-based protocol support
-round-based = { workspace = true, optional = true }
+# Round-based protocol support
+round-based = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -61,7 +61,7 @@ features = [
 ]
 
 [features]
-default = ["std", "round-based"]
+default = ["std"]
 std = [
     "gadget-crypto/std",
     "gadget-logging/std",
@@ -71,9 +71,8 @@ std = [
     "tokio/full",
     "serde/std",
     "serde_json/std",
-    "round-based?/std",
+    "round-based/std",
 ]
-rounds = ["round-based"]
 
 [lints]
 workspace = true
