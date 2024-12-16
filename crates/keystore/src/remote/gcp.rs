@@ -193,10 +193,10 @@ mod tests {
     async fn test_gcp_signer() {
         let config = GcpRemoteSignerConfig {
             keys: vec![GcpKeyConfig {
-                project_id: std::env::var("GOOGLE_PROJECT_ID").expect("GOOGLE_PROJECT_ID not set"),
-                location: std::env::var("GOOGLE_LOCATION").expect("GOOGLE_LOCATION not set"),
-                keyring: std::env::var("GOOGLE_KEYRING").expect("GOOGLE_KEYRING not set"),
-                key_name: std::env::var("GOOGLE_KEY_NAME").expect("GOOGLE_KEY_NAME not set"),
+                project_id: gadget_std::env::var("GOOGLE_PROJECT_ID").expect("GOOGLE_PROJECT_ID not set"),
+                location: gadget_std::env::var("GOOGLE_LOCATION").expect("GOOGLE_LOCATION not set"),
+                keyring: gadget_std::env::var("GOOGLE_KEYRING").expect("GOOGLE_KEYRING not set"),
+                key_name: gadget_std::env::var("GOOGLE_KEY_NAME").expect("GOOGLE_KEY_NAME not set"),
                 key_version: 1,
                 chain_id: Some(1),
             }],

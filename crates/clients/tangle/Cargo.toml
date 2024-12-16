@@ -1,0 +1,35 @@
+[package]
+name = "gadget-client-tangle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-config = { workspace = true }
+gadget-tokio-std = { workspace = true }
+
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+sp-core = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee"] }
+subxt-core = { workspace = true }
+tangle-subxt = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-config/std",
+    "gadget-std/std",
+    "gadget-tokio-std/std",
+    "serde/std",
+    "serde_json/std",
+    "sp-core/std",
+    "subxt/native",
+    "subxt-core/std",
+    "tangle-subxt/std",
+]
+no_std = ["subxt/web"]

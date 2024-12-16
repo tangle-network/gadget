@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use gadget_crypto::hashing::keccak_256;
 use gadget_crypto::k256_crypto::{K256Signature, K256SigningKey, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;
+use gadget_std::string::ToString;
 use gadget_std::sync::atomic::AtomicU32;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::IdentTopic;
@@ -294,8 +295,8 @@ pub struct IntraNodePayload {
     message_type: MessageType,
 }
 
-impl std::fmt::Debug for IntraNodePayload {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl gadget_std::fmt::Debug for IntraNodePayload {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         f.debug_struct("IntraNodePayload")
             .field("topic", &self.topic)
             .finish_non_exhaustive()

@@ -61,12 +61,12 @@ pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
         + Ord
         + Serialize
         + DeserializeOwned
-        + std::fmt::Debug
+        + gadget_std::fmt::Debug
         + From<T::Public>
         + Send;
-    type Signature: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
-    type KeyId: Clone + Serialize + DeserializeOwned + std::fmt::Debug + Send;
-    type Config: Clone + Serialize + DeserializeOwned + std::fmt::Debug;
+    type Signature: Clone + Serialize + DeserializeOwned + gadget_std::fmt::Debug;
+    type KeyId: Clone + Serialize + DeserializeOwned + gadget_std::fmt::Debug + Send;
+    type Config: Clone + Serialize + DeserializeOwned + gadget_std::fmt::Debug;
 
     async fn build(config: RemoteConfig) -> Result<Self>
     where

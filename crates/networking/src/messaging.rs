@@ -1,10 +1,12 @@
 use async_trait::async_trait;
+use gadget_std::boxed::Box;
 use gadget_std::collections::HashMap;
 use gadget_std::fmt::Display;
 use gadget_std::hash::Hash;
 use gadget_std::ops::Add;
 use gadget_std::sync::atomic::AtomicBool;
 use gadget_std::sync::Arc;
+use gadget_std::vec::Vec;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -223,7 +225,7 @@ where
                 },
             }
 
-            is_alive.store(false, std::sync::atomic::Ordering::Relaxed);
+            is_alive.store(false, gadget_std::sync::atomic::Ordering::Relaxed);
         }));
     }
 

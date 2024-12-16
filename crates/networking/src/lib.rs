@@ -6,11 +6,13 @@ pub mod gossip;
 pub mod handlers;
 pub mod messaging;
 pub mod networking;
-
-#[cfg(feature = "round-based")]
 pub mod round_based_compat;
 
+pub use round_based;
+
 pub mod setup;
+
+use gadget_std::string::String;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
