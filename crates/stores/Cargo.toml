@@ -1,0 +1,18 @@
+[package]
+name = "gadget-stores"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-store-local-database = { workspace = true, optional = true }
+
+[features]
+default = ["std", "local"]
+std = [
+    "gadget-store-local-database?/std",
+]
+local = ["gadget-store-local-database"]
