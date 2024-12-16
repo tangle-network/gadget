@@ -3,12 +3,12 @@ use crate::networking::{
 };
 use crate::Error;
 use futures::StreamExt;
+use gadget_crypto::k256_crypto::K256VerifyingKey;
 use gadget_std::collections::HashMap;
 use gadget_std::sync::Arc;
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Unique identifier for an involved party
@@ -55,8 +55,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-    my_account_id: ecdsa::Public,
+    user_id_mapping: Arc<HashMap<UserID, K256VerifyingKey>>,
+    my_account_id: K256VerifyingKey,
     network: N,
 ) -> (
     futures::channel::mpsc::UnboundedSender<C1>,
@@ -417,8 +417,8 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-    my_account_id: ecdsa::Public,
+    user_id_mapping: Arc<HashMap<UserID, K256VerifyingKey>>,
+    my_account_id: K256VerifyingKey,
     network: N,
     i: UserID,
 ) -> DuplexedChannel<O, I, C2> {
@@ -583,8 +583,8 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-    my_account_id: ecdsa::Public,
+    user_id_mapping: Arc<HashMap<UserID, K256VerifyingKey>>,
+    my_account_id: K256VerifyingKey,
     network: N,
 ) -> TriplexedChannel<O1, I1, O2, I2, C3> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
@@ -747,7 +747,7 @@ async fn wrap_message_and_forward_to_network<
 >(
     msg: M,
     network: &N,
-    user_id_mapping: &HashMap<UserID, ecdsa::Public>,
+    user_id_mapping: &HashMap<UserID, K256VerifyingKey>,
     my_user_id: UserID,
     identifier_info: IdentifierInfo,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,

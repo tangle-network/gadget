@@ -1,16 +1,15 @@
-use core::pin::Pin;
-use core::sync::atomic::AtomicU64;
-use core::task::{ready, Context, Poll};
-use gadget_std::collections::{BTreeMap, HashMap, VecDeque};
-use gadget_std::sync::Arc;
-
 use crate::networking::{
     IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
+use core::pin::Pin;
+use core::sync::atomic::AtomicU64;
+use core::task::{ready, Context, Poll};
 use futures::prelude::*;
+use gadget_crypto::k256_crypto::K256VerifyingKey;
+use gadget_std::collections::{BTreeMap, HashMap, VecDeque};
+use gadget_std::sync::Arc;
 use round_based::{Delivery, Incoming, MessageType, Outgoing};
 use round_based::{MessageDestination, MsgId, PartyIndex};
-use sp_core::ecdsa;
 use stream::{SplitSink, SplitStream};
 
 use crate::networking::ParticipantInfo;
@@ -30,7 +29,7 @@ where
         mux: Arc<NetworkMultiplexer>,
         i: PartyIndex,
         task_hash: [u8; 32],
-        parties: BTreeMap<PartyIndex, ecdsa::Public>,
+        parties: BTreeMap<PartyIndex, K256VerifyingKey>,
     ) -> Self {
         let (tx_forward, rx) = tokio::sync::mpsc::unbounded_channel();
         // By default, we create 10 substreams for each party.
@@ -74,7 +73,7 @@ pub struct NetworkWrapper<M> {
     incoming_queue: VecDeque<Incoming<M>>,
     /// Participants in the network with their corresponding ECDSA public keys.
     /// Note: This is a BTreeMap to ensure that the participants are sorted by their party index.
-    participants: BTreeMap<PartyIndex, ecdsa::Public>,
+    participants: BTreeMap<PartyIndex, K256VerifyingKey>,
     next_msg_id: Arc<NextMessageId>,
     tx_forward: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
     rx: tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage>,
@@ -189,11 +188,11 @@ where
             identifier_info,
             sender: ParticipantInfo {
                 user_id: this.me,
-                ecdsa_key: this.participants.get(&this.me).cloned(),
+                ecdsa_public_key: this.participants.get(&this.me).cloned(),
             },
             recipient: to.map(|user_id| ParticipantInfo {
                 user_id,
-                ecdsa_key: to_network_id,
+                ecdsa_public_key: to_network_id,
             }),
             payload: bincode::serialize(&out.msg).expect("Should be able to serialize message"),
         };
