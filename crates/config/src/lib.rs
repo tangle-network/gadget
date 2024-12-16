@@ -1,7 +1,10 @@
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
-use protocol::TangleInstanceSettings;
-use std::path::PathBuf;
+
+#[cfg(feature = "std")]
+use gadget_std::path::PathBuf;
+#[cfg(not(feature = "std"))]
+pub type PathBuf = String;
 
 pub mod context_config;
 pub mod protocol;
@@ -57,7 +60,7 @@ pub enum Error {
     #[error("Missing EigenlayerContractAddresses")]
     MissingEigenlayerContractAddresses,
     /// Missing `SymbioticContractAddresses`
-    #[error("Missing EigenlayerContractAddresses")]
+    #[error("Missing SymbioticContractAddresses")]
     MissingSymbioticContractAddresses,
     #[error("Bad RPC Connection: {0}")]
     BadRpcConnection(String),
@@ -154,46 +157,78 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         ..
     } = config;
 
-    #[cfg(feature = "eigenlayer")]
-    let protocol_settings = ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses {
-        registry_coordinator: registry_coordinator
-            .ok_or(Error::MissingEigenlayerContractAddresses)?,
-        operator_state_retriever: operator_state_retriever
-            .ok_or(Error::MissingEigenlayerContractAddresses)?,
-        delegation_manager: delegation_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
-        service_manager: service_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
-        stake_registry: stake_registry.ok_or(Error::MissingEigenlayerContractAddresses)?,
-        strategy_manager: strategy_manager.ok_or(Error::MissingEigenlayerContractAddresses)?,
-        avs_directory: avs_directory.ok_or(Error::MissingEigenlayerContractAddresses)?,
-        rewards_coordinator: rewards_coordinator
-            .ok_or(Error::MissingEigenlayerContractAddresses)?,
-    });
-
-    #[cfg(feature = "symbiotic")]
-    let protocol_settings = ProtocolSettings::from_symbiotic(SymbioticContractAddresses {
-        operator_registry: operator_registry.ok_or(Error::MissingSymbioticContractAddresses)?,
-        network_registry: network_registry.ok_or(Error::MissingSymbioticContractAddresses)?,
-        base_delegator: base_delegator.ok_or(Error::MissingSymbioticContractAddresses)?,
-        network_opt_in_service: network_opt_in_service
-            .ok_or(Error::MissingSymbioticContractAddresses)?,
-        vault_opt_in_service: vault_opt_in_service
-            .ok_or(Error::MissingSymbioticContractAddresses)?,
-        slasher: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
-        veto_slasher: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
-    });
-
-    #[cfg(feature = "tangle")]
-    let protocol_settings = ProtocolSettings::from_tangle(TangleInstanceSettings {
-        blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
-        service_id: Some(service_id.ok_or(Error::MissingServiceId)?),
-    });
+    let protocol_settings = if cfg!(feature = "tangle") && matches!(protocol, Protocol::Tangle) {
+        #[cfg(feature = "tangle")]
+        {
+            ProtocolSettings::from_tangle(crate::protocol::TangleInstanceSettings {
+                blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
+                service_id: Some(service_id.ok_or(Error::MissingServiceId)?),
+            })
+        }
+        #[cfg(not(feature = "tangle"))]
+        {
+            return Err(Error::UnsupportedProtocol("tangle".to_string()));
+        }
+    } else if cfg!(feature = "eigenlayer") && matches!(protocol, Protocol::Eigenlayer) {
+        #[cfg(feature = "eigenlayer")]
+        {
+            ProtocolSettings::from_eigenlayer(crate::protocol::EigenlayerContractAddresses {
+                registry_coordinator_address: registry_coordinator
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                operator_state_retriever_address: operator_state_retriever
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                delegation_manager_address: delegation_manager
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                service_manager_address: service_manager
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                stake_registry_address: stake_registry
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                strategy_manager_address: strategy_manager
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                avs_directory_address: avs_directory
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                rewards_coordinator_address: rewards_coordinator
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+            })
+        }
+        #[cfg(not(feature = "eigenlayer"))]
+        {
+            return Err(Error::UnsupportedProtocol("eigenlayer".to_string()));
+        }
+    } else if cfg!(feature = "symbiotic") && matches!(protocol, Protocol::Symbiotic) {
+        #[cfg(feature = "symbiotic")]
+        {
+            ProtocolSettings::from_symbiotic(crate::protocol::SymbioticContractAddresses {
+                operator_registry: operator_registry
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
+                network_registry: network_registry
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
+                base_delegator: base_delegator.ok_or(Error::MissingSymbioticContractAddresses)?,
+                network_opt_in_service: network_opt_in_service
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
+                vault_opt_in_service: vault_opt_in_service
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
+                slasher: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+                veto_slasher: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+            })
+        }
+        #[cfg(not(feature = "symbiotic"))]
+        {
+            return Err(Error::UnsupportedProtocol("symbiotic".to_string()));
+        }
+    } else {
+        return Err(Error::UnsupportedProtocol(protocol.to_string()));
+    };
 
     Ok(GadgetConfiguration {
         test_mode,
         http_rpc_endpoint: http_rpc_url.to_string(),
         ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
-        data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
+        #[cfg(feature = "std")]
+        data_dir: gadget_std::env::var("DATA_DIR").ok().map(PathBuf::from),
+        #[cfg(not(feature = "std"))]
+        data_dir: None,
         #[cfg(feature = "networking")]
         bootnodes: bootnodes.unwrap_or_default(),
         protocol,

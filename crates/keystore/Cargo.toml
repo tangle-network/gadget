@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 # Core dependencies (always included)
+gadget-crypto.workspace = true
 gadget-std.workspace = true
 async-trait.workspace = true
 lock_api.workspace = true
@@ -72,6 +73,7 @@ std = [
     "serde/std",
     "hex/std",
     "zeroize/std",
+    "gadget-crypto/std",
     "gadget-std/std",
     "thiserror/std",
     "tokio",
@@ -96,17 +98,14 @@ std = [
 ]
 
 # Crypto primitive features
-ecdsa = ["k256", "ripemd", "hex"]
-sr25519-schnorrkel = ["schnorrkel", "hex"]
-zebra = ["ed25519-zebra", "hex"]
-# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
-substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt"]
-sp-core-bls = ["sp-core/bls-experimental"]
+ecdsa = ["k256", "ripemd", "hex", "gadget-crypto/k256"]
+sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
+zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
+bls = ["w3f-bls", "hex", "gadget-crypto/bls"]
+bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
 
-bls377 = ["w3f-bls", "hex"]
-bls381 = ["w3f-bls", "hex"]
-bn254 = ["rust-bls-bn254", "arkworks"]
-arkworks = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize"]
+# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
+substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]
 
 # Protocol features
 evm = [
@@ -122,9 +121,16 @@ tangle = [
     "ecdsa",
 ]
 
+tangle-bls = [
+    "tangle",
+    "sp-core/bls-experimental",
+    "gadget-crypto/sp-core-bls",
+]
+
 eigenlayer = [
     "evm",
     "eigensdk",
+    "rust-bls-bn254",
     "bn254",
 ]
 
@@ -135,9 +141,9 @@ symbiotic = [
 remote = []
 
 # Optional protocol crypto features
-tangle-full = ["tangle", "sp-core-bls", "bn254"]
-eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls381", "bls377"]
-symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls381", "bls377", "bn254"]
+tangle-full = ["tangle", "tangle-bls", "bn254"]
+eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls"]
+symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls", "bn254"]
 
 # Hardware/Cloud wallet support
 aws-signer = ["remote", "alloy-signer-aws", "aws-config", "aws-sdk-kms", "evm", "std"]

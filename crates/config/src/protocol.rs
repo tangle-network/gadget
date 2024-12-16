@@ -28,7 +28,7 @@ impl Protocol {
     /// * [`Error::UnsupportedProtocol`] if the protocol is unknown. See [`Protocol`].
     #[cfg(feature = "std")]
     pub fn from_env() -> Result<Self, Error> {
-        if let Ok(protocol) = std::env::var("PROTOCOL") {
+        if let Ok(protocol) = gadget_std::env::var("PROTOCOL") {
             return protocol.to_ascii_lowercase().parse::<Protocol>();
         }
 
@@ -148,34 +148,7 @@ pub enum ProtocolSettings {
 
 impl Default for ProtocolSettings {
     fn default() -> Self {
-        #[cfg(all(
-            feature = "tangle",
-            not(feature = "eigenlayer"),
-            not(feature = "symbiotic")
-        ))]
-        {
-            Self::Tangle(TangleInstanceSettings::default())
-        }
-        #[cfg(all(
-            feature = "eigenlayer",
-            not(feature = "tangle"),
-            not(feature = "symbiotic")
-        ))]
-        {
-            Self::Eigenlayer(EigenlayerContractAddresses::default())
-        }
-        #[cfg(all(
-            feature = "symbiotic",
-            not(feature = "tangle"),
-            not(feature = "eigenlayer")
-        ))]
-        {
-            Self::Symbiotic(SymbioticContractAddresses::default())
-        }
-        #[cfg(not(any(feature = "tangle", feature = "eigenlayer", feature = "symbiotic")))]
-        {
-            Self::None
-        }
+        Self::None
     }
 }
 

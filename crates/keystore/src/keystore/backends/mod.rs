@@ -1,5 +1,7 @@
 #[cfg(feature = "bn254")]
 pub mod bn254;
+#[cfg(feature = "eigenlayer")]
+pub mod eigenlayer;
 #[cfg(feature = "evm")]
 pub mod evm;
 
@@ -9,11 +11,14 @@ cfg_remote! {
 
 #[cfg(feature = "tangle")]
 pub mod tangle;
+#[cfg(feature = "tangle-bls")]
+pub mod tangle_bls;
 
 use super::LocalStorageEntry;
 use crate::error::Result;
-use crate::key_types::KeyType;
 use crate::storage::RawStorage;
+use gadget_crypto::IntoCryptoError;
+use gadget_crypto::KeyType;
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
@@ -33,19 +38,22 @@ pub trait Backend: Send + Sync {
     fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
-        T::Secret: DeserializeOwned;
+        T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError;
 
     /// Generate a key pair from a string seed
     fn generate_from_string<T: KeyType>(&self, seed_str: &str) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
-        T::Secret: DeserializeOwned;
+        T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError;
 
     /// Sign a message using a local key
     fn sign_with_local<T: KeyType>(&self, public: &T::Public, msg: &[u8]) -> Result<T::Signature>
     where
         T::Public: DeserializeOwned,
-        T::Secret: DeserializeOwned;
+        T::Secret: DeserializeOwned,
+        T::Error: IntoCryptoError;
 
     /// List all public keys of a given type from local storage
     fn list_local<T: KeyType>(&self) -> Result<Vec<T::Public>>

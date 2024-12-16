@@ -1,0 +1,35 @@
+[package]
+name = "gadget-crypto-bn254"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-crypto-core = { workspace = true, features = ["bn254"] }
+gadget-std = { workspace = true }
+ark-bn254 = { workspace = true, features = ["scalar_field", "curve"] }
+ark-ec = { workspace = true }
+ark-ff = { workspace = true }
+ark-serialize = { workspace = true }
+# rust-bls-bn254 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
+num-bigint = { workspace = true, features = ["serde"] }
+num-traits = { workspace = true }
+sha2 = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-crypto-core/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+    "ark-bn254/std",
+    "ark-ec/std",
+    "ark-ff/std",
+    "ark-serialize/std",
+    "num-bigint/std",
+    "num-traits/std",
+    "sha2/std",
+] 

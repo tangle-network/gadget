@@ -1,11 +1,10 @@
 use super::RawStorage;
 use crate::error::Result;
-use crate::key_types::KeyTypeId;
-use gadget_std::{boxed::Box, vec::Vec};
+use gadget_crypto::KeyTypeId;
+use gadget_std::{boxed::Box, collections::BTreeMap, vec::Vec};
 use parking_lot::RwLock;
-use std::collections::HashMap;
 
-type StorageMap = HashMap<KeyTypeId, HashMap<Vec<u8>, Vec<u8>>>;
+type StorageMap = BTreeMap<KeyTypeId, BTreeMap<Vec<u8>, Vec<u8>>>;
 
 /// A memory-backed local storage
 pub struct InMemoryStorage {
@@ -39,7 +38,7 @@ impl InMemoryStorage {
     /// ```
     pub fn new() -> Self {
         Self {
-            data: RwLock::new(HashMap::new()),
+            data: RwLock::new(BTreeMap::new()),
         }
     }
 }
@@ -103,9 +102,9 @@ impl RawStorage for InMemoryStorage {
 
 #[cfg(test)]
 mod tests {
+    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
+
     use super::*;
-    use crate::key_types::k256_ecdsa::K256Ecdsa;
-    use crate::key_types::KeyType;
     use crate::storage::TypedStorage;
 
     #[test]
@@ -114,7 +113,8 @@ mod tests {
         let storage = TypedStorage::new(raw_storage);
 
         // Generate a key pair
-        let secret = K256Ecdsa::generate_with_seed(None)?;
+        let secret =
+            K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
         let public = K256Ecdsa::public_from_secret(&secret);
 
         // Test store and load
@@ -144,7 +144,8 @@ mod tests {
         let storage = TypedStorage::new(raw_storage);
 
         // Create keys of different types
-        let k256_secret = K256Ecdsa::generate_with_seed(None)?;
+        let k256_secret =
+            K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
         let k256_public = K256Ecdsa::public_from_secret(&k256_secret);
 
         // Store keys

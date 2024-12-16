@@ -1,6 +1,6 @@
 use super::RawStorage;
 use crate::error::{Error, Result};
-use crate::key_types::KeyTypeId;
+use gadget_crypto::KeyTypeId;
 use gadget_std::fs;
 use gadget_std::io;
 use gadget_std::path::{Path, PathBuf};
@@ -135,8 +135,10 @@ impl RawStorage for FileStorage {
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::TypedStorage;
+
     use super::*;
-    use crate::{key_types::k256_ecdsa::K256Ecdsa, key_types::KeyType, storage::TypedStorage};
+    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
     use tempfile::tempdir;
 
     #[test]
@@ -146,7 +148,8 @@ mod tests {
         let storage = TypedStorage::new(raw_storage);
 
         // Generate a key pair
-        let secret = K256Ecdsa::generate_with_seed(None)?;
+        let secret =
+            K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
         let public = K256Ecdsa::public_from_secret(&secret);
 
         // Test store and load
@@ -177,7 +180,8 @@ mod tests {
         let storage = TypedStorage::new(raw_storage);
 
         // Create keys of different types
-        let k256_secret = K256Ecdsa::generate_with_seed(None)?;
+        let k256_secret =
+            K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
         let k256_public = K256Ecdsa::public_from_secret(&k256_secret);
 
         // Store keys

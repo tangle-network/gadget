@@ -1,0 +1,23 @@
+[package]
+name = "gadget-crypto-ed25519"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-crypto-core = { workspace = true, features = ["zebra"] }
+gadget-std = { workspace = true }
+ed25519-zebra = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+hex = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-crypto-core/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+    "ed25519-zebra/std",
+] 

@@ -1,9 +1,9 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::error::{Error, Result};
-use crate::key_types::k256_ecdsa::{K256Ecdsa, K256VerifyingKey};
-use alloy_primitives::Address;
+use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_signer::{Signature, Signer};
 use alloy_signer_ledger::{HDPath, LedgerSigner};
+use gadget_crypto::k256_crypto::{K256Ecdsa, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
@@ -134,7 +134,7 @@ impl From<K256VerifyingKey> for AddressWrapper {
 #[async_trait::async_trait]
 impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
     type Public = AddressWrapper;
-    type Signature = Signature;
+    type Signature = PrimitiveSignature;
     type KeyId = Self::Public;
     type Config = LedgerRemoteSignerConfig;
 
@@ -163,7 +163,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
 
     async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
-        for ((address, signer_chain_id), signer) in &self.signers {
+        for ((_, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {
@@ -186,7 +186,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
         address: &Self::Public,
         chain_id: Option<u64>,
     ) -> Result<Self::KeyId> {
-        for ((signer_address, signer_chain_id), signer) in &self.signers {
+        for ((signer_address, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {
@@ -217,11 +217,17 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
             .get(&(key_id.0, chain_id))
             .ok_or_else(|| Error::Other(format!("No signer found for key ID {:?}", key_id.0)))?;
 
-        signer
+        let sig = signer
             .signer
             .sign_message(message)
             .await
-            .map_err(|e| Error::SignatureFailed(e.to_string()))
+            .map_err(|e| Error::SignatureFailed(e.to_string()))?;
+
+        Ok(PrimitiveSignature::new(
+            sig.r(),
+            sig.s(),
+            sig.v().y_parity(),
+        ))
     }
 }
 

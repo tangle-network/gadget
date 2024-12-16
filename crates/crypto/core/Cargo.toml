@@ -1,0 +1,24 @@
+[package]
+name = "gadget-crypto-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "serde/std",
+    "gadget-std/std",
+]
+
+# Crypto primitive features
+bn254 = []
+k256 = []
+sr25519-schnorrkel = []
+bls = []
+zebra = []
+tangle = []

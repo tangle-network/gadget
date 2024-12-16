@@ -1,8 +1,8 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::error::{Error, Result};
-use crate::key_types::k256_ecdsa::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use alloy_primitives::keccak256;
 use alloy_signer_gcp::{GcpKeyRingRef, GcpSigner, KeySpecifier};
+use gadget_crypto::k256_crypto::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;
 use gcloud_sdk::{
     google::cloud::kms::v1::key_management_service_client::KeyManagementServiceClient, GoogleApi,
@@ -81,12 +81,6 @@ impl GcpRemoteSigner {
     }
 }
 
-impl From<K256VerifyingKey> for VerifyingKey {
-    fn from(key: K256VerifyingKey) -> Self {
-        key.0
-    }
-}
-
 #[async_trait::async_trait]
 impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
     type Public = K256VerifyingKey;
@@ -120,7 +114,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
 
     async fn iter_public_keys(&self, chain_id: Option<u64>) -> Result<Vec<Self::Public>> {
         let mut public_keys = Vec::new();
-        for ((_, signer_chain_id), signer) in &self.signers {
+        for ((_, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {
@@ -143,7 +137,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for GcpRemoteSigner {
         public_key: &Self::Public,
         chain_id: Option<u64>,
     ) -> Result<Self::KeyId> {
-        for ((key_id, signer_chain_id), signer) in &self.signers {
+        for ((key_id, _), signer) in &self.signers {
             // Skip if chain_id is Some and doesn't match
             if let Some(chain_id) = chain_id {
                 if signer.chain_id != Some(chain_id) {
@@ -199,10 +193,10 @@ mod tests {
     async fn test_gcp_signer() {
         let config = GcpRemoteSignerConfig {
             keys: vec![GcpKeyConfig {
-                project_id: std::env::var("GOOGLE_PROJECT_ID").expect("GOOGLE_PROJECT_ID not set"),
-                location: std::env::var("GOOGLE_LOCATION").expect("GOOGLE_LOCATION not set"),
-                keyring: std::env::var("GOOGLE_KEYRING").expect("GOOGLE_KEYRING not set"),
-                key_name: std::env::var("GOOGLE_KEY_NAME").expect("GOOGLE_KEY_NAME not set"),
+                project_id: gadget_std::env::var("GOOGLE_PROJECT_ID").expect("GOOGLE_PROJECT_ID not set"),
+                location: gadget_std::env::var("GOOGLE_LOCATION").expect("GOOGLE_LOCATION not set"),
+                keyring: gadget_std::env::var("GOOGLE_KEYRING").expect("GOOGLE_KEYRING not set"),
+                key_name: gadget_std::env::var("GOOGLE_KEY_NAME").expect("GOOGLE_KEY_NAME not set"),
                 key_version: 1,
                 chain_id: Some(1),
             }],

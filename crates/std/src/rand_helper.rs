@@ -1,7 +1,7 @@
-#[cfg(feature = "std")]
 use rand::RngCore;
 
-use rand::{prelude::StdRng, SeedableRng};
+#[cfg(not(feature = "std"))]
+use rand::prelude::StdRng;
 
 pub use rand::{
     self,
@@ -47,6 +47,7 @@ impl GadgetRng {
     }
 
     /// Create a deterministic RNG from a seed (for testing only)
+    #[allow(unused_variables)]
     pub fn from_seed(seed: [u8; 32]) -> Self {
         #[cfg(feature = "std")]
         {
@@ -55,8 +56,15 @@ impl GadgetRng {
         }
         #[cfg(not(feature = "std"))]
         {
+            use rand::SeedableRng;
             Self(StdRng::from_seed(seed))
         }
+    }
+}
+
+impl Default for GadgetRng {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -75,6 +83,23 @@ impl RngCore for GadgetRng {
     }
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
         self.0.try_fill_bytes(dest)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl RngCore for GadgetRng {
+    fn next_u32(&mut self) -> u32 {
+        self.0.gen()
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.0.gen()
+    }
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.0.fill_bytes(dest)
+    }
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.0.fill_bytes(dest);
+        Ok(())
     }
 }
 
