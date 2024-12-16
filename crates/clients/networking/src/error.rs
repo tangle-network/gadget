@@ -1,0 +1,16 @@
+use gadget_std::string::String;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum NetworkError {
+    #[error("P2P error: {0}")]
+    P2p(String),
+    #[error("Transport error: {0}")]
+    Transport(String),
+    #[error("Protocol error: {0}")]
+    Protocol(String),
+    #[error("Connection error: {0}")]
+    Connection(String),
+}
+
+pub type Result<T> = gadget_std::result::Result<T, NetworkError>;

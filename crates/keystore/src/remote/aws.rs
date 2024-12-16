@@ -5,7 +5,7 @@ use alloy_signer_aws::AwsSigner;
 use aws_config::{BehaviorVersion, Region};
 use gadget_crypto::k256_crypto::{K256Ecdsa, K256Signature, K256VerifyingKey};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use gadget_std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AwsKeyConfig {
@@ -178,8 +178,8 @@ mod tests {
     async fn test_aws_signer() {
         let config = AwsRemoteSignerConfig {
             keys: vec![AwsKeyConfig {
-                key_id: std::env::var("AWS_KMS_KEY_ID").expect("AWS_KMS_KEY_ID not set"),
-                region: std::env::var("AWS_REGION").expect("AWS_REGION not set"),
+                key_id: gadget_std::env::var("AWS_KMS_KEY_ID").expect("AWS_KMS_KEY_ID not set"),
+                region: gadget_std::env::var("AWS_REGION").expect("AWS_REGION not set"),
                 chain_id: Some(1),
             }],
         };

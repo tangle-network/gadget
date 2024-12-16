@@ -1,66 +1,24 @@
 [package]
 name = "gadget-clients"
 version = "0.1.0"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
+edition = "2021"
 
 [dependencies]
-gadget-std.workspace = true
-gadget-tokio-std.workspace = true
-gadget-config.workspace = true
-async-trait.workspace = true
-auto_impl.workspace = true
-hex.workspace = true
-thiserror.workspace = true
-proc-macro2.workspace = true
-round-based.workspace = true
-
-serde = { workspace = true, features = ["derive"], optional = true }
-sp-core = { workspace = true, optional = true }
-subxt = { workspace = true, optional = true, features = ["jsonrpsee"] }
-tangle-subxt = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["sync", "time"], optional = true }
-
-alloy-primitives = { workspace = true, optional = true }
-alloy-provider = { workspace = true, optional = true }
-alloy-transport = { workspace = true, optional = true }
-alloy-network = { workspace = true, optional = true }
-eigensdk = { workspace = true, optional = true }
-num-bigint = { workspace = true, optional = true }
+gadget-client-eigenlayer = { workspace = true, optional = true }
+gadget-client-evm = { workspace = true, optional = true }
+gadget-client-tangle = { workspace = true, optional = true }
+gadget-client-networking = { workspace = true, optional = true }
+thiserror = { workspace = true }
 
 [features]
-default = ["std", "tangle"]
+default = ["std", "eigenlayer", "evm", "networking", "tangle"]
 std = [
-    "gadget-std/std",
-    "gadget-tokio-std/std",
-    "hex/std",
-
-    "tokio?/full",
-    "serde?/std",
-    "sp-core?/std",
-    "subxt?/native",
+    "gadget-client-eigenlayer?/std",
+    "gadget-client-evm?/std",
+    "gadget-client-networking?/std",
+    "gadget-client-tangle?/std",
 ]
-subxt-no-std = [
-    "subxt/web"
-]
-tangle = ["sp-core", "tangle-subxt", "subxt", "serde", "tokio"]
-tangle-no-std = ["tangle", "subxt-no-std"]
-
-evm = [
-    "alloy-primitives",
-    "alloy-provider",
-    "alloy-transport",
-    "alloy-network",
-    "num-bigint",
-]
-
-eigenlayer = [
-    "evm",
-    "eigensdk",
-]
-
-[lints]
-workspace = true
+eigenlayer = ["gadget-client-eigenlayer"]
+evm = ["gadget-client-evm"]
+networking = ["gadget-client-networking"]
+tangle = ["gadget-client-tangle"]

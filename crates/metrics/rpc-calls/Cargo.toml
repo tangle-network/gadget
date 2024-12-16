@@ -1,0 +1,14 @@
+[package]
+name = "gadget-rpc-calls"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-logging = { workspace = true }
+metrics = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-logging/std",
+]

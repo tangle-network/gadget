@@ -1,10 +1,11 @@
 #![allow(unused_results)]
 
 use crate::gossip::{GossipMessage, NetworkService};
+use gadget_std::string::ToString;
+use gadget_std::sync::atomic::AtomicU32;
+use gadget_std::sync::Arc;
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
-use std::sync::atomic::AtomicU32;
-use std::sync::Arc;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
@@ -34,7 +35,7 @@ impl NetworkService<'_> {
             }
             Subscribed { peer_id, topic } => {
                 let added = with_connected_peers(&topic, |connected_peers| {
-                    connected_peers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    connected_peers.fetch_add(1, gadget_std::sync::atomic::Ordering::Relaxed);
                 });
                 if added {
                     gadget_logging::trace!("{peer_id} subscribed to {topic}");
@@ -44,7 +45,7 @@ impl NetworkService<'_> {
             }
             Unsubscribed { peer_id, topic } => {
                 let removed = with_connected_peers(&topic, |connected_peers| {
-                    connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                    connected_peers.fetch_sub(1, gadget_std::sync::atomic::Ordering::Relaxed);
                 });
                 if removed {
                     gadget_logging::trace!("{peer_id} unsubscribed from {topic}");

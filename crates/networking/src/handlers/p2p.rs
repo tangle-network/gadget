@@ -4,6 +4,7 @@ use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use gadget_crypto::hashing::keccak_256;
 use gadget_crypto::k256_crypto::K256Ecdsa;
 use gadget_crypto::KeyType;
+use gadget_std::string::ToString;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::{request_response, PeerId};
 

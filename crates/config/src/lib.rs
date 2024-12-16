@@ -1,11 +1,10 @@
 use gadget_std::fmt::Debug;
-#[cfg(not(feature = "std"))]
-use gadget_std::prelude::PathBuf;
 use gadget_std::string::{String, ToString};
-#[cfg(feature = "tangle")]
-use protocol::TangleInstanceSettings;
+
 #[cfg(feature = "std")]
-use std::path::PathBuf;
+use gadget_std::path::PathBuf;
+#[cfg(not(feature = "std"))]
+pub type PathBuf = String;
 
 pub mod context_config;
 pub mod protocol;
@@ -161,7 +160,7 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     let protocol_settings = if cfg!(feature = "tangle") && matches!(protocol, Protocol::Tangle) {
         #[cfg(feature = "tangle")]
         {
-            ProtocolSettings::from_tangle(TangleInstanceSettings {
+            ProtocolSettings::from_tangle(crate::protocol::TangleInstanceSettings {
                 blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
                 service_id: Some(service_id.ok_or(Error::MissingServiceId)?),
             })
@@ -173,20 +172,22 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     } else if cfg!(feature = "eigenlayer") && matches!(protocol, Protocol::Eigenlayer) {
         #[cfg(feature = "eigenlayer")]
         {
-            ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses {
-                registry_coordinator: registry_coordinator
+            ProtocolSettings::from_eigenlayer(crate::protocol::EigenlayerContractAddresses {
+                registry_coordinator_address: registry_coordinator
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
-                operator_state_retriever: operator_state_retriever
+                operator_state_retriever_address: operator_state_retriever
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
-                delegation_manager: delegation_manager
+                delegation_manager_address: delegation_manager
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
-                service_manager: service_manager
+                service_manager_address: service_manager
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
-                stake_registry: stake_registry.ok_or(Error::MissingEigenlayerContractAddresses)?,
-                strategy_manager: strategy_manager
+                stake_registry_address: stake_registry
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
-                avs_directory: avs_directory.ok_or(Error::MissingEigenlayerContractAddresses)?,
-                rewards_coordinator: rewards_coordinator
+                strategy_manager_address: strategy_manager
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                avs_directory_address: avs_directory
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                rewards_coordinator_address: rewards_coordinator
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
             })
         }
@@ -197,7 +198,7 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     } else if cfg!(feature = "symbiotic") && matches!(protocol, Protocol::Symbiotic) {
         #[cfg(feature = "symbiotic")]
         {
-            ProtocolSettings::from_symbiotic(SymbioticContractAddresses {
+            ProtocolSettings::from_symbiotic(crate::protocol::SymbioticContractAddresses {
                 operator_registry: operator_registry
                     .ok_or(Error::MissingSymbioticContractAddresses)?,
                 network_registry: network_registry
@@ -225,7 +226,7 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
         #[cfg(feature = "std")]
-        data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
+        data_dir: gadget_std::env::var("DATA_DIR").ok().map(PathBuf::from),
         #[cfg(not(feature = "std"))]
         data_dir: None,
         #[cfg(feature = "networking")]

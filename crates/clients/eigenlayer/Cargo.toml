@@ -1,0 +1,37 @@
+[package]
+name = "gadget-client-eigenlayer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-config = { workspace = true, features = ["eigenlayer"] }
+gadget-std = { workspace = true }
+alloy-contract = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport = { workspace = true }
+eigensdk = { workspace = true, features = [
+    "client-avsregistry",
+    "client-elcontracts",
+    "logging",
+    "services-blsaggregation",
+    "services-operatorsinfo",
+    "services-avsregistry",
+    "types",
+    "utils"
+] }
+num-bigint = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+url = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-config/std",
+    "gadget-std/std",
+    "tokio/full",
+    "url/std",
+]

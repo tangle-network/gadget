@@ -5,11 +5,13 @@ use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use gadget_crypto::hashing::keccak_256;
 use gadget_crypto::k256_crypto::K256VerifyingKey;
+use gadget_std::boxed::Box;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
 use gadget_std::fmt::Display;
 use gadget_std::ops::{Deref, DerefMut};
 use gadget_std::pin::Pin;
+use gadget_std::string::ToString;
 use gadget_std::sync::Arc;
 use gadget_std::task::{Context, Poll};
 use serde::{Deserialize, Serialize};
@@ -23,7 +25,7 @@ pub struct IdentifierInfo {
 }
 
 impl Display for IdentifierInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         let message_id = format!("message_id: {}", self.message_id);
         let round_id = format!("round_id: {}", self.round_id);
         write!(f, "{} {}", message_id, round_id)
@@ -37,7 +39,7 @@ pub struct ParticipantInfo {
 }
 
 impl Display for ParticipantInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         let ecdsa_public_key = self
             .ecdsa_public_key
             .map(|key| format!("ecdsa_public_key: {:?}", key))
@@ -55,7 +57,7 @@ pub struct ProtocolMessage {
 }
 
 impl Display for ProtocolMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         write!(
             f,
             "identifier_info: {}, sender: {}, recipient: {:?}, payload: {:?}",
@@ -122,7 +124,7 @@ impl PartialOrd for PendingMessage {
 }
 
 impl Ord for PendingMessage {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
         self.seq.cmp(&other.seq)
     }
 }
@@ -519,10 +521,10 @@ pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> 
 mod tests {
     use super::*;
     use futures::{stream, StreamExt};
+    use gadget_std::collections::BTreeMap;
     use gossip::GossipHandle;
     use serde::{Deserialize, Serialize};
     use sp_core::Pair;
-    use std::collections::BTreeMap;
 
     const TOPIC: &str = "/gadget/test/1.0.0";
 

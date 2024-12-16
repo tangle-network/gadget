@@ -1,0 +1,25 @@
+[package]
+name = "gadget-utils"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-utils-eigenlayer = { workspace = true, optional = true }
+gadget-utils-evm = { workspace = true, optional = true }
+gadget-utils-tangle = { workspace = true, optional = true }
+
+[features]
+default = ["std", "eigenlayer", "evm", "tangle"]
+std = [
+    "gadget-utils-eigenlayer?/std",
+    "gadget-utils-evm?/std",
+    "gadget-utils-tangle?/std",
+]
+
+eigenlayer = ["gadget-utils-eigenlayer"]
+evm = ["gadget-utils-evm"]
+tangle = ["gadget-utils-tangle"]
