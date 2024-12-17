@@ -79,7 +79,9 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        Ok(Field::Bytes(BoundedVec(v.into())))
+        Ok(Field::List(BoundedVec(
+            v.iter().map(|b| Field::Uint8(*b)).collect(),
+        )))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {

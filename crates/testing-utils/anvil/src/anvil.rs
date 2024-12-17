@@ -6,8 +6,9 @@ use testcontainers::{
 };
 use tokio::io::AsyncBufReadExt;
 
-const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
-const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
+pub const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
+pub const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
+pub const ANVIL_STATE_PATH: &str = "./crates/testing-utils/anvil/data"; // relative path from the project root
 
 fn workspace_dir() -> PathBuf {
     let output = gadget_std::process::Command::new(env!("CARGO"))

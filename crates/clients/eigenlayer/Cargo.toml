@@ -6,10 +6,12 @@ edition = "2021"
 [dependencies]
 gadget-config = { workspace = true, features = ["eigenlayer"] }
 gadget-std = { workspace = true }
+gadget-utils-evm = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-pubsub = { workspace = true }
 alloy-transport = { workspace = true }
 eigensdk = { workspace = true, features = [
     "client-avsregistry",
@@ -27,11 +29,18 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 url = { workspace = true }
 
+[dev-dependencies]
+gadget-anvil-utils = { workspace = true }
+gadget-utils-evm = { workspace = true }
+alloy-primitives = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
 [features]
 default = ["std"]
 std = [
     "gadget-config/std",
     "gadget-std/std",
+    "gadget-utils-evm/std",
     "tokio/full",
     "url/std",
 ]

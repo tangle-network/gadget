@@ -457,7 +457,7 @@ mod sequences {
     use alloc::vec::Vec;
 
     fn expected_empty_bytes_field() -> Field<AccountId32> {
-        Field::Bytes(BoundedVec(Vec::new()))
+        Field::List(BoundedVec(Vec::new()))
     }
 
     #[test]
@@ -491,7 +491,11 @@ mod sequences {
     }
 
     fn expected_bytes_field() -> Field<AccountId32> {
-        Field::Bytes(BoundedVec(vec![1, 2, 3]))
+        Field::List(BoundedVec(vec![
+            Field::Uint8(1),
+            Field::Uint8(2),
+            Field::Uint8(3),
+        ]))
     }
 
     #[test]

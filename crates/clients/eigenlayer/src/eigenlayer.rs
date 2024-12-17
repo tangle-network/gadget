@@ -1,10 +1,12 @@
 use crate::error::{EigenlayerClientError, Result};
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_pubsub::PubSubFrontend;
 use alloy_transport::BoxTransport;
-use eigensdk::client_avsregistry::reader::AvsRegistryReader;
+use eigensdk::{client_avsregistry::reader::AvsRegistryReader, utils::get_ws_provider};
 use gadget_config::GadgetConfiguration;
 use gadget_std::collections::HashMap;
+use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
 /// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
@@ -17,18 +19,8 @@ impl EigenlayerClient {
     ///
     /// # Returns
     /// - [`The HTTP provider`](RootProvider<BoxTransport>)
-    pub fn get_provider_http(&self) -> Result<RootProvider<BoxTransport>> {
-        let http_endpoint = self.config.http_rpc_endpoint.clone();
-        let http_endpoint = http_endpoint
-            .parse()
-            .map_err(|e| gadget_std::io::Error::new(gadget_std::io::ErrorKind::InvalidInput, e))?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_http(http_endpoint)
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+    pub fn get_provider_http(&self) -> RootProvider<BoxTransport> {
+        get_provider_http(&self.config.http_rpc_endpoint)
     }
 
     /// Get the provider for this client's http endpoint with the specified [`Wallet`](EthereumWallet)
@@ -38,34 +30,18 @@ impl EigenlayerClient {
     pub fn get_wallet_provider_http(
         &self,
         wallet: alloy_network::EthereumWallet,
-    ) -> Result<RootProvider<BoxTransport>> {
-        let http_endpoint = self.config.http_rpc_endpoint.clone();
-        let http_endpoint = http_endpoint.parse()?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_http(http_endpoint)
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+    ) -> RootProvider<BoxTransport> {
+        get_wallet_provider_http(&self.config.http_rpc_endpoint, wallet)
     }
 
     /// Get the provider for this client's websocket endpoint
     ///
     /// # Returns
     /// - [`The WS provider`](RootProvider<BoxTransport>)
-    pub async fn get_provider_ws(&self) -> Result<RootProvider<BoxTransport>> {
-        let ws_endpoint = self.config.ws_rpc_endpoint.clone();
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_ws(alloy_provider::WsConnect::new(ws_endpoint))
+    pub async fn get_provider_ws(&self) -> Result<RootProvider<PubSubFrontend>> {
+        get_ws_provider(&self.config.ws_rpc_endpoint)
             .await
-            .unwrap()
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+            .map_err(Into::into)
     }
 
     /// Get the slasher address from the `DelegationManager` contract
@@ -76,7 +52,7 @@ impl EigenlayerClient {
     /// # Errors
     /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
     pub async fn get_slasher_address(&self, delegation_manager_addr: Address) -> Result<Address> {
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let delegation_manager =
             eigensdk::utils::delegationmanager::DelegationManager::DelegationManagerInstance::new(
                 delegation_manager_addr,
@@ -91,7 +67,7 @@ impl EigenlayerClient {
     }
 
     /// Provides a reader for the AVS registry.
-    async fn avs_registry_reader(
+    pub async fn avs_registry_reader(
         &self,
     ) -> Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader> {
         let http_rpc_endpoint = self.config.http_rpc_endpoint.clone();
@@ -109,7 +85,7 @@ impl EigenlayerClient {
     }
 
     /// Provides a writer for the AVS registry.
-    async fn avs_registry_writer(
+    pub async fn avs_registry_writer(
         &self,
         private_key: String,
     ) -> Result<eigensdk::client_avsregistry::writer::AvsRegistryChainWriter> {
@@ -129,7 +105,7 @@ impl EigenlayerClient {
     }
 
     /// Provides an operator info service.
-    async fn operator_info_service_in_memory(
+    pub async fn operator_info_service_in_memory(
         &self,
     ) -> Result<(
         eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
@@ -150,7 +126,7 @@ impl EigenlayerClient {
     }
 
     /// Provides an AVS registry service chain caller.
-    async fn avs_registry_service_chain_caller_in_memory(
+    pub async fn avs_registry_service_chain_caller_in_memory(
         &self,
     ) -> Result<
         eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller<
@@ -163,7 +139,7 @@ impl EigenlayerClient {
 
         let cancellation_token = tokio_util::sync::CancellationToken::new();
         let token_clone = cancellation_token.clone();
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let current_block = provider.get_block_number().await?;
         let operator_info_clone = operator_info_service.clone();
 
@@ -182,7 +158,7 @@ impl EigenlayerClient {
     }
 
     /// Provides a BLS aggregation service.
-    async fn bls_aggregation_service_in_memory(&self) -> Result<eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService<
+    pub async fn bls_aggregation_service_in_memory(&self) -> Result<eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService<
         eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller<
             eigensdk::client_avsregistry::reader::AvsRegistryChainReader,
             eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory
@@ -197,7 +173,7 @@ impl EigenlayerClient {
     }
 
     /// Get Operator stake in Quorums at a given block.
-    async fn get_operator_stake_in_quorums_at_block(
+    pub async fn get_operator_stake_in_quorums_at_block(
         &self,
         block_number: u32,
         quorum_numbers: Bytes,
@@ -211,7 +187,7 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's stake in Quorums at current block.
-    async fn get_operator_stake_in_quorums_at_current_block(
+    pub async fn get_operator_stake_in_quorums_at_current_block(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
     ) -> Result<HashMap<u8, BigInt>> {
@@ -223,7 +199,7 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator by ID.
-    async fn get_operator_by_id(&self, operator_id: [u8; 32]) -> Result<Address> {
+    pub async fn get_operator_by_id(&self, operator_id: [u8; 32]) -> Result<Address> {
         self.avs_registry_reader()
             .await?
             .get_operator_from_id(operator_id)
@@ -232,13 +208,13 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator stake history.
-    async fn get_operator_stake_history(
+    pub async fn get_operator_stake_history(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
     ) -> Result<Vec<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -254,14 +230,14 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator stake update at a given index.
-    async fn get_operator_stake_update_at_index(
+    pub async fn get_operator_stake_update_at_index(
         &self,
         quorum_number: u8,
         operator_id: alloy_primitives::FixedBytes<32>,
         index: alloy_primitives::U256,
     ) -> Result<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -277,14 +253,14 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's stake at a given block number.
-    async fn get_operator_stake_at_block_number(
+    pub async fn get_operator_stake_at_block_number(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
         block_number: u32,
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -300,7 +276,7 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's [`details`](OperatorDetails).
-    async fn get_operator_details(
+    pub async fn get_operator_details(
         &self,
         operator_addr: Address,
     ) -> Result<eigensdk::types::operator::Operator> {
@@ -320,13 +296,13 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's latest stake update.
-    async fn get_latest_stake_update(
+    pub async fn get_latest_stake_update(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
     ) -> Result<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -342,7 +318,7 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's ID as [`FixedBytes`] from its [`Address`].
-    async fn get_operator_id(
+    pub async fn get_operator_id(
         &self,
         operator_addr: Address,
     ) -> Result<alloy_primitives::FixedBytes<32>> {
@@ -354,7 +330,7 @@ impl EigenlayerClient {
     }
 
     /// Get the total stake at a given block number from a given index.
-    async fn get_total_stake_at_block_number_from_index(
+    pub async fn get_total_stake_at_block_number_from_index(
         &self,
         quorum_number: u8,
         block_number: u32,
@@ -362,7 +338,7 @@ impl EigenlayerClient {
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         use alloy_provider::Provider as _;
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -379,12 +355,12 @@ impl EigenlayerClient {
     }
 
     /// Get the total stake history length of a given quorum.
-    async fn get_total_stake_history_length(
+    pub async fn get_total_stake_history_length(
         &self,
         quorum_number: u8,
     ) -> Result<alloy_primitives::U256> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -400,7 +376,7 @@ impl EigenlayerClient {
     }
 
     /// Provides the public keys of existing registered operators within the provided block range.
-    async fn query_existing_registered_operator_pub_keys(
+    pub async fn query_existing_registered_operator_pub_keys(
         &self,
         start_block: u64,
         to_block: u64,

@@ -4822,10 +4822,13 @@ dependencies = [
  "alloy-network 0.5.4",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-pubsub",
  "alloy-transport",
  "eigensdk",
+ "gadget-anvil-utils",
  "gadget-config",
  "gadget-std",
+ "gadget-utils-evm",
  "num-bigint",
  "thiserror 2.0.7",
  "tokio",
@@ -4847,12 +4850,15 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-rpc-types-eth 0.5.4",
+ "alloy-signer-local",
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
+ "gadget-anvil-utils",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
+ "gadget-utils-evm",
  "hex",
  "serde",
  "serde_json",
@@ -4868,6 +4874,7 @@ dependencies = [
  "async-trait",
  "gadget-config",
  "gadget-crypto",
+ "gadget-logging",
  "gadget-networking",
  "gadget-std",
  "libp2p",
@@ -4913,6 +4920,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
+ "gadget-config",
  "gadget-std",
  "libp2p",
  "lock_api",
@@ -5246,6 +5254,7 @@ dependencies = [
  "thiserror 2.0.7",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.3.19",
 ]
 
 [[package]]
@@ -5273,6 +5282,7 @@ dependencies = [
  "gadget-std",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

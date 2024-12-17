@@ -1,18 +1,22 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-pub mod channels;
 
 pub mod gossip;
 pub mod handlers;
 pub mod messaging;
 pub mod networking;
+#[cfg(feature = "round-based-compat")]
 pub mod round_based_compat;
-
-pub use round_based;
-
 pub mod setup;
 
 use gadget_std::string::String;
+
+/// Re-exported networking crates
+#[cfg(feature = "round-based-compat")]
+pub use round_based;
+
+/// Unique identifier for a party
+pub type UserID = u16;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

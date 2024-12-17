@@ -5,7 +5,7 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 /// The protocol on which a gadget will be executed.
-#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(
     feature = "std",
     derive(clap::ValueEnum),
