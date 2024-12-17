@@ -23,3 +23,10 @@ pub trait EventListener<T: Send + 'static, Ctx: Send + 'static>: Send + 'static 
 pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
     ExponentialBackoff::from_millis(2).factor(1000).take(N)
 }
+
+#[async_trait]
+pub trait InitializableEventHandler {
+    async fn init_event_handler(
+        &self,
+    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
+}
