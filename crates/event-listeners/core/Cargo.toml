@@ -6,8 +6,12 @@ edition = "2021"
 [dependencies]
 gadget-std = { workspace = true }
 async-trait = { workspace = true }
+tokio = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["gadget-std/std"]
+std = [
+    "gadget-std/std",
+    "tokio/full",
+]
 testing = []

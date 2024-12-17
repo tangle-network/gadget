@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -65,9 +65,6 @@ jobs:
       - name: install protobuf
         run: brew install protobuf
 
-      - name: Forge build
-        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts
-
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
 
@@ -79,26 +76,29 @@ jobs:
       matrix:
         package:
           [
-            gadget-sdk,
-            gadget-context-derive,
-            gadget-blueprint-proc-macro,
-            gadget-blueprint-proc-macro-playground,
+            gadget-blueprint-serde,
+            gadget-clients,
+            gadget-contexts,
+            gadget-crypto,
+            gadget-crypto-core,
+            gadget-crypto-sp-core,
+            gadget-crypto-ed25519,
+            gadget-crypto-bls,
+            gadget-crypto-k256,
+            gadget-crypto-sr25519,
+            gadget-crypto-tangle-pair-signer,
+            gadget-event-listeners-core,
+            gadget-event-listeners-evm,
+            gadget-event-listeners-periodic,
+            gadget-event-listeners-tangle,
+            gadget-keystore,
+            gadget-logging,
+            gadget-std,
+            gadget-utils-tangle,
           ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          source /Users/runner/.bashrc
-          foundryup
-
-      - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
-
-      - name: Verify Forge installation
-        run: forge --version
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly
@@ -126,101 +126,3 @@ jobs:
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
         run: cargo test --package ${{ matrix.package }} --doc
-
-  incredible-squaring:
-    timeout-minutes: 90
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v2
-        with:
-          path: gadget
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
-        env:
-          FOUNDRY_DIR: ${{ runner.temp }}/foundry
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
-
-      - name: Forge build
-        working-directory: gadget/blueprints/incredible-squaring/contracts
-        run: forge update && forge build
-
-      - name: install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: install protobuf and gmp
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
-
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
-
-      - name: tests
-        working-directory: gadget
-        run: cargo nextest run --nocapture --package incredible-squaring-blueprint test_blueprint --retries 0
-
-  eigenlayer-tests:
-    timeout-minutes: 90
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v2
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
-        env:
-          FOUNDRY_DIR: ${{ runner.temp }}/foundry
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
-
-      - name: Forge build
-        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
-
-      - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@v3
-
-      - name: Run anvil in background
-        run: anvil --version && anvil &
-
-      - name: install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: install protobuf and gmp
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
-
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
-
-      - name: Build (release) integration test
-        run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
-
-      - name: eigenlayer incredible squaring blueprint test
-        run: RUST_LOG=gadget=trace cargo test --package incredible-squaring-blueprint-eigenlayer test_eigenlayer_incredible_squaring_blueprint -- --nocapture
-
-      - name: eigenlayer context test
-        run: RUST_LOG=gadget=trace cargo test --package blueprint-examples test_eigenlayer_context -- --nocapture
