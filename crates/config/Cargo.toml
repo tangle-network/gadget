@@ -12,27 +12,39 @@ gadget-std = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["alloc"], optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
 # Optional dependencies (feature-gated)
 libp2p = { workspace = true, optional = true }
-alloy-primitives = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, features = ["serde"], optional = true }
+
+
+[dev-dependencies]
+alloy-primitives = { workspace = true, features = ["serde"] }
+gadget-config = { path = ".", features = ["std", "eigenlayer", "symbiotic", "tangle", "networking"] }
+gadget-std = { workspace = true, features = ["std"] }
+libp2p = { workspace = true }
 
 [features]
-default = ["std", "tangle"]
-std = ["gadget-std/std", "serde_json"]
+default = ["std"]
+std = [
+    "alloy-primitives/std",
+    "clap/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+]
+eigenlayer = ["dep:alloy-primitives"]
+symbiotic = ["dep:alloy-primitives"]
+tangle = []
+networking = ["libp2p"]
 
 # Core feature groups
 keystore = []
-networking = ["dep:libp2p"]
-
-# Protocol-specific features
-tangle = []
-eigenlayer = ["dep:alloy-primitives"]
-symbiotic = ["dep:alloy-primitives"]
 
 # Testing features
 test-utils = ["std"]
+
