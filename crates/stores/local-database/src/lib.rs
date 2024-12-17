@@ -11,7 +11,7 @@ use std::sync::Mutex;
 /// # Example
 ///
 /// ```no_run
-/// use gadget_sdk::store::LocalDatabase;
+/// use gadget_store_local_database::LocalDatabase;
 ///
 /// let db = LocalDatabase::<u64>::open("data.json");
 ///
@@ -35,7 +35,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use gadget_sdk::store::LocalDatabase;
+    /// use gadget_store_local_database::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
     /// assert!(db.is_empty());
@@ -52,7 +52,12 @@ where
             let content = fs::read_to_string(path).expect("Failed to read the file");
             serde_json::from_str(&content).unwrap_or_default()
         } else {
-            HashMap::new()
+            // Create an empty file with default empty JSON object
+            let empty_data = HashMap::new();
+            let json_string =
+                serde_json::to_string(&empty_data).expect("Failed to serialize empty data to JSON");
+            fs::write(path, json_string).expect("Failed to write empty file");
+            empty_data
         };
 
         Self {
@@ -66,7 +71,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use gadget_sdk::store::LocalDatabase;
+    /// use gadget_store_local_database::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
     /// assert_eq!(db.len(), 0);
@@ -84,7 +89,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use gadget_sdk::store::LocalDatabase;
+    /// use gadget_store_local_database::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
     /// assert!(db.is_empty());
@@ -102,7 +107,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use gadget_sdk::store::LocalDatabase;
+    /// use gadget_store_local_database::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
     ///
@@ -123,7 +128,7 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// use gadget_sdk::store::LocalDatabase;
+    /// use gadget_store_local_database::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
     ///
@@ -133,5 +138,140 @@ where
     pub fn get(&self, key: &str) -> Option<T> {
         let data = self.data.lock().unwrap();
         data.get(key).cloned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+    struct TestStruct {
+        field1: String,
+        field2: i32,
+    }
+
+    #[test]
+    fn test_create_new_database() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        let db = LocalDatabase::<u32>::open(&db_path);
+        assert!(db.is_empty());
+        assert_eq!(db.len(), 0);
+        assert!(db_path.exists());
+    }
+
+    #[test]
+    fn test_set_and_get() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        let db = LocalDatabase::<u32>::open(&db_path);
+        db.set("key1", 42);
+        db.set("key2", 100);
+
+        assert_eq!(db.get("key1"), Some(42));
+        assert_eq!(db.get("key2"), Some(100));
+        assert_eq!(db.get("nonexistent"), None);
+        assert_eq!(db.len(), 2);
+    }
+
+    #[test]
+    fn test_complex_type() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        let db = LocalDatabase::<TestStruct>::open(&db_path);
+
+        let test_struct = TestStruct {
+            field1: "test".to_string(),
+            field2: 42,
+        };
+
+        db.set("key1", test_struct.clone());
+        assert_eq!(db.get("key1"), Some(test_struct));
+    }
+
+    #[test]
+    fn test_persistence() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        // Write data
+        {
+            let db = LocalDatabase::<u32>::open(&db_path);
+            db.set("key1", 42);
+            db.set("key2", 100);
+        }
+
+        // Read data in new instance
+        {
+            let db = LocalDatabase::<u32>::open(&db_path);
+            assert_eq!(db.get("key1"), Some(42));
+            assert_eq!(db.get("key2"), Some(100));
+            assert_eq!(db.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_overwrite() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        let db = LocalDatabase::<u32>::open(&db_path);
+        db.set("key1", 42);
+        assert_eq!(db.get("key1"), Some(42));
+
+        db.set("key1", 100);
+        assert_eq!(db.get("key1"), Some(100));
+        assert_eq!(db.len(), 1);
+    }
+
+    #[test]
+    fn test_invalid_json() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        // Write invalid JSON
+        fs::write(&db_path, "{invalid_json}").unwrap();
+
+        // Should create empty database when JSON is invalid
+        let db = LocalDatabase::<u32>::open(&db_path);
+        assert!(db.is_empty());
+    }
+
+    #[test]
+    fn test_concurrent_access() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.json");
+
+        let db = Arc::new(LocalDatabase::<u32>::open(&db_path));
+        let mut handles = vec![];
+
+        // Spawn multiple threads to write to the database
+        for i in 0..10 {
+            let db_clone = Arc::clone(&db);
+            let handle = thread::spawn(move || {
+                db_clone.set(&format!("key{}", i), i as u32);
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        assert_eq!(db.len(), 10);
+        for i in 0..10 {
+            assert_eq!(db.get(&format!("key{}", i)), Some(i as u32));
+        }
     }
 }

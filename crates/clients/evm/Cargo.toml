@@ -31,6 +31,11 @@ tokio = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-rpc-calls = { workspace = true }
 
+[dev-dependencies]
+gadget-utils-evm = { workspace = true }
+gadget-anvil-utils = { workspace = true }
+alloy-signer-local = { workspace = true }
+
 [features]
 default = ["std"]
 std = [

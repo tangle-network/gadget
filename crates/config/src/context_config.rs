@@ -443,7 +443,7 @@ impl ContextConfig {
         keystore_uri: String,
         keystore_password: Option<String>,
         chain: SupportedChains,
-        symbiotic_contract_addresses: SymbioticContractAddresses,
+        symbiotic_contract_addresses: crate::protocol::SymbioticContractAddresses,
     ) -> Self {
         Self::create_config_with_defaults(
             http_rpc_url,

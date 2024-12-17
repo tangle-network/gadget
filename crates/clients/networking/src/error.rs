@@ -9,8 +9,8 @@ pub enum NetworkError {
     Transport(String),
     #[error("Protocol error: {0}")]
     Protocol(String),
-    #[error("Connection error: {0}")]
-    Connection(String),
+    #[error("Configuration error: {0}")]
+    Configuration(String),
 }
 
 pub type Result<T> = gadget_std::result::Result<T, NetworkError>;

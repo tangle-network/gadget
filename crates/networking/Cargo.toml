@@ -36,7 +36,7 @@ gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
 k256 = { workspace = true }
 
 # Round-based protocol support
-round-based = { workspace = true }
+round-based = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -60,6 +60,9 @@ features = [
     "autonat",
 ]
 
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
+
 [features]
 default = ["std"]
 std = [
@@ -71,8 +74,8 @@ std = [
     "tokio/full",
     "serde/std",
     "serde_json/std",
-    "round-based/std",
+    "round-based?/std",
 ]
-
-[lints]
-workspace = true
+round-based-compat = [
+    "round-based",
+]

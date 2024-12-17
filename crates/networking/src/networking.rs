@@ -1,5 +1,5 @@
-use crate::channels::UserID;
 use crate::Error;
+use crate::UserID;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
@@ -520,11 +520,15 @@ pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gossip::GossipHandle;
     use futures::{stream, StreamExt};
+    use gadget_crypto::{
+        hashing::sha2_256,
+        k256_crypto::{K256Ecdsa, K256SigningKey},
+        KeyType,
+    };
     use gadget_std::collections::BTreeMap;
-    use gossip::GossipHandle;
     use serde::{Deserialize, Serialize};
-    use sp_core::Pair;
 
     const TOPIC: &str = "/gadget/test/1.0.0";
 
@@ -816,23 +820,24 @@ mod tests {
         Ok(())
     }
 
-    fn node_with_id() -> (gossip::GossipHandle, ecdsa::Pair) {
+    fn node_with_id() -> (crate::gossip::GossipHandle, K256SigningKey) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
-        let ecdsa_key = sp_core::ecdsa::Pair::generate().0;
+        let ecdsa_key = K256Ecdsa::generate_with_seed(None).unwrap();
         let bind_port = 0;
-        let handle = setup::start_p2p_network(setup::NetworkConfig::new_service_network(
-            identity,
-            ecdsa_key.clone(),
-            Default::default(),
-            bind_port,
-            TOPIC,
-        ))
-        .unwrap();
+        let handle =
+            crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(
+                identity,
+                ecdsa_key.clone(),
+                Default::default(),
+                bind_port,
+                TOPIC,
+            ))
+            .unwrap();
 
         (handle, ecdsa_key)
     }
 
-    fn node() -> gossip::GossipHandle {
+    fn node() -> crate::gossip::GossipHandle {
         node_with_id().0
     }
 
@@ -849,8 +854,8 @@ mod tests {
 
         let (network0, network1) = (networks.remove(0), networks.remove(0));
 
-        let public0 = id0.public();
-        let public1 = id1.public();
+        let public0 = id0.verifying_key();
+        let public1 = id1.verifying_key();
 
         let multiplexer0 = NetworkMultiplexer::new(network0);
         let multiplexer1 = NetworkMultiplexer::new(network1);
