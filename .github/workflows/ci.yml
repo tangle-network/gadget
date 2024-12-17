@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: rust-validation-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: full
+  RUST_LOG: "gadget=trace"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  formatting:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+  linting:
+    timeout-minutes: 120
+    name: cargo clippy
+    runs-on: macos-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          source /Users/runner/.bashrc
+          foundryup
+
+      - name: Add Foundry to PATH
+        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+
+      - name: Verify Forge installation
+        run: forge --version
+
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf
+        run: brew install protobuf
+
+      - name: Run Clippy
+        run: cargo clippy --tests --examples -- -D warnings
+
+  testing:
+    timeout-minutes: 90
+    name: cargo test
+    runs-on: macos-14
+    strategy:
+      matrix:
+        package:
+          [
+            gadget-blueprint-serde,
+            gadget-clients,
+            gadget-contexts,
+            gadget-crypto,
+            gadget-crypto-core,
+            gadget-crypto-sp-core,
+            gadget-crypto-ed25519,
+            gadget-crypto-bls,
+            gadget-crypto-k256,
+            gadget-crypto-sr25519,
+            gadget-crypto-tangle-pair-signer,
+            gadget-event-listeners-core,
+            gadget-event-listeners-evm,
+            gadget-event-listeners-periodic,
+            gadget-event-listeners-tangle,
+            gadget-keystore,
+            gadget-logging,
+            gadget-std,
+            gadget-utils-tangle,
+          ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf
+        run: brew install protobuf gmp
+
+      - name: Set Relevant M1 env vars
+        run: |
+          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
+          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+
+      - name: install cargo-nextest
+        run: cargo install cargo-nextest --locked
+
+      - name: tests
+        run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}
+
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: doc tests
+        run: cargo test --package ${{ matrix.package }} --doc
