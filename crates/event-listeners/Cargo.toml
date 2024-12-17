@@ -1,0 +1,24 @@
+[package]
+name = "gadget-event-listeners"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-event-listeners-evm = { workspace = true, optional = true }
+gadget-event-listeners-core = { workspace = true }
+gadget-event-listeners-periodic = { workspace = true, optional = true }
+gadget-event-listeners-tangle = { workspace = true, optional = true }
+
+[features]
+default = ["std", "evm", "periodic", "tangle"]
+std = [
+    "gadget-std/std",
+    "gadget-event-listeners-core/std",
+    "gadget-event-listeners-evm?/std",
+    "gadget-event-listeners-periodic?/std",
+    "gadget-event-listeners-tangle?/std",
+]
+evm = ["gadget-event-listeners-evm"]
+periodic = ["gadget-event-listeners-periodic"]
+tangle = ["gadget-event-listeners-tangle"]

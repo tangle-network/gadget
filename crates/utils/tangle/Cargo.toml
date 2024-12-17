@@ -8,7 +8,17 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
+gadget-std = { workspace = true }
+gadget-logging = { workspace = true }
+subxt = { workspace = true }
+tracing = { workspace = true, features = ["attributes"] }
 
 [features]
 default = ["std"]
-std = []
+std = [
+    "gadget-std/std",
+    "gadget-logging/std",
+    "subxt/native",
+]
+no_std = ["subxt/web"]
