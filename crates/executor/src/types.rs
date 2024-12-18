@@ -12,6 +12,7 @@ use sysinfo::ProcessStatus::{
 };
 use sysinfo::{Pid, ProcessStatus, System};
 use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 
 const DEFAULT_READ_TIMEOUT: u64 = 60; // seconds
 
@@ -53,21 +54,34 @@ impl GadgetProcess {
         command: String,
         pid: u32,
         output: Vec<String>,
-        stream: broadcast::Receiver<String>,
+        stream: (broadcast::Receiver<String>, oneshot::Receiver<()>),
     ) -> Result<GadgetProcess, Error> {
-        let s = System::new_all();
         let pid = Pid::from_u32(pid);
+        let (rx, ready) = stream;
+        
+        // Wait for the process to be ready (first output received or process started)
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let _ = tokio::time::timeout(
+                    Duration::from_millis(1000),
+                    ready
+                ).await;
+            })
+        });
+        
+        let s = System::new_all();
         let process_name = s
             .process(pid)
             .ok_or(Error::ProcessNotFound(pid))?
             .name()
             .to_os_string();
+            
         Ok(GadgetProcess {
             command,
-            process_name,
             pid,
             output,
-            stream: Some(stream),
+            stream: Some(rx),
+            process_name,
         })
     }
 
