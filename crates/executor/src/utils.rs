@@ -1,10 +1,11 @@
 pub use futures::StreamExt;
 pub use std::process::Stdio;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, oneshot, Mutex};
 use tokio::time::sleep;
 
 #[cfg(target_family = "unix")]
@@ -36,11 +37,14 @@ macro_rules! craft_child_process {
 }
 
 #[allow(unused_results)]
-pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
+pub(crate) fn create_stream(mut child: Child) -> (broadcast::Receiver<String>, oneshot::Receiver<()>) {
     const CHILD_PROCESS_TIMEOUT: Duration = Duration::from_millis(10000);
     const MAX_CONSECUTIVE_NONE: usize = 5;
 
     let (tx, rx) = broadcast::channel(1000);
+    let (first_output_tx, first_output_rx) = oneshot::channel();
+    let first_output_tx = Arc::new(Mutex::new(Some(first_output_tx)));
+    let first_output_tx_stderr = Arc::clone(&first_output_tx);
     let stdout = child.stdout.take().expect("Failed to take stdout");
     let stderr = child.stderr.take().expect("Failed to take stderr");
 
@@ -57,8 +61,13 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
                     match result {
                         Ok(Some(line)) => {
                             stdout_none_count = 0;
-                            if !line.is_empty() && tx.send(format!("stdout: {}", line)).is_err() {
-                                break;
+                            if !line.is_empty() {
+                                if tx.send(format!("stdout: {}", line)).is_err() {
+                                    break;
+                                }
+                                if let Some(sender) = first_output_tx.lock().await.take() {
+                                    sender.send(()).ok();
+                                }
                             }
                         }
                         Ok(None) => {
@@ -78,8 +87,13 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
                     match result {
                         Ok(Some(line)) => {
                             stderr_none_count = 0;
-                            if !line.is_empty() && tx.send(format!("stderr: {}", line)).is_err() {
-                                break;
+                            if !line.is_empty() {
+                                if tx.send(format!("stderr: {}", line)).is_err() {
+                                    break;
+                                }
+                                if let Some(sender) = first_output_tx_stderr.lock().await.take() {
+                                    sender.send(()).ok();
+                                }
                             }
                         }
                         Ok(None) => {
@@ -114,7 +128,7 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
         gadget_logging::info!("Child process ended with status: {}", status);
     });
 
-    rx
+    (rx, first_output_rx)
 }
 
 #[allow(dead_code)]
