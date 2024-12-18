@@ -73,17 +73,24 @@ pub trait Network: Send + Sync + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
 
+    fn public_id(&self) -> PublicKey;
+
     fn build_protocol_message<Payload: Serialize>(
+        &self,
         identifier_info: IdentifierInfo,
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,
-        from_account_id: Option<PublicKey>,
         to_network_id: Option<PublicKey>,
     ) -> ProtocolMessage {
+        assert!(
+            (u8::from(to.is_none()) + u8::from(to_network_id.is_none()) != 1),
+            "Either `to` must be Some AND `to_network_id` is Some, or, both None"
+        );
+
         let sender_participant_info = ParticipantInfo {
             user_id: from,
-            public_key: from_account_id,
+            public_key: Some(self.public_id()),
         };
         let receiver_participant_info = to.map(|to| ParticipantInfo {
             user_id: to,
@@ -141,6 +148,7 @@ pub struct NetworkMultiplexer {
     unclaimed_receiving_streams: Arc<DashMap<StreamKey, MultiplexedReceiver>>,
     tx_to_networking_layer: MultiplexedSender,
     sequence_numbers: Arc<DashMap<CompoundStreamKey, u64>>,
+    my_id: PublicKey,
 }
 
 type ActiveStreams = Arc<DashMap<StreamKey, tokio::sync::mpsc::UnboundedSender<ProtocolMessage>>>;
@@ -250,6 +258,7 @@ impl NetworkMultiplexer {
     pub fn new<N: Network>(network: N) -> Self {
         let (tx_to_networking_layer, mut rx_from_substreams) =
             tokio::sync::mpsc::unbounded_channel();
+        let my_id = network.public_id();
         let this = NetworkMultiplexer {
             to_receiving_streams: Arc::new(DashMap::new()),
             unclaimed_receiving_streams: Arc::new(DashMap::new()),
@@ -258,6 +267,7 @@ impl NetworkMultiplexer {
                 stream_id: StreamKey::default(),
             },
             sequence_numbers: Arc::new(DashMap::new()),
+            my_id,
         };
 
         let active_streams = this.to_receiving_streams.clone();
@@ -317,6 +327,16 @@ impl NetworkMultiplexer {
                 let mut expected_seqs: HashMap<CompoundStreamKey, u64> = HashMap::default();
 
                 while let Some(mut msg) = network_clone.next_message().await {
+                    if let Some(recv) = msg.recipient.as_ref() {
+                        if let Some(recv_pk) = &recv.public_key {
+                            if recv_pk != &my_id {
+                                gadget_logging::warn!(
+                                    "Received a message not intended for the local user"
+                                );
+                            }
+                        }
+                    }
+
                     if let Ok(multiplexed_message) =
                         bincode::deserialize::<MultiplexedMessage>(&msg.payload)
                     {
@@ -419,12 +439,14 @@ impl NetworkMultiplexer {
 
     pub fn multiplex(&self, id: impl Into<StreamKey>) -> SubNetwork {
         let id = id.into();
+        let my_id = self.my_id;
         let mut tx_to_networking_layer = self.tx_to_networking_layer.clone();
         if let Some(unclaimed) = self.unclaimed_receiving_streams.remove(&id) {
             tx_to_networking_layer.stream_id = id;
             return SubNetwork {
                 tx: tx_to_networking_layer,
                 rx: Some(unclaimed.1.into()),
+                my_id,
             };
         }
 
@@ -437,6 +459,7 @@ impl NetworkMultiplexer {
         SubNetwork {
             tx,
             rx: Some(rx.into()),
+            my_id,
         }
     }
 
@@ -510,6 +533,7 @@ impl<N: Network> From<N> for NetworkMultiplexer {
 pub struct SubNetwork {
     tx: MultiplexedSender,
     rx: Option<Mutex<MultiplexedReceiver>>,
+    my_id: PublicKey,
 }
 
 impl SubNetwork {
@@ -541,6 +565,10 @@ impl Network for SubNetwork {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         self.send(message)
+    }
+
+    fn public_id(&self) -> PublicKey {
+        self.my_id
     }
 }
 
@@ -637,9 +665,14 @@ mod tests {
 
         wait_for_nodes_connected(&nodes).await;
 
+        let mut mapping = BTreeMap::new();
+        for (i, node) in nodes.iter().enumerate() {
+            mapping.insert(i as u16, node.my_id);
+        }
+
         let mut tasks = Vec::new();
         for (i, node) in nodes.into_iter().enumerate() {
-            let task = tokio::spawn(run_protocol(node, i as u16));
+            let task = tokio::spawn(run_protocol(node, i as u16, mapping.clone()));
             tasks.push(task);
         }
         // Wait for all tasks to finish
@@ -654,7 +687,11 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines)]
-    async fn run_protocol<N: Network>(node: N, i: u16) -> Result<(), crate::Error> {
+    async fn run_protocol<N: Network>(
+        node: N,
+        i: u16,
+        mapping: BTreeMap<u16, crate::PublicKey>,
+    ) -> Result<(), crate::Error> {
         let task_hash = [0u8; 32];
         // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
         // used throughout the program must also use the multiplexer to prevent mixed messages.
@@ -684,8 +721,7 @@ mod tests {
                 armor: i + 2,
                 name: format!("Player {}", i),
             };
-
-            GossipHandle::build_protocol_message(
+            round1_network.build_protocol_message(
                 IdentifierInfo {
                     message_id: 0,
                     round_id: 0,
@@ -693,7 +729,6 @@ mod tests {
                 i,
                 None,
                 &Msg::Round1(round),
-                None,
                 None,
             )
         };
@@ -737,7 +772,8 @@ mod tests {
         let msgs = (0..NODE_COUNT)
             .filter(|&j| j != i)
             .map(|j| {
-                GossipHandle::build_protocol_message(
+                let peer_pk = mapping.get(&j).copied().unwrap();
+                round2_network.build_protocol_message(
                     IdentifierInfo {
                         message_id: 0,
                         round_id: 0,
@@ -745,8 +781,7 @@ mod tests {
                     i,
                     Some(j),
                     &Msg::Round2(msg.clone()),
-                    None,
-                    None,
+                    Some(peer_pk),
                 )
             })
             .collect::<Vec<_>>();
@@ -762,7 +797,14 @@ mod tests {
         let mut msgs = BTreeMap::new();
         while let Some(msg) = round2_network.recv().await {
             let m = deserialize::<Msg>(&msg.payload).unwrap();
-            gadget_logging::debug!(from = %msg.sender.user_id, ?m, "Received message");
+            gadget_logging::info!(
+                "[Node {}] Received message from {} | Intended Recipient: {}",
+                i,
+                msg.sender.user_id,
+                msg.recipient
+                    .as_ref()
+                    .map_or_else(|| "Broadcast".into(), |r| r.user_id.to_string())
+            );
             // Expecting Round2 message
             assert!(
                 matches!(m, Msg::Round2(_)),
@@ -790,7 +832,7 @@ mod tests {
                 rotation: i * 30,
                 velocity: (i + 1, i + 2, i + 3),
             };
-            GossipHandle::build_protocol_message(
+            round3_network.build_protocol_message(
                 IdentifierInfo {
                     message_id: 0,
                     round_id: 0,
@@ -798,7 +840,6 @@ mod tests {
                 i,
                 None,
                 &Msg::Round3(round),
-                None,
                 None,
             )
         };
@@ -907,12 +948,11 @@ mod tests {
 
             let send_task = async move {
                 for i in 0..MESSAGE_COUNT {
-                    let msg = GossipHandle::build_protocol_message(
+                    let msg = sub0.build_protocol_message(
                         IdentifierInfo::default(),
                         0,
                         Some(1),
                         &StressTestPayload { value: i },
-                        Some(public0),
                         Some(public1),
                     );
                     sub0.send(msg).unwrap();
@@ -942,12 +982,11 @@ mod tests {
 
             let send_task = async move {
                 for i in 0..MESSAGE_COUNT {
-                    let msg = GossipHandle::build_protocol_message(
+                    let msg = sub1.build_protocol_message(
                         IdentifierInfo::default(),
                         1,
                         Some(0),
                         &StressTestPayload { value: i },
-                        Some(public1),
                         Some(public0),
                     );
                     sub1.send(msg).unwrap();
@@ -1008,13 +1047,12 @@ mod tests {
 
         // Send a message in the subnetwork0 to subnetwork1 and vice versa, assert values of message
         let payload = vec![1, 2, 3];
-        let msg = GossipHandle::build_protocol_message(
+        let msg = subnetwork0.build_protocol_message(
             IdentifierInfo::default(),
             0,
             Some(1),
             &payload,
-            None,
-            None,
+            Some(subnetwork1.public_id()),
         );
 
         subnetwork0.send(msg.clone()).unwrap();
@@ -1022,13 +1060,12 @@ mod tests {
         let received_msg = subnetwork1.recv().await.unwrap();
         assert_eq!(received_msg.payload, msg.payload);
 
-        let msg = GossipHandle::build_protocol_message(
+        let msg = subnetwork1.build_protocol_message(
             IdentifierInfo::default(),
             1,
             Some(0),
             &payload,
-            None,
-            None,
+            Some(subnetwork0.public_id()),
         );
 
         subnetwork1.send(msg.clone()).unwrap();

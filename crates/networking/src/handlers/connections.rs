@@ -2,7 +2,7 @@
 
 use crate::gossip::{MyBehaviourRequest, NetworkService};
 use crate::key_types::Curve;
-use gadget_crypto::{hashing::blake3_256, KeyType};
+use gadget_crypto::KeyType;
 use itertools::Itertools;
 use libp2p::PeerId;
 
@@ -23,11 +23,7 @@ impl NetworkService<'_> {
         {
             let my_peer_id = *self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
-            let hash = blake3_256(&msg);
-            match <Curve as KeyType>::sign_with_secret_pre_hashed(
-                &mut self.secret_key.clone(),
-                &hash,
-            ) {
+            match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                 Ok(signature) => {
                     let handshake = MyBehaviourRequest::Handshake {
                         public_key: self.secret_key.public(),
