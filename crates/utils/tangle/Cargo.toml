@@ -8,11 +8,11 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-gadget-std = { workspace = true }
-gadget-logging = { workspace = true }
-subxt = { workspace = true }
-tracing = { workspace = true, features = ["attributes"] }
+async-trait = { workspace = true, default-features = false }
+gadget-std = { workspace = true, default-features = false }
+gadget-logging = { workspace = true, default-features = false }
+subxt = { workspace = true, default-features = false }
+tracing = { workspace = true, default-features = false, features = ["attributes"] }
 
 [features]
 default = ["std"]

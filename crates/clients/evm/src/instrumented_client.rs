@@ -14,8 +14,11 @@ use alloy_rpc_types_eth::{
 use alloy_transport::{TransportError, TransportResult};
 use alloy_transport_http::{Client, Http};
 use gadget_rpc_calls::RpcCallsMetrics as RpcCallsCollector;
+use gadget_std::boxed::Box;
+use gadget_std::string::String;
 use gadget_std::string::ToString;
 use gadget_std::time::Instant;
+use gadget_std::vec::Vec;
 use hex;
 use thiserror::Error;
 use url::Url;

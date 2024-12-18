@@ -1,6 +1,6 @@
-use crate::error::{EigenlayerClientError, Result};
+use crate::error::Result;
 use alloy_primitives::{Address, Bytes};
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_provider::{Provider, RootProvider};
 use alloy_pubsub::PubSubFrontend;
 use alloy_transport::BoxTransport;
 use eigensdk::{client_avsregistry::reader::AvsRegistryReader, utils::get_ws_provider};
@@ -336,7 +336,6 @@ impl EigenlayerClient {
         block_number: u32,
         index: alloy_primitives::U256,
     ) -> Result<alloy_primitives::Uint<96, 2>> {
-        use alloy_provider::Provider as _;
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(

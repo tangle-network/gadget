@@ -1,0 +1,29 @@
+[package]
+name = "gadget-runner-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core
+gadget-config = { workspace = true }
+gadget-utils = { workspace = true }
+gadget-event-listeners = { workspace = true, default-features = false }
+async-trait = { workspace = true }
+futures = { workspace = true, features = ["alloc"] }
+tokio = { workspace = true, features = ["sync"] }
+
+# Error
+thiserror = { workspace = true }
+
+# Logging
+gadget-logging = { workspace = true }
+
+[features]
+default = ["std"]
+
+std = ["gadget-config/std", "gadget-utils/std", "gadget-logging/std", "gadget-event-listeners/std"]
+no_std = ["gadget-utils/no_std"]
+
+eigenlayer = ["gadget-config/eigenlayer", "gadget-utils/eigenlayer", "gadget-event-listeners/evm"]
+symbiotic = ["gadget-config/symbiotic", "gadget-event-listeners/evm"]
+tangle = ["gadget-config/tangle", "gadget-utils/tangle", "gadget-event-listeners/tangle"]

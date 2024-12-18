@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 gadget-std = { workspace = true }
 async-trait = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [features]

@@ -1,5 +1,7 @@
+use super::*;
 use crate::error::Result;
 use gadget_crypto::bn254_crypto::{ArkBlsBn254Public, ArkBlsBn254Secret, ArkBlsBn254Signature};
+use gadget_std::string::String;
 
 #[async_trait::async_trait]
 pub trait Bn254Backend: Send + Sync {

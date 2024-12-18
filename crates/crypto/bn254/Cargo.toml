@@ -10,7 +10,6 @@ ark-bn254 = { workspace = true, features = ["scalar_field", "curve"] }
 ark-ec = { workspace = true }
 ark-ff = { workspace = true }
 ark-serialize = { workspace = true }
-# rust-bls-bn254 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }

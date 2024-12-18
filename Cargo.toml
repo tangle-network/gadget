@@ -58,6 +58,13 @@ gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-list
 gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
 
+# Runners
+gadget-runners = { version = "0.1.0", path = "./crates/runners", default-features = false }
+gadget-runner-core = { version = "0.1.0", path = "./crates/runners/core", default-features = false }
+gadget-runner-eigenlayer = { version = "0.1.0", path = "./crates/runners/eigenlayer", default-features = false }
+gadget-runner-tangle = { version = "0.1.0", path = "./crates/runners/tangle", default-features = false }
+gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbiotic", default-features = false }
+
 # SDK
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint-serde", default-features = false }
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
@@ -69,6 +76,7 @@ gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-fea
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
+gadget-utils-core = { version = "0.1.0", path = "./crates/utils/core", default-features = false }
 gadget-utils-evm = { version = "0.1.0", path = "./crates/utils/evm", default-features = false }
 gadget-utils-eigenlayer = { version = "0.1.0", path = "./crates/utils/eigenlayer", default-features = false }
 gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", default-features = false }

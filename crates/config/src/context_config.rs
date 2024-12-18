@@ -1,3 +1,4 @@
+#![allow(unused_variables, dead_code)]
 use super::*;
 use gadget_std::fmt::Debug;
 use gadget_std::str::FromStr;
