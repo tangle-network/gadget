@@ -1,134 +1,146 @@
 pub use futures::StreamExt;
 pub use std::process::Stdio;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::Arc;
 use std::time::Duration;
 pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::{broadcast, oneshot, Mutex};
-use tokio::time::sleep;
+use sysinfo::{System, Pid};
+use std::ffi::OsString;
+
+#[cfg(target_family = "windows")]
+pub static OS_COMMAND: &str = "cmd";
+#[cfg(target_family = "windows")]
+pub static OS_ARG: &str = "/C";
 
 #[cfg(target_family = "unix")]
-pub(crate) static OS_COMMAND: (&str, &str) = ("sh", "-c");
-#[cfg(target_family = "windows")]
-pub(crate) static OS_COMMAND: (&str, &str) = ("cmd", "/C");
+pub static OS_COMMAND: &str = "sh";
+#[cfg(target_family = "unix")]
+pub static OS_ARG: &str = "-c";
+
+pub struct ChildInfo {
+    pub child: Child,
+    pub process_name: OsString,
+}
+
+pub fn get_process_info(pid: u32) -> Option<OsString> {
+    let mut attempts = 5;
+    while attempts > 0 {
+        let mut s = System::new_all();
+        s.refresh_all();
+        
+        if let Some(process) = s.process(Pid::from_u32(pid)) {
+            return Some(process.name().to_os_string());
+        }
+        
+        attempts -= 1;
+        if attempts > 0 {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    None
+}
 
 #[macro_export]
 macro_rules! craft_child_process {
     ($cmd:expr) => {{
-        let (cmd, arg) = OS_COMMAND;
-        Command::new(cmd).args(vec![arg, $cmd])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect(&format!("Failed to execute: {:?} - Input should be a valid command", $cmd))
+        let mut command = Command::new(OS_COMMAND);
+        command.args(&[OS_ARG, $cmd]);
+        command.stderr(Stdio::piped())
+              .stdout(Stdio::piped());
+        command
     }};
     ($cmd:expr, $($args:expr),*) => {{
-        let (cmd, arg) = OS_COMMAND;
-        let command = Command::new(cmd).args(vec![arg, $cmd]);
+        let mut command = Command::new(OS_COMMAND);
+        command.args(&[OS_ARG, $cmd]);
         $(
-            command.args(String::try_from($args).unwrap_or(format!("Argument {:?} is causing an error", $args)).split_whitespace().map(str::to_string).collect::<Vec<String>>());
+            command.arg($args);
         )*
+        command.stdout(Stdio::piped())
+               .stderr(Stdio::piped());
         command
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect(&format!("Failed to execute: {} {:?} - Input should be a valid command", $cmd, &[$($args),*]));
     }};
 }
 
-#[allow(unused_results)]
-pub(crate) fn create_stream(mut child: Child) -> (broadcast::Receiver<String>, oneshot::Receiver<()>) {
+#[macro_export]
+macro_rules! run_command {
+    ($cmd:expr) => {{
+        async {
+            let mut command = craft_child_process!($cmd);
+            let child = command.spawn()?;
+            let pid = child.id().ok_or_else(|| Error::ProcessNotFound(Pid::from_u32(0)))?;
+            
+            let process_name = get_process_info(pid)
+                .ok_or(Error::ProcessNotFound(Pid::from_u32(pid)))?;
+
+            let stream = create_stream(child, process_name.clone()).await;
+            
+            Ok::<_, Error>(GadgetProcess::new(
+                $cmd.to_string(),
+                pid,
+                Vec::new(),
+                stream,
+                process_name,
+            ))
+        }.await
+    }};
+}
+
+pub(crate) async fn create_stream(
+    mut child: Child, 
+    tx: broadcast::Sender<String>, 
+    ready_tx: oneshot::Sender<()>, 
+    process_name: OsString
+) -> (broadcast::Receiver<String>, oneshot::Receiver<()>) {
     const CHILD_PROCESS_TIMEOUT: Duration = Duration::from_millis(10000);
     const MAX_CONSECUTIVE_NONE: usize = 5;
 
-    let (tx, rx) = broadcast::channel(1000);
-    let (first_output_tx, first_output_rx) = oneshot::channel();
-    let first_output_tx = Arc::new(Mutex::new(Some(first_output_tx)));
+    let rx = tx.subscribe();
+    let first_output_tx = Arc::new(Mutex::new(Some(ready_tx)));
     let first_output_tx_stderr = Arc::clone(&first_output_tx);
+
     let stdout = child.stdout.take().expect("Failed to take stdout");
     let stderr = child.stderr.take().expect("Failed to take stderr");
-
-    let mut stdout_reader = BufReader::new(stdout).lines();
-    let mut stderr_reader = BufReader::new(stderr).lines();
-
+    
+    let tx_clone = tx.clone();
+    let process_name_clone = process_name.clone();
+    
     tokio::spawn(async move {
-        let mut stdout_none_count = 0;
-        let mut stderr_none_count = 0;
-
-        loop {
-            tokio::select! {
-                result = stdout_reader.next_line() => {
-                    match result {
-                        Ok(Some(line)) => {
-                            stdout_none_count = 0;
-                            if !line.is_empty() {
-                                if tx.send(format!("stdout: {}", line)).is_err() {
-                                    break;
-                                }
-                                if let Some(sender) = first_output_tx.lock().await.take() {
-                                    sender.send(()).ok();
-                                }
-                            }
-                        }
-                        Ok(None) => {
-                            stdout_none_count += 1;
-                            if stdout_none_count >= MAX_CONSECUTIVE_NONE {
-                                gadget_logging::warn!("Reached maximum consecutive None values for stdout");
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            gadget_logging::error!("Error reading from stdout: {}", e);
-                            break;
-                        }
-                    }
-                }
-                result = stderr_reader.next_line() => {
-                    match result {
-                        Ok(Some(line)) => {
-                            stderr_none_count = 0;
-                            if !line.is_empty() {
-                                if tx.send(format!("stderr: {}", line)).is_err() {
-                                    break;
-                                }
-                                if let Some(sender) = first_output_tx_stderr.lock().await.take() {
-                                    sender.send(()).ok();
-                                }
-                            }
-                        }
-                        Ok(None) => {
-                            stderr_none_count += 1;
-                            if stderr_none_count >= MAX_CONSECUTIVE_NONE {
-                                gadget_logging::warn!("Reached maximum consecutive None values for stderr");
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            gadget_logging::error!("Error reading from stderr: {}", e);
-                            break;
-                        }
-                    }
-                }
-                () = sleep(CHILD_PROCESS_TIMEOUT) => {
-                    gadget_logging::info!("Child process timeout reached, waiting for process to exit");
-                    if let Ok(status) = child.wait().await {
-                        gadget_logging::info!("Child process exited with status: {}", status);
-                    } else {
-                        gadget_logging::error!("Failed to get child process exit status");
-                    }
-                    break;
-                }
+        let mut reader = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = tx_clone.send(format!("[{}] {}", process_name_clone.to_string_lossy(), line));
+            let guard = first_output_tx.lock().await;
+            if let Some(tx) = guard.as_ref() {
+                let _ = tx.send(());
             }
         }
+    });
 
-        let status = child
-            .wait()
-            .await
-            .expect("Child process encountered an error...");
+    let tx_clone = tx;
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = tx_clone.send(format!("[{}] {}", process_name.to_string_lossy(), line));
+            let guard = first_output_tx_stderr.lock().await;
+            if let Some(tx) = guard.as_ref() {
+                let _ = tx.send(());
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        let status = child.wait().await.expect("Failed to wait for child process");
         gadget_logging::info!("Child process ended with status: {}", status);
     });
 
-    (rx, first_output_rx)
+    let (ready_tx, ready_rx) = oneshot::channel();
+    let guard = first_output_tx.lock().await;
+    if let Some(tx) = guard.as_ref() {
+        let _ = tx.send(());
+    }
+    
+    (rx, ready_rx)
 }
 
 #[allow(dead_code)]
@@ -156,32 +168,4 @@ fn handle_output(
             gadget_logging::error!("Error reading from {}: {}", source, e);
         }
     }
-}
-
-#[macro_export]
-macro_rules! run_command {
-    ($cmd:expr) => {{
-        // Spawn child running process
-        let child: Child = craft_child_process!($cmd);
-        let pid = child.id().ok_or(Error::UnexpectedExit)?;
-        let stream = create_stream(child);
-        GadgetProcess::new(
-            $cmd.to_string(),
-            pid,
-            Vec::new(),
-            stream,
-        )
-    }};
-    ($cmd:expr, $($args:expr),*) => {{
-        // Spawn child running process
-        let child = craft_child_process!($cmd,$($args),*);
-        let pid = child.id().ok_or(Error::UnexpectedExit)?;
-        let stream = create_stream(child);
-        GadgetProcess::new(
-            $cmd.to_string(),
-            pid,
-            Vec::new(),
-            stream,
-        )
-    }};
 }

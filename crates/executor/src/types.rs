@@ -1,15 +1,11 @@
 use super::error::Error;
-use crate::utils::{create_stream, Child, Command, Stdio, OS_COMMAND};
+use crate::utils::{create_stream, Command, Stdio, OS_COMMAND, OS_ARG, get_process_info, ChildInfo};
 use crate::{craft_child_process, run_command};
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use std::ffi::OsString;
 use std::time::Duration;
-use sysinfo::ProcessStatus::{
-    Dead, Idle, LockBlocked, Parked, Run, Sleep, Stop, Tracing, UninterruptibleDiskSleep, Unknown,
-    Wakekill, Waking, Zombie,
-};
 use sysinfo::{Pid, ProcessStatus, System};
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
@@ -55,6 +51,7 @@ impl GadgetProcess {
         pid: u32,
         output: Vec<String>,
         stream: (broadcast::Receiver<String>, oneshot::Receiver<()>),
+        process_name: OsString,
     ) -> Result<GadgetProcess, Error> {
         let pid = Pid::from_u32(pid);
         let (rx, ready) = stream;
@@ -68,13 +65,6 @@ impl GadgetProcess {
                 ).await;
             })
         });
-        
-        let s = System::new_all();
-        let process_name = s
-            .process(pid)
-            .ok_or(Error::ProcessNotFound(pid))?
-            .name()
-            .to_os_string();
             
         Ok(GadgetProcess {
             command,
@@ -315,13 +305,16 @@ pub(crate) enum Status {
 }
 
 impl From<ProcessStatus> for Status {
-    fn from(value: ProcessStatus) -> Status {
+    fn from(value: ProcessStatus) -> Self {
         match value {
-            Run | Waking => Status::Active,
-            Sleep | UninterruptibleDiskSleep | Parked | LockBlocked | Wakekill => Status::Sleeping,
-            Stop | Tracing | Idle => Status::Inactive,
-            Dead | Zombie => Status::Dead,
-            Unknown(code) => Status::Unknown(format!("Unknown with code {code}")),
+            ProcessStatus::Run | ProcessStatus::Waking => Status::Active,
+            ProcessStatus::Sleep | ProcessStatus::UninterruptibleDiskSleep 
+                | ProcessStatus::Parked | ProcessStatus::LockBlocked 
+                | ProcessStatus::Wakekill => Status::Sleeping,
+            ProcessStatus::Stop | ProcessStatus::Tracing 
+                | ProcessStatus::Idle => Status::Inactive,
+            ProcessStatus::Dead | ProcessStatus::Zombie => Status::Dead,
+            ProcessStatus::Unknown(code) => Status::Unknown(format!("Unknown with code {code}")),
         }
     }
 }
