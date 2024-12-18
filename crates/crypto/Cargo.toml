@@ -14,6 +14,7 @@ gadget-crypto-sp-core = { path = "sp-core", optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 sha3 = { workspace = true, optional = true }
+blake3 = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
@@ -37,4 +38,4 @@ sp-core = ["gadget-crypto-sp-core", "gadget-crypto-core/tangle"]
 sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/tangle"]
 tangle-pair-signer = ["gadget-crypto-tangle-pair-signer"]
 
-hashing = ["sha2", "sha3"]
+hashing = ["sha2", "sha3", "blake3"]

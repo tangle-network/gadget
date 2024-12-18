@@ -4,13 +4,13 @@
     clippy::module_name_repetitions,
     clippy::exhaustive_enums
 )]
+
+use crate::key_types::{KeyPair, PublicKey, Signature};
 use crate::Error;
 use async_trait::async_trait;
-use gadget_crypto::hashing::keccak_256;
-use gadget_crypto::k256_crypto::{K256Signature, K256SigningKey, K256VerifyingKey};
+use gadget_crypto::hashing::blake3_256;
 use gadget_std::collections::BTreeMap;
 use gadget_std::string::ToString;
-use gadget_std::sync::atomic::AtomicU32;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
@@ -19,6 +19,7 @@ use libp2p::{
 };
 use lru_mem::LruCache;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicUsize;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
@@ -41,12 +42,13 @@ pub struct MyBehaviour {
     pub ping: libp2p::ping::Behaviour,
 }
 
-pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
+pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicUsize>);
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
-    pub ecdsa_secret_key: &'a K256SigningKey,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
+    pub secret_key: &'a KeyPair,
+    pub connected_peers: Arc<AtomicUsize>,
     pub span: tracing::Span,
     pub my_id: PeerId,
 }
@@ -59,8 +61,9 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
         NetworkService {
             swarm,
             inbound_mapping: self.inbound_mapping,
-            ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
-            ecdsa_secret_key: self.ecdsa_secret_key,
+            public_key_to_libp2p_id: &self.public_key_to_libp2p_id,
+            secret_key: self.secret_key,
+            connected_peers: self.connected_peers.clone(),
             span: &self.span,
             my_id: self.my_id,
         }
@@ -70,8 +73,9 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
-    pub ecdsa_secret_key: &'a K256SigningKey,
+    pub public_key_to_libp2p_id: &'a Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
+    pub connected_peers: Arc<AtomicUsize>,
+    pub secret_key: &'a KeyPair,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -260,8 +264,8 @@ pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
-    pub connected_peers: Arc<AtomicU32>,
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
+    pub connected_peers: Arc<AtomicUsize>,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
     pub my_id: PeerId,
 }
@@ -270,7 +274,7 @@ impl GossipHandle {
     #[must_use]
     pub fn connected_peers(&self) -> usize {
         self.connected_peers
-            .load(std::sync::atomic::Ordering::Relaxed) as usize
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     #[must_use]
@@ -279,8 +283,8 @@ impl GossipHandle {
     }
 
     /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
-    pub async fn peers(&self) -> Vec<K256VerifyingKey> {
-        self.ecdsa_peer_id_to_libp2p_id
+    pub async fn peers(&self) -> Vec<PublicKey> {
+        self.public_key_to_libp2p_id
             .read()
             .await
             .keys()
@@ -321,8 +325,8 @@ pub struct GossipMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
-        ecdsa_public_key: K256VerifyingKey,
-        signature: K256Signature,
+        public_key: PublicKey,
+        signature: Signature,
     },
     Message {
         topic: String,
@@ -330,39 +334,12 @@ pub enum MyBehaviourRequest {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EcdsaSignatureWrapper(pub [u8; 65]);
-
-impl serde::Serialize for EcdsaSignatureWrapper {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.0)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for EcdsaSignatureWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = <Vec<u8>>::deserialize(deserializer)?;
-        if bytes.len() != 65 {
-            return Err(serde::de::Error::custom("Invalid signature length"));
-        }
-        let mut signature = [0u8; 65];
-        signature.copy_from_slice(&bytes);
-        Ok(EcdsaSignatureWrapper(signature))
-    }
-}
-
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        ecdsa_public_key: K256VerifyingKey,
-        ecdsa_signature: K256Signature,
+        public_key: PublicKey,
+        signature: Signature,
     },
     MessageHandled,
 }
@@ -385,7 +362,7 @@ impl Network for GossipHandle {
             drop(lock);
             match bincode::deserialize::<ProtocolMessage>(&message_bytes) {
                 Ok(message) => {
-                    let hash = keccak_256(&message.payload);
+                    let hash = blake3_256(&message_bytes);
                     let mut map = self.recent_messages.lock();
                     if map
                         .insert(hash, ())
@@ -396,7 +373,7 @@ impl Network for GossipHandle {
                     }
                 }
                 Err(e) => {
-                    gadget_logging::error!("Failed to deserialize message: {e}");
+                    gadget_logging::error!("Failed to deserialize message (gossip): {e}");
                 }
             }
         }
@@ -404,20 +381,19 @@ impl Network for GossipHandle {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         let message_type = if let Some(ParticipantInfo {
-            ecdsa_public_key: Some(to),
+            public_key: Some(to),
             ..
         }) = message.recipient
         {
-            let libp2p_id = self
-                .ecdsa_peer_id_to_libp2p_id
-                .read()
-                .await
+            let pub_key_to_libp2p_id = self.public_key_to_libp2p_id.read().await;
+            gadget_logging::trace!("Handshake count: {}", pub_key_to_libp2p_id.len());
+            let libp2p_id = pub_key_to_libp2p_id
                 .get(&to)
                 .copied()
                 .ok_or_else(|| {
                     Error::NetworkError(format!(
-                        "No libp2p ID found for ecdsa public key: {:?}. No handshake happened?",
-                        to
+                        "No libp2p ID found for crypto public key: {:?}. No handshake happened? Total handshakes: {}",
+                        to, pub_key_to_libp2p_id.len(),
                     ))
                 })?;
 
@@ -426,7 +402,8 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
-        let raw_payload = serde_json::to_vec(&message).map_err(|e| Error::SerdeJson(e))?;
+        let raw_payload =
+            bincode::serialize(&message).map_err(|err| Error::MessagingError(err.to_string()))?;
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),

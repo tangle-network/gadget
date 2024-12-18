@@ -256,7 +256,7 @@ dashmap = { version = "6.1.0", default-features = false }
 lru-mem = { version = "0.3.0", default-features = false }
 
 # Metrics
-metrics = { version = "0.24" }
+metrics = { version = "0.24.1", default-features = false }
 metrics-exporter-prometheus = { version = "0.16" }
 prometheus = { version = "0.13.4", default-features = false }
 

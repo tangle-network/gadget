@@ -1,50 +1,25 @@
-use gadget_crypto_core::{KeyType, KeyTypeId};
-use gadget_std::UniformRand;
-use gadget_std::{
-    string::{String, ToString},
-    vec::Vec,
-};
-use k256::ecdsa::signature::SignerMut;
-
 use crate::error::{K256Error, Result};
+use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::string::{String, ToString};
+use gadget_std::UniformRand;
+use k256::ecdsa::signature::SignerMut;
+use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
 pub struct K256Ecdsa;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct K256VerifyingKey(pub k256::ecdsa::VerifyingKey);
 
 impl PartialOrd for K256VerifyingKey {
     fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-        self.0.to_sec1_bytes().partial_cmp(&other.0.to_sec1_bytes())
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for K256VerifyingKey {
     fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
         self.0.to_sec1_bytes().cmp(&other.0.to_sec1_bytes())
-    }
-}
-
-impl serde::Serialize for K256VerifyingKey {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let bytes = self.0.to_sec1_bytes();
-        serializer.serialize_bytes(&bytes)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for K256VerifyingKey {
-    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = <Vec<u8>>::deserialize(deserializer)?;
-        let verifying_key = k256::ecdsa::VerifyingKey::from_sec1_bytes(&bytes)
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-        Ok(K256VerifyingKey(verifying_key))
     }
 }
 
@@ -55,7 +30,7 @@ macro_rules! impl_serde_bytes {
 
         impl PartialOrd for $wrapper {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                self.0.to_bytes().partial_cmp(&other.0.to_bytes())
+                Some(self.cmp(other))
             }
         }
 
@@ -70,8 +45,8 @@ macro_rules! impl_serde_bytes {
             where
                 S: serde::Serializer,
             {
-                let bytes = self.0.to_bytes();
-                serializer.serialize_bytes(&bytes)
+                let bytes = self.0.to_bytes().to_vec();
+                Vec::serialize(&bytes, serializer)
             }
         }
 
@@ -93,8 +68,8 @@ impl_serde_bytes!(K256SigningKey, k256::ecdsa::SigningKey);
 impl_serde_bytes!(K256Signature, k256::ecdsa::Signature);
 
 impl KeyType for K256Ecdsa {
-    type Public = K256VerifyingKey;
     type Secret = K256SigningKey;
+    type Public = K256VerifyingKey;
     type Signature = K256Signature;
     type Error = K256Error;
 
@@ -124,7 +99,7 @@ impl KeyType for K256Ecdsa {
     }
 
     fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-        K256VerifyingKey(secret.0.verifying_key().clone())
+        K256VerifyingKey(*secret.0.verifying_key())
     }
 
     fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
@@ -151,6 +126,18 @@ impl KeyType for K256Ecdsa {
 
 impl K256SigningKey {
     pub fn verifying_key(&self) -> K256VerifyingKey {
-        K256VerifyingKey(self.0.verifying_key().clone())
+        K256VerifyingKey(*self.0.verifying_key())
     }
+
+    /// Alias for `verifying_key` for consistency
+    pub fn public(&self) -> K256VerifyingKey {
+        self.verifying_key()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // Generate tests for K256 ECDSA
+    gadget_crypto_core::impl_crypto_tests!(K256Ecdsa, K256SigningKey, K256Signature);
 }

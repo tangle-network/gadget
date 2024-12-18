@@ -2,16 +2,16 @@
 
 use crate::gossip::{GossipMessage, NetworkService};
 use gadget_std::string::ToString;
-use gadget_std::sync::atomic::AtomicU32;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
+use std::sync::atomic::AtomicUsize;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_gossip(&mut self, event: gossipsub::Event) {
         use gossipsub::Event::{GossipsubNotSupported, Message, Subscribed, Unsubscribed};
-        let with_connected_peers = |topic: &TopicHash, f: fn(&Arc<AtomicU32>)| {
+        let with_connected_peers = |topic: &TopicHash, f: fn(&Arc<AtomicUsize>)| {
             let maybe_mapping = self
                 .inbound_mapping
                 .iter()
@@ -34,8 +34,11 @@ impl NetworkService<'_> {
                     .await;
             }
             Subscribed { peer_id, topic } => {
-                let added = with_connected_peers(&topic, |connected_peers| {
-                    connected_peers.fetch_add(1, gadget_std::sync::atomic::Ordering::Relaxed);
+                let added = with_connected_peers(&topic, |_connected_peers| {
+                    // Code commented out because each peer needs to do a request-response
+                    // direct P2P handshake, which is where the connected_peers counter is
+                    // incremented. Adding here will just add twice, which is undesirable.
+                    // connected_peers.fetch_add(1, gadget_std::sync::atomic::Ordering::Relaxed);
                 });
                 if added {
                     gadget_logging::trace!("{peer_id} subscribed to {topic}");
@@ -44,8 +47,11 @@ impl NetworkService<'_> {
                 }
             }
             Unsubscribed { peer_id, topic } => {
-                let removed = with_connected_peers(&topic, |connected_peers| {
-                    connected_peers.fetch_sub(1, gadget_std::sync::atomic::Ordering::Relaxed);
+                let removed = with_connected_peers(&topic, |_connected_peers| {
+                    // Code commented out because each peer needs to do a request-response
+                    // direct P2P handshake, which is where the connected_peers counter is
+                    // decremented. Subbing here will just sub twice, which is undesirable.
+                    // connected_peers.fetch_sub(1, gadget_std::sync::atomic::Ordering::Relaxed);
                 });
                 if removed {
                     gadget_logging::trace!("{peer_id} unsubscribed from {topic}");
@@ -99,7 +105,7 @@ impl NetworkService<'_> {
                 }
             }
             Err(e) => {
-                gadget_logging::error!("Failed to deserialize message: {e}");
+                gadget_logging::error!("Failed to deserialize message (handlers/gossip): {e}");
             }
         }
     }

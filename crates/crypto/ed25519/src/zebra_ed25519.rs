@@ -45,8 +45,8 @@ macro_rules! impl_zebra_serde {
                 S: serde::Serializer,
             {
                 // Get the raw bytes
-                let bytes = self.0.as_ref();
-                serializer.serialize_bytes(bytes)
+                let bytes = self.0.as_ref().to_vec();
+                Vec::serialize(&bytes, serializer)
             }
         }
 
@@ -75,7 +75,7 @@ pub struct Ed25519Signature(pub ed25519_zebra::Signature);
 
 impl PartialOrd for Ed25519Signature {
     fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-        self.0.to_bytes().partial_cmp(&other.0.to_bytes())
+        Some(self.cmp(other))
     }
 }
 
@@ -158,4 +158,10 @@ impl KeyType for Ed25519Zebra {
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
         public.0.verify(&signature.0, msg).is_ok()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(Ed25519Zebra, Ed25519SigningKey, Ed25519Signature);
 }
