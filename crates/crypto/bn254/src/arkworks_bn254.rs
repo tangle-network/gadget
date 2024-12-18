@@ -37,7 +37,8 @@ macro_rules! impl_ark_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                serializer.serialize_bytes(&to_bytes(self.0))
+                let bytes = to_bytes(self.0);
+                Vec::serialize(&bytes, serializer)
             }
         }
 
@@ -114,4 +115,8 @@ impl KeyType for ArkBlsBn254 {
     }
 }
 
-// Continue with KeyType implementation...
+#[cfg(test)]
+mod tests {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(ArkBlsBn254, ArkBlsBn254Secret, ArkBlsBn254Signature);
+}
