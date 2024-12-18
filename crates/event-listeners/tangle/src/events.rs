@@ -9,8 +9,6 @@ use gadget_std::sync::atomic::{AtomicBool, Ordering};
 use gadget_std::sync::Arc;
 use subxt::backend::StreamOfResults;
 use subxt_core::events::{EventDetails, StaticEvent};
-use subxt_core::utils::AccountId32;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Job, ServiceId};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called::CallId;

@@ -7,7 +7,6 @@ use gadget_std::collections::BTreeMap;
 use gcloud_sdk::{
     google::cloud::kms::v1::key_management_service_client::KeyManagementServiceClient, GoogleApi,
 };
-use k256::ecdsa::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

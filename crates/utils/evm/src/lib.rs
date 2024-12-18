@@ -1,5 +1,5 @@
 use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider, WsConnect};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
@@ -13,6 +13,10 @@ pub const SIGNATURE_EXPIRY: U256 = U256::from_limbs([86400, 0, 0, 0]);
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
+///
+/// # Panics
+/// - If the provided http endpoint is not a valid URL
+#[must_use]
 pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -28,6 +32,10 @@ pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
+///
+/// # Panics
+/// - If the provided http endpoint is not a valid URL
+#[must_use]
 pub fn get_wallet_provider_http(
     http_endpoint: &str,
     wallet: EthereumWallet,
@@ -47,6 +55,10 @@ pub fn get_wallet_provider_http(
 ///
 /// # Returns
 /// - [`RootProvider<BoxTransport>`] - The provider
+///
+/// # Panics
+/// - If the provided websocket endpoint is not a valid URL
+#[must_use]
 pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -61,6 +73,14 @@ pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
 }
 
 #[allow(clippy::type_complexity)]
+/// Get the provider for an http endpoint with the [`Wallet`](EthereumWallet) for the specified private key
+///
+/// # Returns
+/// - [`RootProvider<BoxTransport>`] - The provider
+///
+/// # Panics
+/// - If the provided http endpoint is not a valid URL
+#[must_use]
 pub fn get_provider_from_signer(key: &str, rpc_url: &str) -> RootProvider<BoxTransport> {
     let signer = PrivateKeySigner::from_str(key).expect("wrong key ");
     let wallet = EthereumWallet::from(signer);

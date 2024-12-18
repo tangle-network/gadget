@@ -1,10 +1,8 @@
-use crate::error::{Result, TangleClientError};
+use crate::error::Result;
 use gadget_config::GadgetConfiguration;
 use subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata;
-use sp_core::Encode;
-use subxt::Config;
 
 pub struct TangleClient {
     pub config: GadgetConfiguration,

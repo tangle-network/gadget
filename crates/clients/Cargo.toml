@@ -18,6 +18,8 @@ std = [
     "gadget-client-networking?/std",
     "gadget-client-tangle?/std",
 ]
+no_std = ["gadget-client-tangle?/no_std"]
+
 eigenlayer = ["gadget-client-eigenlayer"]
 evm = ["gadget-client-evm"]
 networking = ["gadget-client-networking"]

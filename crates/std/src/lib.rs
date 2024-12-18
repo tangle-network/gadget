@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(ambiguous_glob_reexports)]
 
 #[cfg(not(feature = "std"))]
-#[doc(hidden)]
-extern crate alloc;
+pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
 pub use alloc::*;
@@ -13,13 +13,11 @@ pub use core::*;
 #[cfg(not(feature = "std"))]
 pub mod fmt {
     pub use alloc::fmt::*;
-    pub use core::fmt::*;
 }
 
 #[cfg(not(feature = "std"))]
 pub mod borrow {
     pub use alloc::borrow::*;
-    pub use core::borrow::*;
 }
 
 #[cfg(not(feature = "std"))]

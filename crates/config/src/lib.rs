@@ -1,3 +1,4 @@
+#![allow(unused_variables, unreachable_code)]
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
 

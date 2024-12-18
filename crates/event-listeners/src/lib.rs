@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub use gadget_event_listeners_core as core;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[cfg(feature = "evm")]
+pub use gadget_event_listeners_evm as evm;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[cfg(feature = "tangle")]
+pub use gadget_event_listeners_tangle as tangle;
+
+#[cfg(feature = "periodic")]
+pub use gadget_event_listeners_periodic as periodic;
