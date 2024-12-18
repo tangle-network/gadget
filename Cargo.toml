@@ -64,6 +64,9 @@ gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listene
 gadget-event-listeners-periodic = { version = "0.1.0", path = "./crates/event-listeners/periodic", default-features = false }
 gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
 
+# Executor
+gadget-executor = { version = "0.1.0", path = "./crates/executor", default-features = false }
+
 # Macros
 gadget-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
 gadget-blueprint-proc-macro-core = { version = "0.3.1", path = "./crates/macros/core", default-features = false }
