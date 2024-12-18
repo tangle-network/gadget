@@ -39,7 +39,7 @@ pub trait MessageMetadata {
 }
 
 #[async_trait]
-pub trait MessagingNetwork {
+pub trait NetworkMessagingIO {
     type Message: MessageMetadata + Send + Sync + 'static;
 
     async fn next_message(&self) -> Option<Payload<Self::Message>>;
@@ -135,7 +135,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
+    N: NetworkMessagingIO<Message = M> + Send + Sync + 'static,
 {
     backend: Arc<B>,
     local_delivery: Arc<L>,
@@ -149,7 +149,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
+    N: NetworkMessagingIO<Message = M> + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -167,7 +167,7 @@ where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: MessagingNetwork<Message = M> + Send + Sync + 'static,
+    N: NetworkMessagingIO<Message = M> + Send + Sync + 'static,
 {
     pub fn new(backend: B, local_delivery: L, network: N) -> Self {
         let this = Self {
@@ -251,7 +251,7 @@ where
         let tracker = self.tracker.read().await;
         for ((job_id, peer_id), mut messages) in grouped_messages {
             // Sort messages by MessageId
-            messages.sort_by_key(|m| m.message_id());
+            messages.sort_by_key(MessageMetadata::message_id);
 
             // Find the first message we can send based on ACKs
             if let Some(msg) = messages
@@ -277,7 +277,7 @@ where
         // Sort the pending messages in order by MessageID
         let pending_messages: Vec<M> = pending_messages
             .into_iter()
-            .sorted_by_key(|r| r.message_id())
+            .sorted_by_key(MessageMetadata::message_id)
             .collect();
 
         for message in pending_messages {
@@ -286,7 +286,7 @@ where
                     // Create and send ACK
                     if let Err(e) = self
                         .network
-                        .send_message(&self.create_ack_message(&message))
+                        .send_message(&Self::create_ack_message(&message))
                         .await
                     {
                         gadget_logging::error!("Failed to send ACK: {e:?}");
@@ -341,6 +341,12 @@ where
         }
     }
 
+    /// Send a message through the message system
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError::Stopped` if the message system is not running.
+    /// May also return other `BackendError` variants if the backend storage operation fails.
     pub async fn send_message(&self, message: M) -> Result<(), BackendError> {
         if self.is_running.load(std::sync::atomic::Ordering::Relaxed) {
             self.backend.store_outbound(message).await
@@ -349,7 +355,7 @@ where
         }
     }
 
-    fn create_ack_message(&self, original_message: &M) -> Payload<M> {
+    fn create_ack_message(original_message: &M) -> Payload<M> {
         Payload::Ack {
             job_id: original_message.job_id(),
             from_id: original_message.source_id(),
@@ -368,6 +374,7 @@ type Mailbox<JobId, PeerId, MessageId, Message> =
     Arc<RwLock<HashMap<(JobId, PeerId, MessageId), Message>>>;
 
 impl<M: MessageMetadata> InMemoryBackend<M> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             outbound: Arc::new(RwLock::new(HashMap::new())),

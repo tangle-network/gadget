@@ -17,6 +17,7 @@ thiserror = { workspace = true }
 num-bigint = { workspace = true, features = ["serde"] }
 num-traits = { workspace = true }
 sha2 = { workspace = true }
+hex = { workspace = true, features = ["alloc"] }
 
 [features]
 default = ["std"]

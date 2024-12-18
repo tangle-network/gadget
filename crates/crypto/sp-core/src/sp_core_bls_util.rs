@@ -12,7 +12,7 @@ use crate::{impl_sp_core_key_type, impl_sp_core_pair_public};
 macro_rules! impl_sp_core_bls_signature {
     ($key_type:ident, $signature:ty) => {
         paste::paste! {
-            #[derive(Clone, PartialEq, Eq)]
+            #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<$key_type Signature>](pub $signature);
 
             impl PartialOrd for [<$key_type Signature>] {
@@ -35,27 +35,6 @@ macro_rules! impl_sp_core_bls_signature {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
                     let bytes: &[u8] = self.0.as_ref();
                     write!(f, "{:?}", bytes)
-                }
-            }
-
-            impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    serializer.serialize_bytes(self.0.as_ref())
-                }
-            }
-
-            impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let sig = <$signature>::from_slice(&bytes)
-                        .map_err(|_| serde::de::Error::custom("Invalid signature length"))?;
-                    Ok([<$key_type Signature>](sig))
                 }
             }
         }

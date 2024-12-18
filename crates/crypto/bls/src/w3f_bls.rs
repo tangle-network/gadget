@@ -36,7 +36,8 @@ macro_rules! impl_w3f_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                serializer.serialize_bytes(&to_bytes(self.0.clone()))
+                let bytes = to_bytes(self.0.clone());
+                Vec::serialize(&bytes, serializer)
             }
         }
 
@@ -45,7 +46,7 @@ macro_rules! impl_w3f_serde {
             where
                 D: serde::Deserializer<'de>,
             {
-                // Deserialize as bytes
+                // Deserialize as Vec
                 let bytes = <gadget_std::vec::Vec<u8>>::deserialize(deserializer)?;
 
                 // Convert bytes back to inner type
@@ -137,3 +138,15 @@ macro_rules! define_bls_key {
 }
 
 define_bls_key!(Bls377, Bls381);
+
+#[cfg(test)]
+mod test_bls377 {
+    use super::bls377::{Secret, W3fBls377, W3fBls377Signature};
+    gadget_crypto_core::impl_crypto_tests!(W3fBls377, Secret, W3fBls377Signature);
+}
+
+#[cfg(test)]
+mod test_bls381 {
+    use super::bls381::{Secret, W3fBls381, W3fBls381Signature};
+    gadget_crypto_core::impl_crypto_tests!(W3fBls381, Secret, W3fBls381Signature);
+}

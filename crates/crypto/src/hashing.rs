@@ -24,3 +24,10 @@ pub fn keccak_256(data: &[u8]) -> [u8; 32] {
     let output = hasher.finalize();
     output.into()
 }
+
+pub fn blake3_256(data: &[u8]) -> [u8; 32] {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(data);
+    let output = hasher.finalize();
+    output.into()
+}
