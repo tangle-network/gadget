@@ -2,7 +2,6 @@
 
 use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use crate::key_types::Curve;
-use gadget_crypto::hashing::blake3_256;
 use gadget_crypto::KeyType;
 use gadget_std::string::ToString;
 use libp2p::gossipsub::IdentTopic;
@@ -91,10 +90,9 @@ impl NetworkService<'_> {
                 gadget_logging::trace!("Received handshake from peer: {peer}");
                 // Verify the signature
                 let msg = peer.to_bytes();
-                let hash = blake3_256(&msg);
-                let valid = <Curve as KeyType>::verify(&public_key, &hash, &signature);
+                let valid = <Curve as KeyType>::verify(&public_key, &msg, &signature);
                 if !valid {
-                    gadget_logging::warn!("Invalid signature from peer: {peer}");
+                    gadget_logging::warn!("Invalid initial handshake signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
                     return;
                 }
@@ -110,11 +108,7 @@ impl NetworkService<'_> {
                 // Send response with our public key
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
-                let hash = blake3_256(&msg);
-                match <Curve as KeyType>::sign_with_secret_pre_hashed(
-                    &mut self.secret_key.clone(),
-                    &hash,
-                ) {
+                match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                     Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
                         channel,
                         MyBehaviourResponse::Handshaked {
@@ -141,7 +135,7 @@ impl NetworkService<'_> {
                     .find(|r| r.0.to_string() == topic.to_string())
                 {
                     if let Err(e) = tx.send(raw_payload) {
-                        gadget_logging::error!("Failed to send message to worker: {e}");
+                        gadget_logging::warn!("Failed to send message to worker: {e}");
                     }
                 } else {
                     gadget_logging::error!("No registered worker for topic: {topic}!");
@@ -172,10 +166,11 @@ impl NetworkService<'_> {
             } => {
                 gadget_logging::trace!("Received handshake-ack message from peer: {peer}");
                 let msg = peer.to_bytes();
-                let hash = blake3_256(&msg);
-                let valid = <Curve as KeyType>::verify(&public_key, &hash, &signature);
+                let valid = <Curve as KeyType>::verify(&public_key, &msg, &signature);
                 if !valid {
-                    gadget_logging::warn!("Invalid signature from peer: {peer}");
+                    gadget_logging::warn!(
+                        "Invalid handshake-acknowledgement signature from peer: {peer}"
+                    );
                     // TODO: report this peer.
                     self.public_key_to_libp2p_id
                         .write()

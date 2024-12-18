@@ -98,7 +98,7 @@ impl NetworkService<'_> {
                     .find(|r| r.0.to_string() == topic)
                 {
                     if let Err(e) = tx.send(raw_payload) {
-                        gadget_logging::error!("Failed to send message to worker: {e}");
+                        gadget_logging::warn!("Failed to send message to worker: {e}");
                     }
                 } else {
                     gadget_logging::error!("No registered worker for topic: {topic}!");
