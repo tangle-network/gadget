@@ -267,7 +267,7 @@ pub struct GossipHandle {
     pub connected_peers: Arc<AtomicUsize>,
     pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
-    pub my_id: PeerId,
+    pub my_id: PublicKey,
 }
 
 impl GossipHandle {
@@ -379,7 +379,8 @@ impl Network for GossipHandle {
         }
     }
 
-    async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
+    async fn send_message(&self, mut message: ProtocolMessage) -> Result<(), Error> {
+        message.sender.public_key = Some(self.my_id);
         let message_type = if let Some(ParticipantInfo {
             public_key: Some(to),
             ..
@@ -424,5 +425,9 @@ impl Network for GossipHandle {
         self.tx_to_outbound
             .send(payload)
             .map_err(|e| Error::NetworkError(format!("Failed to send intra-node payload: {e}")))
+    }
+
+    fn public_id(&self) -> PublicKey {
+        self.my_id
     }
 }

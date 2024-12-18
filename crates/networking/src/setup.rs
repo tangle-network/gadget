@@ -159,6 +159,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
 
     let networks = topics;
 
+    let my_pk = secret_key.public();
     let my_id = identity.public().to_peer_id();
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
@@ -270,7 +271,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 public_key_to_libp2p_id: public_key_to_libp2p_id.clone(),
                 // Each key is 32 bytes, therefore 512 messages hashes can be stored in the set
                 recent_messages: LruCache::new(16 * 1024).into(),
-                my_id,
+                my_id: my_pk,
             },
         );
     }

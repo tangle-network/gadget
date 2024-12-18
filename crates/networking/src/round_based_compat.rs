@@ -1,6 +1,6 @@
 use crate::key_types::PublicKey;
 use crate::networking::{
-    IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
+    IdentifierInfo, Network, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
 use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
@@ -186,6 +186,8 @@ where
             return Err(crate::Error::Other("Recipient not found".to_string()));
         }
 
+        // Manually construct a `ProtocolMessage` since rounds-based
+        // does not work well with bincode
         let protocol_message = ProtocolMessage {
             identifier_info,
             sender: ParticipantInfo {
