@@ -1,0 +1,25 @@
+[package]
+name = "gadget-executor"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["sync", "process", "rt-multi-thread", "time", "io-util", "fs", "macros"] }
+serde = { workspace = true, features = ["std", "derive"] }
+sysinfo = { workspace = true, features = ["system"] }
+nix = { workspace = true, features = ["signal"] }
+futures = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+gadget-logging = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std"]
+std = []
+
+[lints]
+workspace = true
