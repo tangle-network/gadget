@@ -1,0 +1,39 @@
+[package]
+name = "gadget-runner-eigenlayer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-runner-core = { workspace = true, default-features = false, features = ["eigenlayer"] }
+alloy-primitives = { workspace = true, default-features = false }
+alloy-signer-local = { workspace = true, default-features = false }
+alloy-signer = { workspace = true, default-features = false }
+alloy-rpc-types = { workspace = true, default-features = false }
+alloy-network = { workspace = true, default-features = false }
+alloy-provider = { workspace = true, default-features = false }
+alloy-contract = { workspace = true, default-features = false }
+async-trait = { workspace = true, default-features = false }
+gadget-config = { workspace = true, default-features = false, features = ["eigenlayer"] }
+gadget-logging = { workspace = true, default-features = false }
+gadget-utils = { workspace = true, default-features = false, features = ["evm"] }
+eigensdk = { workspace = true, default-features = false, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"] }
+thiserror = { workspace = true, default-features = false }
+gadget-keystore = { workspace = true, default-features = false, optional = true }
+
+[features]
+default = ["std"]
+
+std = [
+    "gadget-runner-core/std",
+    "gadget-config/std",
+    "gadget-logging/std",
+    "gadget-utils/std",
+    "gadget-keystore?/std",
+]
+
+bls = ["keystore", "gadget-keystore/bn254"]
+ecdsa = ["keystore", "gadget-keystore/bn254", "gadget-keystore/ecdsa"]
+keystore = ["gadget-keystore", "gadget-config/keystore"]
+
+[dev-dependencies]
+rand = { workspace = true, default-features = false, features = ["std_rng"] }

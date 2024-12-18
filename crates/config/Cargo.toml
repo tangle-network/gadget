@@ -47,4 +47,3 @@ keystore = []
 
 # Testing features
 test-utils = ["std"]
-

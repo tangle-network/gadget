@@ -4915,6 +4915,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "gadget-std",
+ "thiserror 2.0.7",
  "tokio",
 ]
 
@@ -5069,6 +5070,89 @@ version = "0.1.0"
 dependencies = [
  "gadget-logging",
  "metrics",
+]
+
+[[package]]
+name = "gadget-runner-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "gadget-config",
+ "gadget-event-listeners",
+ "gadget-logging",
+ "gadget-utils",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-runner-eigenlayer"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-network 0.5.4",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-signer 0.5.4",
+ "alloy-signer-local",
+ "async-trait",
+ "eigensdk",
+ "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-runner-core",
+ "gadget-utils",
+ "rand",
+ "thiserror 2.0.7",
+]
+
+[[package]]
+name = "gadget-runner-symbiotic"
+version = "0.1.0"
+dependencies = [
+ "alloy-network 0.5.4",
+ "alloy-primitives",
+ "alloy-signer-local",
+ "async-trait",
+ "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-runner-core",
+ "gadget-utils",
+ "symbiotic-rs",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-runner-tangle"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-clients",
+ "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-runner-core",
+ "gadget-std",
+ "gadget-utils",
+ "sp-core 31.0.0",
+ "subxt",
+ "tangle-subxt",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-runners"
+version = "0.1.0"
+dependencies = [
+ "gadget-runner-core",
+ "gadget-runner-eigenlayer",
+ "gadget-runner-symbiotic",
+ "gadget-runner-tangle",
 ]
 
 [[package]]
@@ -10999,6 +11083,17 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "zip",
+]
+
+[[package]]
+name = "symbiotic-rs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "710f217361c13c427c851164e0996f3bb0907be5d8889acbe3b6c15318a3a84c"
+dependencies = [
+ "alloy-contract",
+ "alloy-sol-types",
+ "serde",
 ]
 
 [[package]]

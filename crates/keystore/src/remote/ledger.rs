@@ -1,7 +1,7 @@
 use super::{EcdsaRemoteSigner, RemoteConfig};
 use crate::error::{Error, Result};
 use alloy_primitives::{Address, PrimitiveSignature};
-use alloy_signer::{Signature, Signer};
+use alloy_signer::Signer;
 use alloy_signer_ledger::{HDPath, LedgerSigner};
 use gadget_crypto::k256_crypto::{K256Ecdsa, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;

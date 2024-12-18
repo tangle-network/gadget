@@ -1,8 +1,11 @@
 use super::*;
-#[cfg(any(feature = "eigenlayer", feature = "symbiotic"))]
-use alloy_primitives::{address, Address};
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "eigenlayer")]
+use alloy_primitives::address;
+#[cfg(any(feature = "eigenlayer", feature = "symbiotic"))]
+use alloy_primitives::Address;
 
 /// The protocol on which a gadget will be executed.
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

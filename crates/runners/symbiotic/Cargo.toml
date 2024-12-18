@@ -1,0 +1,32 @@
+[package]
+name = "gadget-runner-symbiotic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = { workspace = true, default-features = false }
+alloy-network = { workspace = true, default-features = false }
+alloy-primitives = { workspace = true, default-features = false }
+alloy-signer-local = { workspace = true, default-features = false }
+gadget-config = { workspace = true, default-features = false, features = ["symbiotic"] }
+gadget-runner-core = { workspace = true, default-features = false, features = ["symbiotic"] }
+symbiotic-rs = { workspace = true }
+gadget-utils = { workspace = true, default-features = false, features = ["evm"] }
+gadget-logging = { workspace = true, default-features = false }
+gadget-keystore = { workspace = true, default-features = false, features = ["symbiotic"] }
+thiserror = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+
+std = [
+    "gadget-runner-core/std",
+    "gadget-config/std",
+    "gadget-logging/std",
+    "gadget-utils/std",
+    "gadget-keystore/std",
+    "gadget-config/keystore"
+]
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,5 +1,4 @@
 use gadget_std::string::ParseError;
-use gadget_std::string::String;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

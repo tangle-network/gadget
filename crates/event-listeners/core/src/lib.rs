@@ -7,6 +7,13 @@ pub mod testing;
 use async_trait::async_trait;
 use exponential_backoff::ExponentialBackoff;
 use gadget_std::iter::Take;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Initializable event handler error: {0}")]
+    EventHandler(String),
+}
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
@@ -26,7 +33,6 @@ pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
 
 #[async_trait]
 pub trait InitializableEventHandler {
-    async fn init_event_handler(
-        &self,
-    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
+    async fn init_event_handler(&self)
+        -> Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>;
 }

@@ -7,6 +7,7 @@ pub mod tangle;
 
 use async_trait::async_trait;
 use auto_impl::auto_impl;
+use gadget_std::boxed::Box;
 
 #[async_trait]
 #[auto_impl(Arc)]
