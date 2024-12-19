@@ -4,9 +4,31 @@ use gadget_config::GadgetConfiguration;
 use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::runner::BlueprintRunner;
 use std::path::PathBuf;
+use std::pin::Pin;
 use tempfile::TempDir;
 use tokio::task::JoinHandle;
 use tracing::info;
+
+pub struct RunnerSetup<C: BlueprintConfig> {
+    pub config: C,
+    pub setup: Box<
+        dyn FnOnce(&mut BlueprintRunner) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>
+            + Send,
+    >,
+}
+
+impl<C: BlueprintConfig> RunnerSetup<C> {
+    pub fn new<F, Fut>(config: C, setup: F) -> Self
+    where
+        F: FnOnce(&mut BlueprintRunner) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), Error>> + Send + 'static,
+    {
+        RunnerSetup {
+            config,
+            setup: Box::new(move |runner| Box::pin(setup(runner))),
+        }
+    }
+}
 
 /// A test environment for running blueprint runners directly
 pub struct RunnerTestEnv {
@@ -77,28 +99,15 @@ impl RunnerTestEnv {
     }
 
     /// Run multiple runners simultaneously and wait for all of them to complete
-    pub async fn run_multiple_runners<C>(
-        &self,
-        configs_and_setups: Vec<(
-            C,
-            Box<
-                dyn FnOnce(
-                        &mut BlueprintRunner,
-                    )
-                        -> std::pin::Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>
-                    + Send,
-            >,
-        )>,
-    ) -> Result<(), Error>
+    pub async fn run_multiple_runners<C>(&self, setups: Vec<RunnerSetup<C>>) -> Result<(), Error>
     where
         C: BlueprintConfig + 'static,
     {
-        let handles = self.spawn_runners(configs_and_setups);
-
-        for handle in handles {
-            handle.await??;
+        for setup in setups {
+            let mut runner = BlueprintRunner::new(setup.config, self.config.clone());
+            (setup.setup)(&mut runner).await?;
+            runner.run().await?;
         }
-
         Ok(())
     }
 }
@@ -109,7 +118,6 @@ mod tests {
     use async_trait::async_trait;
     use gadget_runners::core::config::BlueprintConfig;
     use gadget_runners::core::error::RunnerError;
-    use std::pin::Pin;
 
     // Mock blueprint config for testing
     #[derive(Default, Clone)]
@@ -142,25 +150,14 @@ mod tests {
     async fn test_multiple_runners() {
         let env = RunnerTestEnv::new().unwrap();
 
-        let test_runner = |_runner: &mut BlueprintRunner| -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
-            Box::pin(async { Ok(()) })
-        };
+        let test_runner = |_runner: &mut BlueprintRunner| async { Ok(()) };
 
-        let configs_and_setups: Vec<(
-            MockConfig,
-            Box<
-                dyn FnOnce(
-                        &mut BlueprintRunner,
-                    )
-                        -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>
-                    + Send,
-            >,
-        )> = vec![
-            (MockConfig::default(), Box::new(test_runner)),
-            (MockConfig::default(), Box::new(test_runner)),
-            (MockConfig::default(), Box::new(test_runner)),
+        let setups = vec![
+            RunnerSetup::new(MockConfig::default(), test_runner),
+            RunnerSetup::new(MockConfig::default(), test_runner),
+            RunnerSetup::new(MockConfig::default(), test_runner),
         ];
 
-        env.run_multiple_runners(configs_and_setups).await.unwrap();
+        env.run_multiple_runners(setups).await.unwrap();
     }
 }
