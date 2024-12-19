@@ -5,7 +5,7 @@ use crate::utils::{
 use crate::{craft_child_process, run_command};
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use std::ffi::OsString;
 use std::time::Duration;
 use sysinfo::{Pid, ProcessStatus, System};
@@ -15,63 +15,111 @@ use tokio::sync::oneshot;
 const DEFAULT_READ_TIMEOUT: u64 = 60; // seconds
 
 /// A process spawned by gadget-executor, running some service or command(s)
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone)]
 pub struct GadgetProcess {
     /// The command executed
     pub command: String,
     /// The name of the process itself
     pub process_name: OsString,
     /// Process ID
-    #[serde(serialize_with = "serialize_pid", deserialize_with = "deserialize_pid")]
-    pub pid: Pid,
-    /// History of output from process for reviewing/tracking progress
-    pub output: Vec<String>,
+    pub pid: Option<Pid>,
     /// [Stream](broadcast::Receiver) for output from child process
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     pub stream: Option<broadcast::Receiver<String>>,
+    /// History of output from process for reviewing/tracking progress
+    #[serde(skip)]
+    pub output: Option<broadcast::Sender<String>>,
+    /// Status of the process
+    pub status: Status,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SerializedGadgetProcess {
+    /// The command executed
+    pub command: String,
+    /// The name of the process itself
+    pub process_name: OsString,
+    /// Process ID
+    #[serde(serialize_with = "serialize_pid", deserialize_with = "deserialize_pid")]
+    pub pid: Option<Pid>,
+    /// Status of the process
+    pub status: Status,
+}
+
+impl From<GadgetProcess> for SerializedGadgetProcess {
+    fn from(process: GadgetProcess) -> Self {
+        SerializedGadgetProcess {
+            command: process.command,
+            process_name: process.process_name,
+            pid: process.pid,
+            status: process.status,
+        }
+    }
+}
+
+impl From<SerializedGadgetProcess> for GadgetProcess {
+    fn from(process: SerializedGadgetProcess) -> Self {
+        GadgetProcess {
+            command: process.command,
+            process_name: process.process_name,
+            pid: process.pid,
+            stream: None,
+            output: None,
+            status: process.status,
+        }
+    }
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
-fn serialize_pid<S>(pid: &Pid, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_pid<S>(pid: &Option<Pid>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_u32(pid.as_u32())
+    match pid {
+        Some(pid) => serializer.serialize_u32(pid.as_u32()),
+        None => serializer.serialize_none(),
+    }
 }
 
-fn deserialize_pid<'de, D>(deserializer: D) -> Result<Pid, D::Error>
+fn deserialize_pid<'de, D>(deserializer: D) -> Result<Option<Pid>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let value = u32::deserialize(deserializer)?;
-    Ok(Pid::from_u32(value))
+    let value = Option::<u32>::deserialize(deserializer)?;
+    match value {
+        Some(value) => Ok(Some(Pid::from_u32(value))),
+        None => Ok(None),
+    }
 }
 
 impl GadgetProcess {
-    pub fn new(
-        command: String,
-        pid: u32,
-        output: Vec<String>,
-        stream: (broadcast::Receiver<String>, oneshot::Receiver<()>),
-        process_name: OsString,
-    ) -> Result<GadgetProcess, Error> {
-        let pid = Pid::from_u32(pid);
-        let (rx, ready) = stream;
-
-        // Wait for the process to be ready (first output received or process started)
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let _ = tokio::time::timeout(Duration::from_millis(1000), ready).await;
-            })
-        });
-
-        Ok(GadgetProcess {
+    pub async fn new(command: String) -> Result<Self, Error> {
+        let child_info = run_command!(&command).await?;
+        let (tx, _) = broadcast::channel(100);
+        
+        Ok(Self {
+            pid: Some(Pid::from(child_info.pid)),
+            process_name: command.clone().into(),
             command,
-            pid,
-            output,
-            stream: Some(rx),
-            process_name,
+            status: Status::Active,
+            output: Some(tx),
+            stream: None,
         })
+    }
+
+    pub async fn kill(&mut self) -> Result<(), Error> {
+        if let Some(pid) = self.pid {
+            let _ = nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid.as_u32() as i32),
+                nix::sys::signal::Signal::SIGTERM,
+            );
+            self.status = Status::Stopped;
+        }
+        Ok(())
+    }
+
+    pub fn get_output(&self) -> Option<broadcast::Receiver<String>> {
+        self.output.as_ref().map(|tx| tx.subscribe())
     }
 
     /// Resubscribe to this [`GadgetProcess`]'s output [stream](broadcast::Receiver).
@@ -84,7 +132,7 @@ impl GadgetProcess {
     pub fn resubscribe(&self) -> Result<broadcast::Receiver<String>, Error> {
         match &self.stream {
             Some(stream) => Ok(stream.resubscribe()),
-            None => Err(Error::StreamError(self.pid)),
+            None => Err(Error::StreamError(self.pid.unwrap_or(Pid::from_u32(0)), "No output stream available".to_string())),
         }
     }
 
@@ -126,7 +174,9 @@ impl GadgetProcess {
                                     inbound_message
                                 );
                                 messages.push(inbound_message.clone());
-                                self.output.push(inbound_message);
+                                if let Some(output) = &mut self.output {
+                                    output.send(inbound_message.clone()).unwrap();
+                                }
                             }
                         }
                     }
@@ -189,7 +239,9 @@ impl GadgetProcess {
                             inbound_message.clone()
                         );
                         messages.push(inbound_message.clone());
-                        self.output.push(inbound_message.clone());
+                        if let Some(output) = &mut self.output {
+                            output.send(inbound_message.clone()).unwrap();
+                        }
                         if inbound_message.contains(&substring) {
                             // We should now return with the output
                             return ProcessOutput::Output(messages);
@@ -218,7 +270,7 @@ impl GadgetProcess {
     pub(crate) fn restart_process(&mut self) -> Result<GadgetProcess, Error> {
         // Kill current process running this command
         let s = System::new_all();
-        match s.process(self.pid) {
+        match s.process(self.pid.unwrap_or(Pid::from_u32(0))) {
             Some(process) => {
                 if process.name() == self.process_name {
                     self.kill()?;
@@ -232,13 +284,14 @@ impl GadgetProcess {
                 );
             }
         }
-        run_command!(&self.command.clone())
+        let command = run_command!(&self.command.clone());
+        command.await
     }
 
     /// Checks the status of this [`GadgetProcess`]
     pub(crate) fn status(&self) -> Status {
         let s = System::new_all();
-        match s.process(self.pid) {
+        match s.process(self.pid.unwrap_or(Pid::from_u32(0))) {
             Some(process) => Status::from(process.status()),
             None => {
                 // If it isn't found, then the process died
@@ -252,34 +305,30 @@ impl GadgetProcess {
     pub(crate) fn get_name(&self) -> Result<OsString, Error> {
         let s = System::new_all();
         let name = s
-            .process(self.pid)
-            .ok_or(Error::ProcessNotFound(self.pid))?
+            .process(self.pid.unwrap_or(Pid::from_u32(0)))
+            .ok_or(Error::ProcessNotFound(self.pid.unwrap_or(Pid::from_u32(0))))?
             .name();
         Ok(name.into())
     }
 
-    /// Terminates the process depicted by this [`GadgetProcess`] - will fail if the PID is now being reused
-    pub(crate) fn kill(&self) -> Result<(), Error> {
-        let running_process = self.get_name()?;
-        if running_process != self.process_name {
-            return Err(Error::ProcessMismatch(
-                self.process_name.to_string_lossy().into_owned(),
-                running_process.to_string_lossy().into_owned(),
-            ));
-        }
-
-        signal::kill(
-            nix::unistd::Pid::from_raw(self.pid.as_u32().cast_signed()),
-            Signal::SIGTERM,
-        )
-        .map_err(Error::KillFailed)?;
-
+    pub async fn start(&mut self) -> Result<(), Error> {
+        let command = run_command!(&self.command).await?;
+        self.output = Some(command.tx);
         Ok(())
+    }
+
+    pub fn get_output(&self) -> Result<broadcast::Receiver<String>, Error> {
+        match &self.output {
+            Some(tx) => Ok(tx.subscribe()),
+            None => Err(Error::StreamError(
+                self.pid.unwrap_or(Pid::from_u32(0)),
+                "No output stream available".to_string()
+            )),
+        }
     }
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum ProcessOutput {
     /// Normal collection of output lines from a given process
     Output(Vec<String>),
@@ -289,18 +338,12 @@ pub enum ProcessOutput {
     Waiting,
 }
 
-#[derive(Debug)]
-pub(crate) enum Status {
-    /// Process is running or able to run
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum Status {
     Active,
-    /// Stopped process
-    Inactive,
-    /// Sleeping process, either waiting for resources or a signal
     Sleeping,
-    /// Zombie process
     Dead,
-    /// Other or invalid status - if this occurs, something is likely wrong
-    Unknown(String),
+    Stopped,
 }
 
 impl From<ProcessStatus> for Status {
@@ -312,9 +355,9 @@ impl From<ProcessStatus> for Status {
             | ProcessStatus::Parked
             | ProcessStatus::LockBlocked
             | ProcessStatus::Wakekill => Status::Sleeping,
-            ProcessStatus::Stop | ProcessStatus::Tracing | ProcessStatus::Idle => Status::Inactive,
+            ProcessStatus::Stop | ProcessStatus::Tracing | ProcessStatus::Idle => Status::Stopped,
             ProcessStatus::Dead | ProcessStatus::Zombie => Status::Dead,
-            ProcessStatus::Unknown(code) => Status::Unknown(format!("Unknown with code {code}")),
+            ProcessStatus::Unknown(code) => Status::Stopped,
         }
     }
 }
