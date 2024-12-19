@@ -5427,6 +5427,7 @@ dependencies = [
  "nix 0.29.0",
  "serde",
  "serde_json",
+ "serde_with",
  "sysinfo",
  "thiserror 2.0.7",
  "tokio",
