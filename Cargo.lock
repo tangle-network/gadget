@@ -5667,10 +5667,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-tangle-utils"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "gadget-config",
+ "gadget-runners",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "gadget-testing-utils"
 version = "0.1.0"
 dependencies = [
  "gadget-anvil-utils",
+ "gadget-tangle-utils",
 ]
 
 [[package]]

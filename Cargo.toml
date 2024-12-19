@@ -94,7 +94,6 @@ gadget-std = { version = "0.1.0", path = "./crates/std", default-features = fals
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
-gadget-utils-core = { version = "0.1.0", path = "./crates/utils/core", default-features = false }
 gadget-utils-evm = { version = "0.1.0", path = "./crates/utils/evm", default-features = false }
 gadget-utils-eigenlayer = { version = "0.1.0", path = "./crates/utils/eigenlayer", default-features = false }
 gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", default-features = false }
@@ -102,6 +101,7 @@ gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", defau
 # Testing utilities
 gadget-testing-utils = { version = "0.1.0", path = "./crates/testing-utils", default-features = false }
 gadget-anvil-utils = { version = "0.1.0", path = "./crates/testing-utils/anvil", default-features = false }
+gadget-tangle-utils = { version = "0.1.0", path = "./crates/testing-utils/tangle", default-features = false }
 
 # Metrics
 gadget-metrics = { version = "0.1.0", path = "./crates/metrics", default-features = false }

@@ -1,13 +1,13 @@
 pub use futures::StreamExt;
+use std::ffi::OsString;
 pub use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
+use sysinfo::{Pid, System};
 pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::{broadcast, oneshot, Mutex};
-use sysinfo::{System, Pid};
-use std::ffi::OsString;
 
 #[cfg(target_family = "windows")]
 pub static OS_COMMAND: &str = "cmd";
@@ -29,11 +29,11 @@ pub fn get_process_info(pid: u32) -> Option<OsString> {
     while attempts > 0 {
         let mut s = System::new_all();
         s.refresh_all();
-        
+
         if let Some(process) = s.process(Pid::from_u32(pid)) {
             return Some(process.name().to_os_string());
         }
-        
+
         attempts -= 1;
         if attempts > 0 {
             std::thread::sleep(Duration::from_millis(10));
@@ -69,13 +69,15 @@ macro_rules! run_command {
         async {
             let mut command = craft_child_process!($cmd);
             let child = command.spawn()?;
-            let pid = child.id().ok_or_else(|| Error::ProcessNotFound(Pid::from_u32(0)))?;
-            
-            let process_name = get_process_info(pid)
-                .ok_or(Error::ProcessNotFound(Pid::from_u32(pid)))?;
+            let pid = child
+                .id()
+                .ok_or_else(|| Error::ProcessNotFound(Pid::from_u32(0)))?;
+
+            let process_name =
+                get_process_info(pid).ok_or(Error::ProcessNotFound(Pid::from_u32(pid)))?;
 
             let stream = create_stream(child, process_name.clone()).await;
-            
+
             Ok::<_, Error>(GadgetProcess::new(
                 $cmd.to_string(),
                 pid,
@@ -83,15 +85,16 @@ macro_rules! run_command {
                 stream,
                 process_name,
             ))
-        }.await
+        }
+        .await
     }};
 }
 
 pub(crate) async fn create_stream(
-    mut child: Child, 
-    tx: broadcast::Sender<String>, 
-    ready_tx: oneshot::Sender<()>, 
-    process_name: OsString
+    mut child: Child,
+    tx: broadcast::Sender<String>,
+    ready_tx: oneshot::Sender<()>,
+    process_name: OsString,
 ) -> (broadcast::Receiver<String>, oneshot::Receiver<()>) {
     const CHILD_PROCESS_TIMEOUT: Duration = Duration::from_millis(10000);
     const MAX_CONSECUTIVE_NONE: usize = 5;
@@ -102,14 +105,18 @@ pub(crate) async fn create_stream(
 
     let stdout = child.stdout.take().expect("Failed to take stdout");
     let stderr = child.stderr.take().expect("Failed to take stderr");
-    
+
     let tx_clone = tx.clone();
     let process_name_clone = process_name.clone();
-    
+
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            let _ = tx_clone.send(format!("[{}] {}", process_name_clone.to_string_lossy(), line));
+            let _ = tx_clone.send(format!(
+                "[{}] {}",
+                process_name_clone.to_string_lossy(),
+                line
+            ));
             let guard = first_output_tx.lock().await;
             if let Some(tx) = guard.as_ref() {
                 let _ = tx.send(());
@@ -130,7 +137,10 @@ pub(crate) async fn create_stream(
     });
 
     tokio::spawn(async move {
-        let status = child.wait().await.expect("Failed to wait for child process");
+        let status = child
+            .wait()
+            .await
+            .expect("Failed to wait for child process");
         gadget_logging::info!("Child process ended with status: {}", status);
     });
 
@@ -139,7 +149,7 @@ pub(crate) async fn create_stream(
     if let Some(tx) = guard.as_ref() {
         let _ = tx.send(());
     }
-    
+
     (rx, ready_rx)
 }
 
