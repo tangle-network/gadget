@@ -1,9 +1,11 @@
 use super::error::Error;
-use crate::utils::{create_stream, Command, Stdio, OS_COMMAND, OS_ARG, get_process_info, ChildInfo};
+use crate::utils::{
+    create_stream, get_process_info, ChildInfo, Command, Stdio, OS_ARG, OS_COMMAND,
+};
 use crate::{craft_child_process, run_command};
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ffi::OsString;
 use std::time::Duration;
 use sysinfo::{Pid, ProcessStatus, System};
@@ -55,17 +57,14 @@ impl GadgetProcess {
     ) -> Result<GadgetProcess, Error> {
         let pid = Pid::from_u32(pid);
         let (rx, ready) = stream;
-        
+
         // Wait for the process to be ready (first output received or process started)
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                let _ = tokio::time::timeout(
-                    Duration::from_millis(1000),
-                    ready
-                ).await;
+                let _ = tokio::time::timeout(Duration::from_millis(1000), ready).await;
             })
         });
-            
+
         Ok(GadgetProcess {
             command,
             pid,
@@ -308,11 +307,12 @@ impl From<ProcessStatus> for Status {
     fn from(value: ProcessStatus) -> Self {
         match value {
             ProcessStatus::Run | ProcessStatus::Waking => Status::Active,
-            ProcessStatus::Sleep | ProcessStatus::UninterruptibleDiskSleep 
-                | ProcessStatus::Parked | ProcessStatus::LockBlocked 
-                | ProcessStatus::Wakekill => Status::Sleeping,
-            ProcessStatus::Stop | ProcessStatus::Tracing 
-                | ProcessStatus::Idle => Status::Inactive,
+            ProcessStatus::Sleep
+            | ProcessStatus::UninterruptibleDiskSleep
+            | ProcessStatus::Parked
+            | ProcessStatus::LockBlocked
+            | ProcessStatus::Wakekill => Status::Sleeping,
+            ProcessStatus::Stop | ProcessStatus::Tracing | ProcessStatus::Idle => Status::Inactive,
             ProcessStatus::Dead | ProcessStatus::Zombie => Status::Dead,
             ProcessStatus::Unknown(code) => Status::Unknown(format!("Unknown with code {code}")),
         }

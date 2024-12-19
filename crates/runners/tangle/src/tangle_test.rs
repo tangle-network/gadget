@@ -1,4 +1,3 @@
-
 use crate::tangle::{get_client, TangleConfig};
 use gadget_config::protocol::TangleInstanceSettings;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};

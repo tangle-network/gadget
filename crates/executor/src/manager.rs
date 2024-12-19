@@ -1,10 +1,12 @@
 use super::error::Error;
 use crate::types::{GadgetProcess, ProcessOutput, Status};
-use crate::utils::{create_stream, Command, Stdio, OS_COMMAND, OS_ARG, get_process_info, ChildInfo};
+use crate::utils::{
+    create_stream, get_process_info, ChildInfo, Command, Stdio, OS_ARG, OS_COMMAND,
+};
 use crate::{craft_child_process, run_command};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use sysinfo::{System, Pid};
+use sysinfo::{Pid, System};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;

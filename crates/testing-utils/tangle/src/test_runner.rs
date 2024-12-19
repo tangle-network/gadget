@@ -1,0 +1,148 @@
+use crate::error::TestRunnerError as Error;
+use futures::Future;
+use gadget_config::GadgetConfiguration;
+use gadget_runners::core::config::BlueprintConfig;
+use gadget_runners::core::runner::BlueprintRunner;
+use std::path::PathBuf;
+use tempfile::TempDir;
+use tokio::task::JoinHandle;
+use tracing::info;
+
+/// A test environment for running blueprint runners directly
+pub struct RunnerTestEnv {
+    /// Temporary directory for test data
+    pub temp_dir: TempDir,
+    /// Runner configuration
+    pub config: GadgetConfiguration,
+}
+
+impl RunnerTestEnv {
+    /// Create a new test environment with default configuration
+    pub fn new() -> Result<Self, Error> {
+        let temp_dir = tempfile::tempdir()?;
+        let config = GadgetConfiguration::default();
+
+        Ok(Self { temp_dir, config })
+    }
+
+    /// Create a new test environment with custom configuration
+    pub fn with_config(config: GadgetConfiguration) -> Result<Self, Error> {
+        let temp_dir = tempfile::tempdir()?;
+
+        Ok(Self { temp_dir, config })
+    }
+
+    /// Get the path to the temporary directory
+    pub fn temp_dir_path(&self) -> PathBuf {
+        self.temp_dir.path().to_path_buf()
+    }
+
+    /// Run a blueprint runner with the test environment configuration
+    pub async fn run_runner<C, F, Fut>(&self, config: C, setup_fn: F) -> Result<(), Error>
+    where
+        C: BlueprintConfig + 'static,
+        F: FnOnce(&mut BlueprintRunner) -> Fut,
+        Fut: Future<Output = Result<(), Error>>,
+    {
+        info!("Setting up runner test environment");
+        let mut runner = BlueprintRunner::new(config, self.config.clone());
+
+        // Run the setup function to configure the runner
+        setup_fn(&mut runner).await?;
+
+        // Run the runner
+        info!("Starting runner");
+        runner.run().await.map_err(Into::into)
+    }
+
+    /// Spawn multiple runners simultaneously
+    pub fn spawn_runners<C, F, Fut>(
+        &self,
+        configs_and_setups: Vec<(C, F)>,
+    ) -> Vec<JoinHandle<Result<(), Error>>>
+    where
+        C: BlueprintConfig + Send + 'static,
+        F: FnOnce(&mut BlueprintRunner) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), Error>> + Send,
+    {
+        configs_and_setups
+            .into_iter()
+            .map(|(config, setup_fn)| {
+                let config_clone = self.config.clone();
+                tokio::spawn(async move {
+                    let mut runner = BlueprintRunner::new(config, config_clone);
+                    setup_fn(&mut runner).await?;
+                    runner.run().await.map_err(Into::into)
+                })
+            })
+            .collect()
+    }
+
+    /// Run multiple runners simultaneously and wait for all of them to complete
+    pub async fn run_multiple_runners<C, F, Fut>(
+        &self,
+        configs_and_setups: Vec<(C, F)>,
+    ) -> Result<(), Error>
+    where
+        C: BlueprintConfig + Send + 'static,
+        F: FnOnce(&mut BlueprintRunner) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), Error>> + Send,
+    {
+        let handles = self.spawn_runners(configs_and_setups);
+
+        for handle in handles {
+            handle.await??;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use gadget_runners::core::config::BlueprintConfig;
+    use gadget_runners::core::error::RunnerError;
+
+    // Mock blueprint config for testing
+    #[derive(Default, Clone)]
+    struct MockConfig;
+
+    #[async_trait]
+    impl BlueprintConfig for MockConfig {
+        async fn requires_registration(
+            &self,
+            _env: &GadgetConfiguration,
+        ) -> Result<bool, RunnerError> {
+            Ok(false)
+        }
+
+        async fn register(&self, _env: &GadgetConfiguration) -> Result<(), RunnerError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_single_runner() {
+        let env = RunnerTestEnv::new().unwrap();
+
+        env.run_runner(MockConfig::default(), |_runner| async { Ok(()) })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_multiple_runners() {
+        let env = RunnerTestEnv::new().unwrap();
+
+        // Create three mock runners
+        let configs_and_setups = vec![
+            (MockConfig::default(), |_runner| async { Ok(()) }),
+            (MockConfig::default(), |_runner| async { Ok(()) }),
+            (MockConfig::default(), |_runner| async { Ok(()) }),
+        ];
+
+        env.run_multiple_runners(configs_and_setups).await.unwrap();
+    }
+}
