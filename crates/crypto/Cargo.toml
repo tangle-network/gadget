@@ -8,6 +8,7 @@ gadget-crypto-core = { path = "core" }
 gadget-crypto-k256 = { path = "k256", optional = true }
 gadget-crypto-sr25519 = { path = "sr25519", optional = true }
 gadget-crypto-ed25519 = { path = "ed25519", optional = true }
+gadget-crypto-hashing = { path = "hashing", optional = true }
 gadget-crypto-bls = { path = "bls", optional = true }
 gadget-crypto-bn254 = { path = "bn254", optional = true }
 gadget-crypto-sp-core = { path = "sp-core", optional = true }
@@ -38,4 +39,8 @@ sp-core = ["gadget-crypto-sp-core", "gadget-crypto-core/tangle"]
 sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/tangle"]
 tangle-pair-signer = ["gadget-crypto-tangle-pair-signer"]
 
-hashing = ["sha2", "sha3", "blake3"]
+hashing = [
+    "gadget-crypto-hashing/sha2-hasher",
+    "gadget-crypto-hashing/sha3-hasher",
+    "gadget-crypto-hashing/blake3-hasher"
+]

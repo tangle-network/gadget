@@ -5,9 +5,13 @@ use thiserror::Error;
 pub enum K256Error {
     #[error("Invalid seed: {0}")]
     InvalidSeed(String),
+    #[error("Invalid verifying key: {0}")]
+    InvalidVerifyingKey(String),
     #[error("Invalid hex string: {0}")]
     HexError(hex::FromHexError),
     #[error("Invalid signature: {0}")]
+    InvalidSignature(String),
+    #[error("Signature failed: {0}")]
     SignatureFailed(String),
 }
 

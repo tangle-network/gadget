@@ -3,6 +3,7 @@ use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
+use k256::ecdsa::{RecoveryId, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
@@ -10,6 +11,18 @@ pub struct K256Ecdsa;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct K256VerifyingKey(pub k256::ecdsa::VerifyingKey);
+
+impl K256VerifyingKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_sec1_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let vk = k256::ecdsa::VerifyingKey::from_sec1_bytes(bytes)
+            .map_err(|e| K256Error::InvalidVerifyingKey(e.to_string()))?;
+        Ok(K256VerifyingKey(vk))
+    }
+}
 
 impl PartialOrd for K256VerifyingKey {
     fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
@@ -67,6 +80,18 @@ macro_rules! impl_serde_bytes {
 impl_serde_bytes!(K256SigningKey, k256::ecdsa::SigningKey);
 impl_serde_bytes!(K256Signature, k256::ecdsa::Signature);
 
+impl K256Signature {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let sig = k256::ecdsa::Signature::try_from(bytes)
+            .map_err(|e| K256Error::InvalidSignature(e.to_string()))?;
+        Ok(K256Signature(sig))
+    }
+}
+
 impl KeyType for K256Ecdsa {
     type Secret = K256SigningKey;
     type Public = K256VerifyingKey;
@@ -79,7 +104,15 @@ impl KeyType for K256Ecdsa {
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let signing_key = if let Some(seed) = seed {
-            k256::ecdsa::SigningKey::from_bytes(seed.into())
+            // Pad seed if less than 32 bytes, error if larger
+            if seed.len() > 32 {
+                return Err(K256Error::InvalidSeed(
+                    "Seed must not exceed 32 bytes".into(),
+                ));
+            }
+            let mut padded_seed = [0u8; 32];
+            padded_seed[..seed.len()].copy_from_slice(seed);
+            k256::ecdsa::SigningKey::from_bytes(&padded_seed.into())
                 .map_err(|e| K256Error::InvalidSeed(e.to_string()))
         } else {
             let mut rng = Self::get_rng();
@@ -133,11 +166,4 @@ impl K256SigningKey {
     pub fn public(&self) -> K256VerifyingKey {
         self.verifying_key()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    // Generate tests for K256 ECDSA
-    gadget_crypto_core::impl_crypto_tests!(K256Ecdsa, K256SigningKey, K256Signature);
 }

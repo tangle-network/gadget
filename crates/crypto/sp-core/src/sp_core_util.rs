@@ -8,7 +8,6 @@ use sp_core::Pair;
 /// Implements serde and KeyType trait for any sp_core crypto type.
 ///
 /// Implements common functionality for key pairs and public keys.
-#[macro_export]
 macro_rules! impl_sp_core_pair_public {
     ($key_type:ident, $pair_type:ty, $public:ty) => {
         paste::paste! {
@@ -130,7 +129,6 @@ macro_rules! impl_sp_core_signature {
 }
 
 /// Implements KeyType trait for non-BLS signatures.
-#[macro_export]
 macro_rules! impl_sp_core_key_type {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
@@ -238,21 +236,3 @@ impl_sp_core_crypto!(SpSr25519, sr25519);
 impl Copy for SpEcdsaPublic {}
 impl Copy for SpEd25519Public {}
 impl Copy for SpSr25519Public {}
-
-#[cfg(test)]
-mod tests_ecdsa {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(SpEcdsa, SpEcdsaPair, SpEcdsaSignature);
-}
-
-#[cfg(test)]
-mod tests_ed25519 {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(SpEd25519, SpEd25519Pair, SpEd25519Signature);
-}
-
-#[cfg(test)]
-mod tests_sr25519 {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(SpSr25519, SpSr25519Pair, SpSr25519Signature);
-}

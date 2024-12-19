@@ -14,6 +14,9 @@ hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+gadget-crypto-hashing = { workspace = true, features = ["sha2"] }
+
 [features]
 default = ["std"]
 std = [
