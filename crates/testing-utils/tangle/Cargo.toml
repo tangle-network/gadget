@@ -1,0 +1,14 @@
+[package]
+name = "gadget-tangle-utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-runners = { workspace = true, features = ["tangle", "std"] }
+gadget-config = { workspace = true, features = ["tangle", "std"] }
+tokio = { workspace = true, features = ["full"] }
+futures = { workspace = true }
+async-trait = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }

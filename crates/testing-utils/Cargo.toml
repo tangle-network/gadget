@@ -9,10 +9,12 @@ repository.workspace = true
 
 [dependencies]
 gadget-anvil-utils = { workspace = true, optional = true }
+gadget-tangle-utils = { workspace = true, optional = true }
 
 [features]
-default = ["anvil"]
+default = ["tangle"]
 anvil = ["gadget-anvil-utils"]
+tangle = ["gadget-tangle-utils"]
 
 [lints]
 workspace = true
