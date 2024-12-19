@@ -8,6 +8,7 @@ pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::{broadcast, oneshot, Mutex};
+use crate::error::Error;
 
 #[cfg(target_family = "windows")]
 pub static OS_COMMAND: &str = "cmd";
@@ -20,8 +21,9 @@ pub static OS_COMMAND: &str = "sh";
 pub static OS_ARG: &str = "-c";
 
 pub struct ChildInfo {
-    pub child: Child,
-    pub process_name: OsString,
+    pub tx: broadcast::Receiver<String>,
+    pub ready_rx: oneshot::Receiver<()>,
+    pub pid: u32,
 }
 
 pub fn get_process_info(pid: u32) -> Option<OsString> {
@@ -65,28 +67,27 @@ macro_rules! craft_child_process {
 
 #[macro_export]
 macro_rules! run_command {
-    ($cmd:expr) => {{
+    ($command:expr) => {{
         async {
-            let mut command = craft_child_process!($cmd);
+            let mut command = Command::new(OS_COMMAND);
+            command.arg(OS_ARG).arg($command);
+            command.stdout(Stdio::piped());
+            
             let child = command.spawn()?;
-            let pid = child
-                .id()
-                .ok_or_else(|| Error::ProcessNotFound(Pid::from_u32(0)))?;
-
-            let process_name =
-                get_process_info(pid).ok_or(Error::ProcessNotFound(Pid::from_u32(pid)))?;
-
-            let stream = create_stream(child, process_name.clone()).await;
-
-            Ok::<_, Error>(GadgetProcess::new(
-                $cmd.to_string(),
-                pid,
-                Vec::new(),
-                stream,
-                process_name,
-            ))
+            let process_name = $command.to_string();
+            let (ready_tx, ready_rx) = oneshot::channel();
+            let (tx, _) = broadcast::channel(100);
+            
+            tokio::spawn(create_stream(child, tx.clone(), ready_tx, process_name));
+            
+            ready_rx.await?;
+            
+            Ok(ChildInfo {
+                tx: tx.subscribe(),
+                ready_rx: ready_rx,
+                pid: child.id().unwrap_or(0),
+            })
         }
-        .await
     }};
 }
 
@@ -94,63 +95,46 @@ pub(crate) async fn create_stream(
     mut child: Child,
     tx: broadcast::Sender<String>,
     ready_tx: oneshot::Sender<()>,
-    process_name: OsString,
-) -> (broadcast::Receiver<String>, oneshot::Receiver<()>) {
-    const CHILD_PROCESS_TIMEOUT: Duration = Duration::from_millis(10000);
-    const MAX_CONSECUTIVE_NONE: usize = 5;
+    process_name: String,
+) -> Result<(), Error> {
+    let stdout = child.stdout.take().ok_or_else(|| {
+        Error::StreamError(
+            Pid::from_u32(0),
+            "Failed to capture stdout".to_string(),
+        )
+    })?;
 
-    let rx = tx.subscribe();
     let first_output_tx = Arc::new(Mutex::new(Some(ready_tx)));
-    let first_output_tx_stderr = Arc::clone(&first_output_tx);
-
-    let stdout = child.stdout.take().expect("Failed to take stdout");
-    let stderr = child.stderr.take().expect("Failed to take stderr");
-
-    let tx_clone = tx.clone();
-    let process_name_clone = process_name.clone();
+    let first_output_tx_clone = Arc::clone(&first_output_tx);
 
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            let _ = tx_clone.send(format!(
-                "[{}] {}",
-                process_name_clone.to_string_lossy(),
-                line
-            ));
-            let guard = first_output_tx.lock().await;
-            if let Some(tx) = guard.as_ref() {
-                let _ = tx.send(());
+            if let Err(e) = tx.send(line) {
+                log::error!("Failed to send output: {}", e);
+                break;
+            }
+
+            // Signal that we've received the first output
+            if let Ok(mut guard) = first_output_tx.lock().await {
+                if let Some(tx) = guard.take() {
+                    let _ = tx.send(());
+                }
             }
         }
     });
 
-    let tx_clone = tx;
-    tokio::spawn(async move {
-        let mut reader = BufReader::new(stderr).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            let _ = tx_clone.send(format!("[{}] {}", process_name.to_string_lossy(), line));
-            let guard = first_output_tx_stderr.lock().await;
-            if let Some(tx) = guard.as_ref() {
-                let _ = tx.send(());
+    // Wait for first output or process exit
+    tokio::select! {
+        _ = first_output_tx_clone.lock() => Ok(()),
+        status = child.wait() => {
+            if !status?.success() {
+                Err(Error::UnexpectedExit(status?.code()))
+            } else {
+                Ok(())
             }
         }
-    });
-
-    tokio::spawn(async move {
-        let status = child
-            .wait()
-            .await
-            .expect("Failed to wait for child process");
-        gadget_logging::info!("Child process ended with status: {}", status);
-    });
-
-    let (ready_tx, ready_rx) = oneshot::channel();
-    let guard = first_output_tx.lock().await;
-    if let Some(tx) = guard.as_ref() {
-        let _ = tx.send(());
     }
-
-    (rx, ready_rx)
 }
 
 #[allow(dead_code)]

@@ -1,23 +1,23 @@
 use super::error::Error;
-use crate::types::{GadgetProcess, ProcessOutput, Status};
-use crate::utils::{
-    create_stream, get_process_info, ChildInfo, Command, Stdio, OS_ARG, OS_COMMAND,
-};
-use crate::{craft_child_process, run_command};
+use crate::types::{GadgetProcess, ProcessOutput, Status, SerializedGadgetProcess};
+use crate::run_command;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use sysinfo::{Pid, System};
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, oneshot};
 
 /// Manager for gadget-executor process. The processes are recorded to be controlled by their Service name.
 /// This Manager can be reconstructed from a file to recover a gadget-executor.
-#[derive(Serialize, Deserialize, Debug)]
-#[allow(clippy::module_name_repetitions)]
+#[derive(Debug)]
 pub struct GadgetProcessManager {
     /// Hashmap that contains all the children spawned by this Manager. Keys are the names of each Service.
     pub children: HashMap<String, GadgetProcess>,
+    system: System,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SerializedManager {
+    children: HashMap<String, SerializedGadgetProcess>,
 }
 
 impl GadgetProcessManager {
@@ -25,28 +25,38 @@ impl GadgetProcessManager {
     pub fn new() -> GadgetProcessManager {
         GadgetProcessManager {
             children: HashMap::new(),
+            system: System::new(),
         }
     }
 
     /// Load the state of previously running processes to recover gadget-executor
-    #[allow(dead_code)]
-    pub(crate) fn new_from_saved(file: &str) -> Result<GadgetProcessManager, crate::error::Error> {
-        let file = std::fs::File::open(file)?;
-        let mut new_manager: GadgetProcessManager = serde_json::from_reader(file)?;
+    pub async fn new_from_saved(file: &str) -> Result<GadgetProcessManager, Error> {
+        let file_content = tokio::fs::read_to_string(file).await.map_err(|e| {
+            Error::StateRecoveryError(format!("Failed to read state file: {}", e))
+        })?;
+        
+        let serialized: SerializedManager = serde_json::from_str(&file_content).map_err(|e| {
+            Error::StateRecoveryError(format!("Failed to parse state file: {}", e))
+        })?;
+        
+        let mut new_manager = GadgetProcessManager {
+            children: serialized.children.into_iter().map(|(k, v)| (k, GadgetProcess::from(v))).collect(),
+            system: System::new(),
+        };
 
         // Restarts processes that were previously running
         new_manager.restart_dead()?;
-
         Ok(new_manager)
     }
 
     /// Store the state of the current processes
-    #[allow(dead_code)]
-    pub(crate) async fn save_state(&self) -> Result<String, crate::error::Error> {
-        let serialized_data = serde_json::to_string(self)?;
-        let mut file = File::create("./savestate.json").await?;
-        file.write_all(serialized_data.clone().as_bytes()).await?;
-        Ok(serialized_data)
+    pub async fn save_state(&self) -> Result<(), Error> {
+        let serialized = SerializedManager {
+            children: self.children.iter().map(|(k, v)| (k.clone(), SerializedGadgetProcess::from(v.clone()))).collect(),
+        };
+        let json = serde_json::to_string(&serialized)?;
+        tokio::fs::write("./savestate.json", json).await?;
+        Ok(())
     }
 
     /// Runs the given command and stores it using the identifier as the key. Returns the identifier used
@@ -54,8 +64,8 @@ impl GadgetProcessManager {
     /// # Errors
     /// - [`Error::UnexpectedExit`] - The execution of the command failed unexpectedly
     #[allow(unused_results)]
-    pub fn run(&mut self, identifier: String, command: &str) -> Result<String, Error> {
-        let gadget_process = run_command!(command)?;
+    pub async fn run(&mut self, identifier: String, command: &str) -> Result<String, Error> {
+        let gadget_process = GadgetProcess::new(command.to_string()).await?;
         self.children.insert(identifier.clone(), gadget_process);
         Ok(identifier)
     }
@@ -71,7 +81,7 @@ impl GadgetProcessManager {
         identifier: String,
         command: &str,
     ) -> Result<broadcast::Receiver<String>, Error> {
-        self.run(identifier.clone(), command)?;
+        self.run(identifier.clone(), command).await?;
         let process = self
             .children
             .get_mut(&identifier)
@@ -129,28 +139,22 @@ impl GadgetProcessManager {
 
     /// Removes processes that are no longer running from the manager. Returns a Vector of the names of processes removed
     #[allow(dead_code)]
-    pub(crate) fn remove_dead(&mut self) -> Vec<String> {
-        let dead_processes = Vec::new();
+    pub(crate) async fn remove_dead(&mut self) -> Vec<String> {
         let mut to_remove = Vec::new();
-        let s = System::new_all();
-
-        // Find dead processes and gather them for return & removal
-        for (key, value) in &self.children {
-            let current_pid = value.pid;
-            if let Some(process) = s.process(current_pid) {
-                if process.name() == value.process_name {
-                    // Still running
-                    continue;
+        for (name, process) in self.children.iter() {
+            if let Some(pid) = process.pid {
+                self.system.refresh_process(pid);
+                if !self.system.process(pid).is_some() {
+                    to_remove.push(name.clone());
                 }
-                // No longer running, some unknown process is now utilizing this PID
-                to_remove.push(key.clone());
             }
         }
-        self.children.retain(|k, _| !to_remove.contains(k));
-
-        // TODO: If dead children are `supposed` to be running, we should start them up again instead of just removing them
-
-        dead_processes
+        
+        for name in &to_remove {
+            self.children.remove(name);
+        }
+        
+        to_remove
     }
 
     /// Finds all dead processes that still exist in map and starts them again. This function
@@ -159,7 +163,7 @@ impl GadgetProcessManager {
     /// # Errors
     /// -
     #[allow(unused_results)]
-    pub(crate) fn restart_dead(&mut self) -> Result<(), Error> {
+    pub(crate) async fn restart_dead(&mut self) -> Result<(), Error> {
         let mut restarted_processes = Vec::new();
         let mut to_remove = Vec::new();
         // Find dead processes and restart them
@@ -186,6 +190,42 @@ impl GadgetProcessManager {
             self.children.insert(service.clone(), restarted);
         }
 
+        Ok(())
+    }
+
+    /// Cleanup resources for a specific service
+    async fn cleanup_service(&mut self, service: &str) -> Result<(), Error> {
+        if let Some(process) = self.children.get(service) {
+            if let Some(pid) = process.pid {
+                match get_process_info(pid) {
+                    Ok(Some(_)) => {
+                        use nix::sys::signal::{self, Signal};
+                        use nix::unistd::Pid as NixPid;
+                        
+                        signal::kill(NixPid::from_raw(pid.as_u32() as i32), Signal::SIGTERM)
+                            .map_err(|e| Error::KillFailed(e, format!("Failed to terminate process {}", pid)))?;
+                    }
+                    Ok(None) => {
+                        // Process no longer exists, just remove from our map
+                    }
+                    Err(e) => {
+                        return Err(Error::StreamError(pid, e.to_string()));
+                    }
+                }
+            }
+        }
+        self.children.remove(service);
+        Ok(())
+    }
+
+    /// Cleanup all managed processes
+    pub async fn cleanup_all(&mut self) -> Result<(), Error> {
+        let services: Vec<String> = self.children.keys().cloned().collect();
+        for service in services {
+            if let Err(e) = self.cleanup_service(&service).await {
+                log::error!("Failed to cleanup service {}: {}", service, e);
+            }
+        }
         Ok(())
     }
 }
