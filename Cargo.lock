@@ -4752,6 +4752,7 @@ dependencies = [
  "gadget-crypto-bn254",
  "gadget-crypto-core",
  "gadget-crypto-ed25519",
+ "gadget-crypto-hashing",
  "gadget-crypto-k256",
  "gadget-crypto-sp-core",
  "gadget-crypto-sr25519",
@@ -4767,6 +4768,7 @@ version = "0.1.0"
 dependencies = [
  "ark-serialize 0.5.0",
  "gadget-crypto-core",
+ "gadget-crypto-hashing",
  "gadget-std",
  "hex",
  "paste",
@@ -4785,6 +4787,7 @@ dependencies = [
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
  "gadget-crypto-core",
+ "gadget-crypto-hashing",
  "gadget-std",
  "hex",
  "num-bigint",
@@ -4818,6 +4821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-crypto-hashing"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "gadget-std",
+ "sha2 0.10.8",
+ "sha3",
+]
+
+[[package]]
 name = "gadget-crypto-k256"
 version = "0.1.0"
 dependencies = [
@@ -4835,7 +4848,9 @@ name = "gadget-crypto-sp-core"
 version = "0.1.0"
 dependencies = [
  "gadget-crypto-core",
+ "gadget-crypto-sp-core",
  "gadget-std",
+ "hex",
  "paste",
  "serde",
  "serde_json",

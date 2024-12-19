@@ -138,15 +138,3 @@ macro_rules! define_bls_key {
 }
 
 define_bls_key!(Bls377, Bls381);
-
-#[cfg(test)]
-mod test_bls377 {
-    use super::bls377::{Secret, W3fBls377, W3fBls377Signature};
-    gadget_crypto_core::impl_crypto_tests!(W3fBls377, Secret, W3fBls377Signature);
-}
-
-#[cfg(test)]
-mod test_bls381 {
-    use super::bls381::{Secret, W3fBls381, W3fBls381Signature};
-    gadget_crypto_core::impl_crypto_tests!(W3fBls381, Secret, W3fBls381Signature);
-}

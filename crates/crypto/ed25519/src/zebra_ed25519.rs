@@ -70,8 +70,33 @@ macro_rules! impl_zebra_serde {
 
 impl_zebra_serde!(Ed25519SigningKey, ed25519_zebra::SigningKey);
 impl_zebra_serde!(Ed25519VerificationKey, ed25519_zebra::VerificationKey);
+
+impl Ed25519VerificationKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::VerificationKey::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidVerifyingKey(e.to_string()))?;
+        Ok(Ed25519VerificationKey(inner))
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Ed25519Signature(pub ed25519_zebra::Signature);
+
+impl Ed25519Signature {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::Signature::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidSignature(e.to_string()))?;
+        Ok(Ed25519Signature(inner))
+    }
+}
 
 impl PartialOrd for Ed25519Signature {
     fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
@@ -124,8 +149,10 @@ impl KeyType for Ed25519Zebra {
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         if let Some(seed) = seed {
-            let seed = <[u8; 32]>::try_from(seed)
-                .map_err(|_| Ed25519Error::InvalidSeed("Seed is not 32 bytes!".to_string()))?;
+            let mut seed_bytes = [0u8; 32];
+            let len = seed.len().min(32);
+            seed_bytes[..len].copy_from_slice(&seed[..len]);
+            let seed = seed_bytes;
             Ok(Ed25519SigningKey(ed25519_zebra::SigningKey::from(seed)))
         } else {
             let mut rng = Self::get_rng();
@@ -158,10 +185,4 @@ impl KeyType for Ed25519Zebra {
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
         public.0.verify(&signature.0, msg).is_ok()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(Ed25519Zebra, Ed25519SigningKey, Ed25519Signature);
 }

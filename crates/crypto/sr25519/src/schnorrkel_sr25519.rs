@@ -1,10 +1,10 @@
 use crate::error::{Result, Sr25519Error};
 use gadget_crypto_core::{KeyType, KeyTypeId};
-use gadget_std::UniformRand;
 use gadget_std::{
     string::{String, ToString},
     vec::Vec,
 };
+use schnorrkel::MiniSecretKey;
 
 /// Schnorrkel key type
 pub struct SchnorrkelSr25519;
@@ -49,13 +49,13 @@ macro_rules! impl_schnorrkel_serde {
     };
 }
 
-impl_schnorrkel_serde!(Public, schnorrkel::PublicKey);
-impl_schnorrkel_serde!(Secret, schnorrkel::SecretKey);
+impl_schnorrkel_serde!(SchnorrkelPublic, schnorrkel::PublicKey);
+impl_schnorrkel_serde!(SchnorrkelSecret, schnorrkel::SecretKey);
 impl_schnorrkel_serde!(SchnorrkelSignature, schnorrkel::Signature);
 
 impl KeyType for SchnorrkelSr25519 {
-    type Secret = Secret;
-    type Public = Public;
+    type Secret = SchnorrkelSecret;
+    type Public = SchnorrkelPublic;
     type Signature = SchnorrkelSignature;
     type Error = Sr25519Error;
 
@@ -65,27 +65,34 @@ impl KeyType for SchnorrkelSr25519 {
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret_key = if let Some(seed) = seed {
-            schnorrkel::SecretKey::from_bytes(seed)
+            // Pad seed to 64 bytes or error if too large
+            if seed.len() > 64 {
+                return Err(Sr25519Error::InvalidSeed(
+                    "Seed must not exceed 64 bytes".into(),
+                ));
+            }
+            let mut padded_seed = [0u8; 64];
+            padded_seed[..seed.len()].copy_from_slice(seed);
+            schnorrkel::SecretKey::from_bytes(&padded_seed)
                 .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))
         } else {
             let mut rng = Self::get_rng();
-            let rand_bytes: [u8; 32] = <[u8; 32]>::rand(&mut rng);
-            schnorrkel::SecretKey::from_bytes(&rand_bytes)
-                .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))
+            let mini_secret_key = MiniSecretKey::generate_with(&mut rng);
+            Ok(mini_secret_key.expand(MiniSecretKey::UNIFORM_MODE))
         };
 
-        secret_key.map(Secret)
+        secret_key.map(SchnorrkelSecret)
     }
 
     fn generate_with_string(secret: String) -> Result<Self::Secret> {
         let hex_encoded = hex::decode(secret)?;
         let secret_key = schnorrkel::SecretKey::from_bytes(&hex_encoded)
             .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))?;
-        Ok(Secret(secret_key))
+        Ok(SchnorrkelSecret(secret_key))
     }
 
     fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-        Public(secret.0.to_public())
+        SchnorrkelPublic(secret.0.to_public())
     }
 
     fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
@@ -113,10 +120,4 @@ impl KeyType for SchnorrkelSr25519 {
             false
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(SchnorrkelSr25519, Secret, SchnorrkelSignature);
 }

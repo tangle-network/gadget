@@ -76,15 +76,19 @@ pub enum Error {
     /// An error occurred during ecdsa module operation
     #[error("ecdsa: {0}")]
     #[cfg(feature = "ecdsa")]
-    Ecdsa(String),
+    Ecdsa(#[from] k256::ecdsa::Error),
     /// An error occurred during ed25519 module operation
     #[error("ed25519: {0}")]
     #[cfg(feature = "zebra")]
     Ed25519(#[from] ed25519_zebra::Error),
     /// An error occurred during bls381 module operation
     #[error("bls381: {0}")]
-    #[cfg(feature = "bls381")]
+    #[cfg(feature = "bls")]
     Bls381(String),
+    /// An error occurred during bls377 module operation
+    #[error("bls381: {0}")]
+    #[cfg(feature = "bls")]
+    Bls377(String),
     /// An error occurred during bls_bn254 module operation
     #[error("bls_bn254: {0}")]
     #[cfg(feature = "bn254")]
