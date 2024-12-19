@@ -21,9 +21,8 @@ pub static OS_COMMAND: &str = "sh";
 pub static OS_ARG: &str = "-c";
 
 pub struct ChildInfo {
-    pub tx: broadcast::Receiver<String>,
-    pub ready_rx: oneshot::Receiver<()>,
     pub pid: u32,
+    pub tx: broadcast::Sender<String>,
 }
 
 pub fn get_process_info(pid: u32) -> Option<OsString> {
@@ -65,76 +64,30 @@ macro_rules! craft_child_process {
     }};
 }
 
-#[macro_export]
-macro_rules! run_command {
-    ($command:expr) => {{
-        async {
-            let mut command = Command::new(OS_COMMAND);
-            command.arg(OS_ARG).arg($command);
-            command.stdout(Stdio::piped());
-            
-            let child = command.spawn()?;
-            let process_name = $command.to_string();
-            let (ready_tx, ready_rx) = oneshot::channel();
-            let (tx, _) = broadcast::channel(100);
-            
-            tokio::spawn(create_stream(child, tx.clone(), ready_tx, process_name));
-            
-            ready_rx.await?;
-            
-            Ok(ChildInfo {
-                tx: tx.subscribe(),
-                ready_rx: ready_rx,
-                pid: child.id().unwrap_or(0),
-            })
-        }
-    }};
+pub async fn create_stream(command: &str) -> Result<ChildInfo, std::io::Error> {
+    let (tx, _) = broadcast::channel(100);
+    let tx_clone = tx.clone();
+
+    let mut child = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let pid = child.id().unwrap();
+    
+    Ok(ChildInfo {
+        pid,
+        tx: tx_clone,
+    })
 }
 
-pub(crate) async fn create_stream(
-    mut child: Child,
-    tx: broadcast::Sender<String>,
-    ready_tx: oneshot::Sender<()>,
-    process_name: String,
-) -> Result<(), Error> {
-    let stdout = child.stdout.take().ok_or_else(|| {
-        Error::StreamError(
-            Pid::from_u32(0),
-            "Failed to capture stdout".to_string(),
-        )
-    })?;
-
-    let first_output_tx = Arc::new(Mutex::new(Some(ready_tx)));
-    let first_output_tx_clone = Arc::clone(&first_output_tx);
-
-    tokio::spawn(async move {
-        let mut reader = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            if let Err(e) = tx.send(line) {
-                log::error!("Failed to send output: {}", e);
-                break;
-            }
-
-            // Signal that we've received the first output
-            if let Ok(mut guard) = first_output_tx.lock().await {
-                if let Some(tx) = guard.take() {
-                    let _ = tx.send(());
-                }
-            }
-        }
-    });
-
-    // Wait for first output or process exit
-    tokio::select! {
-        _ = first_output_tx_clone.lock() => Ok(()),
-        status = child.wait() => {
-            if !status?.success() {
-                Err(Error::UnexpectedExit(status?.code()))
-            } else {
-                Ok(())
-            }
-        }
-    }
+#[macro_export]
+macro_rules! run_command {
+    ($command:expr) => {
+        create_stream($command)
+    };
 }
 
 #[allow(dead_code)]

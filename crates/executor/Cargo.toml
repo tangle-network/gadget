@@ -10,6 +10,7 @@ repository.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["sync", "process", "rt-multi-thread", "time", "io-util", "fs", "macros", "signal"] }
 serde = { workspace = true, features = ["std", "derive"] }
+serde_with = { version = "3.4", features = ["std"] }
 sysinfo = { workspace = true, features = ["system"] }
 nix = { workspace = true, features = ["signal"] }
 futures = { workspace = true }
