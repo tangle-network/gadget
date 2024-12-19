@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["sync", "process", "rt-multi-thread", "time", "io-util", "fs", "macros"] }
+tokio = { workspace = true, features = ["sync", "process", "rt-multi-thread", "time", "io-util", "fs", "macros", "signal"] }
 serde = { workspace = true, features = ["std", "derive"] }
 sysinfo = { workspace = true, features = ["system"] }
 nix = { workspace = true, features = ["signal"] }
@@ -16,6 +16,7 @@ futures = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
+log = { workspace = true }
 
 [features]
 default = ["std"]

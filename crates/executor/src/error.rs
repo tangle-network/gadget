@@ -3,20 +3,24 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("A process exited unexpectedly")]
-    UnexpectedExit,
-    #[error("Process {0} doesn't exist")]
+    #[error("Process exited unexpectedly with status: {0:?}")]
+    UnexpectedExit(Option<i32>),
+    #[error("Process with PID {0} not found in system")]
     ProcessNotFound(sysinfo::Pid),
-    #[error("Failed to focus on {0}, it does not exist")]
+    #[error("Service '{0}' not found in process manager")]
     ServiceNotFound(String),
-    #[error("Expected {0} and found {1} running instead - process termination aborted")]
+    #[error("Process mismatch - Expected service '{0}' but found '{1}' - termination aborted")]
     ProcessMismatch(String, String),
-    #[error("Failed to kill process, errno: {0}")]
-    KillFailed(nix::errno::Errno),
-    #[error("Output stream error for {0}")]
-    StreamError(sysinfo::Pid),
+    #[error("Failed to kill process (errno: {0}): {1}")]
+    KillFailed(nix::errno::Errno, String),
+    #[error("Output stream error for process {0}: {1}")]
+    StreamError(sysinfo::Pid, String),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
-    #[error("Serde JSON error: {0}")]
+    #[error("JSON serialization error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+    #[error("Process startup error: {0}")]
+    StartupError(String),
+    #[error("State recovery error: {0}")]
+    StateRecoveryError(String),
 }

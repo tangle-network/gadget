@@ -5423,6 +5423,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "gadget-logging",
+ "log",
  "nix 0.29.0",
  "serde",
  "serde_json",
