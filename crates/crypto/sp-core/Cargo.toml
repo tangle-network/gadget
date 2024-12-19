@@ -7,10 +7,14 @@ edition = "2021"
 gadget-std = { workspace = true }
 gadget-crypto-core = { workspace = true, features = ["tangle"] }
 sp-core = { workspace = true, features = ["full_crypto"] }
+hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+gadget-crypto-sp-core = { path = ".", features = ["std", "bls"] }
 
 [features]
 default = ["std"]

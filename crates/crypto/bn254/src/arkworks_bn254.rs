@@ -1,7 +1,7 @@
 use crate::error::{Bn254Error, Result};
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{PrimeField, UniformRand};
+use ark_ff::{Field, PrimeField, UniformRand};
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
     format,
@@ -71,9 +71,8 @@ impl KeyType for ArkBlsBn254 {
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret = if let Some(seed) = seed {
-            let seed = gadget_std::str::from_utf8(seed)
-                .map_err(|e| Bn254Error::InvalidSeed(e.to_string()))?;
-            Fr::from_str(seed).map_err(|e| Bn254Error::InvalidSeed(format!("{:?}", e)))?
+            Fr::from_random_bytes(seed)
+                .ok_or_else(|| Bn254Error::InvalidSeed(format!("None value")))?
         } else {
             let mut rng = Self::get_rng();
             Fr::rand(&mut rng)
@@ -113,10 +112,4 @@ impl KeyType for ArkBlsBn254 {
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
         verify(public.0, msg, signature.0)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    gadget_crypto_core::impl_crypto_tests!(ArkBlsBn254, ArkBlsBn254Secret, ArkBlsBn254Signature);
 }

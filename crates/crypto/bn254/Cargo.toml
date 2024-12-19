@@ -18,6 +18,9 @@ num-traits = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 
+[dev-dependencies]
+gadget-crypto-hashing = { workspace = true, features = ["sha3"] }
+
 [features]
 default = ["std"]
 std = [

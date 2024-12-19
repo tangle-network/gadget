@@ -5,6 +5,10 @@ use thiserror::Error;
 pub enum Ed25519Error {
     #[error("Invalid seed: {0}")]
     InvalidSeed(String),
+    #[error("Invalid public key: {0}")]
+    InvalidVerifyingKey(String),
+    #[error("Invalid signature: {0}")]
+    InvalidSignature(String),
     #[error("Zebra error: {0}")]
     ZebraError(ed25519_zebra::Error),
     #[error("Invalid hex string: {0}")]

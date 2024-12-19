@@ -23,7 +23,7 @@ pub use gadget_crypto_bn254 as bn254_crypto;
 pub use gadget_crypto_sp_core as sp_core_crypto;
 
 #[cfg(feature = "hashing")]
-pub mod hashing;
+pub use gadget_crypto_hashing as hashing;
 
 #[derive(Debug, Error)]
 pub enum CryptoCoreError {

@@ -33,6 +33,7 @@ gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default
 gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
 gadget-crypto-sr25519 = { version = "0.1.0", path = "./crates/crypto/sr25519", default-features = false }
 gadget-crypto-ed25519 = { version = "0.1.0", path = "./crates/crypto/ed25519", default-features = false }
+gadget-crypto-hashing = { version = "0.1.0", path = "./crates/crypto/hashing", default-features = false }
 gadget-crypto-bls = { version = "0.1.0", path = "./crates/crypto/bls", default-features = false }
 gadget-crypto-bn254 = { version = "0.1.0", path = "./crates/crypto/bn254", default-features = false }
 gadget-crypto-sp-core = { version = "0.1.0", path = "./crates/crypto/sp-core", default-features = false }
