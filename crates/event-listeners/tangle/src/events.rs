@@ -1,6 +1,6 @@
 use crate::error::{Result, TangleEventListenerError};
 use async_trait::async_trait;
-use gadget_clients::tangle::runtime::{TangleClient, TangleConfig};
+use gadget_clients::tangle::client::{OnlineClient, TangleConfig};
 use gadget_crypto_tangle_pair_signer::tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners_core::marker::IsTangle;
 use gadget_event_listeners_core::EventListener;
@@ -18,10 +18,10 @@ pub struct TangleEventListener<C, E: EventMatcher = AllEvents> {
     current_block: Option<u32>,
     job_id: Job,
     service_id: ServiceId,
-    listener: Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, TangleClient>>>,
+    listener: Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, OnlineClient>>>,
     context: C,
     signer: TanglePairSigner<sp_core::sr25519::Pair>,
-    client: TangleClient,
+    client: OnlineClient,
     has_stopped: Arc<AtomicBool>,
     stopper_tx: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
     enqueued_events: VecDeque<E::Output>,
@@ -31,7 +31,7 @@ pub type BlockNumber = u32;
 
 #[derive(Clone)]
 pub struct TangleListenerInput<C> {
-    pub client: TangleClient,
+    pub client: OnlineClient,
     pub job_id: Job,
     pub service_id: ServiceId,
     pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
@@ -51,7 +51,7 @@ pub struct TangleEvent<C, E: EventMatcher = AllEvents> {
     pub args: job_called::Args,
     pub block_number: BlockNumber,
     pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
-    pub client: TangleClient,
+    pub client: OnlineClient,
     pub job_id: Job,
     pub service_id: ServiceId,
     pub stopper: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
@@ -185,6 +185,6 @@ pub struct TangleResult<R: serde::Serialize> {
     pub results: R,
     pub service_id: ServiceId,
     pub call_id: job_called::CallId,
-    pub client: TangleClient,
+    pub client: OnlineClient,
     pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
 }

@@ -13,12 +13,12 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 };
 
 /// A client for interacting with the services API
-#[derive(Debug)]
-pub struct ServicesClient<C: Config> {
-    rpc_client: OnlineClient<C>,
+#[derive(Debug, Clone)]
+pub struct TangleServicesClient<C: Config> {
+    pub rpc_client: OnlineClient<C>,
 }
 
-impl<C: Config> ServicesClient<C> {
+impl<C: Config> TangleServicesClient<C> {
     /// Create a new services client
     pub fn new(rpc_client: OnlineClient<C>) -> Self {
         Self { rpc_client }
@@ -28,7 +28,7 @@ impl<C: Config> ServicesClient<C> {
 /// A list of services provided by an operator, along with their blueprint
 pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64, u128>;
 
-impl<C: Config> ServicesClient<C>
+impl<C: Config> TangleServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {

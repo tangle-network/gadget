@@ -5,7 +5,11 @@ edition = "2021"
 
 [dependencies]
 gadget-std = { workspace = true }
-gadget-config = { workspace = true }
+gadget-config = { workspace = true, features = ["tangle", "keystore"] }
+gadget-client-core = { workspace = true }
+gadget-logging = { workspace = true }
+gadget-keystore = { workspace = true }
+gadget-crypto-sp-core = { workspace = true }
 
 async-trait = { workspace = true }
 auto_impl = { workspace = true }
@@ -22,6 +26,9 @@ tokio = { workspace = true }
 default = ["std"]
 std = [
     "dep:subxt",
+    "gadget-client-core/std",
+    "gadget-keystore/std",
+    "gadget-logging/std",
     "gadget-config/std",
     "gadget-std/std",
     "gadget-std/tokio",

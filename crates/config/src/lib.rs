@@ -82,7 +82,6 @@ pub struct GadgetConfiguration {
     pub http_rpc_endpoint: String,
     /// WS RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
     pub ws_rpc_endpoint: String,
-
     /// The keystore URI for the gadget
     pub keystore_uri: String,
     /// Data directory exclusively for this gadget

@@ -11,3 +11,5 @@ pub use gadget_client_networking as networking;
 
 #[cfg(feature = "tangle")]
 pub use gadget_client_tangle as tangle;
+
+pub use gadget_client_core::*;
