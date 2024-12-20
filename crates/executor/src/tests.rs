@@ -1,13 +1,7 @@
 use crate::manager::GadgetProcessManager;
 use crate::types::{GadgetProcess, ProcessOutput, Status};
-use futures::stream;
 use std::time::Duration;
 use tokio::time::sleep;
-
-// Helper function to create a runtime for async tests
-fn get_runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Runtime::new().expect("Failed to create runtime")
-}
 
 #[tokio::test]
 async fn test_process_manager_creation() {
@@ -33,7 +27,7 @@ async fn test_process_kill() {
         .unwrap();
 
     let process = manager.children.get_mut(&id).unwrap();
-    process.kill().await.unwrap();
+    process.kill().unwrap();
     assert_eq!(process.status, Status::Stopped);
 }
 
@@ -41,11 +35,9 @@ async fn test_process_kill() {
 async fn test_manager_save_load() {
     let mut manager = GadgetProcessManager::new();
     manager.run("test".to_string(), "echo hello").await.unwrap();
-    manager.save_state().await.unwrap();
+    manager.save_state().unwrap();
 
-    let loaded_manager = GadgetProcessManager::load_state("./savestate.json")
-        .await
-        .unwrap();
+    let loaded_manager = GadgetProcessManager::load_state("./savestate.json").unwrap();
     assert_eq!(loaded_manager.children.len(), 1);
     assert!(loaded_manager.children.contains_key("test"));
 }
@@ -59,7 +51,7 @@ async fn test_process_manager_run_command() {
 
 #[tokio::test]
 async fn test_process_status() {
-    let mut process = GadgetProcess::new("sleep 0.1".to_string()).await.unwrap();
+    let process = GadgetProcess::new("sleep 0.1".to_string()).await.unwrap();
     assert_eq!(process.status, Status::Active);
     sleep(Duration::from_millis(200)).await;
     assert_eq!(process.status(), Status::Dead);
@@ -106,7 +98,7 @@ async fn test_process_manager_remove_dead() {
     let _ = manager.run("quick_process".to_string(), "echo test").await;
     sleep(Duration::from_millis(100)).await;
 
-    let removed = manager.remove_dead().await;
+    let removed = manager.remove_dead();
     assert!(!removed.is_empty());
     assert!(removed.contains(&"quick_process".to_string()));
 }
@@ -118,11 +110,9 @@ async fn test_save_and_load_state() {
         .run("test1".to_string(), "echo test1")
         .await
         .unwrap();
-    manager.save_state().await.unwrap();
+    manager.save_state().unwrap();
 
-    let loaded_manager = GadgetProcessManager::load_state("./savestate.json")
-        .await
-        .unwrap();
+    let loaded_manager = GadgetProcessManager::load_state("./savestate.json").unwrap();
     assert_eq!(loaded_manager.children.len(), 1);
     assert!(loaded_manager.children.contains_key("test1"));
 }

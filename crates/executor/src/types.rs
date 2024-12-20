@@ -1,6 +1,8 @@
 use super::error::Error;
 use crate::run_command;
-use crate::utils::{create_stream, Command, Stdio};
+use crate::utils::create_stream;
+use nix::sys::signal;
+use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::time::Duration;
@@ -50,11 +52,26 @@ impl GadgetProcess {
         Ok(())
     }
 
-    pub async fn kill(&mut self) -> Result<(), Error> {
-        if let Some(_pid) = self.pid {
-            // Kill implementation using system APIs
-            self.status = Status::Stopped;
+    pub fn kill(&mut self) -> Result<(), Error> {
+        let running_process = self.get_name()?;
+        if running_process != self.process_name {
+            return Err(Error::ProcessMismatch(
+                self.process_name.to_string_lossy().into_owned(),
+                running_process.to_string_lossy().into_owned(),
+            ));
         }
+
+        signal::kill(
+            nix::unistd::Pid::from_raw(
+                self.pid
+                    .ok_or_else(|| Error::ServiceNotFound("PID was none".to_string()))?
+                    .as_u32()
+                    .cast_signed(),
+            ),
+            Signal::SIGTERM,
+        )
+        .map_err(|e| Error::KillFailed(e, "Kill failed".to_string()))?;
+
         Ok(())
     }
 
@@ -69,8 +86,8 @@ impl GadgetProcess {
     }
 
     pub async fn restart_process(&mut self) -> Result<GadgetProcess, Error> {
-        if let Some(_) = self.pid {
-            self.kill().await?;
+        if self.pid.is_some() {
+            self.kill()?;
         }
         let command = self.command.clone();
         GadgetProcess::new(command).await

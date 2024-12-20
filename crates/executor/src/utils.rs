@@ -1,14 +1,12 @@
-use crate::error::Error;
-pub use futures::StreamExt;
+#![allow(dead_code)]
+
 use std::ffi::OsString;
 pub use std::process::Stdio;
-use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, System};
-pub use tokio::io::BufReader;
-use tokio::io::{AsyncBufReadExt, ReadBuf};
-pub use tokio::process::{Child, Command};
-use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::io::ReadBuf;
+pub use tokio::process::Command;
+use tokio::sync::broadcast;
 
 #[cfg(target_family = "windows")]
 pub static OS_COMMAND: &str = "cmd";
@@ -68,7 +66,7 @@ pub async fn create_stream(command: &str) -> Result<ChildInfo, std::io::Error> {
     let (tx, _) = broadcast::channel(100);
     let tx_clone = tx.clone();
 
-    let mut child = Command::new("sh")
+    let child = Command::new("sh")
         .arg("-c")
         .arg(command)
         .stdout(Stdio::piped())
