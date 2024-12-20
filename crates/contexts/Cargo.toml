@@ -10,27 +10,23 @@ repository.workspace = true
 [dependencies]
 async-trait.workspace = true
 gadget-std = { workspace = true }
+gadget-clients = { workspace = true }
 gadget-client-evm = { workspace = true, optional = true }
 gadget-client-eigenlayer = { workspace = true, optional = true }
-gadget-client-tangle = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
 gadget-keystore = { workspace = true, optional = true }
 
-subxt = { workspace = true, optional = true }
-
 [features]
-default = ["std", "evm", "eigenlayer", "tangle", "networking", "keystore"]
+default = ["std", "keystore"]
 std = [
     "gadget-std/std",
     "gadget-client-evm?/std",
     "gadget-client-eigenlayer?/std",
-    "gadget-client-tangle?/std",
     "gadget-client-networking?/std",
     "gadget-keystore?/std",
 ]
 
-evm = ["gadget-client-evm"]
-eigenlayer = ["gadget-client-eigenlayer"]
-tangle = ["gadget-client-tangle", "subxt"]
-networking = ["gadget-client-networking"]
+evm = ["gadget-clients/evm"]
+eigenlayer = ["gadget-clients/eigenlayer"]
+networking = ["gadget-clients/networking"]
 keystore = ["gadget-keystore"]
