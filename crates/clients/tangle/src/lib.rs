@@ -1,9 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
+pub mod client;
 pub mod error;
-pub mod runtime;
 pub mod services;
-pub mod tangle;
 
 #[cfg(not(any(feature = "std", feature = "web")))]
 compile_error!("`std` or `web` feature required");
@@ -14,7 +12,7 @@ use gadget_std::boxed::Box;
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait Client<Event>: Clone + Send + Sync {
+pub trait EventsClient<Event>: Clone + Send + Sync {
     /// Fetch the next event from the client.
     async fn next_event(&self) -> Option<Event>;
     /// Fetch the latest event from the client.

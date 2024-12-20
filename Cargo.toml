@@ -42,6 +42,7 @@ gadget-crypto-tangle-pair-signer = { version = "0.1.0", path = "./crates/crypto/
 
 # Clients
 gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
+gadget-client-core = { version = "0.1.0", path = "./crates/clients/core", default-features = false }
 gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenlayer", default-features = false }
 gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
 gadget-client-networking = { version = "0.1.0", path = "./crates/clients/networking", default-features = false }

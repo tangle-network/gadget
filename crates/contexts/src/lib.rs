@@ -6,7 +6,5 @@ pub mod instrumented_evm_client;
 pub mod keystore;
 #[cfg(feature = "networking")]
 pub mod p2p;
-#[cfg(feature = "tangle")]
+
 pub mod services;
-#[cfg(feature = "tangle")]
-pub mod tangle;

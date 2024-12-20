@@ -1,6 +1,6 @@
 use crate::error::{Result, TangleEventListenerError};
 use crate::events::{EventMatcher, TangleEvent, TangleResult};
-use gadget_contexts::tangle::TangleClientContext;
+use gadget_contexts::services::tangle::TangleClientContext;
 use std::any::Any;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};

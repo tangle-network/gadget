@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 gadget-blueprint-serde = { workspace = true }
 gadget-clients = { workspace = true, features = ["tangle"] }
-gadget-contexts = { workspace = true, features = ["tangle", "keystore"] }
+gadget-contexts = { workspace = true, features = ["keystore"] }
 gadget-crypto-tangle-pair-signer = { workspace = true }
 gadget-event-listeners-core = { workspace = true }
 gadget-keystore = { workspace = true }
