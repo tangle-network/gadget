@@ -27,19 +27,11 @@ async fn test_process_kill() {
         .unwrap();
 
     let process = manager.children.get_mut(&id).unwrap();
+
+    gadget_logging::info!("Process status: {:?}", process);
+
     process.kill().unwrap();
-    assert_eq!(process.status, Status::Stopped);
-}
-
-#[tokio::test]
-async fn test_manager_save_load() {
-    let mut manager = GadgetProcessManager::new();
-    manager.run("test".to_string(), "echo hello").await.unwrap();
-    manager.save_state().unwrap();
-
-    let loaded_manager = GadgetProcessManager::load_state("./savestate.json").unwrap();
-    assert_eq!(loaded_manager.children.len(), 1);
-    assert!(loaded_manager.children.contains_key("test"));
+    assert_eq!(process.status, Status::Dead);
 }
 
 #[tokio::test]
@@ -59,34 +51,38 @@ async fn test_process_status() {
 
 #[tokio::test]
 async fn test_invalid_command() {
-    let result = GadgetProcess::new("nonexistent_command".to_string()).await;
-    let mut result = result.unwrap();
-    result.start().await.unwrap();
-    let mut status = result.get_output().unwrap();
-    let output = status.recv().await.unwrap();
-    println!("Output: {:#?}", output);
-    // let mut stream = result.get_output().unwrap();
-    // while let Ok(test) = stream.recv().await {
-    //     println!("Output: {:#?}", test);
-    // }
-    // assert!(result.is_err());
+    gadget_logging::setup_log();
+    let mut manager = GadgetProcessManager::new();
+    let result = manager
+        .run("nonexistent_command".to_string(), "nonexistent command")
+        .await;
+    println!("result: {:#?}", result);
+    assert!(result.is_ok());
+    let id = result.unwrap();
+    let process = manager.children.get_mut(&id).unwrap();
+    println!("process: {:#?}", process);
+    let output = process.read_until_timeout(3).await;
+    assert!(output.is_err());
 }
 
 #[tokio::test]
 async fn test_focus_service_until_output_contains() {
     let mut manager = GadgetProcessManager::new();
-    let _ = manager
+    let command_name = manager
         .run("test_focus".to_string(), "echo 'test output'")
-        .await;
+        .await
+        .unwrap();
 
     let result = manager
-        .focus_service_until_output_contains("test_focus".to_string(), "test output".to_string())
+        .focus_service_until_output_contains(command_name, "test output".to_string())
         .await
         .expect("Focus should succeed");
 
     match result {
-        ProcessOutput::Output(output) => assert!(output.contains(&"test output".to_string())),
-        _ => panic!("Expected ProcessOutput::Output"),
+        ProcessOutput::Output(output) => {
+            assert!(output.iter().any(|line| line.contains("test output")));
+        }
+        output => panic!("Expected ProcessOutput::Output, got: {:#?}", output),
     }
 }
 

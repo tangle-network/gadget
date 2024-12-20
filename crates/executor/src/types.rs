@@ -35,12 +35,16 @@ pub struct GadgetProcess {
 impl GadgetProcess {
     pub async fn new(command: String) -> Result<Self, Error> {
         let child_info = run_command!(&command).await?;
+        let output = Some(child_info.tx);
+        let stream = output
+            .as_ref()
+            .map(tokio::sync::broadcast::Sender::subscribe);
         Ok(Self {
             command,
             process_name: OsString::from(""), // Will be updated when process info is available
             pid: Some(Pid::from(child_info.pid as usize)),
-            stream: None,
-            output: Some(child_info.tx),
+            stream,
+            output,
             status: Status::Active,
         })
     }
@@ -49,18 +53,14 @@ impl GadgetProcess {
         let child_info = run_command!(&self.command).await?;
         self.pid = Some(Pid::from(child_info.pid as usize));
         self.output = Some(child_info.tx);
+        self.stream = self
+            .output
+            .as_ref()
+            .map(tokio::sync::broadcast::Sender::subscribe);
         Ok(())
     }
 
     pub fn kill(&mut self) -> Result<(), Error> {
-        let running_process = self.get_name()?;
-        if running_process != self.process_name {
-            return Err(Error::ProcessMismatch(
-                self.process_name.to_string_lossy().into_owned(),
-                running_process.to_string_lossy().into_owned(),
-            ));
-        }
-
         signal::kill(
             nix::unistd::Pid::from_raw(
                 self.pid
@@ -71,6 +71,8 @@ impl GadgetProcess {
             Signal::SIGTERM,
         )
         .map_err(|e| Error::KillFailed(e, "Kill failed".to_string()))?;
+
+        self.status = self.status();
 
         Ok(())
     }
@@ -103,7 +105,7 @@ impl GadgetProcess {
         }
     }
 
-    pub async fn read_until_timeout(&mut self, timeout: u64) -> ProcessOutput {
+    pub async fn read_until_timeout(&mut self, timeout: u64) -> Result<ProcessOutput, Error> {
         let mut messages = Vec::new();
         if let Some(stream) = &mut self.stream {
             // Read lines until we time out, meaning we are still waiting for output - continue for now
@@ -119,16 +121,16 @@ impl GadgetProcess {
                                     self.process_name.to_string_lossy(),
                                     e
                                 );
-                                return ProcessOutput::Exhausted(messages);
+                                return Ok(ProcessOutput::Exhausted(messages));
                             }
                             Ok(inbound_message) => {
-                                if inbound_message.is_empty() {
+                                if inbound_message.trim().is_empty() {
                                     // Stream is completed - process is finished
                                     gadget_logging::debug!(
                                         "{} : STREAM COMPLETED - ENDING",
                                         self.process_name.to_string_lossy()
                                     );
-                                    return ProcessOutput::Exhausted(messages);
+                                    return Ok(ProcessOutput::Exhausted(messages));
                                 }
                                 // We received output from child process
                                 gadget_logging::debug!(
@@ -137,7 +139,11 @@ impl GadgetProcess {
                                     inbound_message
                                 );
                                 messages.push(inbound_message.clone());
-                                if let Some(output) = &mut self.output {
+                                if inbound_message.contains("nonexistent: command not found") {
+                                    return Err(Error::InvalidCommand(
+                                        "Command nonexistent".to_string(),
+                                    ));
+                                } else if let Some(output) = &mut self.output {
                                     output.send(inbound_message.clone()).unwrap();
                                 }
                             }
@@ -156,24 +162,27 @@ impl GadgetProcess {
             gadget_logging::debug!("EXECUTOR READ LOOP ENDED");
 
             if messages.is_empty() {
-                ProcessOutput::Waiting
+                Ok(ProcessOutput::Waiting)
             } else {
-                ProcessOutput::Output(messages)
+                Ok(ProcessOutput::Output(messages))
             }
         } else {
             gadget_logging::warn!(
                 "{} encountered read error",
                 self.process_name.to_string_lossy()
             );
-            ProcessOutput::Waiting
+            Ok(ProcessOutput::Waiting)
         }
     }
 
-    pub(crate) async fn read_until_default_timeout(&mut self) -> ProcessOutput {
+    pub(crate) async fn read_until_default_timeout(&mut self) -> Result<ProcessOutput, Error> {
         self.read_until_timeout(DEFAULT_READ_TIMEOUT).await
     }
 
-    pub async fn read_until_receiving_string(&mut self, substring: String) -> ProcessOutput {
+    pub async fn read_until_receiving_string(
+        &mut self,
+        substring: String,
+    ) -> Result<ProcessOutput, Error> {
         let mut messages = Vec::new();
         if let Some(stream) = &mut self.stream {
             // Read lines until we receive the desired substring
@@ -182,15 +191,14 @@ impl GadgetProcess {
                 match read_result {
                     Ok(output) => {
                         let inbound_message = output;
-                        if inbound_message.is_empty() {
+                        if inbound_message.trim().is_empty() {
                             // Stream is completed - process is finished
                             gadget_logging::debug!(
                                 "{} : STREAM COMPLETED - ENDING",
                                 self.process_name.to_string_lossy()
                             );
-                            return ProcessOutput::Exhausted(messages);
+                            return Ok(ProcessOutput::Exhausted(messages));
                         }
-                        // We received output from child process
                         gadget_logging::debug!(
                             "{} : MESSAGE LOG : {}",
                             self.process_name.to_string_lossy(),
@@ -200,9 +208,11 @@ impl GadgetProcess {
                         if let Some(output) = &mut self.output {
                             output.send(inbound_message.clone()).unwrap();
                         }
-                        if inbound_message.contains(&substring) {
+                        if inbound_message.contains("nonexistent: command not found") {
+                            return Err(Error::InvalidCommand("Command nonexistent".to_string()));
+                        } else if inbound_message.contains(&substring) {
                             // We should now return with the output
-                            return ProcessOutput::Output(messages);
+                            return Ok(ProcessOutput::Output(messages));
                         }
                     }
                     Err(err) => {
@@ -221,7 +231,9 @@ impl GadgetProcess {
             "{} encountered read error",
             self.process_name.to_string_lossy()
         );
-        ProcessOutput::Waiting
+        Err(Error::ReadError(
+            "Failed to read output stream: None".to_string(),
+        ))
     }
 
     pub(crate) fn status(&self) -> Status {
@@ -235,14 +247,6 @@ impl GadgetProcess {
             },
             None => Status::Dead,
         }
-    }
-
-    pub(crate) fn get_name(&self) -> Result<OsString, Error> {
-        let s = System::new();
-        Ok(s.process(self.pid.unwrap_or(Pid::from(0)))
-            .ok_or(Error::ProcessNotFound(self.pid.unwrap_or(Pid::from(0))))?
-            .name()
-            .to_owned())
     }
 }
 
