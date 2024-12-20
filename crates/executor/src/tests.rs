@@ -1,7 +1,7 @@
 use crate::manager::GadgetProcessManager;
-use crate::types::{ProcessOutput, Status, GadgetProcess};
-use std::time::Duration;
+use crate::types::{GadgetProcess, ProcessOutput, Status};
 use futures::stream;
+use std::time::Duration;
 use tokio::time::sleep;
 
 // Helper function to create a runtime for async tests
@@ -27,8 +27,11 @@ async fn test_process_output() {
 #[tokio::test]
 async fn test_process_kill() {
     let mut manager = GadgetProcessManager::new();
-    let id = manager.run("kill_test".to_string(), "sleep 10").await.unwrap();
-    
+    let id = manager
+        .run("kill_test".to_string(), "sleep 10")
+        .await
+        .unwrap();
+
     let process = manager.children.get_mut(&id).unwrap();
     process.kill().await.unwrap();
     assert_eq!(process.status, Status::Stopped);
@@ -40,7 +43,9 @@ async fn test_manager_save_load() {
     manager.run("test".to_string(), "echo hello").await.unwrap();
     manager.save_state().await.unwrap();
 
-    let loaded_manager = GadgetProcessManager::load_state("./savestate.json").await.unwrap();
+    let loaded_manager = GadgetProcessManager::load_state("./savestate.json")
+        .await
+        .unwrap();
     assert_eq!(loaded_manager.children.len(), 1);
     assert!(loaded_manager.children.contains_key("test"));
 }
@@ -78,13 +83,12 @@ async fn test_invalid_command() {
 #[tokio::test]
 async fn test_focus_service_until_output_contains() {
     let mut manager = GadgetProcessManager::new();
-    let _ = manager.run("test_focus".to_string(), "echo 'test output'").await;
+    let _ = manager
+        .run("test_focus".to_string(), "echo 'test output'")
+        .await;
 
     let result = manager
-        .focus_service_until_output_contains(
-            "test_focus".to_string(),
-            "test output".to_string(),
-        )
+        .focus_service_until_output_contains("test_focus".to_string(), "test output".to_string())
         .await
         .expect("Focus should succeed");
 
@@ -110,10 +114,15 @@ async fn test_process_manager_remove_dead() {
 #[tokio::test]
 async fn test_save_and_load_state() {
     let mut manager = GadgetProcessManager::new();
-    manager.run("test1".to_string(), "echo test1").await.unwrap();
+    manager
+        .run("test1".to_string(), "echo test1")
+        .await
+        .unwrap();
     manager.save_state().await.unwrap();
-    
-    let loaded_manager = GadgetProcessManager::load_state("./savestate.json").await.unwrap();
+
+    let loaded_manager = GadgetProcessManager::load_state("./savestate.json")
+        .await
+        .unwrap();
     assert_eq!(loaded_manager.children.len(), 1);
     assert!(loaded_manager.children.contains_key("test1"));
 }
