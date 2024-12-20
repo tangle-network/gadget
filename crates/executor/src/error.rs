@@ -23,4 +23,8 @@ pub enum Error {
     StartupError(String),
     #[error("State recovery error: {0}")]
     StateRecoveryError(String),
+    #[error("Read error: {0}")]
+    ReadError(String),
+    #[error("Invalid Command error: {0}")]
+    InvalidCommand(String),
 }
