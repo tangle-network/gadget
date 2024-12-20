@@ -4,6 +4,7 @@ use std::ffi::OsString;
 pub use std::process::Stdio;
 use std::time::Duration;
 use sysinfo::{Pid, System};
+use tokio::io::AsyncBufReadExt;
 use tokio::io::ReadBuf;
 pub use tokio::process::Command;
 use tokio::sync::broadcast;
@@ -66,7 +67,7 @@ pub async fn create_stream(command: &str) -> Result<ChildInfo, std::io::Error> {
     let (tx, _) = broadcast::channel(100);
     let tx_clone = tx.clone();
 
-    let child = Command::new("sh")
+    let mut child = Command::new("sh")
         .arg("-c")
         .arg(command)
         .stdout(Stdio::piped())
@@ -74,6 +75,51 @@ pub async fn create_stream(command: &str) -> Result<ChildInfo, std::io::Error> {
         .spawn()?;
 
     let pid = child.id().unwrap();
+
+    // Set up stdout streaming
+    if let Some(stdout) = child.stdout.take() {
+        let tx_stdout = tx.clone();
+        tokio::spawn(async move {
+            let mut reader = tokio::io::BufReader::new(stdout);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match reader.read_line(&mut line).await {
+                    Ok(0) | Err(_) => break, // EOF
+                    Ok(_) => {
+                        if tx_stdout.send(line.clone()).is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Set up stderr streaming
+    if let Some(stderr) = child.stderr.take() {
+        let tx_stderr = tx.clone();
+        tokio::spawn(async move {
+            let mut reader = tokio::io::BufReader::new(stderr);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match reader.read_line(&mut line).await {
+                    Ok(0) | Err(_) => break, // EOF
+                    Ok(_) => {
+                        if tx_stderr.send(format!("[stderr] {}", line)).is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Spawn a task to wait for the child process
+    tokio::spawn(async move {
+        let _ = child.wait().await;
+    });
 
     Ok(ChildInfo { pid, tx: tx_clone })
 }

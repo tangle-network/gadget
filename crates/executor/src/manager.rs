@@ -148,16 +148,19 @@ impl GadgetProcessManager {
         let mut output_stream = String::new();
         loop {
             match process.read_until_default_timeout().await {
-                ProcessOutput::Output(output) => {
+                Ok(ProcessOutput::Output(output)) => {
                     output_stream.push_str(&format!("{output:?}\n"));
                     continue;
                 }
-                ProcessOutput::Exhausted(output) => {
+                Ok(ProcessOutput::Exhausted(output)) => {
                     output_stream.push_str(&format!("{output:?}\n"));
                     break;
                 }
-                ProcessOutput::Waiting => {
+                Ok(ProcessOutput::Waiting) => {
                     continue;
+                }
+                Err(e) => {
+                    return Err(e);
                 }
             }
         }
@@ -181,7 +184,7 @@ impl GadgetProcessManager {
             .children
             .get_mut(&service)
             .ok_or(Error::ServiceNotFound(service))?;
-        Ok(process.read_until_receiving_string(specified_output).await)
+        process.read_until_receiving_string(specified_output).await
     }
 
     pub fn cleanup_service(&mut self, service: &str) -> Result<(), Error> {
