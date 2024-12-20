@@ -1,6 +1,6 @@
 use super::error::Error;
-use crate::utils::{create_stream, Command, Stdio};
 use crate::run_command;
+use crate::utils::{create_stream, Command, Stdio};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::time::Duration;
@@ -35,7 +35,7 @@ impl GadgetProcess {
         let child_info = run_command!(&command).await?;
         Ok(Self {
             command,
-            process_name: OsString::from(""),  // Will be updated when process info is available
+            process_name: OsString::from(""), // Will be updated when process info is available
             pid: Some(Pid::from(child_info.pid as usize)),
             stream: None,
             output: Some(child_info.tx),
@@ -79,7 +79,10 @@ impl GadgetProcess {
     pub fn resubscribe(&self) -> Result<broadcast::Receiver<String>, Error> {
         match &self.stream {
             Some(stream) => Ok(stream.resubscribe()),
-            None => Err(Error::StreamError(self.pid.unwrap_or(Pid::from(0)), "No output stream available".to_string())),
+            None => Err(Error::StreamError(
+                self.pid.unwrap_or(Pid::from(0)),
+                "No output stream available".to_string(),
+            )),
         }
     }
 

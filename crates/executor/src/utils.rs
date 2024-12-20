@@ -1,3 +1,4 @@
+use crate::error::Error;
 pub use futures::StreamExt;
 use std::ffi::OsString;
 pub use std::process::Stdio;
@@ -8,7 +9,6 @@ pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::{broadcast, oneshot, Mutex};
-use crate::error::Error;
 
 #[cfg(target_family = "windows")]
 pub static OS_COMMAND: &str = "cmd";
@@ -76,11 +76,8 @@ pub async fn create_stream(command: &str) -> Result<ChildInfo, std::io::Error> {
         .spawn()?;
 
     let pid = child.id().unwrap();
-    
-    Ok(ChildInfo {
-        pid,
-        tx: tx_clone,
-    })
+
+    Ok(ChildInfo { pid, tx: tx_clone })
 }
 
 #[macro_export]

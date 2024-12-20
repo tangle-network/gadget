@@ -42,15 +42,15 @@ impl GadgetProcessManager {
             .children
             .get(&identifier)
             .ok_or_else(|| Error::ProcessNotFound(Pid::from(0)))?;
-            
+
         process.get_output()
     }
 
     pub async fn remove_dead(&mut self) -> Vec<String> {
         let mut to_remove = Vec::new();
-        
+
         self.refresh_processes();
-        
+
         for (name, process) in &self.children {
             if let Some(pid) = process.pid {
                 if !self.system.process(pid).is_some() {
@@ -58,17 +58,17 @@ impl GadgetProcessManager {
                 }
             }
         }
-        
+
         for name in &to_remove {
             self.children.remove(name);
         }
-        
+
         to_remove
     }
 
     pub async fn restart_dead(&mut self) -> Result<(), Error> {
         let mut to_restart = Vec::new();
-        
+
         for (name, process) in &self.children {
             match process.status {
                 Status::Dead | Status::Stopped => {
@@ -77,18 +77,18 @@ impl GadgetProcessManager {
                 _ => continue,
             }
         }
-        
+
         for (name, command) in to_restart {
             self.run(name, &command).await?;
         }
-        
+
         Ok(())
     }
 
     pub fn refresh_processes(&mut self) {
         // Refresh all system processes
         self.system.refresh_all();
-        
+
         for process in self.children.values_mut() {
             if let Some(pid) = process.pid {
                 if !self.system.processes().contains_key(&pid) {
@@ -113,7 +113,7 @@ impl GadgetProcessManager {
     pub async fn load_state(path: &str) -> Result<Self, Error> {
         let json = fs::read_to_string(path)?;
         let serialized: HashMap<String, SerializedGadgetProcess> = serde_json::from_str(&json)?;
-        
+
         let children: HashMap<String, GadgetProcess> = serialized
             .into_iter()
             .map(|(k, v)| (k, GadgetProcess::from(v)))
