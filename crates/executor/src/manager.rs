@@ -1,3 +1,5 @@
+#![allow(clippy::missing_errors_doc, dead_code, clippy::module_name_repetitions)]
+
 use crate::error::Error;
 use crate::types::{GadgetProcess, ProcessOutput, SerializedGadgetProcess, Status};
 use crate::utils::get_process_info;
@@ -19,6 +21,7 @@ struct SerializedManager {
 }
 
 impl GadgetProcessManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             children: HashMap::new(),
@@ -46,14 +49,14 @@ impl GadgetProcessManager {
         process.get_output()
     }
 
-    pub async fn remove_dead(&mut self) -> Vec<String> {
+    pub fn remove_dead(&mut self) -> Vec<String> {
         let mut to_remove = Vec::new();
 
         self.refresh_processes();
 
         for (name, process) in &self.children {
             if let Some(pid) = process.pid {
-                if !self.system.process(pid).is_some() {
+                if self.system.process(pid).is_none() {
                     to_remove.push(name.clone());
                 }
             }
@@ -98,7 +101,7 @@ impl GadgetProcessManager {
         }
     }
 
-    pub async fn save_state(&self) -> Result<(), Error> {
+    pub fn save_state(&self) -> Result<(), Error> {
         let serialized: HashMap<String, SerializedGadgetProcess> = self
             .children
             .iter()
@@ -110,7 +113,7 @@ impl GadgetProcessManager {
         Ok(())
     }
 
-    pub async fn load_state(path: &str) -> Result<Self, Error> {
+    pub fn load_state(path: &str) -> Result<Self, Error> {
         let json = fs::read_to_string(path)?;
         let serialized: HashMap<String, SerializedGadgetProcess> = serde_json::from_str(&json)?;
 
@@ -125,9 +128,9 @@ impl GadgetProcessManager {
         })
     }
 
-    pub async fn kill(&mut self, id: &str) -> Result<(), Error> {
+    pub fn kill(&mut self, id: &str) -> Result<(), Error> {
         if let Some(process) = self.children.get_mut(id) {
-            process.kill().await?;
+            process.kill()?;
             self.children.remove(id);
         }
         Ok(())
@@ -181,17 +184,14 @@ impl GadgetProcessManager {
         Ok(process.read_until_receiving_string(specified_output).await)
     }
 
-    pub async fn cleanup_service(&mut self, service: &str) -> Result<(), Error> {
+    pub fn cleanup_service(&mut self, service: &str) -> Result<(), Error> {
         if let Some(process) = self.children.get_mut(service) {
-            match process.pid {
-                Some(pid) => {
-                    if let Some(name) = get_process_info(pid.as_u32()) {
-                        if name == process.process_name {
-                            process.kill().await?;
-                        }
+            if let Some(pid) = process.pid {
+                if let Some(name) = get_process_info(pid.as_u32()) {
+                    if name == process.process_name {
+                        process.kill()?;
                     }
                 }
-                None => {}
             }
         }
         self.children.remove(service);
@@ -199,10 +199,13 @@ impl GadgetProcessManager {
     }
 
     /// Cleanup all managed processes
-    pub async fn cleanup_all(&mut self) -> Result<(), Error> {
+    ///
+    /// # Errors
+    /// -
+    pub fn cleanup_all(&mut self) -> Result<(), Error> {
         let services: Vec<String> = self.children.keys().cloned().collect();
         for service in services {
-            if let Err(e) = self.cleanup_service(&service).await {
+            if let Err(e) = self.cleanup_service(&service) {
                 log::error!("Failed to cleanup service {}: {}", service, e);
             }
         }
