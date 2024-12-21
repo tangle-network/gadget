@@ -1,0 +1,57 @@
+[package]
+name = "incredible-squaring-blueprint"
+version = "0.1.1"
+description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Gadget dependencies
+gadget-std = { workspace = true }
+gadget-blueprint-serde = { workspace = true }
+gadget-event-listeners-core = { workspace = true }
+gadget-event-listeners-tangle = { workspace = true }
+gadget-client-tangle = { workspace = true }
+gadget-contexts = { workspace = true }
+
+# External dependencies
+eigensdk = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+color-eyre = { workspace = true }
+lock_api = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["full"] }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+rand = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+k256 = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+gadget-runner-tangle = { workspace = true }
+gadget-testing-utils = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-std/std",
+    "gadget-blueprint-serde/std",
+    "gadget-event-listeners-core/std",
+    "gadget-event-listeners-tangle/std",
+    "gadget-client-tangle/std",
+    "gadget-contexts/std",
+]
+
+[package.metadata.blueprint]
+manager = { Evm = "IncredibleSquaringBlueprint" }
+master_revision = "Latest"

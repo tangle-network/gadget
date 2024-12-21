@@ -12,8 +12,8 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 paste = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
-subxt = { workspace = true }
-subxt-core = { workspace = true }
+subxt = { workspace = true, features = ["substrate-compat"] }
+subxt-core = { workspace = true, features = ["substrate-compat"] }
 thiserror = { workspace = true }
 
 alloy-primitives = { workspace = true, optional = true }
