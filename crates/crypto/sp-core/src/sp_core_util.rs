@@ -1,9 +1,5 @@
-use gadget_std::{
-    string::{String, ToString},
-    vec::Vec,
-};
-use sp_core::ByteArray;
-use sp_core::Pair;
+use gadget_std::{string::String, vec::Vec};
+use sp_core::{ByteArray, Pair};
 
 /// Implements serde and KeyType trait for any sp_core crypto type.
 ///
@@ -49,8 +45,7 @@ macro_rules! impl_sp_core_pair_public {
                 where
                     S: serde::Serializer,
                 {
-                    let bytes = self.0.to_raw_vec();
-                    Vec::serialize(&bytes, serializer)
+                    serializer.serialize_bytes(&self.0.to_raw_vec())
                 }
             }
 
@@ -60,9 +55,8 @@ macro_rules! impl_sp_core_pair_public {
                     D: serde::Deserializer<'de>,
                 {
                     let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let pair = <$pair_type>::from_seed_slice(&bytes)
-                        .map_err($crate::error::SecretStringErrorWrapper)
-                        .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+                    let seed: [u8; 32] = bytes.try_into().map_err(|_| serde::de::Error::custom("Invalid seed length"))?;
+                    let pair = <$pair_type>::from_seed(&seed);
                     Ok([<$key_type Pair>](pair))
                 }
             }
@@ -147,9 +141,12 @@ macro_rules! impl_sp_core_key_type {
                 fn generate_with_seed(seed: Option<&[u8]>) -> $crate::error::Result<Self::Secret> {
                     match seed {
                         Some(seed) => {
-                            let pair = <$pair_type>::from_seed_slice(seed)
-                                .map_err($crate::error::SecretStringErrorWrapper)
-                                .map_err(Into::<$crate::error::SpCoreError>::into)?;
+                            if seed.len() != 32 {
+                                return Err($crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()));
+                            }
+                            let seed_array: [u8; 32] = seed.try_into()
+                                .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()))?;
+                            let pair = <$pair_type>::from_seed(&seed_array);
                             Ok([<$key_type Pair>](pair))
                         }
                         None => {
@@ -158,10 +155,8 @@ macro_rules! impl_sp_core_key_type {
                             #[cfg(not(feature = "std"))]
                             let pair = {
                                 use gadget_std::Rng;
-                                let mut seed = Self::get_test_rng().gen::<[u8; 32]>();
-                                <$pair_type>::from_seed_slice(&mut seed)
-                                    .map_err($crate::error::SecretStringErrorWrapper)
-                                    .map_err(Into::<$crate::error::SpCoreError>::into)?
+                                let seed = Self::get_test_rng().gen::<[u8; 32]>();
+                                <$pair_type>::from_seed(&seed)
                             };
                             Ok([<$key_type Pair>](pair))
                         }
@@ -169,8 +164,15 @@ macro_rules! impl_sp_core_key_type {
                 }
 
                 fn generate_with_string(secret: String) -> $crate::error::Result<Self::Secret> {
-                    let pair = <$pair_type>::from_string(&secret, None)
-                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid secret string".to_string()))?;
+                    // For now, treat the string as a hex-encoded seed
+                    let seed = hex::decode(&secret)
+                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid hex string".into()))?;
+                    if seed.len() != 32 {
+                        return Err($crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()));
+                    }
+                    let seed_array: [u8; 32] = seed.try_into()
+                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()))?;
+                    let pair = <$pair_type>::from_seed(&seed_array);
                     Ok([<$key_type Pair>](pair))
                 }
 
