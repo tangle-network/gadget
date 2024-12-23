@@ -55,3 +55,9 @@ impl RpcCallsMetrics {
         metrics::counter!(key.to_string()).absolute(rpc_request_total);
     }
 }
+
+impl Default for RpcCallsMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}

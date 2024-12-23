@@ -1,7 +1,7 @@
 use crate::error::TangleClientError;
 use crate::error::{Result, TangleDispatchError};
 use gadget_std::string::ToString;
-use gadget_std::{vec, vec::Vec};
+use gadget_std::vec::Vec;
 use subxt::backend::BlockRef;
 use subxt::utils::AccountId32;
 use subxt::utils::H256;
@@ -46,10 +46,9 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Ok(None)
-        } else {
-            Ok(Some(ret.unwrap().1))
+        match ret {
+            Some(blueprints) => Ok(Some(blueprints.1)),
+            None => Ok(None),
         }
     }
 
@@ -87,10 +86,9 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Err(TangleClientError::Other("Blueprint not found".to_string()))
-        } else {
-            Ok(ret.unwrap().1)
+        match ret {
+            Some(blueprints) => Ok(blueprints.1),
+            None => Err(TangleClientError::Other("Blueprint not found".to_string())),
         }
     }
 
@@ -103,10 +101,9 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Err(TangleClientError::Other("Blueprint not found".to_string()))
-        } else {
-            Ok(ret.unwrap().0)
+        match ret {
+            Some(blueprints) => Ok(blueprints.0),
+            None => Err(TangleClientError::Other("Blueprint not found".to_string())),
         }
     }
 
@@ -119,10 +116,9 @@ where
         let call = api::storage().services().instances(service_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Ok(vec![])
-        } else {
-            Ok(ret.unwrap().operators.0)
+        match ret {
+            Some(instances) => Ok(instances.operators.0),
+            None => Ok(Vec::new()),
         }
     }
 }

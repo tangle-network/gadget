@@ -111,7 +111,7 @@ mod tests {
             let public = W3fBls377::public_from_secret(&secret);
 
             // Test public key serialization
-            let public_bytes = to_bytes(public.0.clone());
+            let public_bytes = to_bytes(public.0);
             let public_deserialized: Public377 = Public377(from_bytes(&public_bytes));
             assert_eq!(public, public_deserialized);
 
@@ -199,7 +199,7 @@ mod tests {
             let public = W3fBls381::public_from_secret(&secret);
 
             // Test public key serialization
-            let public_bytes = to_bytes(public.0.clone());
+            let public_bytes = to_bytes(public.0);
             let public_deserialized: Public381 = Public381(from_bytes(&public_bytes));
             assert_eq!(public, public_deserialized);
 

@@ -22,7 +22,7 @@ macro_rules! impl_ark_serde {
 
         impl PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                to_bytes(self.0).partial_cmp(&to_bytes(other.0))
+                Some(self.cmp(other))
             }
         }
 
@@ -72,7 +72,7 @@ impl KeyType for ArkBlsBn254 {
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
         let secret = if let Some(seed) = seed {
             Fr::from_random_bytes(seed)
-                .ok_or_else(|| Bn254Error::InvalidSeed(format!("None value")))?
+                .ok_or_else(|| Bn254Error::InvalidSeed("None value".to_string()))?
         } else {
             let mut rng = Self::get_rng();
             Fr::rand(&mut rng)

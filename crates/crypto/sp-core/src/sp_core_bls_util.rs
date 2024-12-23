@@ -206,9 +206,7 @@ macro_rules! impl_sp_core_bls_signature {
 
             impl PartialOrd for [<$key_type Signature>] {
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                    let self_bytes: &[u8] = self.0.as_ref();
-                    let other_bytes: &[u8] = other.0.as_ref();
-                    self_bytes.partial_cmp(other_bytes)
+                    Some(self.cmp(other))
                 }
             }
 

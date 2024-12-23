@@ -924,7 +924,7 @@ mod tests {
 
         // get the hash from the last block
         let hash = provider
-            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes.into())
+            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap()
@@ -932,7 +932,7 @@ mod tests {
             .hash;
 
         let expected_block = provider
-            .get_block_by_hash(hash, BlockTransactionsKind::Full.into())
+            .get_block_by_hash(hash, BlockTransactionsKind::Full)
             .await
             .unwrap();
         let block = instrumented_client.block_by_hash(hash).await.unwrap();
@@ -970,7 +970,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
 
         let block = provider
-            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes.into())
+            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap();
@@ -1217,14 +1217,14 @@ mod tests {
 
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
         let hash = provider
-            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes.into())
+            .get_block(BlockId::latest(), BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap()
             .header
             .hash;
         let expected_header = provider
-            .get_block_by_hash(hash, BlockTransactionsKind::Hashes.into())
+            .get_block_by_hash(hash, BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap()

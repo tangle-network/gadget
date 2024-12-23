@@ -4,15 +4,13 @@ pub mod error;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{address, U256};
+    use alloy_primitives::address;
     use alloy_provider::Provider;
     use eigenlayer::EigenlayerClient;
     use gadget_anvil_utils::{start_anvil_container, ANVIL_STATE_PATH};
     use gadget_config::{
-        load,
-        protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings},
-        supported_chains::SupportedChains,
-        ContextConfig, GadgetCLICoreSettings, GadgetConfiguration,
+        load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains,
+        ContextConfig, GadgetConfiguration,
     };
 
     async fn setup_test_environment() -> (String, String, GadgetConfiguration) {
