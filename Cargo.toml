@@ -55,6 +55,13 @@ gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listene
 gadget-event-listeners-periodic = { version = "0.1.0", path = "./crates/event-listeners/periodic", default-features = false }
 gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
 
+# Macros
+gadget-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
+gadget-blueprint-proc-macro-core = { version = "0.3.1", path = "./crates/macros/core", default-features = false }
+gadget-blueprint-proc-macro = { version = "0.5.1", path = "./crates/macros/blueprint-proc-macro", default-features = false }
+gadget-blueprint-proc-macro-playground = { version = "0.1.1", path = "./crates/macros/playground", default-features = false }
+gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
+
 # Stores
 gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
