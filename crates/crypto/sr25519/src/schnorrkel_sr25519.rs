@@ -16,7 +16,7 @@ macro_rules! impl_schnorrkel_serde {
 
         impl PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                self.0.to_bytes().partial_cmp(&other.0.to_bytes())
+                Some(self.cmp(other))
             }
         }
 
@@ -114,10 +114,6 @@ impl KeyType for SchnorrkelSr25519 {
 
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
         let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
-        if public.0.verify(ctx, &signature.0).is_ok() {
-            true
-        } else {
-            false
-        }
+        public.0.verify(ctx, &signature.0).is_ok()
     }
 }

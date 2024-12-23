@@ -37,6 +37,8 @@ where
     }
     #[cfg(test)]
     {
+        use crate::tx_progress::TxProgressExt;
+
         // In tests, we don't wait for the transaction to be finalized.
         // This is because the test environment we will be using instant sealing.
         // Instead, we just wait for the transaction to be included in a block.

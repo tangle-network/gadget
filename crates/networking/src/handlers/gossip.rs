@@ -66,12 +66,12 @@ impl NetworkService<'_> {
     }
 
     #[tracing::instrument(
-    skip(self, message),
-    fields(
-    %_message_id,
-    %_propagation_source,
-    source = ?message.source
-    )
+        skip(self, message),
+        fields(
+            %_message_id,
+            %_propagation_source,
+            source = ?message.source
+        )
     )]
     async fn handle_gossip_message(
         &mut self,

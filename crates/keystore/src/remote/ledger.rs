@@ -114,7 +114,7 @@ impl LedgerRemoteSigner {
         Ok(Self { signers })
     }
 
-    fn get_signer_for_chain(&self, chain_id: Option<u64>) -> Result<&LedgerKeyInstance> {
+    pub fn get_signer_for_chain(&self, chain_id: Option<u64>) -> Result<&LedgerKeyInstance> {
         self.signers
             .iter()
             .find(|(_, s)| s.chain_id == chain_id)

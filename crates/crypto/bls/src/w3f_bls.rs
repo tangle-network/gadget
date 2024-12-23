@@ -15,7 +15,7 @@ macro_rules! impl_w3f_serde {
 
         impl PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                to_bytes(self.0.clone()).partial_cmp(&to_bytes(other.0.clone()))
+                Some(self.cmp(other))
             }
         }
 
@@ -58,8 +58,6 @@ macro_rules! impl_w3f_serde {
     };
 }
 
-pub(self) use impl_w3f_serde;
-
 macro_rules! define_bls_key {
     ($($ty:ident),+) => {
         paste::paste! {
@@ -75,9 +73,9 @@ macro_rules! define_bls_key {
                 /// key type
                 pub struct [<W3f $ty>];
 
-                super::impl_w3f_serde!(Public, PublicKey<[<Tiny $ty:upper>]>);
-                super::impl_w3f_serde!(Secret, SecretKey<[<Tiny $ty:upper>]>);
-                super::impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!(Public, PublicKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!(Secret, SecretKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
 
                 impl KeyType for [<W3f $ty>] {
                     type Public = Public;
