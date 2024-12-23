@@ -1,0 +1,31 @@
+[package]
+name = "gadget-blueprint-proc-macro"
+version = "0.5.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Procedural macros for writing Tangle blueprints"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { workspace = true, features = ["full"] }
+quote = { workspace = true }
+itertools = { workspace = true }
+proc-macro2 = { workspace = true }
+serde_json = { workspace = true }
+gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
+indexmap = { workspace = true }
+parking_lot = { workspace = true }
+
+[dev-dependencies]
+trybuild = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["gadget-blueprint-proc-macro-core/std"]
