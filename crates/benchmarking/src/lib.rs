@@ -96,6 +96,10 @@ impl<R: Runtime> Bencher<R> {
 
     /// Ends the benchmark and returns a summary.
     ///
+    /// # Panics
+    ///
+    /// This will panic in the event it cannot determine the process ID.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -111,7 +115,7 @@ impl<R: Runtime> Bencher<R> {
     /// println!("{}", summary);
     /// ```
     #[cfg(feature = "std")] // TODO: Benchmark execution time for WASM?
-    pub fn stop<N: ToString>(&self, name: N, job_id: u8) -> BenchmarkSummary {
+    pub fn stop<N: ToString>(&self, name: &N, job_id: u8) -> BenchmarkSummary {
         let pid = sysinfo::get_current_pid().expect("Failed to get current process ID");
         let s = sysinfo::System::new_all();
         let process = s
@@ -129,6 +133,7 @@ impl<R: Runtime> Bencher<R> {
 }
 
 impl gadget_std::fmt::Display for BenchmarkSummary {
+    #[allow(clippy::cast_precision_loss)]
     fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         const KB: f32 = 1024.00;
         const MB: f32 = 1024.00 * KB;

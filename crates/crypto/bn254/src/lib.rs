@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(signature, sig_deserialized);
 
         // Test with corrupted signature bytes (if possible to deserialize)
-        if sig_bytes.len() > 0 {
+        if sig_bytes.is_empty() {
             let mut corrupted_sig_bytes = sig_bytes.clone();
             corrupted_sig_bytes[0] ^= 1; // Flip one bit in the first byte
 

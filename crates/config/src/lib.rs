@@ -265,8 +265,6 @@ mod tests {
     // Test Eigenlayer configuration when feature is enabled
     #[cfg(feature = "eigenlayer")]
     mod eigenlayer_tests {
-        use alloy_primitives::address;
-
         use super::*;
         use crate::protocol::EigenlayerContractAddresses;
 
@@ -274,7 +272,7 @@ mod tests {
         fn test_eigenlayer_configuration() {
             let addresses = EigenlayerContractAddresses::default();
 
-            let settings = ProtocolSettings::from_eigenlayer(addresses.clone());
+            let settings = ProtocolSettings::from_eigenlayer(addresses);
             assert!(matches!(settings, ProtocolSettings::Eigenlayer(_)));
             if let ProtocolSettings::Eigenlayer(addrs) = settings {
                 assert_eq!(
@@ -328,7 +326,7 @@ mod tests {
                 veto_slasher_address: address!("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"),
             };
 
-            let settings = ProtocolSettings::from_symbiotic(addresses.clone());
+            let settings = ProtocolSettings::from_symbiotic(addresses);
             assert!(matches!(settings, ProtocolSettings::Symbiotic(_)));
             if let ProtocolSettings::Symbiotic(addrs) = settings {
                 assert_eq!(

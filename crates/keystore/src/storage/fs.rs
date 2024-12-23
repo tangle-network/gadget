@@ -49,7 +49,7 @@ impl FileStorage {
             return Err(Error::Io(io::Error::from(io::ErrorKind::NotADirectory)));
         }
 
-        fs::create_dir_all(&root)?;
+        fs::create_dir_all(root)?;
         Ok(Self {
             root: root.to_path_buf(),
         })

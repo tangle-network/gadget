@@ -16,7 +16,6 @@ mod tests {
     use super::*;
     use error::K256Error;
     use gadget_crypto_core::KeyType;
-    use k256::ecdsa::RecoveryId;
     use k256_ecdsa::{K256Ecdsa, K256Signature, K256SigningKey, K256VerifyingKey};
 
     mod k256_crypto_tests {
@@ -213,7 +212,6 @@ mod tests {
     fn test_low_s_normalization() {
         let seed = b"low_s_test";
         let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
         let message = b"test message".to_vec();
 
         let signature = K256Ecdsa::sign_with_secret(&mut secret, &message).unwrap();
