@@ -7,13 +7,23 @@ mod tests {
     use alloy_primitives::address;
     use alloy_provider::Provider;
     use eigenlayer::EigenlayerClient;
-    use gadget_anvil_utils::{start_anvil_container, ANVIL_STATE_PATH};
+    use gadget_anvil_utils::{start_anvil_container, Container, ANVIL_STATE_PATH};
     use gadget_config::{
         load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains,
         ContextConfig, GadgetConfiguration,
     };
 
-    async fn setup_test_environment() -> (String, String, GadgetConfiguration) {
+    struct TestEnvironment {
+        // Unused, stored here to keep it from dropping early
+        _container: Container,
+        #[expect(dead_code)]
+        http_endpoint: String,
+        #[expect(dead_code)]
+        ws_endpoint: String,
+        config: GadgetConfiguration,
+    }
+
+    async fn setup_test_environment() -> TestEnvironment {
         let (_container, http_endpoint, ws_endpoint) =
             start_anvil_container(ANVIL_STATE_PATH, false).await;
 
@@ -28,63 +38,82 @@ mod tests {
         );
         let config = load(context_config).unwrap();
 
-        (http_endpoint, ws_endpoint, config)
+        TestEnvironment {
+            _container,
+            http_endpoint,
+            ws_endpoint,
+            config,
+        }
     }
 
     #[tokio::test]
-    async fn test_get_provider_http() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_provider_http() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let provider = client.get_provider_http();
         assert!(provider.get_block_number().await.is_ok());
     }
 
     #[tokio::test]
-    async fn test_get_provider_ws() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_provider_ws() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let provider = client.get_provider_ws().await.unwrap();
         assert!(provider.get_block_number().await.is_ok());
     }
 
     #[tokio::test]
-    async fn test_get_slasher_address() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_slasher_address() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
         let result = client.get_slasher_address(delegation_manager_addr).await;
-        assert!(result.is_err()); // Will error since contract doesn't exist in test environment
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_avs_registry_reader() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn avs_registry_reader() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let result = client.avs_registry_reader().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_avs_registry_writer() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn avs_registry_writer() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
         let result = client.avs_registry_writer(private_key.to_string()).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_operator_info_service() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn operator_info_service() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let result = client.operator_info_service_in_memory().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_get_operator_stake_in_quorums() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_operator_stake_in_quorums() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let result = client
             .get_operator_stake_in_quorums_at_block(1, vec![1, 2].into())
             .await;
@@ -92,20 +121,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_operator_id() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_operator_id() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
         let result = client.get_operator_id(operator_addr).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_get_operator_details() {
-        let (_, _, config) = setup_test_environment().await;
-        let client = EigenlayerClient { config };
+    async fn get_operator_details() {
+        let env = setup_test_environment().await;
+        let client = EigenlayerClient {
+            config: env.config.clone(),
+        };
         let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
         let result = client.get_operator_details(operator_addr).await;
-        assert!(result.is_err()); // Will error since contract doesn't exist in test environment
+        assert!(result.is_ok());
     }
 }
