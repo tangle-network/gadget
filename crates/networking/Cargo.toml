@@ -11,7 +11,6 @@ repository.workspace = true
 # Internal deps
 gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
-gadget-tokio-std = { workspace = true }
 
 # Core dependencies
 auto_impl = { workspace = true }
@@ -68,7 +67,7 @@ std = [
     "gadget-crypto/std",
     "gadget-logging/std",
     "gadget-std/std",
-    "gadget-tokio-std/std",
+    "gadget-std/tokio",
     "k256/std",
     "tokio/full",
     "serde/std",
