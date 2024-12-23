@@ -31,7 +31,7 @@ impl TangleClient {
     }
 
     /// Get [`metadata`](OperatorMetadata) for an operator by [`Account ID`](AccountId32)
-    async fn operator_metadata(
+    pub async fn operator_metadata(
         &self,
         client: &subxt::OnlineClient<subxt::PolkadotConfig>,
         operator: AccountId32,
@@ -54,11 +54,11 @@ impl TangleClient {
             .map_err(Into::into)
     }
 
-    fn get_call_id(&mut self) -> &mut Option<u64> {
+    pub fn get_call_id(&mut self) -> &mut Option<u64> {
         &mut self.call_id
     }
 
-    fn set_call_id(&mut self, call_id: u64) {
+    pub fn set_call_id(&mut self, call_id: u64) {
         *self.get_call_id() = Some(call_id);
     }
 }
