@@ -20,8 +20,8 @@ pub struct P2PClient {
 
 impl P2PClient {
     /// Returns the network protocol identifier
-    fn network_protocol(&self, version: Option<String>) -> String {
-        let name = stringify!(self.name).to_string();
+    pub fn network_protocol(&self, version: Option<String>) -> String {
+        let name = self.name.to_string();
         match version {
             Some(v) => format!("/{}/{}", name.to_lowercase(), v),
             None => format!("/{}/1.0.0", name.to_lowercase()),
@@ -72,7 +72,7 @@ impl P2PClient {
     }
 
     /// Creates a network multiplexer backend
-    fn create_network_multiplexer<T: Into<String>>(
+    pub fn create_network_multiplexer<T: Into<String>>(
         &self,
         network_name: T,
         ed25519_seed: Vec<u8>,
@@ -82,7 +82,7 @@ impl P2PClient {
     }
 
     /// Creates a network delivery wrapper
-    fn create_network_delivery_wrapper<M>(
+    pub fn create_network_delivery_wrapper<M>(
         &self,
         mux: Arc<NetworkMultiplexer>,
         party_index: PartyIndex,
