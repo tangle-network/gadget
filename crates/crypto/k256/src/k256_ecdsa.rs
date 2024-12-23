@@ -3,14 +3,14 @@ use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
-use k256::ecdsa::{RecoveryId, VerifyingKey};
+use k256::ecdsa::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
 pub struct K256Ecdsa;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct K256VerifyingKey(pub k256::ecdsa::VerifyingKey);
+pub struct K256VerifyingKey(pub VerifyingKey);
 
 impl K256VerifyingKey {
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -18,7 +18,7 @@ impl K256VerifyingKey {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let vk = k256::ecdsa::VerifyingKey::from_sec1_bytes(bytes)
+        let vk = VerifyingKey::from_sec1_bytes(bytes)
             .map_err(|e| K256Error::InvalidVerifyingKey(e.to_string()))?;
         Ok(K256VerifyingKey(vk))
     }
