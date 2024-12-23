@@ -4669,7 +4669,6 @@ dependencies = [
 name = "gadget-client-networking"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "gadget-config",
  "gadget-crypto",
  "gadget-logging",
@@ -4690,7 +4689,6 @@ dependencies = [
  "auto_impl",
  "gadget-config",
  "gadget-std",
- "gadget-tokio-std",
  "serde",
  "serde_json",
  "sp-core 31.0.0",
@@ -4709,7 +4707,6 @@ dependencies = [
  "gadget-client-evm",
  "gadget-client-networking",
  "gadget-client-tangle",
- "thiserror 2.0.7",
 ]
 
 [[package]]
@@ -5063,7 +5060,6 @@ dependencies = [
  "gadget-crypto",
  "gadget-logging",
  "gadget-std",
- "gadget-tokio-std",
  "hex",
  "itertools 0.13.0",
  "k256",
@@ -5174,10 +5170,12 @@ dependencies = [
 name = "gadget-std"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "num-traits",
  "rand",
  "rayon",
  "thiserror 2.0.7",
+ "tokio",
 ]
 
 [[package]]
@@ -5202,15 +5200,6 @@ name = "gadget-testing-utils"
 version = "0.1.0"
 dependencies = [
  "gadget-anvil-utils",
-]
-
-[[package]]
-name = "gadget-tokio-std"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "gadget-std",
- "tokio",
 ]
 
 [[package]]

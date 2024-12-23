@@ -1,11 +1,10 @@
-use gadget_std::time::Duration;
+use crate::time::Duration;
 use tokio::{sync::MutexGuard, time::error::Elapsed};
 
 /// An extension trait for tokio Mutex.
 ///
 /// This allows for locking a mutex with a given timeout.
 #[async_trait::async_trait]
-#[allow(clippy::module_name_repetitions)]
 pub trait TokioMutexExt<T: Send> {
     /// Attempts to lock the mutex with a given timeout.
     ///

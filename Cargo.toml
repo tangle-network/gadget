@@ -73,7 +73,6 @@ gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-featu
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
-gadget-tokio-std = { version = "0.1.0", path = "./crates/tokio-std", default-features = false }
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }

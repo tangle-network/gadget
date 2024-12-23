@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = { workspace = true }
 gadget-config = { workspace = true, features = ["networking"] }
 gadget-crypto = { workspace = true, features = ["k256"] }
 gadget-logging = { workspace = true }
-gadget-networking = { workspace = true, features = ["round-based-compat"]}
+gadget-networking = { workspace = true, features = ["round-based-compat"] }
 gadget-std = { workspace = true }
 libp2p = { workspace = true }
 proc-macro2 = { workspace = true }

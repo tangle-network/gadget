@@ -3,7 +3,7 @@ use crate::Client;
 use gadget_std::boxed::Box;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
-use gadget_tokio_std::mutex_ext::TokioMutexExt;
+use gadget_std::tokio_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
