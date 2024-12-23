@@ -25,7 +25,7 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::contexts::EigenlayerContext for #name #ty_generics #where_clause {
             async fn avs_registry_reader(&self) -> Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader, std::io::Error> {
                 let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
-                let gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &#field_access.protocol_specific else {
+                let ::gadget_macros::config::ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &#field_access.protocol_specific else {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected Eigenlayer protocol"));
                 };
                 let registry_coordinator_address = contract_addresses.registry_coordinator_address;
@@ -40,7 +40,7 @@ pub fn generate_context_impl(
 
             async fn avs_registry_writer(&self, private_key: String) -> Result<eigensdk::client_avsregistry::writer::AvsRegistryChainWriter, std::io::Error> {
                 let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
-                let gadget_sdk::config::ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &#field_access.protocol_specific else {
+                let ::gadget_macros::config::ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &#field_access.protocol_specific else {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected Eigenlayer protocol"));
                 };
                 let registry_coordinator_address = contract_addresses.registry_coordinator_address;

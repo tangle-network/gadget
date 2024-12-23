@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+futures = { workspace = true, optional = true }
 gadget-std = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -15,4 +16,6 @@ std = [
     "gadget-std/std",
     "tokio/full",
 ]
-testing = []
+testing = [
+    "dep:futures"
+]

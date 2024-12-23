@@ -19,6 +19,11 @@ std = [
     "gadget-event-listeners-periodic?/std",
     "gadget-event-listeners-tangle?/std",
 ]
+
+
 evm = ["gadget-event-listeners-evm"]
 periodic = ["gadget-event-listeners-periodic"]
 tangle = ["gadget-event-listeners-tangle"]
+testing = [
+    "gadget-event-listeners-core/testing"
+]

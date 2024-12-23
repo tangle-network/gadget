@@ -12,9 +12,42 @@ gadget-blueprint-proc-macro-core = { workspace = true }
 gadget-blueprint-proc-macro = { workspace = true }
 gadget-context-derive = { workspace = true }
 
+gadget-config = { workspace = true }
+gadget-contexts = { workspace = true }
+gadget-keystore = { workspace = true }
+gadget-networking = { workspace = true, features = ["std"] }
+
+# Misc. re-exports
+async-trait.workspace = true
+
+# Tangle re-exports
+gadget-client-tangle = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
+
+# EVM re-exports
+alloy-network = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
+alloy-provider = { workspace = true, optional = true }
+
 [features]
 default = ["std"]
-std = []
+std = [
+    "gadget-blueprint-proc-macro-core/std",
+    "gadget-blueprint-proc-macro/std",
+    "gadget-context-derive/std",
+    "tangle-subxt?/std",
+]
+
+tangle = [
+    "dep:tangle-subxt",
+    "gadget-context-derive/tangle",
+]
+evm = [
+    "dep:alloy-network",
+    "dep:alloy-transport",
+    "dep:alloy-provider",
+    "gadget-context-derive/evm",
+]
 
 [lints]
 workspace = true

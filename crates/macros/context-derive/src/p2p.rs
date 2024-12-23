@@ -3,7 +3,8 @@ use syn::DeriveInput;
 
 use crate::cfg::FieldInfo;
 
-/// Generate the `KeystoreContext` implementation for the given struct.
+/// Generate the `MPCContext` implementation for the given struct.
+#[allow(clippy::too_many_lines)]
 pub fn generate_context_impl(
     DeriveInput {
         ident: name,
@@ -12,7 +13,7 @@ pub fn generate_context_impl(
     }: DeriveInput,
     config_field: FieldInfo,
 ) -> proc_macro2::TokenStream {
-    let field_access = match config_field {
+    let _field_access = match config_field {
         FieldInfo::Named(ident) => quote! { self.#ident },
         FieldInfo::Unnamed(index) => quote! { self.#index },
     };
@@ -20,8 +21,9 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl #impl_generics ::gadget_macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
-            fn keystore(&self) -> ::gadget_macros::ext::keystore::Keystore {
+        #[::gadget_macros::ext::async_trait::async_trait]
+        impl #impl_generics ::gadget_macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
+            fn client(&self) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
                 todo!()
             }
         }

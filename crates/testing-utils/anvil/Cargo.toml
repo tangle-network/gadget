@@ -11,7 +11,7 @@ alloy-rpc-types = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-transport = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 testcontainers = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

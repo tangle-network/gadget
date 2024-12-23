@@ -8,7 +8,7 @@ gadget-crypto-core = { workspace = true, features = ["k256"] }
 gadget-std = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "alloc", "serde", "pem"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 
