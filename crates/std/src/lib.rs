@@ -52,6 +52,8 @@ mod rand_helper;
 pub use rand_helper::*;
 
 pub mod perf_trace;
+#[cfg(feature = "tokio")]
+pub mod tokio_ext;
 
 pub use num_traits::{One, Zero};
 

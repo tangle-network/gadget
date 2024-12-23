@@ -8,7 +8,6 @@ gadget-client-eigenlayer = { workspace = true, optional = true }
 gadget-client-evm = { workspace = true, optional = true }
 gadget-client-tangle = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
-thiserror = { workspace = true }
 
 [features]
 default = ["std", "eigenlayer", "evm", "networking", "tangle"]
