@@ -13,7 +13,7 @@ auto_impl = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 sp-core = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee"] }
+subxt = { workspace = true, features = ["jsonrpsee"], optional = true }
 subxt-core = { workspace = true }
 tangle-subxt = { workspace = true }
 thiserror = { workspace = true }
@@ -22,6 +22,7 @@ tokio = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "dep:subxt",
     "gadget-config/std",
     "gadget-std/std",
     "gadget-tokio-std/std",
@@ -32,4 +33,7 @@ std = [
     "subxt-core/std",
     "tangle-subxt/std",
 ]
-no_std = ["subxt/web"]
+web = [
+    "dep:subxt",
+    "subxt/web"
+]
