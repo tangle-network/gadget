@@ -1,0 +1,20 @@
+[package]
+name = "gadget-macros"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-blueprint-proc-macro-core = { workspace = true }
+gadget-blueprint-proc-macro = { workspace = true }
+gadget-context-derive = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
+
+[lints]
+workspace = true

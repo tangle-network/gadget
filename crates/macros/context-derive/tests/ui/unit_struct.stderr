@@ -1,0 +1,5 @@
+error: Context Extensions traits cannot be derived for unit structs
+ --> tests/ui/unit_struct.rs:4:8
+  |
+4 | struct MyContext;
+  |        ^^^^^^^^^
