@@ -5,6 +5,9 @@ pub mod runtime;
 pub mod services;
 pub mod tangle;
 
+#[cfg(not(any(feature = "std", feature = "web")))]
+compile_error!("`std` or `web` feature required");
+
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_std::boxed::Box;
