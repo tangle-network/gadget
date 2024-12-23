@@ -1,6 +1,6 @@
 use crate::key_types::PublicKey;
 use crate::networking::{
-    IdentifierInfo, Network, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
+    IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
 use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
