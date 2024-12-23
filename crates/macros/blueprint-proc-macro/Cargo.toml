@@ -16,16 +16,14 @@ syn = { workspace = true, features = ["full"] }
 quote = { workspace = true }
 itertools = { workspace = true }
 proc-macro2 = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 indexmap = { workspace = true }
-parking_lot = { workspace = true }
 
 [dev-dependencies]
 trybuild = { workspace = true }
-tracing = { workspace = true }
-async-trait = { workspace = true }
+gadget-event-listeners = { workspace = true, features = ["testing"] }
 
 [features]
 default = ["std"]
-std = ["gadget-blueprint-proc-macro-core/std"]
+std = ["gadget-blueprint-proc-macro-core/std", "indexmap/std"]

@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 gadget-std = { workspace = true }
 gadget-client-evm = { workspace = true, optional = true }
 gadget-client-eigenlayer = { workspace = true, optional = true }

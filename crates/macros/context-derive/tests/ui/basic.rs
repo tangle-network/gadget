@@ -1,19 +1,20 @@
-use gadget_sdk::async_trait::async_trait;
-use gadget_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
-use gadget_sdk::contexts::{
-    EVMProviderContext, KeystoreContext, MPCContext, ServicesContext, TangleClientContext,
+use async_trait::async_trait;
+use gadget_config::{GadgetConfiguration, StdGadgetConfiguration};
+use gadget_context_derive::{
+    EVMProviderContext, KeystoreContext, P2pContext, ServicesContext, TangleClientContext,
 };
-use gadget_sdk::network::{Network, NetworkMultiplexer, ProtocolMessage};
-use gadget_sdk::store::LocalDatabase;
-use gadget_sdk::subxt_core::ext::sp_core::ecdsa::Public;
-use gadget_sdk::subxt_core::tx::signer::Signer;
-use gadget_sdk::Error;
+use gadget_contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
+use gadget_contexts::keystore::KeystoreContext as _;
+use gadget_contexts::tangle::TangleClientContext as _;
+use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
+use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use subxt_core::ext::sp_core::ecdsa::Public;
 
-#[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, MPCContext)]
+#[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
 #[allow(dead_code)]
 struct MyContext {
     foo: String,
@@ -36,7 +37,7 @@ fn main() {
 
         // Test existing context functions
         let _keystore = ctx.keystore();
-        let _evm_provider = ctx.evm_provider().await;
+        let _evm_provider = ctx.evm_client();
         let tangle_client = ctx.tangle_client().await.unwrap();
         let _services = ctx.current_service_operators(&tangle_client).await.unwrap();
 
@@ -67,7 +68,7 @@ fn main() {
         let _participants = ctx.get_participants(&tangle_client).await;
 
         // Test blueprint ID retrieval
-        let _blueprint_id = ctx.blueprint_id();
+        let _blueprint_id = tangle_client.blueprint_id();
 
         // Test party index and operators retrieval
         let _party_idx_ops = ctx.get_party_index_and_operators().await;
@@ -76,7 +77,7 @@ fn main() {
         let _operator_keys = ctx.current_service_operators_ecdsa_keys().await;
 
         // Test current call ID retrieval
-        let _call_id = ctx.current_call_id().await;
+        let _call_id = tangle_client.current_call_id().await;
     };
 
     drop(body);
@@ -94,7 +95,10 @@ impl Network for StubNetwork {
         None
     }
 
-    async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
+    async fn send_message(
+        &self,
+        message: ProtocolMessage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         drop(message);
         Ok(())
     }
