@@ -14,7 +14,7 @@ ethereum-types = { workspace = true, features = ["serialize"] }
 cid = { workspace = true, features = ["alloc", "serde"] }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
 default = ["std"]

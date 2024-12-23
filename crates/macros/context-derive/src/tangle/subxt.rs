@@ -25,19 +25,16 @@ pub fn generate_context_impl(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    let config_ty = quote! { ::gadget_macros::ext::contexts::tangle::TangleClient };
+
     quote! {
-        impl #impl_generics gadget_sdk::contexts::TangleClientContext for #name #ty_generics #where_clause {
-            type Config = gadget_sdk::ext::subxt::PolkadotConfig;
+        #[::gadget_macros::ext::async_trait::async_trait]
+        impl #impl_generics ::gadget_macros::ext::contexts::tangle::TangleClientContext for #name #ty_generics #where_clause {
+            async fn tangle_client(&self) -> Result<#config_ty, ::gadget_macros::ext::tangle::tangle_subxt::subxt::Error> {
+                use ::gadget_macros::ext::tangle::tangle_subxt::subxt;
 
-            fn get_call_id(&mut self) -> &mut Option<u64> {
-                &mut #field_access_call_id
-            }
-
-            fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {
-                use gadget_sdk::ext::subxt;
-
-                type Config = subxt::PolkadotConfig;
-                static CLIENT: std::sync::OnceLock<subxt::OnlineClient<Config>> = std::sync::OnceLock::new();
+                type Config = #config_ty;
+                static CLIENT: std::sync::OnceLock<Config> = std::sync::OnceLock::new();
                 async {
                     match CLIENT.get() {
                         Some(client) => Ok(client.clone()),
@@ -53,6 +50,10 @@ pub fn generate_context_impl(
                         }
                     }
                 }
+            }
+
+            fn get_call_id(&mut self) -> &mut Option<u64> {
+                &mut #field_access_call_id
             }
         }
     }

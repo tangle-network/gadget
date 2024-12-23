@@ -3,7 +3,7 @@ use syn::DeriveInput;
 
 use crate::cfg::FieldInfo;
 
-/// Generate the `KeystoreContext` implementation for the given struct.
+/// Generate the `ServicesContext` implementation for the given struct.
 pub fn generate_context_impl(
     DeriveInput {
         ident: name,
@@ -20,8 +20,9 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        impl #impl_generics ::gadget_macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
-            fn keystore(&self) -> ::gadget_macros::ext::keystore::Keystore {
+        #[::gadget_macros::ext::async_trait::async_trait]
+        impl #impl_generics ::gadget_macros::ext::contexts::services::ServicesContext for #name #ty_generics #where_clause {
+            async fn client(&self) -> ::gadget_macros::ext::contexts::services::ServicesClient<::gadget_macros::ext::tangle::tangle_subxt::subxt::PolkadotConfig> {
                 todo!()
             }
         }

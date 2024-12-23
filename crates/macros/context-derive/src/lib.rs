@@ -16,15 +16,15 @@ mod cfg;
 /// Eigenlayer context extension implementation.
 mod eigenlayer;
 /// EVM Provider context extension implementation.
+#[cfg(all(feature = "std", feature = "evm"))]
 mod evm;
 /// Keystore context extension implementation.
 mod keystore;
-/// MPC context extension implementation.
-mod mpc;
-/// Services context extension implementation.
-mod services;
-/// Tangle Subxt Client context extension implementation.
-mod subxt;
+/// P2P context extension implementation.
+mod p2p;
+/// Tangle context extensions.
+#[cfg(feature = "tangle")]
+mod tangle;
 
 const CONFIG_TAG_NAME: &str = "config";
 const CONFIG_TAG_TYPE: &str = "gadget_sdk::config::GadgetConfiguration";
@@ -46,6 +46,7 @@ pub fn derive_keystore_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `EVMProviderContext`.
+#[cfg(all(feature = "std", feature = "evm"))]
 #[proc_macro_derive(EVMProviderContext, attributes(config))]
 pub fn derive_evm_provider_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -60,6 +61,7 @@ pub fn derive_evm_provider_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `TangleClientContext`.
+#[cfg(feature = "tangle")]
 #[proc_macro_derive(TangleClientContext, attributes(config, call_id))]
 pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -75,7 +77,7 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
                 Ok((res, call_id_field))
             })
             .map(|(config_field, call_id_field)| {
-                subxt::generate_context_impl(input, config_field, call_id_field)
+                tangle::subxt::generate_context_impl(input, config_field, call_id_field)
             });
 
     match result {
@@ -85,12 +87,13 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `ServicesContext`.
+#[cfg(feature = "tangle")]
 #[proc_macro_derive(ServicesContext, attributes(config))]
 pub fn derive_services_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
-            .map(|config_field| services::generate_context_impl(input, config_field));
+            .map(|config_field| tangle::services::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
@@ -112,13 +115,13 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Derive macro for generating Context Extensions trait implementation for `MPCContext`.
-#[proc_macro_derive(MPCContext, attributes(config))]
-pub fn derive_mpc_context(input: TokenStream) -> TokenStream {
+/// Derive macro for generating Context Extensions trait implementation for `P2pContext`.
+#[proc_macro_derive(P2pContext, attributes(config))]
+pub fn derive_p2p_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
-            .map(|config_field| mpc::generate_context_impl(input, config_field));
+            .map(|config_field| p2p::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),

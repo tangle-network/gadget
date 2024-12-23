@@ -1,6 +1,6 @@
 use crate::EmptyContext;
 use gadget_blueprint_proc_macro::job;
-use gadget_sdk::event_listener::testing::PendingEventListener;
+use gadget_event_listeners::core::testing::PendingEventListener;
 
 pub struct TestReturnType;
 

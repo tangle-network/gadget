@@ -4619,16 +4619,14 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.5.1"
 dependencies = [
- "async-trait",
  "gadget-blueprint-proc-macro-core",
+ "gadget-event-listeners",
  "indexmap 2.7.0",
  "itertools 0.13.0",
- "parking_lot",
  "proc-macro2",
  "quote",
  "serde_json",
  "syn 2.0.90",
- "tracing",
  "trybuild",
 ]
 
@@ -4775,10 +4773,18 @@ dependencies = [
  "alloy-network 0.5.4",
  "alloy-provider",
  "alloy-transport",
+ "async-trait",
+ "gadget-config",
+ "gadget-context-derive",
+ "gadget-contexts",
+ "gadget-macros",
+ "gadget-networking",
+ "gadget-stores",
  "proc-macro2",
  "quote",
  "round-based",
  "serde",
+ "subxt-core",
  "syn 2.0.90",
  "trybuild",
 ]
@@ -4787,6 +4793,7 @@ dependencies = [
 name = "gadget-contexts"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "gadget-client-eigenlayer",
  "gadget-client-evm",
  "gadget-client-networking",
@@ -4982,6 +4989,7 @@ name = "gadget-event-listeners-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures",
  "gadget-std",
  "thiserror 2.0.7",
  "tokio",
@@ -5101,9 +5109,19 @@ dependencies = [
 name = "gadget-macros"
 version = "0.1.0"
 dependencies = [
+ "alloy-network 0.5.4",
+ "alloy-provider",
+ "alloy-transport",
+ "async-trait",
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
+ "gadget-client-tangle",
+ "gadget-config",
  "gadget-context-derive",
+ "gadget-contexts",
+ "gadget-keystore",
+ "gadget-networking",
+ "tangle-subxt",
 ]
 
 [[package]]
@@ -9105,8 +9123,20 @@ dependencies = [
  "displaydoc",
  "futures-util",
  "phantom-type",
+ "round-based-derive",
  "thiserror 1.0.69",
  "tracing",
+]
+
+[[package]]
+name = "round-based-derive"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4afa4d5b318bcafae8a7ebc57c1cb7d4b2db7358293e34d71bfd605fd327cc13"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
