@@ -6,6 +6,8 @@ use testcontainers::{
 };
 use tokio::io::AsyncBufReadExt;
 
+pub type Container = ContainerAsync<GenericImage>;
+
 pub const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 pub const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
 pub const ANVIL_STATE_PATH: &str = "./crates/testing-utils/anvil/data"; // relative path from the project root
@@ -26,7 +28,7 @@ fn workspace_dir() -> PathBuf {
 pub async fn start_anvil_container(
     state_path: &str,
     include_logs: bool,
-) -> (ContainerAsync<GenericImage>, String, String) {
+) -> (Container, String, String) {
     let relative_path = PathBuf::from(state_path);
     let absolute_path = workspace_dir().join(relative_path);
     let absolute_path_str = absolute_path.to_str().unwrap();
@@ -87,7 +89,7 @@ pub async fn start_anvil_container(
 }
 
 /// Mine Anvil blocks.
-pub async fn mine_anvil_blocks(container: &ContainerAsync<GenericImage>, n: u32) {
+pub async fn mine_anvil_blocks(container: &Container, n: u32) {
     let mut output = container
         .exec(ExecCommand::new([
             "cast",
