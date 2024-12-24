@@ -26,13 +26,13 @@ pub(crate) struct SdkMainArgs {
 
 pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     let tokio_args = if let Some(args) = &args.tokio_args {
-        quote! { ( crate = "::gadget_sdk::tokio", #(#args),* ) }
+        quote! { ( crate = "::gadget_macros::ext::tokio", #(#args),* ) }
     } else {
-        quote! { ( crate = "::gadget_sdk::tokio" ) }
+        quote! { ( crate = "::gadget_macros::ext::tokio" ) }
     };
 
     let env_function_signature = if args.env {
-        quote! { env: gadget_sdk::config::GadgetConfiguration<gadget_sdk::parking_lot::RawRwLock> }
+        quote! { env: ::gadget_macros::ext::config::GadgetConfiguration<gadget_sdk::parking_lot::RawRwLock> }
     } else {
         quote! {}
     };
@@ -58,7 +58,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
         quote! {}
     } else {
         quote! {
-            gadget_sdk::logging::setup_log();
+            ::gadget_macros::ext::logging::setup_log();
         }
     };
 

@@ -1,24 +1,21 @@
 pub mod exponential_backoff;
 pub mod marker;
 
+pub mod error;
+pub use error::Error;
+pub mod executor;
 #[cfg(feature = "testing")]
 pub mod testing;
 
 use async_trait::async_trait;
 use exponential_backoff::ExponentialBackoff;
 use gadget_std::iter::Take;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("Initializable event handler error: {0}")]
-    EventHandler(String),
-}
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
 pub trait EventListener<T: Send + 'static, Ctx: Send + 'static>: Send + 'static {
-    type Error: gadget_std::error::Error + Send + Sync + 'static;
+    type Error: core::error::Error + Send + Sync + 'static;
+
     async fn new(context: &Ctx) -> Result<Self, Self::Error>
     where
         Self: Sized;

@@ -323,8 +323,8 @@ pub(crate) fn generate_event_workflow_tokenstream(
                         quote! {
                             |(mut client_context, job_result)| async move {
                                 let ctx = CTX.get().unwrap();
-                                let call_id = gadget_sdk::contexts::TangleClientContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                                let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
+                                let call_id = ::gadget_macros::ext::contexts::tangle::TangleClientContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
+                                let tangle_job_result = ::gadget_macros::ext::event_listeners::tangle::TangleResult::<_> {
                                     results: job_result,
                                     service_id: ctx.service_id,
                                     call_id,
@@ -332,7 +332,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                                     signer: ctx.signer.clone(),
                                 };
 
-                                #postprocessor(tangle_job_result).await.map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+                                #postprocessor(tangle_job_result)
                             }
                         }
                     }
@@ -353,7 +353,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let context_declaration = match listener_meta.listener_type {
                 ListenerType::Tangle => {
                     quote! {
-                        let context = gadget_sdk::event_listener::tangle::TangleListenerInput {
+                        let context = ::gadget_macros::ext::event_listener::tangle::TangleListenerInput {
                             client: ctx.client.clone(),
                             signer: ctx.signer.clone(),
                             job_id: #job_id_name,
@@ -373,22 +373,22 @@ pub(crate) fn generate_event_workflow_tokenstream(
             };
 
             let next_listener = quote! {
-                async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), ::gadget_macros::ext::event_listeners::core::Error>>> {
                     static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                     if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                        let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
+                        let (tx, rx) = ::gadget_macros::ext::tokio::sync::oneshot::channel();
 
-                        static CTX: gadget_sdk::tokio::sync::OnceCell<#autogen_struct_name> = gadget_sdk::tokio::sync::OnceCell::const_new();
+                        static CTX: ::gadget_macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = ::gadget_macros::ext::tokio::sync::OnceCell::const_new();
                         #context_declaration
 
                         if let Err(_err) = CTX.set(ctx.clone()) {
-                            gadget_sdk::error!("Failed to set the context");
+                            ::gadget_macros::ext::logging::error!("Failed to set the context");
                             return None;
                         }
                         let job_processor = #job_processor_wrapper;
 
-                        let listener = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
-                        let mut event_workflow = gadget_sdk::event_listener::executor::EventFlowWrapper::new(
+                        let listener = <#listener as ::gadget_macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
+                        let mut event_workflow = ::gadget_macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
                             listener,
                             #pre_processor_function,
                             job_processor,
@@ -396,10 +396,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
                         );
 
                         let task = async move {
-                            let res = gadget_sdk::event_listener::executor::EventFlowExecutor::event_loop(&mut event_workflow).await;
+                            let res = ::gadget_macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await;
                             let _ = tx.send(res);
                         };
-                        gadget_sdk::tokio::task::spawn(task);
+                        ::gadget_macros::ext::tokio::task::spawn(task);
                         return Some(rx)
                     }
 
@@ -521,8 +521,8 @@ pub fn generate_autogen_struct(
     if event_listener_args.has_tangle() {
         required_fields.push(quote! {
             pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair>,
-            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
+            pub signer: ::gadget_macros::ext::keystore::TanglePairSigner<::gadget_macros::ext::crypto::tangle_pair_signer::sp_core::sr25519::Pair>,
+            pub client: ::gadget_macros::ext::clients::tangle::runtime::TangleClient,
         })
     }
 
@@ -532,7 +532,7 @@ pub fn generate_autogen_struct(
 
         required_fields.push(quote! {
             pub contract: #instance_name,
-            pub contract_instance: std::sync::OnceLock<gadget_sdk::event_listener::evm::contracts::AlloyContractInstance>,
+            pub contract_instance: std::sync::OnceLock<::gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance>,
         });
     }
 
@@ -549,11 +549,11 @@ pub fn generate_autogen_struct(
             #(#additional_params)*
         }
 
-        #[gadget_sdk::async_trait::async_trait]
-        impl gadget_sdk::event_utils::InitializableEventHandler for #struct_name {
+        #[::gadget_macros::ext::async_trait::async_trait]
+        impl ::gadget_macros::ext::event_listeners::core::InitializableEventHandler for #struct_name {
             async fn init_event_handler(
                 &self,
-            ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+            ) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), ::gadget_macros::ext::event_listeners::core::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }
@@ -1047,8 +1047,8 @@ impl EventListenerArgs {
                         };
                         quote! {
                             let __arg = args.next().expect("parameter count checked before");
-                            let Ok(#ident) = ::gadget_sdk::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
-                                return Err(::gadget_sdk::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
+                            let Ok(#ident) = ::gadget_macros::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
+                                return Err(::gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
                             };
                         }
                     }
@@ -1121,27 +1121,27 @@ pub(crate) fn generate_combined_event_listener_selector(
     struct_name: &Ident,
 ) -> proc_macro2::TokenStream {
     quote! {
-        let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
+        let (tx, rx) = ::gadget_macros::ext::tokio::sync::oneshot::channel();
         let task = async move {
-            let mut futures = gadget_sdk::futures::stream::FuturesUnordered::new();
+            let mut futures = ::gadget_macros::ext::futures::stream::FuturesUnordered::new();
             for listener in listeners {
                 futures.push(listener);
             }
-            if let Some(res) = gadget_sdk::futures::stream::StreamExt::next(&mut futures).await {
-                gadget_sdk::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+            if let Some(res) = ::gadget_macros::ext::futures::stream::StreamExt::next(&mut futures).await {
+                ::gadget_macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
                 let res = match res {
                     Ok(res) => {
                         res
                     },
                     Err(e) => {
-                        Err(gadget_sdk::Error::Other(format!("Error in Event Handler for {}: {e:?}", stringify!(#struct_name))))
+                        Err(::gadget_macros::ext::event_listeners::core::Error::Other(format!("Error in Event Handler for {}: {e:?}", stringify!(#struct_name))))
                     }
                 };
 
                 tx.send(res).unwrap();
             }
         };
-        let _ = gadget_sdk::tokio::spawn(task);
+        let _ = ::gadget_macros::ext::tokio::spawn(task);
         Some(rx)
     }
 }

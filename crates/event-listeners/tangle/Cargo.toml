@@ -17,7 +17,7 @@ async-trait = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 sp-core = { workspace = true }
-subxt = { workspace = true }
+subxt = { workspace = true, optional = true }
 subxt-core = { workspace = true }
 tangle-subxt = { workspace = true }
 thiserror = { workspace = true }
@@ -26,6 +26,7 @@ tokio = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "dep:subxt",
     "gadget-blueprint-serde/std",
     "gadget-clients/std",
     "gadget-contexts/std",
@@ -41,7 +42,8 @@ std = [
     "tangle-subxt/std",
     "tokio/full",
 ]
-no_std = [
-    "gadget-utils-tangle/no_std",
+web = [
+    "dep:subxt",
+    "gadget-utils-tangle/web",
     "subxt/web",
 ]

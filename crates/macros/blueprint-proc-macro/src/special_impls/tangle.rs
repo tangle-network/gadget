@@ -24,7 +24,7 @@ pub(crate) fn generate_tangle_specific_impl(
 
     // Push the expected types
     new_function_signature.push(quote! {
-        env: &gadget_sdk::config::gadget_config::GadgetConfiguration<gadget_sdk::parking_lot::RawRwLock>,
+        env: &::gadget_macros::ext::config::GadgetConfiguration,
     });
 
     constructor_args.push(quote! {
@@ -54,12 +54,13 @@ pub(crate) fn generate_tangle_specific_impl(
             /// instance
             /// # Errors
             ///
-            /// - `gadget_sdk::Error`: if the client fails to connect, the signer is not found, or
-            /// the service ID is not found.
-            pub async fn new(#(#new_function_signature)*) -> Result<Self, gadget_sdk::Error> {
+            /// - The client fails to connect
+            /// - The signer is not found
+            /// - The service ID is not found.
+            pub async fn new(#(#new_function_signature)*) -> Result<Self, ::gadget_macros::ext::config::Error> {
                 let client = env.client().await?;
                 let signer = env.first_sr25519_signer()?;
-                let service_id = env.service_id().ok_or_else(|| gadget_sdk::Error::Other("No service ID found in ENV".to_string()))?;
+                let service_id = env.service_id()?;
 
                 Ok(Self {
                     #(#constructor_args)*
@@ -68,7 +69,7 @@ pub(crate) fn generate_tangle_specific_impl(
         }
 
         #[automatically_derived]
-        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
+        impl ::gadget_macros::ext::event_listeners::core::markers::IsTangle for #struct_name {}
     })
 }
 
@@ -97,7 +98,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let call_id_injector = quote! {
         let mut #injected_context_var_name = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            gadget_sdk::contexts::TangleClientContext::set_call_id(&mut #injected_context_var_name, call_id);
+            ::gadget_macros::ext::contexts::tangle::TangleClientContext::set_call_id(&mut #injected_context_var_name, call_id);
         }
     };
 
@@ -119,7 +120,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
 
             if tangle_event.args.len() != PARAMETER_COUNT {
                 return Err(
-                    ::gadget_sdk::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", tangle_event.args.len()))
+                    ::gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", tangle_event.args.len()))
                 );
             }
 
@@ -136,7 +137,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
-        move |tangle_event: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {
+        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::TangleEvent<_, _>| async move {
 
             #job_processor_call
             #job_processor_call_return
