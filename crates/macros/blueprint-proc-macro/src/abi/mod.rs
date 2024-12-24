@@ -35,8 +35,8 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
             file_path,
             format!("ABI file not found at: {}", absolute_path.display()),
         )
-            .to_compile_error()
-            .into();
+        .to_compile_error()
+        .into();
     }
 
     let file_content = std::fs::read_to_string(&absolute_path).expect("Failed to read ABI file");
