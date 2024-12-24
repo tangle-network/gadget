@@ -23,6 +23,7 @@ indexmap = { workspace = true }
 [dev-dependencies]
 trybuild = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["testing"] }
+gadget-macros = { workspace = true }
 
 [features]
 default = ["std"]

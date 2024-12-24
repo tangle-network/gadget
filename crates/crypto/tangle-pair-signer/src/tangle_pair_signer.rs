@@ -1,4 +1,5 @@
 use gadget_std::vec::Vec;
+pub use sp_core;
 use sp_core::crypto::DeriveError;
 use sp_core::crypto::SecretStringError;
 use sp_core::DeriveJunction;

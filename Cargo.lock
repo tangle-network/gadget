@@ -4621,6 +4621,7 @@ version = "0.5.1"
 dependencies = [
  "gadget-blueprint-proc-macro-core",
  "gadget-event-listeners",
+ "gadget-macros",
  "indexmap 2.7.0",
  "itertools 0.13.0",
  "proc-macro2",
@@ -4990,6 +4991,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "gadget-logging",
  "gadget-std",
  "thiserror 2.0.7",
  "tokio",
@@ -5113,15 +5115,22 @@ dependencies = [
  "alloy-provider",
  "alloy-transport",
  "async-trait",
+ "futures",
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
+ "gadget-blueprint-serde",
  "gadget-client-tangle",
+ "gadget-clients",
  "gadget-config",
  "gadget-context-derive",
  "gadget-contexts",
+ "gadget-crypto",
+ "gadget-event-listeners",
  "gadget-keystore",
+ "gadget-logging",
  "gadget-networking",
  "tangle-subxt",
+ "tokio",
 ]
 
 [[package]]
@@ -11151,6 +11160,7 @@ checksum = "f49888ae6ae90fe01b471193528eea5bd4ed52d8eecd2d13f4a2333b87388850"
 dependencies = [
  "bip39",
  "cfg-if",
+ "getrandom",
  "hex",
  "hmac 0.12.1",
  "parity-scale-codec",

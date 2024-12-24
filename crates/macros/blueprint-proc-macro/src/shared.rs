@@ -231,12 +231,12 @@ pub fn get_return_type_wrapper(
 ) -> proc_macro2::TokenStream {
     if let Some(context_var_name) = injected_context_var_name {
         if return_type.is_result_type() {
-            quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())).map(|res| (#context_var_name, res)) }
+            quote! { res.map_err(|err| ::gadget_macros::ext::event_listeners::core::Error::Other(err.to_string())).map(|res| (#context_var_name, res)) }
         } else {
             quote! { Ok((#context_var_name, res)) }
         }
     } else if return_type.is_result_type() {
-        quote! { res.map_err(|err| gadget_sdk::Error::Other(err.to_string())) }
+        quote! { res.map_err(|err| ::gadget_macros::ext::event_listeners::core::Error::Other(err.to_string())) }
     } else {
         quote! { Ok(res) }
     }

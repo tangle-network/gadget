@@ -19,7 +19,7 @@ std = [
 ]
 web = ["gadget-client-tangle?/web"]
 
-eigenlayer = ["gadget-client-eigenlayer"]
-evm = ["gadget-client-evm"]
-networking = ["gadget-client-networking"]
-tangle = ["gadget-client-tangle"]
+eigenlayer = ["dep:gadget-client-eigenlayer"]
+evm = ["dep:gadget-client-evm"]
+networking = ["dep:gadget-client-networking"]
+tangle = ["dep:gadget-client-tangle"]

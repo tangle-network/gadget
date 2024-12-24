@@ -19,8 +19,8 @@ std = [
     "gadget-utils-evm?/std",
     "gadget-utils-tangle?/std",
 ]
-no_std = [
-    "gadget-utils-tangle?/no_std"
+web = [
+    "gadget-utils-tangle?/web"
 ]
 
 eigenlayer = ["gadget-utils-eigenlayer"]
