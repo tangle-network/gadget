@@ -9,7 +9,7 @@ use gadget_contexts::tangle::TangleClientContext as _;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]
-struct MyContext<T, U> {
+struct MyContext<T: Sync, U: Sync> {
     foo: T,
     bar: U,
     #[config]
@@ -28,7 +28,7 @@ fn main() {
             call_id: None,
         };
         let _keystore = ctx.keystore();
-        let _evm_provider = ctx.evm_client().await.unwrap();
+        let _evm_provider = ctx.evm_client();
         let _tangle_client = ctx.tangle_client().await.unwrap();
         let services_client = ctx.services_client().await;
         let _services = services_client

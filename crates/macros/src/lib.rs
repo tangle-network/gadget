@@ -10,6 +10,7 @@ pub mod ext {
     #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use tokio;
 
+    #[cfg(feature = "tangle")]
     pub use gadget_blueprint_serde as blueprint_serde;
     #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use gadget_clients as clients;
@@ -17,6 +18,7 @@ pub mod ext {
     pub use gadget_contexts as contexts;
     #[cfg(feature = "tangle")]
     pub use gadget_crypto as crypto;
+    #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use gadget_event_listeners as event_listeners;
     pub use gadget_keystore as keystore;
     #[cfg(any(feature = "tangle", feature = "evm"))]
