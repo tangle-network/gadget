@@ -4,6 +4,5 @@ pub use gadget_client_tangle::services::ServicesClient;
 #[async_trait::async_trait]
 pub trait ServicesContext {
     /// Returns the Services client instance
-    async fn client(&self)
-        -> ServicesClient<subxt::PolkadotConfig>;
+    async fn services_client(&self) -> ServicesClient<subxt::PolkadotConfig>;
 }
