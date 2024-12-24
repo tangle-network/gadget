@@ -35,19 +35,17 @@ pub fn generate_context_impl(
 
                 type Config = #config_ty;
                 static CLIENT: std::sync::OnceLock<Config> = std::sync::OnceLock::new();
-                async {
-                    match CLIENT.get() {
-                        Some(client) => Ok(client.clone()),
-                        None => {
-                            let rpc_url = #field_access_config.ws_rpc_endpoint.as_str();
-                            let client = subxt::OnlineClient::from_url(rpc_url).await?;
-                            CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
-                                subxt::Error::Io(std::io::Error::new(
-                                    std::io::ErrorKind::Other,
-                                    "Failed to set client",
-                                ))
-                            })
-                        }
+                match CLIENT.get() {
+                    Some(client) => Ok(client.clone()),
+                    None => {
+                        let rpc_url = #field_access_config.ws_rpc_endpoint.as_str();
+                        let client = subxt::OnlineClient::from_url(rpc_url).await?;
+                        CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
+                            subxt::Error::Io(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Failed to set client",
+                            ))
+                        })
                     }
                 }
             }

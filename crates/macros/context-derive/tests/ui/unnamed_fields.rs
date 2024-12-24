@@ -20,7 +20,7 @@ fn main() {
     let body = async {
         let ctx = MyContext("bar".to_string(), GadgetConfiguration::default(), None);
         let _keystore = ctx.keystore();
-        let _evm_provider = ctx.evm_client().await;
+        let _evm_provider = ctx.evm_client();
         let _tangle_client = ctx.tangle_client().await.unwrap();
         let services_client = ctx.services_client().await;
         let _services = services_client.current_service_operators([0; 32], 0).await;

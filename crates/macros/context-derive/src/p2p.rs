@@ -23,7 +23,7 @@ pub fn generate_context_impl(
     quote! {
         #[::gadget_macros::ext::async_trait::async_trait]
         impl #impl_generics ::gadget_macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
-            fn client(&self) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
+            fn p2p_client(&self) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
                 todo!()
             }
         }
