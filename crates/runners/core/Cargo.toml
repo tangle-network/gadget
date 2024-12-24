@@ -22,7 +22,7 @@ gadget-logging = { workspace = true }
 default = ["std"]
 
 std = ["gadget-config/std", "gadget-utils/std", "gadget-logging/std", "gadget-event-listeners/std"]
-no_std = ["gadget-utils/no_std"]
+web = ["gadget-utils/web"]
 
 eigenlayer = ["gadget-config/eigenlayer", "gadget-utils/eigenlayer", "gadget-event-listeners/evm"]
 symbiotic = ["gadget-config/symbiotic", "gadget-event-listeners/evm"]

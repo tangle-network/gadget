@@ -19,6 +19,9 @@ std = [
     "gadget-event-listeners-periodic?/std",
     "gadget-event-listeners-tangle?/std",
 ]
+web = [
+    "gadget-event-listeners-tangle?/web",
+]
 
 
 evm = ["gadget-event-listeners-evm"]
