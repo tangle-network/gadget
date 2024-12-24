@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use subxt_core::ext::sp_core::ecdsa::Public;
+use gadget_contexts::services::ServicesContext;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
 #[allow(dead_code)]
@@ -38,8 +39,9 @@ fn main() {
         // Test existing context functions
         let _keystore = ctx.keystore();
         let _evm_provider = ctx.evm_client();
-        let tangle_client = ctx.tangle_client().await.unwrap();
-        let _services = ctx.current_service_operators(&tangle_client).await.unwrap();
+        let _tangle_client = ctx.tangle_client();
+        let services_client = ctx.services_client().await;
+        let _services = services_client.current_service_operators([0; 32], 0).await.unwrap();
 
         // Test MPC context utility functions
         let _config = ctx.config();

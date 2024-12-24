@@ -22,7 +22,7 @@ pub fn generate_context_impl(
     quote! {
         #[::gadget_macros::ext::async_trait::async_trait]
         impl #impl_generics ::gadget_macros::ext::contexts::services::ServicesContext for #name #ty_generics #where_clause {
-            async fn client(&self) -> ::gadget_macros::ext::contexts::services::ServicesClient<::gadget_macros::ext::tangle::tangle_subxt::subxt::PolkadotConfig> {
+            async fn services_client(&self) -> ::gadget_macros::ext::contexts::services::ServicesClient<::gadget_macros::ext::tangle::tangle_subxt::subxt::PolkadotConfig> {
                 todo!()
             }
         }
