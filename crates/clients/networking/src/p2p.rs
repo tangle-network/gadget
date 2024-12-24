@@ -12,13 +12,17 @@ use round_based::PartyIndex;
 
 pub struct P2PClient {
     name: proc_macro2::Ident,
-    pub config: GadgetConfiguration,
+    config: GadgetConfiguration,
     pub target_addr: IpAddr,
     pub target_port: u16,
     pub my_ecdsa_key: K256SigningKey,
 }
 
 impl P2PClient {
+    pub fn config(&self) -> &GadgetConfiguration {
+        &self.config
+    }
+
     /// Returns the network protocol identifier
     pub fn network_protocol(&self, version: Option<String>) -> String {
         let name = self.name.to_string();
