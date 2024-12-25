@@ -28,7 +28,7 @@ alloy-provider = { workspace = true }
 alloy-transport = { workspace = true }
 gadget-config.workspace = true
 gadget-networking.workspace = true
-gadget-contexts.workspace = true
+gadget-contexts = { workspace = true, features = ["std", "evm", "tangle", "networking"] }
 gadget-context-derive = { workspace = true, features = ["std", "tangle", "evm"] }
 gadget-macros = { workspace = true, features = ["std", "evm", "tangle"] }
 gadget-stores = { workspace = true, features = ["std"] }

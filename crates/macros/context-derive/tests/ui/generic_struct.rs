@@ -9,7 +9,7 @@ use gadget_contexts::tangle::TangleClientContext as _;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]
-struct MyContext<T: Sync, U: Sync> {
+struct MyContext<T: Send + Sync, U: Send + Sync> {
     foo: T,
     bar: U,
     #[config]

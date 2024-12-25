@@ -3,7 +3,7 @@ use crate::error::Result;
 use crate::EventsClient;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
-use gadget_tokio_std::mutex_ext::TokioMutexExt;
+use gadget_std::tokio_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
@@ -41,7 +41,7 @@ pub struct TangleClient {
     account_id: AccountId32,
     pub config: GadgetConfiguration,
     keystore: Arc<Keystore>,
-    client: TangleServicesClient<subxt::PolkadotConfig>,
+    services_client: TangleServicesClient<subxt::PolkadotConfig>,
 }
 
 const KEY_ID: &str = "tangle-default";
@@ -74,7 +74,7 @@ impl TangleClient {
 
         Ok(Self {
             keystore,
-            client,
+            services_client: client,
             finality_notification_stream: Arc::new(tokio::sync::Mutex::new(None)),
             latest_finality_notification: Arc::new(tokio::sync::Mutex::new(None)),
             account_id,
@@ -83,19 +83,19 @@ impl TangleClient {
     }
 
     /// Get the associated [`TangleServicesClient`]
-    pub fn client(&self) -> &TangleServicesClient<subxt::PolkadotConfig> {
-        &self.client
+    pub fn services_client(&self) -> &TangleServicesClient<subxt::PolkadotConfig> {
+        &self.services_client
     }
 
     pub fn subxt_client(&self) -> &OnlineClient {
-        &self.client().rpc_client
+        &self.services_client().rpc_client
     }
 
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
     async fn initialize(&self) -> Result<()> {
         let finality_notification_stream = self
-            .client()
+            .services_client()
             .rpc_client
             .blocks()
             .subscribe_finalized()
@@ -109,7 +109,7 @@ impl TangleClient {
         at: [u8; 32],
     ) -> subxt::runtime_api::RuntimeApi<TangleConfig, OnlineClient> {
         let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
-        self.client.rpc_client.runtime_api().at(block_ref)
+        self.services_client.rpc_client.runtime_api().at(block_ref)
     }
 
     pub fn account_id(&self) -> &AccountId32 {
@@ -133,7 +133,7 @@ impl TangleClient {
         Error,
     > {
         let storage = self
-            .client
+            .services_client
             .rpc_client
             .storage()
             .at_latest()
@@ -255,7 +255,7 @@ impl GadgetServicesClient for TangleClient {
         OperatorSet<Self::PublicAccountIdentity, Self::PublicApplicationIdentity>,
         Error,
     > {
-        let client = &self.client;
+        let client = &self.services_client;
         let current_blueprint = self.blueprint_id().await?;
         let service_id = self
             .config
@@ -269,7 +269,7 @@ impl GadgetServicesClient for TangleClient {
             .await
             .ok_or_else(|| Error::Other("no timestamp in latest".into()))?;
         let current_service_op = self
-            .client
+            .services_client
             .current_service_operators(now, service_id)
             .await
             .map_err(|err| Error::msg(err))?;

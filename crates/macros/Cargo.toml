@@ -12,6 +12,7 @@ gadget-blueprint-proc-macro-core = { workspace = true }
 gadget-blueprint-proc-macro = { workspace = true }
 gadget-context-derive = { workspace = true }
 
+gadget-std = { workspace = true }
 gadget-config = { workspace = true }
 gadget-contexts = { workspace = true }
 gadget-keystore = { workspace = true }
@@ -48,6 +49,7 @@ std = [
     "gadget-event-listeners?/std",
     "gadget-logging?/std",
     "gadget-networking/std",
+    "gadget-std/std",
     "tangle-subxt?/std",
 ]
 web = [
