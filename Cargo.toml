@@ -31,6 +31,7 @@ broken_intra_doc_links = "deny"
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
 blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
+gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
 
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
@@ -79,7 +80,6 @@ gadget-runner-tangle = { version = "0.1.0", path = "./crates/runners/tangle", de
 gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbiotic", default-features = false }
 
 # SDK
-gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint-serde", default-features = false }
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
