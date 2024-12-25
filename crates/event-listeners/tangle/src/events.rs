@@ -1,7 +1,7 @@
 use crate::error::{Result, TangleEventListenerError};
 use async_trait::async_trait;
 use gadget_clients::tangle::client::{OnlineClient, TangleConfig};
-use gadget_crypto_tangle_pair_signer::tangle_pair_signer::TanglePairSigner;
+use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners_core::marker::IsTangle;
 use gadget_event_listeners_core::EventListener;
 use gadget_std::collections::VecDeque;

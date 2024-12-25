@@ -9,5 +9,6 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+blueprint-manager.workspace = true
 blueprint-metadata.workspace = true
 blueprint-build-utils.workspace = true

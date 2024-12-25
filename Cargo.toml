@@ -31,6 +31,7 @@ broken_intra_doc_links = "deny"
 [workspace.dependencies]
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
+blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
 blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
