@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
 use gadget_std::collections::BTreeMap;
 use gadget_std::string::ToString;
+use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
@@ -19,7 +20,6 @@ use libp2p::{
 };
 use lru_mem::LruCache;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::AtomicUsize;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 

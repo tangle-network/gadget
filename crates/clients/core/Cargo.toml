@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gadget-std = { workspace = true , default-features = false}
+gadget-std = { workspace = true }
 async-trait = { workspace = true }
 auto_impl = { workspace = true }
 thiserror = { workspace = true }

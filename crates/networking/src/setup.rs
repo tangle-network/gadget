@@ -12,6 +12,7 @@ use gadget_std::io;
 use gadget_std::net::IpAddr;
 use gadget_std::str::FromStr;
 use gadget_std::string::String;
+use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
 use gadget_std::vec::Vec;
@@ -21,7 +22,6 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 use lru_mem::LruCache;
-use std::sync::atomic::AtomicUsize;
 use tokio::select;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn, JoinHandle};

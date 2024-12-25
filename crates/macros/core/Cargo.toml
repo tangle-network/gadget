@@ -9,6 +9,8 @@ repository.workspace = true
 description = "Core proc-macro for generating gadget code"
 
 [dependencies]
+gadget-std.workspace = true
+
 serde = { workspace = true, features = ["derive"] }
 ethereum-types = { workspace = true, features = ["serialize"] }
 cid = { workspace = true, features = ["alloc", "serde"] }
@@ -18,7 +20,7 @@ serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
 default = ["std"]
-std = ["serde/std", "cid/std"]
+std = ["serde/std", "cid/std", "gadget-std/std"]
 
 [lints]
 workspace = true

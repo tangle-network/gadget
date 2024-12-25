@@ -13,11 +13,11 @@ use gadget_macros::ext::clients::GadgetServicesClient as _;
 use gadget_macros::ext::crypto::k256_crypto::K256VerifyingKey;
 use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
 use gadget_networking::PublicKey;
+use gadget_std::collections::BTreeMap;
+use gadget_std::sync::Arc;
 use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::sync::Arc;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
 #[allow(dead_code)]

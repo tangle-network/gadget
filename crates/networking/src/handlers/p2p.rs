@@ -4,9 +4,9 @@ use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
 use gadget_std::string::ToString;
+use gadget_std::sync::atomic::Ordering;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::{request_response, PeerId};
-use std::sync::atomic::Ordering;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
