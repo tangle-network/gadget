@@ -2329,6 +2329,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-metadata"
+version = "0.2.1"
+dependencies = [
+ "cargo_metadata",
+ "fs2",
+ "gadget-blueprint-proc-macro-core",
+ "gadget-std",
+ "rustdoc-types",
+ "serde",
+ "serde_json",
+ "typed-builder",
+]
+
+[[package]]
+name = "blueprint-util-meta"
+version = "0.1.0"
+dependencies = [
+ "blueprint-metadata",
+]
+
+[[package]]
 name = "bollard"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9293,6 +9314,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustdoc-types"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d368a6e25f5445187e8f67a7ec1cdf38f6d361fb26f9476b8b5f0bd91d88fd60"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "rusticata-macros"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12056,6 +12086,26 @@ dependencies = [
  "digest 0.10.7",
  "rand",
  "static_assertions",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06fbd5b8de54c5f7c91f6fe4cebb949be2125d7758e630bb58b1d831dbce600"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9534daa9fd3ed0bd911d462a37f172228077e7abf18c18a5f67199d959205f8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
 ]
 
 [[package]]

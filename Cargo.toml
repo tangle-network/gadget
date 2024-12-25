@@ -28,6 +28,10 @@ needless_late_init = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
+# Blueprint utils
+blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
+blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
+
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
 gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
