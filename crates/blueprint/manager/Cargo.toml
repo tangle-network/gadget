@@ -1,0 +1,46 @@
+[package]
+name = "blueprint-manager"
+version = "0.2.2"
+description = "Tangle Blueprint manager and Runner"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "blueprint-manager"
+path = "src/main.rs"
+
+[dependencies]
+gadget-clients = { workspace = true, features = ["std", "tangle"] }
+gadget-config = { workspace = true, features = ["std", "networking"] }
+gadget-crypto = { workspace = true, features = ["std", "tangle-pair-signer"] }
+gadget-keystore = { workspace = true, features = ["std", "tangle"] }
+gadget-logging = { workspace = true, features = ["std"] }
+gadget-networking = { workspace = true, features = ["std"] }
+gadget-std = { workspace = true, features = ["std"] }
+
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
+serde = { workspace = true }
+tangle-subxt = { workspace = true }
+toml = { workspace = true }
+hex = { workspace = true }
+tokio = { workspace = true, features = ["process", "io-util", "signal", "macros"] }
+reqwest = { workspace = true }
+sha2 = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
+libp2p = { workspace = true }
+auto_impl = { workspace = true }
+parking_lot = { workspace = true }
+async-trait = { workspace = true }
+
+[lints]
+workspace = true
+
+[package.metadata.dist]
+dist = false

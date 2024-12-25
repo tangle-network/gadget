@@ -121,6 +121,7 @@ tangle = [
     "ecdsa",
     "sr25519-schnorrkel",
     "zebra",
+    "gadget-crypto/tangle-pair-signer",
 ]
 
 tangle-bls = [
