@@ -1,11 +1,11 @@
 use crate::error::{Result, TangleEventListenerError};
 use crate::events::{EventMatcher, TangleEvent, TangleResult};
-use gadget_contexts::services::tangle::TangleClientContext;
+use gadget_contexts::services::ServicesContext;
 use std::any::Any;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};
 
-pub async fn services_pre_processor<C: TangleClientContext, E: EventMatcher<Output: Clone>>(
+pub async fn services_pre_processor<C: ServicesContext, E: EventMatcher<Output: Clone>>(
     event: TangleEvent<C, E>,
 ) -> Result<TangleEvent<C, E>> {
     let TangleEvent {

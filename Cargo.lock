@@ -4810,12 +4810,10 @@ name = "gadget-contexts"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "gadget-client-eigenlayer",
- "gadget-client-evm",
- "gadget-client-networking",
  "gadget-clients",
  "gadget-keystore",
  "gadget-std",
+ "subxt",
 ]
 
 [[package]]
@@ -5143,6 +5141,7 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-networking",
+ "gadget-std",
  "tangle-subxt",
  "tokio",
 ]
