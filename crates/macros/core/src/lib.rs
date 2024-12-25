@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use gadget_std::borrow::Cow;
 
 pub type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
@@ -533,7 +533,7 @@ pub struct ContainerGadget<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use gadget_std::path::PathBuf;
 
     #[test]
     fn test_blueprint_deserialization() {

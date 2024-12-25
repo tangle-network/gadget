@@ -196,9 +196,9 @@ impl<
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use std::sync::Arc;
-    use std::time::Duration;
+    use gadget_std::sync::atomic::{AtomicU64, Ordering};
+    use gadget_std::sync::Arc;
+    use gadget_std::time::Duration;
 
     struct DummyEventListener(Arc<AtomicU64>);
 

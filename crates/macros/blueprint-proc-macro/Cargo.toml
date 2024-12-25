@@ -12,12 +12,14 @@ description = "Procedural macros for writing Tangle blueprints"
 proc-macro = true
 
 [dependencies]
+gadget-std.workspace = true
+gadget-blueprint-proc-macro-core.workspace = true
+
 syn = { workspace = true, features = ["full"] }
 quote = { workspace = true }
 itertools = { workspace = true }
 proc-macro2 = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
-gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 indexmap = { workspace = true }
 
 [dev-dependencies]
@@ -27,4 +29,4 @@ gadget-macros = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["gadget-blueprint-proc-macro-core/std", "indexmap/std"]
+std = ["gadget-blueprint-proc-macro-core/std", "gadget-std/std", "indexmap/std"]

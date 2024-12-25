@@ -4622,6 +4622,7 @@ dependencies = [
  "gadget-blueprint-proc-macro-core",
  "gadget-event-listeners",
  "gadget-macros",
+ "gadget-std",
  "indexmap 2.7.0",
  "itertools 0.13.0",
  "proc-macro2",
@@ -4637,6 +4638,7 @@ version = "0.3.1"
 dependencies = [
  "cid",
  "ethereum-types",
+ "gadget-std",
  "serde",
  "serde_json",
 ]
@@ -4795,6 +4797,7 @@ dependencies = [
  "gadget-contexts",
  "gadget-macros",
  "gadget-networking",
+ "gadget-std",
  "gadget-stores",
  "proc-macro2",
  "quote",

@@ -1,8 +1,8 @@
+use gadget_std::collections::HashMap;
+use gadget_std::fs;
+use gadget_std::path::{Path, PathBuf};
+use gadget_std::sync::Mutex;
 use serde::{de::DeserializeOwned, Serialize};
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 /// A local database for storing key-value pairs.
 ///
@@ -144,8 +144,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gadget_std::fs;
     use serde::{Deserialize, Serialize};
-    use std::fs;
     use tempfile::tempdir;
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -246,8 +246,8 @@ mod tests {
 
     #[test]
     fn test_concurrent_access() {
-        use std::sync::Arc;
-        use std::thread;
+        use gadget_std::sync::Arc;
+        use gadget_std::thread;
 
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.json");

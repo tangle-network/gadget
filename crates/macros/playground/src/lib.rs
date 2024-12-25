@@ -165,13 +165,13 @@ mod tests {
     use blueprint_examples::periodic_web_poller::{post_process, pre_process, WebPoller};
     use gadget_sdk as sdk;
     use gadget_sdk::runners::BlueprintRunner;
+    use gadget_std::convert::Infallible;
+    use gadget_std::sync::atomic::AtomicUsize;
+    use gadget_std::sync::Arc;
+    use gadget_std::time::Duration;
     use sdk::event_listener::periodic::PeriodicEventListener;
     use sdk::event_listener::EventListener;
     use sdk::job;
-    use std::convert::Infallible;
-    use std::sync::atomic::AtomicUsize;
-    use std::sync::Arc;
-    use std::time::Duration;
 
     #[test]
     fn generated_blueprint() {
