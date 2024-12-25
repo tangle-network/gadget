@@ -7,13 +7,13 @@ use crate::special_impls::tangle::{
     generate_tangle_specific_impl, get_tangle_job_processor_wrapper,
 };
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
+use gadget_std::collections::HashSet;
+use gadget_std::str::FromStr;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use std::collections::HashSet;
-use std::str::FromStr;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::{Ident, Index, ItemFn, LitInt, Token, Type};

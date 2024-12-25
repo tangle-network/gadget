@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use gadget_std::str::FromStr;
 
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, Address, FixedBytes, U256};

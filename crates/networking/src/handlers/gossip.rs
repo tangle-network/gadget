@@ -2,10 +2,10 @@
 
 use crate::gossip::{GossipMessage, NetworkService};
 use gadget_std::string::ToString;
+use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
-use std::sync::atomic::AtomicUsize;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
