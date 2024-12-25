@@ -1,7 +1,7 @@
+use gadget_std::path::PathBuf;
 use proc_macro::TokenStream;
 use quote::quote;
 use serde_json::Value;
-use gadget_std::path::PathBuf;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Ident, LitStr, Token};
 
