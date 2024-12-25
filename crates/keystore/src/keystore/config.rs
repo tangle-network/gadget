@@ -30,7 +30,7 @@
 /// [`InMemoryStorage`]: crate::storage::InMemoryStorage
 /// [`Keystore`]: crate::Keystore
 /// [`Keystore::new()`]: crate::Keystore::new
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct KeystoreConfig {
     pub(crate) in_memory: bool,
     #[cfg(feature = "std")]

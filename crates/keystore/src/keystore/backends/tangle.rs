@@ -3,15 +3,10 @@ use crate::keystore::Keystore;
 use gadget_crypto::sp_core_crypto::{
     SpEcdsaPair, SpEcdsaPublic, SpEd25519Pair, SpEd25519Public, SpSr25519Pair, SpSr25519Public,
 };
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_crypto::KeyTypeId;
 use sp_core::Pair;
 use sp_core::{ecdsa, ed25519, sr25519};
-use subxt::tx::PairSigner;
-use subxt::PolkadotConfig;
-
-pub struct TanglePairSigner<P: Pair> {
-    pub pair: subxt::tx::PairSigner<PolkadotConfig, P>,
-}
 
 #[async_trait::async_trait]
 pub trait TangleBackend: Send + Sync {
@@ -56,9 +51,9 @@ pub trait TangleBackend: Send + Sync {
         let pair = pair.into();
         let seed = pair.as_ref().secret.to_bytes();
         let _ = self.sr25519_generate_new(Some(&seed))?;
-        Ok(TanglePairSigner {
-            pair: PairSigner::new(sr25519::Pair::from_seed_slice(&seed)?),
-        })
+        Ok(TanglePairSigner::new(sr25519::Pair::from_seed_slice(
+            &seed,
+        )?))
     }
 
     fn create_ed25519_from_pair<T: Into<ed25519::Pair>>(
@@ -68,9 +63,9 @@ pub trait TangleBackend: Send + Sync {
         let pair = pair.into();
         let seed = pair.seed();
         let _ = self.ed25519_generate_new(Some(&seed))?;
-        Ok(TanglePairSigner {
-            pair: PairSigner::new(ed25519::Pair::from_seed_slice(&seed)?),
-        })
+        Ok(TanglePairSigner::new(ed25519::Pair::from_seed_slice(
+            &seed,
+        )?))
     }
 
     fn create_ecdsa_from_pair<T: Into<ecdsa::Pair>>(
@@ -80,9 +75,7 @@ pub trait TangleBackend: Send + Sync {
         let pair = pair.into();
         let seed = pair.seed();
         let _ = self.ecdsa_generate_new(Some(&seed))?;
-        Ok(TanglePairSigner {
-            pair: PairSigner::new(ecdsa::Pair::from_seed_slice(&seed)?),
-        })
+        Ok(TanglePairSigner::new(ecdsa::Pair::from_seed_slice(&seed)?))
     }
 }
 
