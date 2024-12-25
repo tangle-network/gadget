@@ -2329,6 +2329,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-build-utils"
+version = "0.1.0"
+dependencies = [
+ "gadget-std",
+]
+
+[[package]]
 name = "blueprint-metadata"
 version = "0.2.1"
 dependencies = [
@@ -2346,6 +2353,7 @@ dependencies = [
 name = "blueprint-util-meta"
 version = "0.1.0"
 dependencies = [
+ "blueprint-build-utils",
  "blueprint-metadata",
 ]
 
