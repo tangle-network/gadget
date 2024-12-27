@@ -91,13 +91,13 @@ pub trait ServicesContext {
         operators: Vec<crate::ext::subxt::utils::AccountId32>,
     ) -> Result<
         Vec<(
-            crate::ext::subxt::utils::AccountId32,
-            crate::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata<
-                crate::ext::subxt::utils::AccountId32,
-                crate::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::burned::Balance,
-                crate::ext::tangle_subxt::tangle_testnet_runtime::api::assets::events::accounts_destroyed::AssetId,
-                crate::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxDelegations,
-                crate::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxOperatorBlueprints,
+            AccountId32,
+            OperatorMetadata<
+                AccountId32,
+                Balance,
+                AssetId,
+                MaxDelegations,
+                MaxOperatorBlueprints,
             >
         )>,
         crate::ext::subxt::Error
