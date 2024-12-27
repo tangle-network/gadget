@@ -2,7 +2,6 @@ pub use crate::create::error::Error;
 pub use crate::create::source::Source;
 pub use crate::create::types::BlueprintType;
 use crate::foundry::FoundryToolchain;
-use gadget_sdk::tracing;
 use types::*;
 
 pub mod error;
@@ -76,15 +75,15 @@ pub fn new_blueprint(
 
     let foundry = FoundryToolchain::new();
     if !foundry.forge.is_installed() {
-        tracing::warn!("Forge not installed, skipping dependencies");
-        tracing::warn!("NOTE: See <https://getfoundry.sh>");
-        tracing::warn!("NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies");
+        gadget_logging::warn!("Forge not installed, skipping dependencies");
+        gadget_logging::warn!("NOTE: See <https://getfoundry.sh>");
+        gadget_logging::warn!("NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies");
         return Ok(());
     }
 
     std::env::set_current_dir(contracts)?;
     if let Err(e) = foundry.forge.install_dependencies() {
-        tracing::error!("{e}");
+        gadget_logging::error!("{e}");
     }
 
     Ok(())

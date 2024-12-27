@@ -1,134 +1,102 @@
-use clap::builder::PossibleValue;
-use clap::ValueEnum;
-use color_eyre::eyre::eyre;
-use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
-use gadget_sdk::keystore::backend::mem::InMemoryKeystore;
-use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::Backend;
-use gadget_sdk::parking_lot::RawRwLock;
+use color_eyre::eyre::Result;
+use gadget_crypto::{
+    bls_crypto::{bls377::W3fBls377, bls381::W3fBls381},
+    bn254_crypto::ArkBlsBn254,
+    ed25519_crypto::Ed25519Zebra,
+    k256_crypto::K256Ecdsa,
+    sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpEd25519, SpSr25519},
+    sr25519_crypto::SchnorrkelSr25519,
+    KeyTypeId,
+};
+use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
 use std::path::PathBuf;
-use std::str::FromStr;
-use w3f_bls::serialize::SerializableToBytes;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Unknown key type: {0}")]
     UnknownKeyType(String),
-}
-
-#[derive(Clone, Debug)]
-pub enum KeyType {
-    Sr25519,
-    Ed25519,
-    Ecdsa,
-    Bls381,
-    BlsBn254,
-}
-
-impl ValueEnum for KeyType {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[
-            Self::Sr25519,
-            Self::Ed25519,
-            Self::Ecdsa,
-            Self::Bls381,
-            Self::BlsBn254,
-        ]
-    }
-
-    fn to_possible_value(&self) -> Option<PossibleValue> {
-        Some(match self {
-            Self::Sr25519 => PossibleValue::new("sr25519").help("Schnorrkel/Ristretto x25519"),
-            Self::Ed25519 => PossibleValue::new("ed25519").help("Edwards Curve 25519"),
-            Self::Ecdsa => {
-                PossibleValue::new("ecdsa").help("Elliptic Curve Digital Signature Algorithm")
-            }
-            Self::Bls381 => PossibleValue::new("bls381").help("Boneh-Lynn-Shacham on BLS12-381"),
-            Self::BlsBn254 => PossibleValue::new("blsbn254").help("Boneh-Lynn-Shacham on BN254"),
-        })
-    }
-}
-
-impl FromStr for KeyType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let lower = s.to_lowercase();
-        match lower.as_str() {
-            "sr25519" => Ok(Self::Sr25519),
-            "ed25519" => Ok(Self::Ed25519),
-            "ecdsa" => Ok(Self::Ecdsa),
-            "bls381" => Ok(Self::Bls381),
-            "blsbn254" => Ok(Self::BlsBn254),
-            _ => Err(Error::UnknownKeyType(lower)),
-        }
-    }
+    #[error("Keystore error: {0}")]
+    KeystoreError(#[from] gadget_keystore::error::Error),
 }
 
 pub fn generate_key(
-    key_type: KeyType,
+    key_type: KeyTypeId,
     output: Option<PathBuf>,
     seed: Option<&[u8]>,
     show_secret: bool,
-) -> color_eyre::Result<()> {
-    let keystore: GenericKeyStore<RawRwLock> = match output {
-        None => GenericKeyStore::Mem(InMemoryKeystore::new()),
-        Some(file_path) => {
-            // Filesystem Keystore
-            GenericKeyStore::Fs(FilesystemKeystore::open(file_path)?)
+) -> Result<()> {
+    // Create keystore configuration
+    let mut config = KeystoreConfig::new();
+    if let Some(ref path) = output {
+        config = config.fs_root(path);
+    }
+
+    let keystore = Keystore::new(config)?;
+
+    // Generate key based on type
+    let (public_bytes, secret_bytes) = match key_type {
+        KeyTypeId::SchnorrkelSr25519 => {
+            let public = keystore.generate::<SchnorrkelSr25519>(seed)?;
+            let secret = keystore.get_secret::<SchnorrkelSr25519>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::ZebraEd25519 => {
+            let public = keystore.generate::<Ed25519Zebra>(seed)?;
+            let secret = keystore.get_secret::<Ed25519Zebra>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::K256Ecdsa => {
+            let public = keystore.generate::<K256Ecdsa>(seed)?;
+            let secret = keystore.get_secret::<K256Ecdsa>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::W3fBls381 => {
+            let public = keystore.generate::<W3fBls381>(seed)?;
+            let secret = keystore.get_secret::<W3fBls381>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::W3fBls377 => {
+            let public = keystore.generate::<W3fBls377>(seed)?;
+            let secret = keystore.get_secret::<W3fBls377>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::ArkBn254 => {
+            let public = keystore.generate::<ArkBlsBn254>(seed)?;
+            let secret = keystore.get_secret::<ArkBlsBn254>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::SpEcdsa => {
+            let public = keystore.generate::<SpEcdsa>(seed)?;
+            let secret = keystore.get_secret::<SpEcdsa>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::SpEd25519 => {
+            let public = keystore.generate::<SpEd25519>(seed)?;
+            let secret = keystore.get_secret::<SpEd25519>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::SpSr25519 => {
+            let public = keystore.generate::<SpSr25519>(seed)?;
+            let secret = keystore.get_secret::<SpSr25519>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::SpBls377 => {
+            let public = keystore.generate::<SpBls377>(seed)?;
+            let secret = keystore.get_secret::<SpBls377>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
+        }
+        KeyTypeId::SpBls381 => {
+            let public = keystore.generate::<SpBls381>(seed)?;
+            let secret = keystore.get_secret::<SpBls381>(&public)?;
+            (serde_json::to_vec(&public)?, serde_json::to_vec(&secret)?)
         }
     };
 
-    let (public, secret) = match key_type {
-        KeyType::Sr25519 => {
-            let public_key = keystore.sr25519_generate_new(seed)?;
-            let secret = keystore
-                .expose_sr25519_secret(&public_key)?
-                .ok_or(eyre!("Failed to expose secret"))?;
-            (
-                hex::encode(public_key.to_bytes()),
-                hex::encode(secret.to_bytes()),
-            )
-        }
-        KeyType::Ed25519 => {
-            let public_key = keystore.ed25519_generate_new(seed)?;
-            let secret = keystore
-                .expose_ed25519_secret(&public_key)?
-                .ok_or(eyre!("Failed to expose secret"))?;
-            (hex::encode(public_key), hex::encode(secret))
-        }
-        KeyType::Ecdsa => {
-            let public_key = keystore.ecdsa_generate_new(seed)?;
-            let secret = keystore
-                .expose_ecdsa_secret(&public_key)?
-                .ok_or(eyre!("Failed to expose secret"))?;
-            (
-                hex::encode(public_key.to_sec1_bytes()),
-                hex::encode(secret.to_bytes()),
-            )
-        }
-        KeyType::Bls381 => {
-            let public_key = keystore.bls381_generate_new(seed)?;
-            let secret = keystore
-                .expose_bls381_secret(&public_key)?
-                .ok_or(eyre!("Failed to expose secret"))?;
-            (
-                hex::encode(public_key.0.to_string()),
-                hex::encode(secret.to_bytes()),
-            )
-        }
-        KeyType::BlsBn254 => {
-            let public_key = keystore.bls_bn254_generate_new(seed)?;
-            let secret = keystore
-                .expose_bls_bn254_secret(&public_key)?
-                .ok_or(eyre!("Failed to expose secret"))?;
-            (public_key.g1().to_string(), secret.0.to_string())
-        }
-    };
+    let (public, secret) = (hex::encode(public_bytes), hex::encode(secret_bytes));
 
-    eprintln!("Generated {:?} key:", key_type);
+    eprintln!("Generated {} key:", key_type.name());
     eprintln!("Public key: {}", public);
-    if show_secret || keystore.is_mem() {
+    if show_secret || output.is_none() {
         eprintln!("Private key: {}", secret);
     }
 

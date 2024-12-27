@@ -73,13 +73,13 @@ macro_rules! define_bls_key {
                 /// key type
                 pub struct [<W3f $ty>];
 
-                impl_w3f_serde!(Public, PublicKey<[<Tiny $ty:upper>]>);
-                impl_w3f_serde!(Secret, SecretKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Public>], PublicKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Secret>], SecretKey<[<Tiny $ty:upper>]>);
                 impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
 
                 impl KeyType for [<W3f $ty>] {
-                    type Public = Public;
-                    type Secret = Secret;
+                    type Public = [<W3f $ty Public>];
+                    type Secret = [<W3f $ty Secret>];
                     type Signature = [<W3f $ty Signature>];
                     type Error = BlsError;
 
@@ -89,12 +89,12 @@ macro_rules! define_bls_key {
 
                     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
                         if let Some(seed) = seed {
-                            Ok(Secret(SecretKey::from_seed(seed)))
+                            Ok([<W3f $ty Secret>](SecretKey::from_seed(seed)))
                         } else {
                             // Should only be used for testing. Pass a seed in production.
                             let mut rng = gadget_std::test_rng();
                             let rand_bytes = <[u8; 32]>::rand(&mut rng);
-                            Ok(Secret(SecretKey::from_seed(&rand_bytes)))
+                            Ok([<W3f $ty Secret>](SecretKey::from_seed(&rand_bytes)))
                         }
                     }
 
@@ -102,11 +102,11 @@ macro_rules! define_bls_key {
                         let hex_encoded = hex::decode(secret)?;
                         let secret =
                             SecretKey::from_bytes(&hex_encoded).map_err(|e| BlsError::InvalidSeed(e.to_string()))?;
-                        Ok(Secret(secret))
+                        Ok([<W3f $ty Secret>](secret))
                     }
 
                     fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-                        Public(secret.0.into_public())
+                        [<W3f $ty Public>](secret.0.into_public())
                     }
 
                     fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {

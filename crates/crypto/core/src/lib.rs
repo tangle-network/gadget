@@ -131,6 +131,57 @@ pub trait KeyType: Sized + 'static {
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool;
 }
 
+#[cfg(feature = "clap")]
+impl clap::ValueEnum for KeyTypeId {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            Self::SchnorrkelSr25519,
+            Self::ZebraEd25519,
+            Self::K256Ecdsa,
+            Self::W3fBls381,
+            Self::ArkBn254,
+            Self::SpEcdsa,
+            Self::SpEd25519,
+            Self::SpSr25519,
+            Self::SpBls377,
+            Self::SpBls381,
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(match self {
+            Self::SchnorrkelSr25519 => {
+                clap::builder::PossibleValue::new("sr25519").help("Schnorrkel/Ristretto x25519")
+            }
+            Self::ZebraEd25519 => {
+                clap::builder::PossibleValue::new("ed25519").help("Edwards Curve 25519")
+            }
+            Self::K256Ecdsa => clap::builder::PossibleValue::new("ecdsa")
+                .help("Elliptic Curve Digital Signature Algorithm"),
+            Self::W3fBls381 => {
+                clap::builder::PossibleValue::new("bls381").help("Boneh-Lynn-Shacham on BLS12-381")
+            }
+            Self::ArkBn254 => {
+                clap::builder::PossibleValue::new("blsbn254").help("Boneh-Lynn-Shacham on BN254")
+            }
+            Self::SpEcdsa => clap::builder::PossibleValue::new("sp-ecdsa").help("Substrate ECDSA"),
+            Self::SpEd25519 => {
+                clap::builder::PossibleValue::new("sp-ed25519").help("Substrate Ed25519")
+            }
+            Self::SpSr25519 => {
+                clap::builder::PossibleValue::new("sp-sr25519").help("Substrate Sr25519")
+            }
+            Self::SpBls377 => {
+                clap::builder::PossibleValue::new("sp-bls377").help("Substrate BLS377")
+            }
+            Self::SpBls381 => {
+                clap::builder::PossibleValue::new("sp-bls381").help("Substrate BLS381")
+            }
+            _ => return None,
+        })
+    }
+}
+
 #[macro_export]
 macro_rules! impl_crypto_tests {
     ($crypto_type:ty, $signing_key:ty, $signature:ty) => {

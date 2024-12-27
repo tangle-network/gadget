@@ -19,7 +19,17 @@ blake3 = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
-default = ["std", "k256", "sr25519-schnorrkel", "ed25519", "bls", "bn254", "sp-core", "hashing"]
+default = [
+    "std",
+    "k256",
+    "sr25519-schnorrkel",
+    "ed25519",
+    "bls",
+    "bn254",
+    "sp-core",
+    "tangle-pair-signer",
+    "hashing"
+]
 std = [
     "gadget-crypto-core/std",
     "gadget-crypto-k256?/std",
