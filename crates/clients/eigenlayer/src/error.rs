@@ -2,7 +2,7 @@ use gadget_std::string::ParseError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum EigenlayerClientError {
+pub enum Error {
     #[error("IO error: {0}")]
     Io(#[from] gadget_std::io::Error),
     #[error("Parse error {0}")]
@@ -25,10 +25,10 @@ pub enum EigenlayerClientError {
     OtherStatic(&'static str),
 }
 
-impl From<&'static str> for EigenlayerClientError {
+impl From<&'static str> for Error {
     fn from(e: &'static str) -> Self {
-        EigenlayerClientError::OtherStatic(e)
+        Error::OtherStatic(e)
     }
 }
 
-pub type Result<T> = gadget_std::result::Result<T, EigenlayerClientError>;
+pub type Result<T> = gadget_std::result::Result<T, Error>;

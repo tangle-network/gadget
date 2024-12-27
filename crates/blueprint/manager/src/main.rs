@@ -1,6 +1,5 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::sdk;
-use blueprint_manager::sdk::utils::msg_to_error;
 use clap::Parser;
 use sdk::entry;
 
@@ -19,7 +18,8 @@ async fn main() -> color_eyre::Result<()> {
     )?;
 
     // TODO: blueprint-manager CLI mode
-    return Err(msg_to_error("TODO: blueprint-manager CLI mode".to_string()));
+    eprintln!("TODO: blueprint-manager CLI mode");
+    return Ok(());
 
     // let gadget_config_settings = std::fs::read_to_string(gadget_config)?;
     // let gadget_config: GadgetConfig =

@@ -10,6 +10,8 @@ gadget-client-tangle = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
 gadget-client-core = { workspace = true }
 
+thiserror.workspace = true
+
 [features]
 default = ["std"]
 std = [
@@ -17,6 +19,7 @@ std = [
     "gadget-client-evm?/std",
     "gadget-client-networking?/std",
     "gadget-client-tangle?/std",
+    "thiserror/std"
 ]
 web = ["gadget-client-tangle?/web"]
 

@@ -1,8 +1,8 @@
 use crate::config::BlueprintManagerConfig;
+use crate::error::Error;
+use crate::error::Result;
 use crate::gadget::ActiveGadgets;
 use crate::sdk::entry::SendFuture;
-use crate::sdk::utils;
-use crate::sdk::utils::msg_to_error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_clients::tangle::client::{TangleClient, TangleConfig};
@@ -17,28 +17,12 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tangle_subxt::subxt::blocks::BlockRef;
-use tangle_subxt::subxt::ext::sp_core::{ecdsa, sr25519, H256};
+use tangle_subxt::subxt::ext::sp_core::{ecdsa, sr25519};
 use tangle_subxt::subxt::tx::Signer;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::Config;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
-
-pub async fn get_blueprints<C: Config>(
-    runtime: &TangleServicesClient<C>,
-    block_hash: [u8; 32],
-    account_id: AccountId32,
-) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
-where
-    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
-{
-    runtime
-        .query_operator_blueprints(block_hash, account_id)
-        .await
-        .map_err(|err| msg_to_error(err.to_string()))
-}
 
 pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
@@ -215,8 +199,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             if result.needs_update {
                 operator_subscribed_blueprints = services_client
                     .query_operator_blueprints(event.hash, sub_account_id.clone())
-                    .await
-                    .map_err(|err| msg_to_error(err.to_string()))?;
+                    .await?;
             }
 
             event_handler::handle_tangle_event(
@@ -226,12 +209,12 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 &blueprint_manager_config,
                 &mut active_gadgets,
                 result,
-                &services_client,
+                services_client,
             )
             .await?;
         }
 
-        Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
+        Err::<(), _>(Error::ClientDied)
     };
 
     let (tx_stop, rx_stop) = tokio::sync::oneshot::channel::<()>();
@@ -293,20 +276,16 @@ async fn handle_init(
     active_gadgets: &mut ActiveGadgets,
     gadget_config: &GadgetConfiguration,
     blueprint_manager_config: &BlueprintManagerConfig,
-) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>> {
+) -> Result<Vec<RpcServicesWithBlueprint>> {
     info!("Beginning initialization of Blueprint Manager");
 
-    let (operator_subscribed_blueprints, init_event) =
-        if let Some(event) = tangle_runtime.next_event().await {
-            (
-                get_blueprints(services_client, event.hash, sub_account_id.clone())
-                    .await
-                    .map_err(|err| Report::msg(format!("Failed to obtain blueprints: {err}")))?,
-                event,
-            )
-        } else {
-            return Err(Report::msg("Failed to get initial block hash"));
-        };
+    let Some(init_event) = tangle_runtime.next_event().await else {
+        return Err(Error::InitialBlock);
+    };
+
+    let operator_subscribed_blueprints = services_client
+        .query_operator_blueprints(init_event.hash, sub_account_id.clone())
+        .await?;
 
     info!(
         "Received {} initial blueprints this operator is registered to",

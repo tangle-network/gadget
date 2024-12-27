@@ -1,8 +1,7 @@
-use crate::protocols::resolver::NativeGithubMetadata;
+use crate::error::Result;
 use gadget_logging::{info, warn};
 use sha2::Digest;
 use std::path::Path;
-use std::string::FromUtf8Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
@@ -10,9 +9,10 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
     GadgetBinary, GithubFetcher,
 };
 
-pub fn bounded_string_to_string(string: BoundedString) -> Result<String, FromUtf8Error> {
+pub fn bounded_string_to_string(string: BoundedString) -> Result<String> {
     let bytes: &Vec<u8> = &string.0 .0;
-    String::from_utf8(bytes.clone())
+    let ret = String::from_utf8(bytes.clone())?;
+    Ok(ret)
 }
 
 pub fn hash_bytes_to_hex<T: AsRef<[u8]>>(input: T) -> String {
@@ -57,32 +57,18 @@ pub fn get_download_url(binary: &GadgetBinary, fetcher: &GithubFetcher) -> Strin
     format!("https://github.com/{owner}/{repo}/releases/download/v{tag}/{binary_name}-{os_name}-{arch_name}{ext}")
 }
 
-pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
-    color_eyre::Report::msg(msg.into())
-}
+pub fn make_executable<P: AsRef<Path>>(path: P) -> Result<()> {
+    #[cfg(target_family = "unix")]
+    {
+        use std::os::unix::fs::PermissionsExt;
 
-pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
-    let success = tokio::process::Command::new("chmod")
-        .arg("+x")
-        .arg(format!("{}", path.as_ref().display()))
-        .spawn()?
-        .wait_with_output()
-        .await?
-        .status
-        .success();
-
-    if success {
-        Ok(())
-    } else {
-        Err(color_eyre::eyre::eyre!(
-            "Failed to chmod +x {}",
-            path.as_ref().display()
-        ))
+        let f = std::fs::File::open(path)?;
+        let mut perms = f.metadata()?.permissions();
+        perms.set_mode(perms.mode() | 0o111);
+        f.set_permissions(perms)?;
     }
-}
 
-pub fn is_windows() -> bool {
-    std::env::consts::OS == "windows"
+    Ok(())
 }
 
 pub fn generate_running_process_status_handle(

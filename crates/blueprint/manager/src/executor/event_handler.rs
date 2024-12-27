@@ -1,10 +1,12 @@
 use crate::config::BlueprintManagerConfig;
+use crate::error::{Error, Result};
 use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
-use crate::sdk::utils::bounded_string_to_string;
+use crate::sdk::utils::{
+    bounded_string_to_string, generate_running_process_status_handle, make_executable,
+};
 use crate::sources::github::GithubBinaryFetcher;
-use crate::sources::BinarySourceFetcher;
-use color_eyre::eyre::OptionExt;
+use crate::sources::{process_arguments_and_env, BinarySourceFetcher};
 use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use gadget_config::{GadgetConfiguration, Protocol};
@@ -24,6 +26,85 @@ pub struct VerifiedBlueprint<'a> {
     pub(crate) blueprint: FilteredBlueprint,
 }
 
+impl VerifiedBlueprint<'_> {
+    pub async fn start_services_if_needed(
+        &self,
+        gadget_config: &GadgetConfiguration,
+        blueprint_manager_opts: &BlueprintManagerConfig,
+        active_gadgets: &mut ActiveGadgets,
+    ) -> Result<()> {
+        let blueprint_source = &self.fetcher;
+        let blueprint = &self.blueprint;
+
+        let blueprint_id = blueprint_source.blueprint_id();
+        if active_gadgets.contains_key(&blueprint_id) {
+            return Ok(());
+        }
+
+        let mut binary_download_path = blueprint_source.get_binary().await?;
+
+        // Ensure the binary is executable
+        if cfg!(target_family = "windows") {
+            if binary_download_path.extension().is_none() {
+                binary_download_path.set_extension("exe");
+            }
+        } else if let Err(err) = make_executable(&binary_download_path) {
+            let msg = format!("Failed to make the binary executable: {err}");
+            warn!("{}", msg);
+            return Err(Error::Other(msg));
+        }
+
+        let service_str = blueprint_source.name();
+        for service_id in &blueprint.services {
+            let sub_service_str = format!("{service_str}-{service_id}");
+            let (arguments, env_vars) = process_arguments_and_env(
+                gadget_config,
+                blueprint_manager_opts,
+                blueprint_id,
+                *service_id,
+                blueprint,
+                &sub_service_str,
+            );
+
+            info!("Starting protocol: {sub_service_str} with args: {arguments:?}");
+
+            // Now that the file is loaded, spawn the process
+            let process_handle = tokio::process::Command::new(&binary_download_path)
+                .kill_on_drop(true)
+                .stdin(std::process::Stdio::null())
+                .current_dir(&std::env::current_dir()?)
+                .envs(env_vars)
+                .args(arguments)
+                .spawn()?;
+
+            if blueprint.registration_mode {
+                // We must wait for the process to exit successfully
+                let status = process_handle.wait_with_output().await?;
+                if status.status.success() {
+                    info!("***Protocol (registration mode) {sub_service_str} executed successfully***");
+                } else {
+                    error!(
+                        "Protocol (registration mode) {sub_service_str} failed to execute: {status:?}"
+                    );
+                }
+                continue;
+            }
+
+            // A normal running gadget binary. Store the process handle and let the event loop handle the rest
+
+            let (status_handle, abort) =
+                generate_running_process_status_handle(process_handle, &sub_service_str);
+
+            active_gadgets
+                .entry(blueprint_id)
+                .or_default()
+                .insert(*service_id, (status_handle, Some(abort)));
+        }
+
+        Ok(())
+    }
+}
+
 impl Debug for VerifiedBlueprint<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         format!(
@@ -34,28 +115,6 @@ impl Debug for VerifiedBlueprint<'_> {
     }
 }
 
-pub async fn handle_services(
-    blueprints: &[VerifiedBlueprint<'_>],
-    gadget_config: &GadgetConfiguration,
-    blueprint_manager_opts: &BlueprintManagerConfig,
-    active_gadgets: &mut ActiveGadgets,
-) -> color_eyre::Result<()> {
-    for blueprint in blueprints {
-        if let Err(err) = crate::sources::handle(
-            blueprint,
-            gadget_config,
-            blueprint_manager_opts,
-            active_gadgets,
-        )
-        .await
-        {
-            error!("{err}");
-        }
-    }
-
-    Ok(())
-}
-
 #[derive(Default, Debug)]
 pub struct EventPollResult {
     pub needs_update: bool,
@@ -63,7 +122,7 @@ pub struct EventPollResult {
     pub blueprint_registrations: Vec<u64>,
 }
 
-pub(crate) async fn check_blueprint_events(
+pub(crate) fn check_blueprint_events(
     event: &TangleEvent,
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
@@ -166,11 +225,11 @@ pub(crate) async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &[RpcServicesWithBlueprint],
     gadget_config: &GadgetConfiguration,
-    gadget_manager_opts: &BlueprintManagerConfig,
+    manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
     poll_result: EventPollResult,
     client: &TangleServicesClient<TangleConfig>,
-) -> color_eyre::Result<()> {
+) -> Result<()> {
     info!("Received notification {}", event.number);
     const DEFAULT_PROTOCOL: Protocol = Protocol::Tangle;
     warn!("Using Tangle protocol as default over Eigen. This is a temporary development workaround. You can alter this behavior here");
@@ -185,7 +244,11 @@ pub(crate) async fn handle_tangle_event(
             let blueprint = client
                 .get_blueprint_by_id(event.hash, *blueprint_id)
                 .await?
-                .ok_or_eyre("Unable to retrieve blueprint for registration mode")?;
+                .ok_or_else(|| {
+                    Error::Other(String::from(
+                        "Unable to retrieve blueprint for registration mode",
+                    ))
+                })?;
 
             let general_blueprint = FilteredBlueprint {
                 blueprint_id: *blueprint_id,
@@ -215,86 +278,14 @@ pub(crate) async fn handle_tangle_event(
         })
         .chain(registration_blueprints)
     {
-        let mut test_fetcher_idx = None;
-        let mut fetcher_candidates: Vec<Box<dyn BinarySourceFetcher>> = vec![];
+        let mut fetcher_candidates = get_fetcher_candidates(&blueprint, manager_opts)?;
 
-        if let Gadget::Native(gadget) = &blueprint.gadget {
-            for (source_idx, gadget_source) in gadget.sources.0.iter().enumerate() {
-                match &gadget_source.fetcher {
-                    GadgetSourceFetcher::Github(gh) => {
-                        let fetcher = GithubBinaryFetcher {
-                            fetcher: gh.clone(),
-                            blueprint_id: blueprint.blueprint_id,
-                            gadget_name: blueprint.name.clone(),
-                        };
+        let verified_blueprint = VerifiedBlueprint {
+            fetcher: fetcher_candidates.pop().expect("Should exist"),
+            blueprint,
+        };
 
-                        fetcher_candidates.push(Box::new(fetcher));
-                    }
-
-                    GadgetSourceFetcher::Testing(test) => {
-                        // TODO: demote to TRACE once proven to work
-                        if !gadget_manager_opts.test_mode {
-                            warn!("Ignoring testing fetcher as we are not in test mode");
-                            continue;
-                        }
-
-                        let fetcher = crate::sources::testing::TestSourceFetcher {
-                            fetcher: test.clone(),
-                            blueprint_id: blueprint.blueprint_id,
-                            gadget_name: blueprint.name.clone(),
-                        };
-
-                        test_fetcher_idx = Some(source_idx);
-                        fetcher_candidates.push(Box::new(fetcher));
-                    }
-
-                    _ => {
-                        warn!("Blueprint does not contain a supported fetcher");
-                        continue;
-                    }
-                }
-            }
-
-            // A bunch of sanity checks to enforce structure
-
-            // Ensure that we have at least one fetcher
-            if fetcher_candidates.is_empty() {
-                warn!("No fetchers found for blueprint: {}", blueprint.name,);
-                continue;
-            }
-
-            // Ensure that we have a test fetcher if we are in test mode
-            if gadget_manager_opts.test_mode && test_fetcher_idx.is_none() {
-                return Err(color_eyre::Report::msg(format!(
-                    "No testing fetcher found for blueprint `{}` despite operating in TEST MODE",
-                    blueprint.name,
-                )));
-            }
-
-            // Ensure that we have only one fetcher if we are in test mode
-            if gadget_manager_opts.test_mode {
-                fetcher_candidates =
-                    vec![fetcher_candidates.remove(test_fetcher_idx.expect("Should exist"))];
-            }
-
-            // Ensure there is only a single candidate fetcher
-            if fetcher_candidates.len() != 1 {
-                warn!(
-                    "Multiple fetchers found for blueprint: {}. Invalidating blueprint",
-                    blueprint.name,
-                );
-                continue;
-            }
-
-            let verified_blueprint = VerifiedBlueprint {
-                fetcher: fetcher_candidates.pop().expect("Should exist"),
-                blueprint,
-            };
-
-            verified_blueprints.push(verified_blueprint);
-        } else {
-            warn!("Blueprint does not contain a native gadget and thus currently unsupported");
-        }
+        verified_blueprints.push(verified_blueprint);
     }
 
     trace!(
@@ -306,20 +297,18 @@ pub(crate) async fn handle_tangle_event(
     );
 
     // Step 3: Check to see if we need to start any new services
-    handle_services(
-        &verified_blueprints,
-        gadget_config,
-        gadget_manager_opts,
-        active_gadgets,
-    )
-    .await?;
+    for blueprint in &verified_blueprints {
+        blueprint
+            .start_services_if_needed(gadget_config, manager_opts, active_gadgets)
+            .await?;
+    }
 
     // Check to see if local is running services that are not on-chain
     let mut to_remove: Vec<(u64, u64)> = vec![];
 
     // Loop through every (blueprint_id, service_id) running. See if the service is still on-chain. If not, kill it and add it to to_remove
     for (blueprint_id, process_handles) in &mut *active_gadgets {
-        for service_id in process_handles.keys() {
+        for (service_id, process_handle) in process_handles {
             info!(
                 "Checking service for on-chain termination: bid={blueprint_id}//sid={service_id}"
             );
@@ -335,12 +324,8 @@ pub(crate) async fn handle_tangle_event(
                     to_remove.push((*blueprint_id, *service_id));
                 }
             }
-        }
-    }
 
-    // Check to see if any process handles have died
-    for (blueprint_id, process_handles) in &mut *active_gadgets {
-        for (service_id, process_handle) in process_handles {
+            // Check to see if any process handles have died
             if !to_remove.contains(&(*blueprint_id, *service_id))
                 && !process_handle.0.load(Ordering::Relaxed)
             {
@@ -376,4 +361,88 @@ pub(crate) async fn handle_tangle_event(
     }
 
     Ok(())
+}
+
+fn get_fetcher_candidates(
+    blueprint: &FilteredBlueprint,
+    manager_opts: &BlueprintManagerConfig,
+) -> Result<Vec<Box<dyn BinarySourceFetcher>>> {
+    let mut test_fetcher_idx = None;
+    let mut fetcher_candidates: Vec<Box<dyn BinarySourceFetcher>> = vec![];
+
+    let sources;
+    match &blueprint.gadget {
+        Gadget::Native(gadget) => {
+            sources = &gadget.sources.0;
+        }
+        Gadget::Wasm(_) => {
+            warn!("WASM gadgets are not supported yet");
+            return Err(Error::UnsupportedGadget);
+        }
+        Gadget::Container(_) => {
+            warn!("Container gadgets are not supported yet");
+            return Err(Error::UnsupportedGadget);
+        }
+    }
+
+    for (source_idx, gadget_source) in sources.iter().enumerate() {
+        match &gadget_source.fetcher {
+            GadgetSourceFetcher::Github(gh) => {
+                let fetcher = GithubBinaryFetcher {
+                    fetcher: gh.clone(),
+                    blueprint_id: blueprint.blueprint_id,
+                    gadget_name: blueprint.name.clone(),
+                };
+
+                fetcher_candidates.push(Box::new(fetcher));
+            }
+
+            GadgetSourceFetcher::Testing(test) => {
+                // TODO: demote to TRACE once proven to work
+                if !manager_opts.test_mode {
+                    warn!("Ignoring testing fetcher as we are not in test mode");
+                    continue;
+                }
+
+                let fetcher = crate::sources::testing::TestSourceFetcher {
+                    fetcher: test.clone(),
+                    blueprint_id: blueprint.blueprint_id,
+                    gadget_name: blueprint.name.clone(),
+                };
+
+                test_fetcher_idx = Some(source_idx);
+                fetcher_candidates.push(Box::new(fetcher));
+            }
+
+            _ => {
+                warn!("Blueprint does not contain a supported fetcher");
+                continue;
+            }
+        }
+    }
+
+    // A bunch of sanity checks to enforce structure
+
+    // Ensure that we have at least one fetcher
+    if fetcher_candidates.is_empty() {
+        return Err(Error::NoFetchers);
+    }
+
+    // Ensure there is only a single candidate fetcher
+    if fetcher_candidates.len() != 1 {
+        return Err(Error::MultipleFetchers);
+    }
+
+    // Ensure that we have a test fetcher if we are in test mode
+    if manager_opts.test_mode && test_fetcher_idx.is_none() {
+        return Err(Error::NoTestFetcher);
+    }
+
+    // Ensure that we have only one fetcher if we are in test mode
+    if manager_opts.test_mode {
+        fetcher_candidates =
+            vec![fetcher_candidates.remove(test_fetcher_idx.expect("Should exist"))];
+    }
+
+    Ok(fetcher_candidates)
 }

@@ -2359,6 +2359,7 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "tangle-subxt",
+ "thiserror 2.0.7",
  "tokio",
  "toml",
  "tracing",
@@ -4853,6 +4854,7 @@ dependencies = [
  "gadget-client-evm",
  "gadget-client-networking",
  "gadget-client-tangle",
+ "thiserror 2.0.7",
 ]
 
 [[package]]

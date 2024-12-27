@@ -1,20 +1,34 @@
 use gadget_std::io;
 use gadget_std::string::String;
+use subxt_core::utils::AccountId32;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum TangleClientError {
+pub enum Error {
+    #[error("Tangle error: {0}")]
+    Tangle(TangleDispatchError),
+    #[error("Not a Tangle instance")]
+    NotTangle,
+
+    #[error("Missing ECDSA key for operator: {0}")]
+    MissingEcdsa(AccountId32),
+    #[error("Party not found in operator list")]
+    PartyNotFound,
+
+    #[error("{0}")]
+    Other(String),
+
+    #[error(transparent)]
+    Keystore(#[from] gadget_keystore::Error),
+    #[error(transparent)]
+    Core(#[from] gadget_client_core::Error),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
     #[error("Subxt error: {0}")]
     Subxt(#[from] subxt::Error),
-    #[error("Tangle error: {0}")]
-    Tangle(TangleDispatchError),
-    #[error("{0}")]
-    Other(String),
 }
 
-pub type Result<T> = gadget_std::result::Result<T, TangleClientError>;
+pub type Result<T> = gadget_std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct TangleDispatchError(
@@ -31,9 +45,9 @@ impl From<tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_runtime::
     }
 }
 
-impl From<TangleDispatchError> for TangleClientError {
+impl From<TangleDispatchError> for Error {
     fn from(error: TangleDispatchError) -> Self {
-        TangleClientError::Tangle(error)
+        Error::Tangle(error)
     }
 }
 

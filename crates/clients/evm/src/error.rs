@@ -2,7 +2,7 @@ use gadget_std::string::String;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum EvmError {
+pub enum Error {
     #[error("Provider error: {0}")]
     Provider(String),
     #[error("Invalid address: {0}")]
@@ -15,4 +15,4 @@ pub enum EvmError {
     Abi(String),
 }
 
-pub type Result<T> = gadget_std::result::Result<T, EvmError>;
+pub type Result<T> = gadget_std::result::Result<T, Error>;

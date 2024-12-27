@@ -1,4 +1,4 @@
-use crate::error::TangleClientError;
+use crate::error::Error;
 use crate::error::{Result, TangleDispatchError};
 use gadget_std::string::ToString;
 use gadget_std::vec::Vec;
@@ -88,7 +88,7 @@ where
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
         match ret {
             Some(blueprints) => Ok(blueprints.1),
-            None => Err(TangleClientError::Other("Blueprint not found".to_string())),
+            None => Err(Error::Other("Blueprint not found".to_string())),
         }
     }
 
@@ -103,7 +103,7 @@ where
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
         match ret {
             Some(blueprints) => Ok(blueprints.0),
-            None => Err(TangleClientError::Other("Blueprint not found".to_string())),
+            None => Err(Error::Other("Blueprint not found".to_string())),
         }
     }
 
