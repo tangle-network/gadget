@@ -1,6 +1,6 @@
+use crate::error::{Error, Result};
 use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
-use color_eyre::Report;
 use gadget_logging::trace;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::TestFetcher;
@@ -13,7 +13,7 @@ pub struct TestSourceFetcher {
 
 #[async_trait]
 impl BinarySourceFetcher for TestSourceFetcher {
-    async fn get_binary(&self) -> color_eyre::Result<PathBuf> {
+    async fn get_binary(&self) -> Result<PathBuf> {
         // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
             cargo_package,
@@ -21,9 +21,9 @@ impl BinarySourceFetcher for TestSourceFetcher {
             ..
         } = &self.fetcher;
         let cargo_bin = String::from_utf8(cargo_package.0 .0.clone())
-            .map_err(|err| Report::msg(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
+            .map_err(|err| Error::Other(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
         let base_path_str = String::from_utf8(base_path.0 .0.clone())
-            .map_err(|err| Report::msg(format!("Failed to parse `base_path`: {:?}", err)))?;
+            .map_err(|err| Error::Other(format!("Failed to parse `base_path`: {:?}", err)))?;
         let git_repo_root = get_git_repo_root_path().await?;
 
         let profile = if cfg!(debug_assertions) {
@@ -57,9 +57,8 @@ impl BinarySourceFetcher for TestSourceFetcher {
         }
 
         let output = command.current_dir(&base_path).output().await?;
-
         if !output.status.success() {
-            return Err(Report::msg(format!("Failed to build binary: {:?}", output)));
+            return Err(Error::BuildBinary(output));
         }
 
         Ok(binary_path)
@@ -73,7 +72,7 @@ impl BinarySourceFetcher for TestSourceFetcher {
         self.gadget_name.clone()
     }
 }
-async fn get_git_repo_root_path() -> color_eyre::Result<PathBuf> {
+async fn get_git_repo_root_path() -> Result<PathBuf> {
     // Run a process to determine the root directory for this repo
     let output = tokio::process::Command::new("git")
         .arg("rev-parse")
@@ -82,10 +81,7 @@ async fn get_git_repo_root_path() -> color_eyre::Result<PathBuf> {
         .await?;
 
     if !output.status.success() {
-        return Err(Report::msg(format!(
-            "Failed to get git root path: {:?}",
-            output
-        )));
+        return Err(Error::FetchGitRoot(output));
     }
 
     Ok(PathBuf::from(String::from_utf8(output.stdout)?.trim()))

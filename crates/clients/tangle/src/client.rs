@@ -1,5 +1,5 @@
 use sp_core::ecdsa;
-use crate::error::Result;
+use crate::error::{Result, Error};
 use crate::EventsClient;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
@@ -10,7 +10,7 @@ use subxt::utils::AccountId32;
 use subxt::{self, PolkadotConfig};
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata;
-use gadget_client_core::{Error, GadgetServicesClient, OperatorSet};
+use gadget_client_core::{GadgetServicesClient, OperatorSet};
 use gadget_config::GadgetConfiguration;
 use gadget_crypto_sp_core::{SpEcdsa, SpSr25519};
 use gadget_keystore::{Keystore, KeystoreConfig};
@@ -56,18 +56,13 @@ impl TangleClient {
             keystore_config.fs_root(config.keystore_uri.replace("file://", ""))
         };
 
-        let keystore = Arc::new(Keystore::new(keystore_config).map_err(|err| Error::msg(err))?);
+        let keystore = Arc::new(Keystore::new(keystore_config)?);
 
         let rpc_url = config.ws_rpc_endpoint.as_str();
-        let client = TangleServicesClient::new(
-            subxt::OnlineClient::from_url(rpc_url)
-                .await
-                .map_err(|err| Error::msg(err))?,
-        );
+        let client = TangleServicesClient::new(subxt::OnlineClient::from_url(rpc_url).await?);
 
         let account_id = keystore
-            .get_public_key_local::<SpSr25519>(KEY_ID)
-            .map_err(|err| Error::msg(err))?
+            .get_public_key_local::<SpSr25519>(KEY_ID)?
             .0
              .0
             .into();
@@ -137,13 +132,11 @@ impl TangleClient {
             .rpc_client
             .storage()
             .at_latest()
-            .await
-            .map_err(|err| Error::msg(err))?;
+            .await?;
         let metadata_storage_key = api::storage().multi_asset_delegation().operators(operator);
-        storage
-            .fetch(&metadata_storage_key)
-            .await
-            .map_err(|err| Error::msg(err))
+
+        let ret = storage.fetch(&metadata_storage_key).await?;
+        Ok(ret)
     }
 
     /// Retrieves the current party index and operator mapping
@@ -162,10 +155,7 @@ impl TangleClient {
         Error,
     > {
         let parties = self.get_operators().await?;
-        let my_id = self
-            .keystore
-            .get_public_key_local::<SpEcdsa>(KEY_ID)
-            .map_err(|err| Error::msg(err))?;
+        let my_id = self.keystore.get_public_key_local::<SpEcdsa>(KEY_ID)?;
 
         gadget_logging::trace!(
             "Looking for {my_id:?} in parties: {:?}",
@@ -175,7 +165,7 @@ impl TangleClient {
         let index_of_my_id = parties
             .iter()
             .position(|(_id, key)| key == &my_id.0)
-            .ok_or_else(|| Error::msg("Party not found in operator list"))?;
+            .ok_or(Error::PartyNotFound)?;
 
         Ok((index_of_my_id, parties))
     }
@@ -241,6 +231,7 @@ impl GadgetServicesClient for TangleClient {
     type PublicApplicationIdentity = ecdsa::Public;
     type PublicAccountIdentity = AccountId32;
     type Id = BlueprintId;
+    type Error = Error;
 
     /// Retrieves the ECDSA keys for all current service operators
     ///
@@ -253,7 +244,7 @@ impl GadgetServicesClient for TangleClient {
         &self,
     ) -> std::result::Result<
         OperatorSet<Self::PublicAccountIdentity, Self::PublicApplicationIdentity>,
-        Error,
+        Self::Error,
     > {
         let client = &self.services_client;
         let current_blueprint = self.blueprint_id().await?;
@@ -261,7 +252,7 @@ impl GadgetServicesClient for TangleClient {
             .config
             .protocol_settings
             .tangle()
-            .map_err(|err| Error::msg(err))?
+            .map_err(|_| Error::NotTangle)?
             .service_id
             .ok_or_else(|| Error::Other("No service ID injected into config".into()))?;
         let now = self
@@ -271,14 +262,8 @@ impl GadgetServicesClient for TangleClient {
         let current_service_op = self
             .services_client
             .current_service_operators(now, service_id)
-            .await
-            .map_err(|err| Error::msg(err))?;
-        let storage = client
-            .rpc_client
-            .storage()
-            .at_latest()
-            .await
-            .map_err(|err| Error::msg(err))?;
+            .await?;
+        let storage = client.rpc_client.storage().at_latest().await?;
 
         let mut map = std::collections::BTreeMap::new();
         for (operator, _) in current_service_op {
@@ -287,7 +272,7 @@ impl GadgetServicesClient for TangleClient {
                 .operators(current_blueprint, &operator);
 
             let maybe_pref = storage.fetch(&addr).await.map_err(|err| {
-                Error::msg(format!(
+                Error::Other(format!(
                     "Failed to fetch operator storage for {operator}: {err}"
                 ))
             })?;
@@ -295,35 +280,29 @@ impl GadgetServicesClient for TangleClient {
             if let Some(pref) = maybe_pref {
                 map.insert(operator, ecdsa::Public(pref.key));
             } else {
-                return Err(Error::msg(format!(
-                    "Missing ECDSA key for operator {operator}"
-                )));
+                return Err(Error::MissingEcdsa(operator));
             }
         }
 
         Ok(map)
     }
 
-    async fn operator_id(&self) -> std::result::Result<Self::PublicApplicationIdentity, Error> {
-        Ok(self
-            .keystore
-            .get_public_key_local::<SpEcdsa>(KEY_ID)
-            .map_err(|err| Error::msg(err))?
-            .0)
+    async fn operator_id(
+        &self,
+    ) -> std::result::Result<Self::PublicApplicationIdentity, Self::Error> {
+        Ok(self.keystore.get_public_key_local::<SpEcdsa>(KEY_ID)?.0)
     }
 
     /// Retrieves the current blueprint ID from the configuration
     ///
     /// # Errors
     /// Returns an error if the blueprint ID is not found in the configuration
-    async fn blueprint_id(&self) -> std::result::Result<Self::Id, Error> {
-        let id = self
+    async fn blueprint_id(&self) -> std::result::Result<Self::Id, Self::Error> {
+        let c = self
             .config
             .protocol_settings
             .tangle()
-            .map(|c| c.blueprint_id)
-            .map_err(|err| format!("Blueprint ID not found in configuration: {err}"))
-            .map_err(|err| Error::msg(err))?;
-        Ok(id)
+            .map_err(|_| Error::NotTangle)?;
+        Ok(c.blueprint_id)
     }
 }
