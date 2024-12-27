@@ -2,6 +2,7 @@
 
 use alloy_primitives::BlockNumber;
 use alloy_rpc_types::{Block, BlockNumberOrTag};
+use gadget_std::boxed::Box;
 
 #[derive(Debug)]
 pub struct Client {}

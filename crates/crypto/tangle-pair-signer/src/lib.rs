@@ -2,3 +2,5 @@
 
 pub mod error;
 pub mod tangle_pair_signer;
+
+pub use tangle_pair_signer::*;

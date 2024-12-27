@@ -50,11 +50,34 @@ pub enum FieldType {
     /// Tuple
     Tuple(Vec<FieldType>),
     // NOTE: Special types starts from 100
-    /// A special type for AccountId
+    /// A special type for `AccountId`
     AccountId,
 }
 
 impl FieldType {
+    #[must_use]
+    /// Returns the Rust type representation of this field type as a string.
+    ///
+    /// This method converts the `FieldType` enum variant into its corresponding Rust type string.
+    ///
+    /// # Returns
+    /// A `Cow<'_, str>` containing the Rust type as a string.
+    ///
+    /// # Panics
+    /// Panics if called on `FieldType::Void` since it has no representable type.
+    /// Also panics if called on `FieldType::Struct` which is currently unimplemented.
+    ///
+    /// # Examples
+    /// ```
+    /// use crate::FieldType;
+    ///
+    /// let uint8_type = FieldType::Uint8;
+    /// assert_eq!(uint8_type.as_rust_type(), "u8");
+    ///
+    /// let optional_type = FieldType::Optional(Box::new(FieldType::Bool));
+    /// assert_eq!(optional_type.as_rust_type(), "Option<bool>");
+    /// ```
+    #[must_use]
     pub fn as_rust_type(&self) -> Cow<'_, str> {
         match self {
             FieldType::Uint8 => Cow::Borrowed("u8"),
@@ -189,18 +212,18 @@ pub struct ReportDefinition<'a> {
     /// List of result types for the report function.
     pub result: Vec<FieldType>,
 
-    /// The type of report (Job or QoS).
+    /// The type of report (Job or `QoS`).
     pub report_type: ReportType,
 
     /// The ID of the job this report is associated with (for job reports only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<u8>,
 
-    /// The interval at which this report should be run (for QoS reports only).
+    /// The interval at which this report should be run (for `QoS` reports only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<u64>,
 
-    /// Optional metric thresholds for QoS reports.
+    /// Optional metric thresholds for `QoS` reports.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metric_thresholds: Option<Vec<(String, u64)>>,
 
@@ -208,7 +231,7 @@ pub struct ReportDefinition<'a> {
     pub verifier: ReportResultVerifier,
 }
 
-/// Enum representing the type of report (Job or QoS).
+/// Enum representing the type of report (Job or `QoS`).
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ReportType {
@@ -309,7 +332,7 @@ pub enum Architecture {
     Wasi64,
     /// Amd architecture (32-bit).
     Amd,
-    /// Amd64 architecture (x86_64).
+    /// Amd64 architecture (`x86_64`).
     Amd64,
     /// Arm architecture (32-bit).
     Arm,
@@ -344,7 +367,7 @@ pub enum OperatingSystem {
     Linux,
     /// Windows operating system.
     Windows,
-    /// MacOS operating system.
+    /// `MacOS` operating system.
     MacOS,
     /// BSD operating system.
     BSD,
@@ -381,8 +404,9 @@ enum GadgetSourceFlat<'a> {
 impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
     fn from(flat: GadgetSourceFlat<'a>) -> GadgetSource<'a> {
         match flat {
-            GadgetSourceFlat::Plain(fetcher) => GadgetSource { fetcher },
-            GadgetSourceFlat::WithFetcher { fetcher } => GadgetSource { fetcher },
+            GadgetSourceFlat::Plain(fetcher) | GadgetSourceFlat::WithFetcher { fetcher } => {
+                GadgetSource { fetcher }
+            }
         }
     }
 }
@@ -511,7 +535,7 @@ pub struct WasmGadget<'a> {
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WasmRuntime {
-    /// The WASM binary will be executed using the WASMtime runtime.
+    /// The WASM binary will be executed using the `WASMtime` runtime.
     Wasmtime,
     /// The WASM binary will be executed using the Wasmer runtime.
     Wasmer,

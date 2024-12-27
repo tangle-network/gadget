@@ -25,8 +25,8 @@ pub fn from_bytes<T: CanonicalDeserialize>(bytes: &[u8]) -> T {
 mod tests {
     use super::*;
     use crate::{
-        bls377::{Public as Public377, Secret as Secret377, W3fBls377},
-        bls381::{Public as Public381, Secret as Secret381, W3fBls381},
+        bls377::{W3fBls377, W3fBls377Public, W3fBls377Secret},
+        bls381::{W3fBls381, W3fBls381Public, W3fBls381Secret},
     };
     use gadget_crypto_core::KeyType;
     use gadget_std::string::ToString;
@@ -37,13 +37,13 @@ mod tests {
     }
 
     mod bls377_crypto_tests {
-        use super::bls377::{Secret, W3fBls377, W3fBls377Signature};
-        gadget_crypto_core::impl_crypto_tests!(W3fBls377, Secret, W3fBls377Signature);
+        use super::bls377::{W3fBls377, W3fBls377Secret, W3fBls377Signature};
+        gadget_crypto_core::impl_crypto_tests!(W3fBls377, W3fBls377Secret, W3fBls377Signature);
     }
 
     mod bls381_crypto_tests {
-        use super::bls381::{Secret, W3fBls381, W3fBls381Signature};
-        gadget_crypto_core::impl_crypto_tests!(W3fBls381, Secret, W3fBls381Signature);
+        use super::bls381::{W3fBls381, W3fBls381Secret, W3fBls381Signature};
+        gadget_crypto_core::impl_crypto_tests!(W3fBls381, W3fBls381Secret, W3fBls381Signature);
     }
 
     mod bls377_tests {
@@ -111,13 +111,13 @@ mod tests {
             let public = W3fBls377::public_from_secret(&secret);
 
             // Test public key serialization
-            let public_bytes = to_bytes(public.0);
-            let public_deserialized: Public377 = Public377(from_bytes(&public_bytes));
+            let public_bytes = to_bytes(public.0.clone());
+            let public_deserialized: W3fBls377Public = W3fBls377Public(from_bytes(&public_bytes));
             assert_eq!(public, public_deserialized);
 
             // Test secret key serialization
             let secret_bytes = to_bytes(secret.0.clone());
-            let secret_deserialized: Secret377 = Secret377(from_bytes(&secret_bytes));
+            let secret_deserialized: W3fBls377Secret = W3fBls377Secret(from_bytes(&secret_bytes));
             assert_eq!(secret, secret_deserialized);
         }
 
@@ -199,13 +199,13 @@ mod tests {
             let public = W3fBls381::public_from_secret(&secret);
 
             // Test public key serialization
-            let public_bytes = to_bytes(public.0);
-            let public_deserialized: Public381 = Public381(from_bytes(&public_bytes));
+            let public_bytes = to_bytes(public.0.clone());
+            let public_deserialized: W3fBls381Public = W3fBls381Public(from_bytes(&public_bytes));
             assert_eq!(public, public_deserialized);
 
             // Test secret key serialization
             let secret_bytes = to_bytes(secret.0.clone());
-            let secret_deserialized: Secret381 = Secret381(from_bytes(&secret_bytes));
+            let secret_deserialized: W3fBls381Secret = W3fBls381Secret(from_bytes(&secret_bytes));
             assert_eq!(secret, secret_deserialized);
         }
 

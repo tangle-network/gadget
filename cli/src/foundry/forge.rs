@@ -1,6 +1,6 @@
 use super::CommandInstalled;
 use color_eyre::Result;
-use gadget_sdk::tracing;
+use gadget_logging::tracing;
 use std::process::Command;
 
 #[derive(thiserror::Error, Debug)]
