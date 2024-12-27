@@ -143,7 +143,7 @@ symbiotic = [
 remote = []
 
 # Optional protocol crypto features
-tangle-full = ["tangle", "tangle-bls", "bn254"]
+tangle-full = ["tangle", "tangle-bls", "bn254", "evm"]
 eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls"]
 symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls", "bn254"]
 

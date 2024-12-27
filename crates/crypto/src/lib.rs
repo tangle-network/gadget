@@ -22,6 +22,9 @@ pub use gadget_crypto_bn254 as bn254_crypto;
 #[cfg(feature = "sp-core")]
 pub use gadget_crypto_sp_core as sp_core_crypto;
 
+#[cfg(feature = "tangle-pair-signer")]
+pub use gadget_crypto_tangle_pair_signer as tangle_pair_signer;
+
 #[cfg(feature = "hashing")]
 pub use gadget_crypto_hashing as hashing;
 
