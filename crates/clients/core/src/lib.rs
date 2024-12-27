@@ -37,7 +37,7 @@ pub trait GadgetServicesClient: Send + Sync + 'static {
         let mut ret = OperatorSet::new();
         let mut ret_id = None;
         for (id, op) in operators.into_values().enumerate() {
-            if &my_id == &op {
+            if my_id == op {
                 ret_id = Some(id);
             }
 
