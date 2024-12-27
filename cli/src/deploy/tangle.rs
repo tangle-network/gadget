@@ -4,16 +4,14 @@ use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
-use gadget_clients::tangle::runtime::TangleConfig;
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
+use subxt::tx::Signer;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::ext::sp_core;
-use tangle_subxt::subxt::tx::PairSigner;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
-
-pub type TanglePairSigner = PairSigner<TangleConfig, sp_core::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct Opts {
@@ -26,7 +24,7 @@ pub struct Opts {
     /// The path to the manifest file
     pub manifest_path: gadget_std::path::PathBuf,
     /// The signer for deploying the blueprint
-    pub signer: Option<TanglePairSigner>,
+    pub signer: Option<TanglePairSigner<sp_core::sr25519::Pair>>,
     /// The signer for deploying the smart contract
     pub signer_evm: Option<PrivateKeySigner>,
 }
@@ -106,7 +104,7 @@ pub async fn deploy_to_tangle(
     let signer = if let Some(signer) = signer {
         signer
     } else {
-        crate::signer::load_signer_from_env()?.pair
+        crate::signer::load_signer_from_env()?
     };
 
     let my_account_id = signer.account_id();

@@ -55,7 +55,6 @@ pub enum FieldType {
 }
 
 impl FieldType {
-    #[must_use]
     /// Returns the Rust type representation of this field type as a string.
     ///
     /// This method converts the `FieldType` enum variant into its corresponding Rust type string.
