@@ -1,4 +1,4 @@
-use crate::error::{NetworkError, Result};
+use crate::error::{Error, Result};
 use gadget_config::GadgetConfiguration;
 use gadget_crypto::k256_crypto::{K256SigningKey, K256VerifyingKey};
 use gadget_networking::gossip::GossipHandle;
@@ -35,7 +35,7 @@ impl P2PClient {
     pub fn libp2p_identity(&self, ed25519_seed: Vec<u8>) -> Result<libp2p::identity::Keypair> {
         let mut seed_bytes = ed25519_seed;
         let keypair = libp2p::identity::Keypair::ed25519_from_bytes(&mut seed_bytes)
-            .map_err(|err| NetworkError::Configuration(err.to_string()))?;
+            .map_err(|err| Error::Configuration(err.to_string()))?;
         Ok(keypair)
     }
 
@@ -68,9 +68,7 @@ impl P2PClient {
             Ok(handle) => Ok(handle),
             Err(err) => {
                 gadget_logging::error!("Failed to start network: {}", err.to_string());
-                Err(NetworkError::Protocol(format!(
-                    "Failed to start network: {err}"
-                )))
+                Err(Error::Protocol(format!("Failed to start network: {err}")))
             }
         }
     }
