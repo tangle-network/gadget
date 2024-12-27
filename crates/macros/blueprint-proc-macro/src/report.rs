@@ -403,7 +403,7 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[gadget_sdk::async_trait::async_trait]
-        impl gadget_sdk::event_utils::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+        impl gadget_sdk::event_utils::substrate::EventHandler<gadget_sdk::clients::tangle::client::TangleConfig, #event_type> for #struct_name {
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::event_utils::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};

@@ -28,9 +28,6 @@ pub use gadget_crypto_tangle_pair_signer as tangle_pair_signer;
 #[cfg(feature = "hashing")]
 pub use gadget_crypto_hashing as hashing;
 
-#[cfg(feature = "tangle-pair-signer")]
-pub use gadget_crypto_tangle_pair_signer as tangle_pair_signer;
-
 #[derive(Debug, Error)]
 pub enum CryptoCoreError {
     #[cfg(feature = "k256")]
