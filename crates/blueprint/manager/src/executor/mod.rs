@@ -193,8 +193,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 &event,
                 &mut active_gadgets,
                 &sub_account_id.clone(),
-            )
-            .await;
+            );
 
             if result.needs_update {
                 operator_subscribed_blueprints = services_client
@@ -294,7 +293,7 @@ async fn handle_init(
 
     // Immediately poll, handling the initial state
     let poll_result =
-        event_handler::check_blueprint_events(&init_event, active_gadgets, sub_account_id).await;
+        event_handler::check_blueprint_events(&init_event, active_gadgets, sub_account_id);
 
     event_handler::handle_tangle_event(
         &init_event,
