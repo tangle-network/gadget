@@ -1,7 +1,8 @@
 use crate::error::TangleError;
-use gadget_clients::tangle::runtime::TangleClient;
+use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
-use gadget_keystore::backends::tangle::{TangleBackend, TanglePairSigner};
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_keystore::backends::tangle::TangleBackend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
@@ -127,9 +128,7 @@ pub async fn register_impl(
 
     let ecdsa_key = keystore.iter_ecdsa().next().unwrap();
     let ecdsa_pair = keystore.expose_ecdsa_secret(&ecdsa_key).unwrap().unwrap();
-    let ecdsa_pair = TanglePairSigner {
-        pair: subxt::tx::PairSigner::new(ecdsa_pair),
-    };
+    let ecdsa_pair = TanglePairSigner::new(ecdsa_pair);
 
     // Parse Tangle protocol specific settings
     let ProtocolSettings::Tangle(blueprint_settings) = env.protocol_settings else {
@@ -162,7 +161,7 @@ pub async fn register_impl(
     let xt = api::tx().services().register(
         blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa_pair.pair.signer().public().0,
+            key: ecdsa_pair.signer().public().0,
             price_targets: price_targets.clone().0,
         },
         registration_args,
@@ -179,9 +178,12 @@ pub async fn register_impl(
     Ok(())
 }
 
-pub(crate) async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, RunnerError> {
-    let task0 = TangleClient::from_url(ws_url);
-    let task1 = TangleClient::from_url(http_url);
+pub(crate) async fn get_client(
+    ws_url: &str,
+    http_url: &str,
+) -> Result<tangle::client::OnlineClient, RunnerError> {
+    let task0 = tangle::client::OnlineClient::from_url(ws_url);
+    let task1 = tangle::client::OnlineClient::from_url(http_url);
     Ok(select_ok([Box::pin(task0), Box::pin(task1)])
         .await
         .map_err(|e| {

@@ -16,7 +16,7 @@ pub struct SecretStringErrorWrapper(pub SecretStringError);
 impl gadget_std::fmt::Display for SecretStringErrorWrapper {
     fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         match &self.0 {
-            SecretStringError::InvalidFormat => write!(f, "Invalid format"),
+            SecretStringError::InvalidFormat(err) => write!(f, "Invalid format: {err}"),
             SecretStringError::InvalidPhrase => write!(f, "Invalid phrase"),
             SecretStringError::InvalidPassword => write!(f, "Invalid password"),
             SecretStringError::InvalidSeed => write!(f, "Invalid seed"),
