@@ -19,9 +19,5 @@ serde_json = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 log = { workspace = true }
 
-[features]
-default = ["std"]
-std = []
-
 [lints]
 workspace = true

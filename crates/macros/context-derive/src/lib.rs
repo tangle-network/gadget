@@ -65,7 +65,7 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
-            .map(|config_field| tangle::subxt::generate_context_impl(input, config_field));
+            .map(|config_field| tangle::client::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),
