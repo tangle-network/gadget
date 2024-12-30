@@ -24,7 +24,7 @@ pub fn generate_context_impl(
     quote! {
         #[::gadget_macros::ext::async_trait::async_trait]
         impl #impl_generics ::gadget_macros::ext::contexts::tangle::TangleClientContext for #name #ty_generics #where_clause {
-            async fn tangle_client(&self) -> Result<#config_ty, ::gadget_macros::ext::clients::Error> {
+            async fn tangle_client(&self) -> std::result::Result<#config_ty, ::gadget_macros::ext::clients::Error> {
                 use ::gadget_macros::ext::tangle::tangle_subxt::subxt;
 
                 static CLIENT: std::sync::OnceLock<#config_ty> = std::sync::OnceLock::new();
@@ -33,7 +33,7 @@ pub fn generate_context_impl(
                     None => {
                         let client = #config_ty::new(#field_access_config.clone()).await?;
                         CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
-                            ::gadget_macros::ext::clients::Error::Other(String::from("Failed to set client"))
+                            ::gadget_macros::ext::clients::Error::msg("Failed to set client")
                         })
                     }
                 }
