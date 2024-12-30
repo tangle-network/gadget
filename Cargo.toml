@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "cli",
-    "crates/*",
+	"cli",
+	"crates/*",
 ]
 
 [workspace.package]
@@ -30,7 +30,7 @@ broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
 # Blueprint Examples
-incredible-squaring-blueprint = { version = "0.1.1", path = "./crates/blueprints/incredible-squaring", default-features = false }
+incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
 
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
@@ -120,7 +120,7 @@ subxt-core = { version = "0.37.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
-sp-core = { version = "25.0.0", default-features = false }
+sp-core = { version = "31.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }

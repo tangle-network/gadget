@@ -3,15 +3,13 @@
 pub mod error;
 
 use gadget_std::vec::Vec;
-pub use sp_core;
 use sp_core::crypto::DeriveError;
 use sp_core::crypto::SecretStringError;
 use sp_core::DeriveJunction;
 use subxt::PolkadotConfig;
-use subxt_core::{
-    tx::signer::{PairSigner, Signer},
-    utils::{AccountId32, MultiAddress, MultiSignature},
-};
+pub use subxt_core::ext::sp_core;
+use subxt_core::tx::signer::{PairSigner, Signer};
+use subxt_core::utils::{AccountId32, MultiAddress, MultiSignature};
 
 #[derive(Clone, Debug)]
 pub struct TanglePairSigner<Pair> {
