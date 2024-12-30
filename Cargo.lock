@@ -5111,6 +5111,7 @@ dependencies = [
  "gadget-client-evm",
  "gadget-client-networking",
  "gadget-client-tangle",
+ "gadget-std",
  "thiserror 2.0.7",
 ]
 
@@ -5497,7 +5498,6 @@ dependencies = [
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
  "gadget-blueprint-serde",
- "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
  "gadget-context-derive",
