@@ -1,10 +1,10 @@
-use gadget_blueprint_serde::job;
 use gadget_client_tangle::api::services::events::JobCalled;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_event_listeners_tangle::{
     events::TangleEventListener,
     services::{services_post_processor, services_pre_processor},
 };
+use gadget_macros::job;
 use gadget_std::error::Error;
 
 #[cfg(test)]
@@ -12,8 +12,6 @@ mod tests;
 
 #[derive(Clone)]
 pub struct MyContext;
-
-impl TangleClientContext for MyContext {}
 
 #[job(
     id = 0,
