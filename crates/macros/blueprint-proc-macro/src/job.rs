@@ -323,8 +323,8 @@ pub(crate) fn generate_event_workflow_tokenstream(
                         quote! {
                             |(mut client_context, job_result)| async move {
                                 let ctx = CTX.get().unwrap();
-                                let call_id = ::gadget_macros::ext::contexts::tangle::TangleClientContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                                let tangle_job_result = ::gadget_macros::ext::event_listeners::tangle::TangleResult::<_> {
+                                let call_id = ::gadget_macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
+                                let tangle_job_result = ::gadget_macros::ext::event_listeners::tangle::events::TangleResult::<_> {
                                     results: job_result,
                                     service_id: ctx.service_id,
                                     call_id,
@@ -353,7 +353,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let context_declaration = match listener_meta.listener_type {
                 ListenerType::Tangle => {
                     quote! {
-                        let context = ::gadget_macros::ext::event_listener::tangle::TangleListenerInput {
+                        let context = ::gadget_macros::ext::event_listeners::tangle::events::TangleListenerInput {
                             client: ctx.client.clone(),
                             signer: ctx.signer.clone(),
                             job_id: #job_id_name,
@@ -372,8 +372,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 }
             };
 
+            let listener_error = quote! { <#listener as ::gadget_macros::ext::event_listeners::core::EventListener<_, _>>::Error };
             let next_listener = quote! {
-                async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), ::gadget_macros::ext::event_listeners::core::Error>>> {
+                async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), #listener_error>>> {
                     static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                     if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
                         let (tx, rx) = ::gadget_macros::ext::tokio::sync::oneshot::channel();
@@ -521,8 +522,8 @@ pub fn generate_autogen_struct(
     if event_listener_args.has_tangle() {
         required_fields.push(quote! {
             pub service_id: u64,
-            pub signer: ::gadget_macros::ext::keystore::TanglePairSigner<::gadget_macros::ext::crypto::tangle_pair_signer::sp_core::sr25519::Pair>,
-            pub client: ::gadget_macros::ext::clients::tangle::runtime::TangleClient,
+            pub signer: ::gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner<::gadget_macros::ext::crypto::tangle_pair_signer::sp_core::sr25519::Pair>,
+            pub client: ::gadget_macros::ext::clients::tangle::client::TangleClient,
         })
     }
 

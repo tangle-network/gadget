@@ -1,9 +1,9 @@
-use crate::error::{Result, TangleEventListenerError};
+use crate::error::TangleEventListenerError;
 use async_trait::async_trait;
 use gadget_clients::tangle::client::{OnlineClient, TangleConfig};
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners_core::marker::IsTangle;
-use gadget_event_listeners_core::EventListener;
+use gadget_event_listeners_core::{Error, EventListener};
 use gadget_std::collections::VecDeque;
 use gadget_std::sync::atomic::{AtomicBool, Ordering};
 use gadget_std::sync::Arc;
@@ -100,9 +100,9 @@ impl<T: Clone + Send + Sync + 'static> ThreadSafeCloneable for T {}
 impl<C: ThreadSafeCloneable, E: EventMatcher>
     EventListener<TangleEvent<C, E>, TangleListenerInput<C>> for TangleEventListener<C, E>
 {
-    type Error = TangleEventListenerError;
+    type ProcessorError = TangleEventListenerError;
 
-    async fn new(context: &TangleListenerInput<C>) -> Result<Self>
+    async fn new(context: &TangleListenerInput<C>) -> Result<Self, Error<Self::ProcessorError>>
     where
         Self: Sized,
     {
@@ -114,7 +114,12 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
             signer,
         } = context;
 
-        let listener = Mutex::new(client.blocks().subscribe_finalized().await?);
+        let blocks = client
+            .blocks()
+            .subscribe_finalized()
+            .await
+            .map_err(|e| Self::ProcessorError::from(e))?;
+        let listener = Mutex::new(blocks);
 
         let (tx, rx) = tokio::sync::oneshot::channel();
         let has_stopped = Arc::new(AtomicBool::new(false));

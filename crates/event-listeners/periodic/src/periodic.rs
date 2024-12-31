@@ -1,6 +1,6 @@
-use crate::error::{PeriodicEventListenerError, Result};
+use crate::error::PeriodicEventListenerError;
 use async_trait::async_trait;
-use gadget_event_listeners_core::EventListener;
+use gadget_event_listeners_core::{Error, EventListener};
 use gadget_std::time::Duration;
 
 #[derive(Default)]
@@ -17,9 +17,9 @@ impl<
         Event: Send + Sync + 'static,
     > EventListener<Event, Ctx> for PeriodicEventListener<MSEC, T, Event, Ctx>
 {
-    type Error = PeriodicEventListenerError;
+    type ProcessorError = PeriodicEventListenerError;
 
-    async fn new(context: &Ctx) -> Result<Self>
+    async fn new(context: &Ctx) -> Result<Self, Error<Self::ProcessorError>>
     where
         Self: Sized,
     {
