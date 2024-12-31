@@ -21,6 +21,7 @@ gadget-event-listeners-tangle = { workspace = true }
 gadget-client-tangle = { workspace = true }
 gadget-contexts = { workspace = true }
 gadget-macros = { workspace = true }
+gadget-config = { workspace = true }
 
 # External dependencies
 eigensdk = { workspace = true }

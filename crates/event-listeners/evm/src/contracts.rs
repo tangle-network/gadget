@@ -1,4 +1,3 @@
-use crate::Result;
 use alloy_contract::ContractInstance;
 use alloy_contract::Event;
 use alloy_network::Ethereum;
@@ -7,7 +6,7 @@ use alloy_provider::RootProvider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
 use alloy_transport::BoxTransport;
-use gadget_event_listeners_core::EventListener;
+use gadget_event_listeners_core::{Error, EventListener};
 use gadget_std::collections::VecDeque;
 use gadget_std::time::Duration;
 use gadget_stores::local_database::LocalDatabase;
@@ -29,15 +28,18 @@ impl<E: SolEvent + Send + Sync + 'static>
     EventListener<(E, alloy_rpc_types::Log), AlloyContractInstance>
     for EvmContractEventListener<E>
 {
-    type Error = crate::EvmEventListenerError;
+    type ProcessorError = crate::EvmEventListenerError;
 
-    async fn new(context: &AlloyContractInstance) -> Result<Self>
+    async fn new(context: &AlloyContractInstance) -> Result<Self, Error<Self::ProcessorError>>
     where
         Self: Sized,
     {
         let provider = context.provider().root();
         // Add more detailed error handling and logging
-        let chain_id = provider.get_chain_id().await?;
+        let chain_id = provider
+            .get_chain_id()
+            .await
+            .map_err(|e| Self::ProcessorError::from(e))?;
 
         let local_db = LocalDatabase::open(format!("./db/{}", Uuid::new_v4()));
         Ok(Self {

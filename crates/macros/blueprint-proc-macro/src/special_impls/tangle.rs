@@ -69,7 +69,7 @@ pub(crate) fn generate_tangle_specific_impl(
         }
 
         #[automatically_derived]
-        impl ::gadget_macros::ext::event_listeners::core::markers::IsTangle for #struct_name {}
+        impl ::gadget_macros::ext::event_listeners::core::marker::IsTangle for #struct_name {}
     })
 }
 
@@ -98,7 +98,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let call_id_injector = quote! {
         let mut #injected_context_var_name = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            ::gadget_macros::ext::contexts::tangle::TangleClientContext::set_call_id(&mut #injected_context_var_name, call_id);
+            ::gadget_macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_var_name, call_id);
         }
     };
 
@@ -137,7 +137,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
-        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::TangleEvent<_, _>| async move {
+        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::events::TangleEvent<_, _>| async move {
 
             #job_processor_call
             #job_processor_call_return

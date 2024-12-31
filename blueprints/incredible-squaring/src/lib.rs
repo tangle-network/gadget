@@ -1,17 +1,20 @@
 use gadget_client_tangle::api::services::events::JobCalled;
-use gadget_contexts::tangle::TangleClientContext;
-use gadget_event_listeners_tangle::{
-    events::TangleEventListener,
-    services::{services_post_processor, services_pre_processor},
-};
+use gadget_event_listeners_tangle::events::TangleEventListener;
+use gadget_event_listeners_tangle::services::{services_post_processor, services_pre_processor};
+use gadget_macros::contexts::{ServicesContext, TangleClientContext};
 use gadget_macros::job;
-use gadget_std::error::Error;
+use gadget_std::convert::Infallible;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone)]
-pub struct MyContext;
+#[derive(Clone, TangleClientContext, ServicesContext)]
+pub struct MyContext {
+    #[config]
+    pub config: gadget_config::GadgetConfiguration,
+    #[call_id]
+    pub call_id: Option<u64>,
+}
 
 #[job(
     id = 0,
@@ -23,6 +26,6 @@ pub struct MyContext;
     ),
 )]
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
-pub fn xsquare(x: u64, _context: MyContext) -> Result<u64, Error> {
+pub fn xsquare(x: u64, _context: MyContext) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2))
 }

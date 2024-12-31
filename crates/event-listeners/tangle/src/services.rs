@@ -7,7 +7,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, Job
 
 pub async fn services_pre_processor<C: ServicesContext, E: EventMatcher<Output: Clone>>(
     event: TangleEvent<C, E>,
-) -> Result<TangleEvent<C, E>> {
+) -> Result<Option<TangleEvent<C, E>>> {
     let TangleEvent {
         evt,
         mut context,
@@ -27,7 +27,7 @@ pub async fn services_pre_processor<C: ServicesContext, E: EventMatcher<Output: 
         } else if let Some(res) = boxed_item.downcast_ref::<JobResultSubmitted>() {
             (res.job, res.service_id, res.call_id, vec![])
         } else {
-            return Err(TangleEventListenerError::SkipPreProcessedType);
+            return Ok(None);
         };
 
     gadget_logging::info!("Pre-processing event for service-id/job-id = {service_id}/{job_id} ...");
@@ -38,7 +38,7 @@ pub async fn services_pre_processor<C: ServicesContext, E: EventMatcher<Output: 
         );
         // Set the call ID that way the user can access it in the job function
         context.set_call_id(event_call_id);
-        return Ok(TangleEvent {
+        return Ok(Some(TangleEvent {
             evt: *boxed_item.downcast().unwrap(),
             context,
             call_id: Some(event_call_id),
@@ -49,10 +49,10 @@ pub async fn services_pre_processor<C: ServicesContext, E: EventMatcher<Output: 
             job_id: event_job_id,
             service_id: event_service_id,
             stopper,
-        });
+        }));
     }
 
-    Err(TangleEventListenerError::SkipPreProcessedType)
+    Ok(None)
 }
 
 /// By default, the tangle post-processor takes in a job result and submits the result on-chain

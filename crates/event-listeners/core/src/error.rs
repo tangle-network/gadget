@@ -1,7 +1,10 @@
-pub type Result<T> = gadget_std::result::Result<T, Error>;
+use gadget_std::fmt::Display;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum Error<T>
+where
+    T: core::fmt::Debug + core::error::Error,
+{
     #[error("Initializable event handler error: {0}")]
     EventHandler(String),
 
@@ -16,4 +19,27 @@ pub enum Error {
 
     #[error("{0}")]
     Other(String),
+
+    #[error("{0}")]
+    ProcessorError(T),
 }
+
+impl<T> From<T> for Error<T>
+where
+    T: core::fmt::Debug + core::error::Error,
+{
+    fn from(e: T) -> Self {
+        Error::ProcessorError(e)
+    }
+}
+
+#[derive(Debug)]
+pub struct Unit();
+
+impl Display for Unit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "")
+    }
+}
+
+impl core::error::Error for Unit {}
