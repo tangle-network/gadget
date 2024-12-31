@@ -23,7 +23,7 @@ pub struct BlueprintManagerConfig {
     #[arg(long)]
     pub pretty: bool,
     /// An optional unique string identifier for the blueprint manager to differentiate between multiple
-    /// running instances of a BlueprintManager (mostly for debugging purposes)
+    /// running instances of a `BlueprintManager` (mostly for debugging purposes)
     #[arg(long, alias = "id")]
     pub instance_id: Option<String>,
     #[arg(long, short = 't')]

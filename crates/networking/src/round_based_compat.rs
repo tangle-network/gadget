@@ -1,4 +1,4 @@
-use crate::key_types::PublicKey;
+use crate::key_types::GossipMsgPublicKey;
 use crate::networking::{
     IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
@@ -31,7 +31,7 @@ where
         mux: Arc<NetworkMultiplexer>,
         i: PartyIndex,
         task_hash: [u8; 32],
-        parties: BTreeMap<PartyIndex, PublicKey>,
+        parties: BTreeMap<PartyIndex, GossipMsgPublicKey>,
     ) -> Self {
         let (tx_forward, rx) = tokio::sync::mpsc::unbounded_channel();
         // By default, we create 10 substreams for each party.
@@ -75,7 +75,7 @@ pub struct NetworkWrapper<M> {
     incoming_queue: VecDeque<Incoming<M>>,
     /// Participants in the network with their corresponding public keys.
     /// Note: This is a `BTreeMap` to ensure that the participants are sorted by their party index.
-    participants: BTreeMap<PartyIndex, PublicKey>,
+    participants: BTreeMap<PartyIndex, GossipMsgPublicKey>,
     next_msg_id: Arc<NextMessageId>,
     tx_forward: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
     rx: tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage>,

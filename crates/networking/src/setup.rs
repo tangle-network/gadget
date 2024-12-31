@@ -3,7 +3,7 @@
 use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
-use crate::key_types::KeyPair;
+use crate::key_types::GossipMsgKeyPair;
 use futures::StreamExt;
 use gadget_std::boxed::Box;
 use gadget_std::collections::BTreeMap;
@@ -38,7 +38,7 @@ pub const CLIENT_VERSION: &str = "1.0.0";
 /// [`NetworkConfig::new_service_network`] ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
-    pub secret_key: KeyPair,
+    pub secret_key: GossipMsgKeyPair,
     pub bootnodes: Vec<Multiaddr>,
     pub bind_port: u16,
     pub topics: Vec<String>,
@@ -61,7 +61,7 @@ impl NetworkConfig {
     #[must_use]
     pub fn new(
         identity: libp2p::identity::Keypair,
-        secret_key: KeyPair,
+        secret_key: GossipMsgKeyPair,
         bootnodes: Vec<Multiaddr>,
         bind_port: u16,
         topics: Vec<String>,
@@ -79,7 +79,7 @@ impl NetworkConfig {
     /// Each service within a blueprint must have a unique network name.
     pub fn new_service_network<T: Into<String>>(
         identity: libp2p::identity::Keypair,
-        secret_key: KeyPair,
+        secret_key: GossipMsgKeyPair,
         bootnodes: Vec<Multiaddr>,
         bind_port: u16,
         service_name: T,

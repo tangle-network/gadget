@@ -56,8 +56,8 @@ pub use key_types::*;
 ))]
 pub(crate) mod key_types {
     pub use gadget_crypto::sp_core_crypto::{
-        SpEcdsa as Curve, SpEcdsaPair as KeyPair, SpEcdsaPublic as PublicKey,
-        SpEcdsaSignature as Signature,
+        SpEcdsa as Curve, SpEcdsaPair as GossipMsgKeyPair, SpEcdsaPublic as GossipMsgPublicKey,
+        SpEcdsaSignature as GossipSignedMsgSignature,
     };
 }
 
@@ -68,8 +68,8 @@ pub(crate) mod key_types {
 ))]
 pub(crate) mod key_types {
     pub use gadget_crypto::sp_core_crypto::{
-        SpSr25519 as Curve, SpSr25519Pair as KeyPair, SpSr25519Public as PublicKey,
-        SpSr25519Signature as Signature,
+        SpSr25519 as Curve, SpSr25519Pair as GossipMsgKeyPair,
+        SpSr25519Public as GossipMsgPublicKey, SpSr25519Signature as GossipSignedMsgSignature,
     };
 }
 
@@ -80,8 +80,8 @@ pub(crate) mod key_types {
 ))]
 pub(crate) mod key_types {
     pub use gadget_crypto::sp_core_crypto::{
-        SpEd25519 as Curve, SpEd25519Pair as KeyPair, SpEd25519Public as PublicKey,
-        SpEd25519Signature as Signature,
+        SpEd25519 as Curve, SpEd25519Pair as GossipMsgKeyPair,
+        SpEd25519Public as GossipMsgPublicKey, SpEd25519Signature as GossipSignedMsgSignature,
     };
 }
 
@@ -93,8 +93,8 @@ pub(crate) mod key_types {
 pub(crate) mod key_types {
     // Default to k256 ECDSA implementation
     pub use gadget_crypto::k256_crypto::{
-        K256Ecdsa as Curve, K256Signature as Signature, K256SigningKey as KeyPair,
-        K256VerifyingKey as PublicKey,
+        K256Ecdsa as Curve, K256Signature as GossipSignedMsgSignature,
+        K256SigningKey as GossipMsgKeyPair, K256VerifyingKey as GossipMsgPublicKey,
     };
 }
 

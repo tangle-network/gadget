@@ -5164,7 +5164,9 @@ dependencies = [
  "async-trait",
  "gadget-clients",
  "gadget-keystore",
+ "gadget-networking",
  "gadget-std",
+ "proc-macro2",
  "subxt",
 ]
 
