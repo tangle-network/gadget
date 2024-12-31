@@ -1,4 +1,5 @@
-use crate::job::{declared_params_to_field_types, EventListenerArgs};
+use crate::job::args::EventListenerArgs;
+use crate::job::declared_params_to_field_types;
 use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
 use proc_macro2::{Span, TokenStream};
@@ -59,7 +60,7 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The service ID is not found.
             pub async fn new(#(#new_function_signature)*) -> Result<Self, ::gadget_macros::ext::config::Error> {
                 let client = env.client().await?;
-                let signer = env.first_sr25519_signer()?;
+                let signer = env.keystore()?.iter_sr25519().next().ok_or(::gadget_macros::ext::config::Error::NoSr25519Keypair);
                 let service_id = env.service_id()?;
 
                 Ok(Self {

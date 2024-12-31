@@ -26,8 +26,6 @@ mod report;
 /// Shared utilities for the Blueprint Macros
 mod shared;
 
-mod special_impls;
-
 mod sdk_main;
 
 /// A procedural macro that annotates a function as a job.
@@ -46,7 +44,7 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as job::JobArgs);
     let input = parse_macro_input!(input as syn::ItemFn);
 
-    match job::job_impl(&args, &input) {
+    match job::job_impl(args, input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }
