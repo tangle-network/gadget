@@ -1,6 +1,7 @@
+use crate::job::EventListenerArgs;
 use crate::job::{
     declared_params_to_field_types, generate_autogen_struct, generate_specialized_logic,
-    get_job_id_field_name, get_return_type, EventListenerArgs, ParameterType, ResultsKind,
+    get_job_id_field_name, get_return_type, ParameterType, ResultsKind,
 };
 use crate::shared::{pascal_case, MacroExt};
 use gadget_blueprint_proc_macro_core::{
@@ -112,15 +113,21 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         ReportType::QoS => "QoSReportEventHandler",
     };
 
-    let (event_listener_gen, event_listener_calls) =
-        crate::job::generate_event_workflow_tokenstream(
-            input,
-            suffix,
-            &args.event_listeners,
-            args.skip_codegen,
-            &param_types,
-            &args.params,
-        )?;
+    let event_listener_gen;
+    let event_listener_calls;
+    if args.skip_codegen {
+        event_listener_gen = Vec::new();
+        event_listener_calls = Vec::new();
+    } else {
+        (event_listener_gen, event_listener_calls) =
+            crate::job::generate_event_workflow_tokenstream(
+                input,
+                suffix,
+                &args.event_listeners,
+                &param_types,
+                &args.params,
+            )?;
+    }
 
     let autogen_struct = generate_autogen_struct(
         input,
@@ -380,15 +387,21 @@ fn generate_qos_report_event_handler(
     // trigger only once a singular JobCalled event is received.
     let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
 
-    let (event_listener_gen, event_listener_calls) =
-        crate::job::generate_event_workflow_tokenstream(
-            input,
-            SUFFIX,
-            &args.event_listeners,
-            args.skip_codegen,
-            &param_types,
-            &args.params,
-        )?;
+    let event_listener_gen;
+    let event_listener_calls;
+    if args.skip_codegen {
+        event_listener_gen = Vec::new();
+        event_listener_calls = Vec::new();
+    } else {
+        (event_listener_gen, event_listener_calls) =
+            crate::job::generate_event_workflow_tokenstream(
+                input,
+                SUFFIX,
+                &args.event_listeners,
+                &param_types,
+                &args.params,
+            )?;
+    }
 
     let interval = args
         .interval

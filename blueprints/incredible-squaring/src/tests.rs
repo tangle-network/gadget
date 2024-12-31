@@ -5,7 +5,7 @@ use gadget_std::error::Error;
 use gadget_testing_utils::test_client::TestClient;
 
 #[tokio::test]
-async fn test_incredible_squaring() -> Result<(), Error> {
+async fn test_incredible_squaring() -> Result<(), Box<dyn Error>> {
     // Create a test client
     let client = TestClient::new();
 
