@@ -40,7 +40,9 @@ pub fn generate_context_impl(
         #[automatically_derived]
         impl #impl_generics ::gadget_macros::ext::contexts::instrumented_evm_client::EvmInstrumentedClientContext for #name #ty_generics #where_clause {
             fn evm_client(&self) -> ::gadget_macros::ext::contexts::instrumented_evm_client::InstrumentedClient {
-                todo!()
+                ::gadget_macros::ext::contexts::instrumented_evm_client::InstrumentedClient::new(
+                    #field_access.http_rpc_endpoint.clone(),
+                ).expect("Failed to create EVM client")
             }
         }
     }

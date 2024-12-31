@@ -22,7 +22,10 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics ::gadget_macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
             fn keystore(&self) -> ::gadget_macros::ext::keystore::Keystore {
-                todo!()
+                let config = ::gadget_macros::ext::keystore::KeystoreConfig::new()
+                    .fs_root(#field_access.data_dir.clone());
+                ::gadget_macros::ext::keystore::Keystore::new(config)
+                    .expect("Failed to create keystore")
             }
         }
     }

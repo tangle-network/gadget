@@ -7,7 +7,6 @@ use gadget_contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use gadget_contexts::keystore::KeystoreContext as _;
 use gadget_contexts::p2p::P2pContext as _;
 use gadget_contexts::services::ServicesContext as _;
-use gadget_contexts::services::ServicesContext as _;
 use gadget_contexts::tangle::TangleClientContext as _;
 use gadget_macros::ext::clients::GadgetServicesClient as _;
 use gadget_macros::ext::crypto::k256_crypto::K256VerifyingKey;

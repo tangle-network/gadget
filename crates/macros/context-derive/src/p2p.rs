@@ -23,8 +23,20 @@ pub fn generate_context_impl(
     quote! {
         #[::gadget_macros::ext::async_trait::async_trait]
         impl #impl_generics ::gadget_macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
-            fn p2p_client(&self) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
-                todo!()
+            fn p2p_client(
+                &self,
+                name: gadget_macros::ext::contexts::p2p::proc_macro2::Ident,
+                target_addr: gadget_std::net::IpAddr,
+                target_port: u16,
+                my_ecdsa_key: gadget_macros::ext::contexts::p2p::GossipMsgKeyPair,
+            ) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
+                ::gadget_macros::ext::contexts::p2p::P2PClient::new(
+                    name.clone(),
+                    self.config.clone(),
+                    target_addr,
+                    target_port,
+                    my_ecdsa_key.clone()
+                )
             }
         }
     }

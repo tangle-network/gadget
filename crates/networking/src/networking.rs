@@ -1,4 +1,4 @@
-use crate::key_types::PublicKey;
+use crate::key_types::GossipMsgPublicKey;
 use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -36,7 +36,7 @@ impl Display for IdentifierInfo {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct ParticipantInfo {
     pub user_id: u16,
-    pub public_key: Option<PublicKey>,
+    pub public_key: Option<GossipMsgPublicKey>,
 }
 
 impl Display for ParticipantInfo {
@@ -73,7 +73,7 @@ pub trait Network: Send + Sync + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
 
-    fn public_id(&self) -> PublicKey;
+    fn public_id(&self) -> GossipMsgPublicKey;
 
     fn build_protocol_message<Payload: Serialize>(
         &self,
@@ -81,7 +81,7 @@ pub trait Network: Send + Sync + 'static {
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,
-        to_network_id: Option<PublicKey>,
+        to_network_id: Option<GossipMsgPublicKey>,
     ) -> ProtocolMessage {
         assert!(
             (u8::from(to.is_none()) + u8::from(to_network_id.is_none()) != 1),
@@ -148,7 +148,7 @@ pub struct NetworkMultiplexer {
     unclaimed_receiving_streams: Arc<DashMap<StreamKey, MultiplexedReceiver>>,
     tx_to_networking_layer: MultiplexedSender,
     sequence_numbers: Arc<DashMap<CompoundStreamKey, u64>>,
-    my_id: PublicKey,
+    my_id: GossipMsgPublicKey,
 }
 
 type ActiveStreams = Arc<DashMap<StreamKey, tokio::sync::mpsc::UnboundedSender<ProtocolMessage>>>;
@@ -533,7 +533,7 @@ impl<N: Network> From<N> for NetworkMultiplexer {
 pub struct SubNetwork {
     tx: MultiplexedSender,
     rx: Option<Mutex<MultiplexedReceiver>>,
-    my_id: PublicKey,
+    my_id: GossipMsgPublicKey,
 }
 
 impl SubNetwork {
@@ -567,7 +567,7 @@ impl Network for SubNetwork {
         self.send(message)
     }
 
-    fn public_id(&self) -> PublicKey {
+    fn public_id(&self) -> GossipMsgPublicKey {
         self.my_id
     }
 }
@@ -690,7 +690,7 @@ mod tests {
     async fn run_protocol<N: Network>(
         node: N,
         i: u16,
-        mapping: BTreeMap<u16, crate::PublicKey>,
+        mapping: BTreeMap<u16, crate::GossipMsgPublicKey>,
     ) -> Result<(), crate::Error> {
         let task_hash = [0u8; 32];
         // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
@@ -877,7 +877,10 @@ mod tests {
         Ok(())
     }
 
-    fn node_with_id() -> (crate::gossip::GossipHandle, crate::key_types::KeyPair) {
+    fn node_with_id() -> (
+        crate::gossip::GossipHandle,
+        crate::key_types::GossipMsgKeyPair,
+    ) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
         let crypto_key = crate::key_types::Curve::generate_with_seed(None).unwrap();
         let bind_port = 0;

@@ -36,15 +36,20 @@ pub struct BlueprintManagerHandle {
 
 impl BlueprintManagerHandle {
     /// Send a start signal to the blueprint manager
+    ///
+    /// # Errors
+    ///
+    /// * If the start signal fails to send
+    /// * If the start signal has already been sent
     pub fn start(&mut self) -> color_eyre::Result<()> {
         let _span = self.span.enter();
         match self.start_tx.take() {
             Some(tx) => match tx.send(()) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Start signal sent to Blueprint Manager");
                     Ok(())
                 }
-                Err(_) => Err(Report::msg(
+                Err(()) => Err(Report::msg(
                     "Failed to send start signal to Blueprint Manager",
                 )),
             },
@@ -53,44 +58,53 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
+    #[must_use]
     pub fn sr25519_id(&self) -> &TanglePairSigner<sr25519::Pair> {
         &self.sr25519_id
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
+    #[must_use]
     pub fn ecdsa_id(&self) -> &TanglePairSigner<ecdsa::Pair> {
         &self.ecdsa_id
     }
 
     /// Shutdown the blueprint manager
-    pub async fn shutdown(&mut self) -> color_eyre::Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// * If the shutdown signal fails to send
+    /// * If the shutdown signal has already been sent
+    pub fn shutdown(&mut self) -> color_eyre::Result<()> {
         self.shutdown_call
             .take()
             .map(|tx| tx.send(()))
             .ok_or_eyre("Shutdown already called")?
-            .map_err(|_| Report::msg("Failed to send shutdown signal to Blueprint Manager"))
+            .map_err(|()| Report::msg("Failed to send shutdown signal to Blueprint Manager"))
     }
 
     /// Returns the keystore URI for this blueprint manager
+    #[must_use]
     pub fn keystore_uri(&self) -> &str {
         &self.keystore_uri
     }
 
+    #[must_use]
     pub fn span(&self) -> &tracing::Span {
         &self.span
     }
 }
 
-/// Add default behavior for unintentional dropping of the BlueprintManagerHandle
-/// This will ensure that the BlueprintManagerHandle is executed even if the handle
-/// is dropped, which is similar behavior to the tokio SpawnHandle
+/// Add default behavior for unintentional dropping of the `BlueprintManagerHandle`
+/// This will ensure that the `BlueprintManagerHandle` is executed even if the handle
+/// is dropped, which is similar behavior to the tokio `SpawnHandle`
 impl Drop for BlueprintManagerHandle {
     fn drop(&mut self) {
         let _ = self.start();
     }
 }
 
-/// Implement the Future trait for the BlueprintManagerHandle to allow
+/// Implement the Future trait for the `BlueprintManagerHandle` to allow
 /// for the handle to be awaited on
 impl Future for BlueprintManagerHandle {
     type Output = color_eyre::Result<()>;
@@ -115,7 +129,26 @@ impl Future for BlueprintManagerHandle {
     }
 }
 
-#[allow(clippy::too_many_lines)]
+/// Run the blueprint manager with the given configuration
+///
+/// # Arguments
+///
+/// * `blueprint_manager_config` - The configuration for the blueprint manager
+/// * `gadget_config` - The configuration for the gadget
+/// * `shutdown_cmd` - The shutdown command for the blueprint manager
+///
+/// # Returns
+///
+/// * A handle to the running blueprint manager
+///
+/// # Errors
+///
+/// * If the blueprint manager fails to start
+///
+/// # Panics
+///
+/// * If the SR25519 or ECDSA keypair cannot be found
+#[allow(clippy::too_many_lines, clippy::used_underscore_binding)]
 pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     blueprint_manager_config: BlueprintManagerConfig,
     gadget_config: GadgetConfiguration,
@@ -242,7 +275,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 Err(Report::msg(format!("Blueprint Manager Closed Unexpectedly: {res0:?}")))
             },
 
-            _ = shutdown_task => {
+            () = shutdown_task => {
                 Ok(())
             }
         }
@@ -265,9 +298,9 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 }
 
 /// * Query to get Vec<RpcServicesWithBlueprint>
-/// * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
+/// * For each `RpcServicesWithBlueprint`, fetch the associated gadget binary (fetch/download)
 ///   -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
-///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
+///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "`RoleType`")
 async fn handle_init(
     tangle_runtime: &TangleClient,
     services_client: &TangleServicesClient<TangleConfig>,

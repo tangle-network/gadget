@@ -26,7 +26,7 @@ impl BinarySourceFetcher for GithubBinaryFetcher {
             format!("{}/protocol-{:?}", current_dir.display(), self.fetcher.tag);
 
         if cfg!(target_family = "windows") {
-            binary_download_path += ".exe"
+            binary_download_path += ".exe";
         }
 
         info!("Downloading to {binary_download_path}");
