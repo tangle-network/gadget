@@ -91,6 +91,7 @@ pub(crate) fn generate_evm_specific_impl(
             }
         }
 
+        #[automatically_derived]
         impl Deref for #struct_name
         {
             type Target = ::gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance;
@@ -102,7 +103,8 @@ pub(crate) fn generate_evm_specific_impl(
             }
         }
 
-        impl ::gadget_macros::ext::event_listeners::core::markers::IsEvm for #struct_name {}
+        #[automatically_derived]
+        impl ::gadget_macros::ext::event_listeners::core::marker::IsEvm for #struct_name {}
     })
 }
 

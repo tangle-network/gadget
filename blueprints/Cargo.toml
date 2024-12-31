@@ -1,7 +1,0 @@
-[package]
-name = "gadget-blueprints"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-incredible-squaring-blueprint = { workspace = true, features = ["std"] }

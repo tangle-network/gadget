@@ -6914,6 +6914,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "incredible-squaring-blueprint"
+version = "0.1.1"
+dependencies = [
+ "async-trait",
+ "color-eyre",
+ "eigensdk",
+ "futures",
+ "gadget-blueprint-serde",
+ "gadget-client-tangle",
+ "gadget-config",
+ "gadget-contexts",
+ "gadget-event-listeners-core",
+ "gadget-event-listeners-tangle",
+ "gadget-macros",
+ "gadget-runner-tangle",
+ "gadget-std",
+ "gadget-testing-utils",
+ "hex",
+ "k256",
+ "lock_api",
+ "rand",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

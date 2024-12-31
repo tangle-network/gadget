@@ -1,5 +1,5 @@
 use crate::MyContext;
-use gadget_client_tangle::TangleClient;
+use gadget_client_tangle::client::TangleClient;
 use gadget_runner_tangle::tangle::TangleRunner;
 use gadget_std::error::Error;
 use gadget_testing_utils::test_client::TestClient;
