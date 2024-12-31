@@ -13,6 +13,7 @@ pub struct FilteredBlueprint {
     pub protocol: Protocol,
 }
 
+#[must_use]
 pub fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> {
     let os = get_formatted_os_string().to_lowercase();
     let arch = std::env::consts::ARCH.to_lowercase();
@@ -22,9 +23,9 @@ pub fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBina
             let mut arch_str = format!("{:?}", binary.arch).to_lowercase();
 
             if arch_str == "amd" {
-                arch_str = "x86".to_string()
+                arch_str = "x86".to_string();
             } else if arch_str == "amd64" {
-                arch_str = "x86_64".to_string()
+                arch_str = "x86_64".to_string();
             }
 
             if arch_str == arch {

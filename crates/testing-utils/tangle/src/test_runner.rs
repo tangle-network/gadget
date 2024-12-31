@@ -9,6 +9,7 @@ use tempfile::TempDir;
 use tokio::task::JoinHandle;
 use tracing::info;
 
+#[allow(clippy::type_complexity)]
 pub struct RunnerSetup<C: BlueprintConfig> {
     pub config: C,
     pub setup: Box<

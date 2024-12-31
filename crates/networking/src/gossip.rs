@@ -5,7 +5,7 @@
     clippy::exhaustive_enums
 )]
 
-use crate::key_types::{KeyPair, PublicKey, Signature};
+use crate::key_types::{GossipMsgKeyPair, GossipMsgPublicKey, GossipSignedMsgSignature};
 use crate::Error;
 use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
@@ -46,8 +46,8 @@ pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicUsize
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
-    pub secret_key: &'a KeyPair,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<GossipMsgPublicKey, PeerId>>>,
+    pub secret_key: &'a GossipMsgKeyPair,
     pub connected_peers: Arc<AtomicUsize>,
     pub span: tracing::Span,
     pub my_id: PeerId,
@@ -73,9 +73,9 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub public_key_to_libp2p_id: &'a Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
+    pub public_key_to_libp2p_id: &'a Arc<RwLock<BTreeMap<GossipMsgPublicKey, PeerId>>>,
     pub connected_peers: Arc<AtomicUsize>,
-    pub secret_key: &'a KeyPair,
+    pub secret_key: &'a GossipMsgKeyPair,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -265,9 +265,9 @@ pub struct GossipHandle {
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicUsize>,
-    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<GossipMsgPublicKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
-    pub my_id: PublicKey,
+    pub my_id: GossipMsgPublicKey,
 }
 
 impl GossipHandle {
@@ -283,7 +283,7 @@ impl GossipHandle {
     }
 
     /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
-    pub async fn peers(&self) -> Vec<PublicKey> {
+    pub async fn peers(&self) -> Vec<GossipMsgPublicKey> {
         self.public_key_to_libp2p_id
             .read()
             .await
@@ -325,8 +325,8 @@ pub struct GossipMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
-        public_key: PublicKey,
-        signature: Signature,
+        public_key: GossipMsgPublicKey,
+        signature: GossipSignedMsgSignature,
     },
     Message {
         topic: String,
@@ -338,8 +338,8 @@ pub enum MyBehaviourRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        public_key: PublicKey,
-        signature: Signature,
+        public_key: GossipMsgPublicKey,
+        signature: GossipSignedMsgSignature,
     },
     MessageHandled,
 }
@@ -427,7 +427,7 @@ impl Network for GossipHandle {
             .map_err(|e| Error::NetworkError(format!("Failed to send intra-node payload: {e}")))
     }
 
-    fn public_id(&self) -> PublicKey {
+    fn public_id(&self) -> GossipMsgPublicKey {
         self.my_id
     }
 }

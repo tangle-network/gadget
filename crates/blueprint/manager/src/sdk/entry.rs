@@ -5,6 +5,20 @@ pub trait SendFuture<'a, T>: Send + Future<Output = T> + 'a {}
 impl<'a, F: Send + Future<Output = T> + 'a, T> SendFuture<'a, T> for F {}
 
 /// Sets up the logger for the blueprint manager, based on the verbosity level passed in.
+///
+/// # Arguments
+///
+/// * `verbose` - The verbosity level of the logger.
+/// * `pretty` - Whether to use pretty formatting for the logs.
+/// * `filter` - The filter to apply to the logs.
+///
+/// # Errors
+///
+/// * If the logger cannot be set up.
+///
+/// # Returns
+///
+/// * Empty result.
 pub fn setup_blueprint_manager_logger(
     verbose: u8,
     pretty: bool,
