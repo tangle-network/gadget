@@ -1,7 +1,7 @@
-use gadget_client_tangle::api::services::events::JobCalled;
 use gadget_event_listeners_tangle::events::TangleEventListener;
 use gadget_event_listeners_tangle::services::{services_post_processor, services_pre_processor};
 use gadget_macros::contexts::{ServicesContext, TangleClientContext};
+use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_macros::job;
 use gadget_std::convert::Infallible;
 

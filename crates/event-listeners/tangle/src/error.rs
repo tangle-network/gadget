@@ -12,4 +12,5 @@ pub enum TangleEventListenerError {
     Client(String),
 }
 
-pub type Result<T> = gadget_std::result::Result<T, TangleEventListenerError>;
+pub type Result<T> =
+    gadget_std::result::Result<T, gadget_event_listeners_core::Error<TangleEventListenerError>>;

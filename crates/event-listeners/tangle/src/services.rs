@@ -71,7 +71,8 @@ pub async fn services_post_processor<R: serde::Serialize>(
     let response = api::tx().services().submit_result(
         service_id,
         call_id,
-        vec![gadget_blueprint_serde::to_field(results)?],
+        vec![gadget_blueprint_serde::to_field(results)
+            .map_err(Into::<TangleEventListenerError>::into)?],
     );
     let _ = gadget_utils_tangle::tx::send(&client, &signer, &response)
         .await
