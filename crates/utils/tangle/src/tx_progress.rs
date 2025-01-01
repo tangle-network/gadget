@@ -1,8 +1,7 @@
-use subxt::{
-    client::OnlineClientT,
-    error::TransactionError,
-    tx::{TxInBlock, TxStatus},
-};
+use subxt::client::OnlineClientT;
+use subxt::error::TransactionError;
+use subxt::tx::{TxInBlock, TxStatus};
+use tangle_subxt::subxt;
 
 /// Extension trait for transaction progress handling.
 ///

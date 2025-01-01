@@ -5124,8 +5124,6 @@ dependencies = [
  "gadget-config",
  "gadget-std",
  "libp2p",
- "lock_api",
- "parking_lot",
  "serde",
  "serde_json",
  "thiserror 2.0.7",
@@ -5163,6 +5161,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "gadget-clients",
+ "gadget-config",
  "gadget-keystore",
  "gadget-networking",
  "gadget-std",
@@ -5508,7 +5507,6 @@ dependencies = [
  "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
- "gadget-networking",
  "gadget-std",
  "tangle-subxt",
  "tokio",
@@ -5735,7 +5733,7 @@ dependencies = [
  "async-trait",
  "gadget-logging",
  "gadget-std",
- "subxt",
+ "tangle-subxt",
  "tracing",
 ]
 
@@ -6917,29 +6915,10 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
- "async-trait",
- "color-eyre",
- "eigensdk",
- "futures",
- "gadget-blueprint-serde",
- "gadget-client-tangle",
  "gadget-config",
- "gadget-contexts",
- "gadget-event-listeners-core",
  "gadget-event-listeners-tangle",
  "gadget-macros",
- "gadget-runner-tangle",
  "gadget-std",
- "gadget-testing-utils",
- "hex",
- "k256",
- "lock_api",
- "rand",
- "serde",
- "serde_derive",
- "serde_json",
- "tokio",
- "tracing",
 ]
 
 [[package]]
