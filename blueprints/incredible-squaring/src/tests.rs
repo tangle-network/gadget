@@ -10,7 +10,10 @@ async fn test_incredible_squaring() -> Result<(), Box<dyn Error>> {
     let client = TestClient::new();
 
     // Create the Tangle client context
-    let context = MyContext;
+    let context = MyContext {
+        config: Default::default(),
+        call_id: None,
+    };
 
     // Create a Tangle runner with the test client
     let runner = TangleRunner::new(client.clone());

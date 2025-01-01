@@ -22,11 +22,7 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics ::gadget_macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
             fn keystore(&self) -> ::gadget_macros::ext::keystore::Keystore {
-                // TODO(XXX): This needs to be the keystore URI, not the data dir. Completely different responsibilities
-                let config = ::gadget_macros::ext::keystore::KeystoreConfig::new()
-                    .fs_root(#field_access.data_dir.clone().expect("data dir should be present"));
-                ::gadget_macros::ext::keystore::Keystore::new(config)
-                    .expect("Failed to create keystore")
+                <::gadget_macros::ext::config::GadgetConfiguration as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(&#field_access)
             }
         }
     }

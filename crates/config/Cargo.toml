@@ -9,8 +9,6 @@ license.workspace = true
 # Core dependencies (always included)
 clap = { workspace = true, features = ["derive", "env"] }
 gadget-std = { workspace = true }
-lock_api = { workspace = true }
-parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["alloc"], optional = true }
 thiserror = { workspace = true }
@@ -21,7 +19,6 @@ url = { workspace = true, features = ["serde"] }
 libp2p = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, features = ["serde"], optional = true }
 
-
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["serde"] }
 gadget-config = { path = ".", features = ["std", "eigenlayer", "symbiotic", "tangle", "networking"] }
@@ -31,11 +28,11 @@ libp2p = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "alloy-primitives/std",
-    "clap/std",
-    "gadget-std/std",
-    "serde/std",
-    "serde_json/std",
+	"alloy-primitives/std",
+	"clap/std",
+	"gadget-std/std",
+	"serde/std",
+	"serde_json/std",
 ]
 eigenlayer = ["dep:alloy-primitives"]
 symbiotic = ["dep:alloy-primitives"]

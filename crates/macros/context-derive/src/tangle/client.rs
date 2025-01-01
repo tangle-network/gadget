@@ -31,7 +31,7 @@ pub fn generate_context_impl(
                 match CLIENT.get() {
                     Some(client) => Ok(client.clone()),
                     None => {
-                        let client = #config_ty::new(#field_access_config.clone()).await?;
+                        let client = ::gadget_macros::ext::contexts::tangle::TangleClientContext::tangle_client(&#field_access_config).await?;
                         CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
                             ::gadget_macros::ext::clients::Error::msg("Failed to set client")
                         })

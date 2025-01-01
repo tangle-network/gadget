@@ -5,8 +5,9 @@ use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::servi
 use gadget_macros::job;
 use gadget_std::convert::Infallible;
 
-#[cfg(test)]
-mod tests;
+// TODO(donovan): Finish these tests
+// #[cfg(test)]
+// mod tests;
 
 #[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct MyContext {

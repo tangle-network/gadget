@@ -32,5 +32,5 @@ pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
 pub trait InitializableEventHandler {
     async fn init_event_handler(
         &self,
-    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), Error<error::Unit>>>>;
+    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), Box<dyn core::error::Error + Send>>>>;
 }

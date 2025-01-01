@@ -23,9 +23,11 @@ pub(crate) fn generate_tangle_specific_impl(
         let _ = non_job_param_map.shift_remove_index(0);
     }
 
+    let env_type = quote! { ::gadget_macros::ext::config::GadgetConfiguration };
+
     // Push the expected types
     new_function_signature.push(quote! {
-        env: &::gadget_macros::ext::config::GadgetConfiguration,
+        env: &#env_type,
     });
 
     constructor_args.push(quote! {
@@ -47,6 +49,7 @@ pub(crate) fn generate_tangle_specific_impl(
     let struct_name_as_literal = struct_name.to_string();
 
     Ok(quote! {
+        // TODO: No Box<dyn Error>
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -58,10 +61,26 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The client fails to connect
             /// - The signer is not found
             /// - The service ID is not found.
-            pub async fn new(#(#new_function_signature)*) -> Result<Self, ::gadget_macros::ext::config::Error> {
-                let client = env.client().await?;
-                let signer = env.keystore()?.iter_sr25519().next().ok_or(::gadget_macros::ext::config::Error::NoSr25519Keypair);
-                let service_id = env.service_id()?;
+            pub async fn new(#(#new_function_signature)*) -> Result<Self, Box<dyn core::error::Error>> {
+                use gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
+
+                let client =
+                    <#env_type as ::gadget_macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
+                        .await
+                        .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?;
+
+                let keystore = <#env_type as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
+                let public = keystore.iter_sr25519().next().ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                let pair = keystore.expose_sr25519_secret(&public)
+                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
+                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                let signer = gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair);
+
+                let service_id = env.protocol_settings
+                    .tangle()
+                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
+                    .service_id
+                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::MissingServiceId))?;
 
                 Ok(Self {
                     #(#constructor_args)*

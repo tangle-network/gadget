@@ -23,7 +23,6 @@ pub mod ext {
     pub use gadget_keystore as keystore;
     #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use gadget_logging as logging;
-    pub use gadget_networking as networking;
     pub use gadget_std as std;
 
     #[cfg(all(feature = "std", feature = "evm"))]

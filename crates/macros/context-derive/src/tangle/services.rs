@@ -38,7 +38,7 @@ pub fn generate_context_impl(
 
             async fn services_client(&self) -> #config_ty {
                 let rpc_client = ::gadget_macros::ext::tangle::tangle_subxt::subxt::OnlineClient::from_url(
-                    &field_access_config.http_rpc_endpoint
+                    &#field_access_config.http_rpc_endpoint
                 )
                 .await
                 .expect("Failed to create RPC client");
