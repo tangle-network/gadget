@@ -1,4 +1,3 @@
-use color_eyre::Result;
 use gadget_sdk::info;
 use gadget_sdk::runners::tangle::TangleConfig;
 use gadget_sdk::runners::BlueprintRunner;

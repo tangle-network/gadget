@@ -1,9 +1,11 @@
+#[cfg(feature = "evm")]
 use crate::job::evm::EvmArgs;
 use crate::job::ParameterType;
 use proc_macro2::Ident;
 use quote::{format_ident, quote, quote_spanned};
 use std::str::FromStr;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::spanned::Spanned;
 use syn::{Index, Token, Type};
 
 const EVM_EVENT_LISTENER_TAG: &str = "EvmContractEventListener";
@@ -50,13 +52,16 @@ fn extract_x_equals_y<T: Parse, P: Parse>(
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ListenerType {
+    #[cfg(feature = "evm")]
     Evm,
+    #[cfg(feature = "tangle")]
     Tangle,
     Custom,
 }
 
 pub(crate) struct SingleListener {
     pub listener: Type,
+    #[cfg(feature = "evm")]
     pub evm_args: Option<EvmArgs>,
     pub listener_type: ListenerType,
     pub post_processor: Option<Type>,
@@ -64,8 +69,14 @@ pub(crate) struct SingleListener {
 }
 
 impl SingleListener {
+    #[cfg(feature = "tangle")]
     pub fn is_raw(&self) -> bool {
         self.pre_processor.is_none() && matches!(self.listener_type, ListenerType::Tangle)
+    }
+
+    #[cfg(not(feature = "tangle"))]
+    pub fn is_raw(&self) -> bool {
+        false
     }
 }
 
@@ -86,7 +97,9 @@ impl Parse for EventListenerArgs {
         let mut post_processor = None;
         let mut is_evm = false;
         // EVM specific
+        #[cfg(feature = "evm")]
         let mut instance: Option<Ident> = None;
+        #[cfg(feature = "evm")]
         let mut abi: Option<Type> = None;
 
         while !content.is_empty() {
@@ -98,7 +111,16 @@ impl Parse for EventListenerArgs {
                 let ty_str = quote! { #listener_found }.to_string();
 
                 if ty_str.contains(EVM_EVENT_LISTENER_TAG) {
-                    is_evm = true;
+                    #[cfg(not(feature = "evm"))]
+                    return Err(syn::Error::new(
+                        listener.span(),
+                        "EVM event listeners require the `evm` feature to be enabled",
+                    ));
+
+                    #[cfg(feature = "evm")]
+                    {
+                        is_evm = true;
+                    }
                 }
 
                 listener = Some(listener_found)
@@ -117,13 +139,31 @@ impl Parse for EventListenerArgs {
             } else if content.peek(Token![,]) {
                 let _ = content.parse::<Token![,]>()?;
             } else if content.peek(kw::instance) {
-                let _ = content.parse::<kw::instance>()?;
-                let _ = content.parse::<Token![=]>()?;
-                instance = Some(content.parse::<Ident>()?);
+                #[cfg(not(feature = "evm"))]
+                return Err(syn::Error::new(
+                    listener.span(),
+                    "EVM event listeners require the `evm` feature to be enabled",
+                ));
+
+                #[cfg(feature = "evm")]
+                {
+                    let _ = content.parse::<kw::instance>()?;
+                    let _ = content.parse::<Token![=]>()?;
+                    instance = Some(content.parse::<Ident>()?);
+                }
             } else if content.peek(kw::abi) {
-                let _ = content.parse::<kw::abi>()?;
-                let _ = content.parse::<Token![=]>()?;
-                abi = Some(content.parse::<Type>()?);
+                #[cfg(not(feature = "evm"))]
+                return Err(syn::Error::new(
+                    listener.span(),
+                    "EVM event listeners require the `evm` feature to be enabled",
+                ));
+
+                #[cfg(feature = "evm")]
+                {
+                    let _ = content.parse::<kw::abi>()?;
+                    let _ = content.parse::<Token![=]>()?;
+                    abi = Some(content.parse::<Type>()?);
+                }
             } else {
                 return Err(content.error(
 					"Unexpected field parsed. Expected one of `listener`, `event`, `pre_processor`, `post_processor`",
@@ -135,36 +175,59 @@ impl Parse for EventListenerArgs {
         // Create a listener. If this is an EvmContractEventListener, we need to specially parse the arguments
         // In the case of tangle and everything other listener type, we don't pass evm_args
         let ty_str = quote! { #listener }.to_string();
-        let this_listener = if is_evm {
-            if instance.is_none() {
-                return Err(content.error("Expected `instance` argument for EVM event listener"));
-            }
 
-            if abi.is_none() {
-                return Err(content.error("Expected `abi` argument for EVM event listener"));
-            }
+        let this_listener;
+        if is_evm {
+            #[cfg(not(feature = "evm"))]
+            return Err(syn::Error::new(
+                listener.span(),
+                "EVM event listeners require the `evm` feature to be enabled",
+            ));
 
-            SingleListener {
-                listener,
-                evm_args: Some(EvmArgs { instance, abi }),
-                listener_type: ListenerType::Evm,
-                post_processor,
-                pre_processor,
+            #[cfg(feature = "evm")]
+            {
+                let listener_type = ListenerType::Evm;
+                if instance.is_none() {
+                    return Err(
+                        content.error("Expected `instance` argument for EVM event listener")
+                    );
+                }
+
+                if abi.is_none() {
+                    return Err(content.error("Expected `abi` argument for EVM event listener"));
+                }
+
+                this_listener = SingleListener {
+                    listener,
+                    #[cfg(feature = "evm")]
+                    evm_args: Some(EvmArgs { instance, abi }),
+                    listener_type,
+                    post_processor,
+                    pre_processor,
+                };
             }
         } else {
             let listener_type = if ty_str.contains(TANGLE_EVENT_LISTENER_TAG) {
+                #[cfg(not(feature = "tangle"))]
+                return Err(syn::Error::new(
+                    listener.span(),
+                    "Tangle event listeners require the `tangle` feature to be enabled",
+                ));
+
+                #[cfg(feature = "tangle")]
                 ListenerType::Tangle
             } else {
                 ListenerType::Custom
             };
 
-            SingleListener {
+            this_listener = SingleListener {
                 listener,
+                #[cfg(feature = "evm")]
                 evm_args: None,
                 listener_type,
                 post_processor,
                 pre_processor,
-            }
+            };
         };
 
         Ok(Self {
@@ -191,6 +254,7 @@ impl EventListenerArgs {
 				let ident = format_ident!("param{i}");
 				let index = Index::from(i);
 				match listener_type {
+					#[cfg(feature = "tangle")]
 					ListenerType::Tangle => {
 						let ty_token_stream = proc_macro2::TokenStream::from_str(&param_ty.ty.as_rust_type()).expect("should be valid");
 						let ty_tokens = quote_spanned! {param_ty.span.expect("should always be available")=>
@@ -203,11 +267,14 @@ impl EventListenerArgs {
                             };
                         }
 					}
+
+					#[cfg(feature = "evm")]
 					ListenerType::Evm => {
 						quote! {
                             let #ident = inputs.#index;
                         }
 					}
+
 					// All other event listeners will return just one type
 					ListenerType::Custom => {
 						quote! {
@@ -219,12 +286,14 @@ impl EventListenerArgs {
 			.collect::<Vec<_>>()
     }
 
+    #[cfg(feature = "tangle")]
     pub fn has_tangle(&self) -> bool {
         self.listeners
             .iter()
             .any(|r| r.listener_type == ListenerType::Tangle)
     }
 
+    #[cfg(feature = "evm")]
     pub fn has_evm(&self) -> bool {
         self.listeners
             .iter()
@@ -232,6 +301,7 @@ impl EventListenerArgs {
     }
 
     /// Returns the Event Handler's Contract Instance on the EVM.
+    #[cfg(feature = "evm")]
     pub fn instance(&self) -> Option<Ident> {
         match self.get_event_listener().evm_args.as_ref() {
             Some(EvmArgs { instance, .. }) => instance.clone(),

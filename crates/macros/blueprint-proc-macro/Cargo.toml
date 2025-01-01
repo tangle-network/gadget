@@ -30,3 +30,6 @@ gadget-macros = { workspace = true }
 [features]
 default = ["std"]
 std = ["gadget-blueprint-proc-macro-core/std", "gadget-std/std", "indexmap/std"]
+
+tangle = []
+evm = []

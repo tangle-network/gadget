@@ -1,10 +1,14 @@
 mod args;
 pub(crate) use args::{EventListenerArgs, JobArgs, ListenerType};
 
+#[cfg(feature = "evm")]
 mod evm;
+#[cfg(feature = "evm")]
 use evm::{generate_evm_specific_impl, get_evm_instance_data, get_evm_job_processor_wrapper};
 
+#[cfg(feature = "tangle")]
 mod tangle;
+#[cfg(feature = "tangle")]
 use tangle::{generate_tangle_specific_impl, get_tangle_job_processor_wrapper};
 
 use crate::shared::{self, get_return_type_wrapper, pascal_case, type_to_field_type, MacroExt};
@@ -13,8 +17,8 @@ use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use gadget_std::str::FromStr;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
-use proc_macro::TokenStream;
 use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, Token, Type};
@@ -162,7 +166,7 @@ pub fn generate_job_const_block(
     params: Vec<ParameterType>,
     result: Vec<ParameterType>,
     job_id: &LitInt,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let (fn_name_string, job_def_name, job_id_name) = get_job_id_field_name(input);
     // Creates Job Definition using input parameters
     let job_id_as_u64 = u64::from_str(&job_id.to_string()).map_err(|err| {
@@ -212,7 +216,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
     event_listeners: &EventListenerArgs,
     param_types: &IndexMap<Ident, Type>,
     params: &[Ident],
-) -> syn::Result<(Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>)> {
+) -> syn::Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let return_type = get_return_type(input);
 
     let (mut event_handler_args, _event_handler_arg_types) =
@@ -293,6 +297,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
         // The job_processor is just the job function. Since it may contain multiple params, we need a new function to call it.
         let job_processor_wrapper = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
             ListenerType::Tangle => get_tangle_job_processor_wrapper(
                 params,
                 param_types,
@@ -304,6 +309,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 ctx_pos_in_ordered_inputs,
             )?,
 
+            #[cfg(feature = "evm")]
             ListenerType::Evm => get_evm_job_processor_wrapper(
                 params,
                 param_types,
@@ -328,6 +334,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
         let post_processor_function = if let Some(postprocessor) = &listener_meta.post_processor {
             match listener_meta.listener_type {
+                #[cfg(feature = "tangle")]
                 ListenerType::Tangle => {
                     quote! {
                         |(mut client_context, job_result)| async move {
@@ -337,15 +344,16 @@ pub(crate) fn generate_event_workflow_tokenstream(
                                 results: job_result,
                                 service_id: ctx.service_id,
                                 call_id,
-                                client: ctx.client.clone(),
+                                client: ctx.client.subxt_client().clone(),
                                 signer: ctx.signer.clone(),
                             };
 
-                            #postprocessor(tangle_job_result)
+                            #postprocessor(tangle_job_result).await
                         }
                     }
                 }
 
+                #[cfg(feature = "evm")]
                 ListenerType::Evm => {
                     quote! { #postprocessor }
                 }
@@ -360,10 +368,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
         };
 
         let context_declaration = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
             ListenerType::Tangle => {
                 quote! {
                     let context = ::gadget_macros::ext::event_listeners::tangle::events::TangleListenerInput {
-                        client: ctx.client.clone(),
+                        client: ctx.client.subxt_client().clone(),
                         signer: ctx.signer.clone(),
                         job_id: #job_id_name,
                         service_id: ctx.service_id,
@@ -372,6 +381,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 }
             }
 
+            #[cfg(feature = "evm")]
             ListenerType::Evm => {
                 quote! { let context = ctx.deref().clone(); }
             }
@@ -382,7 +392,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
         };
 
         let next_listener = quote! {
-            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn core::error::Error>>>> {
+            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
                     let (tx, rx) = ::gadget_macros::ext::tokio::sync::oneshot::channel();
@@ -405,7 +415,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     );
 
                     let task = async move {
-                        let res = ::gadget_macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e));
+                        let res = ::gadget_macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
                         let _ = tx.send(res);
                     };
                     ::gadget_macros::ext::tokio::task::spawn(task);
@@ -457,8 +467,8 @@ pub fn generate_autogen_struct(
     params: &[Ident],
     param_types: &IndexMap<Ident, Type>,
     suffix: &str,
-    event_listener_calls: &[proc_macro2::TokenStream],
-) -> syn::Result<proc_macro2::TokenStream> {
+    event_listener_calls: &[TokenStream],
+) -> syn::Result<TokenStream> {
     let (_fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
     let (event_handler_args, _) = get_event_handler_args(param_types, params)?;
@@ -488,9 +498,10 @@ pub fn generate_autogen_struct(
         let _ = additional_params.remove(0);
     }
 
-    let mut required_fields = vec![];
+    let mut required_fields: Vec<TokenStream> = vec![];
 
     // Even if multiple tangle listeners, we only need this once
+    #[cfg(feature = "tangle")]
     if event_listener_args.has_tangle() {
         required_fields.push(quote! {
             pub service_id: u64,
@@ -500,6 +511,7 @@ pub fn generate_autogen_struct(
     }
 
     // Even if multiple evm listeners, we only need this once
+    #[cfg(feature = "evm")]
     if event_listener_args.has_evm() {
         let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args)?;
 
@@ -526,7 +538,11 @@ pub fn generate_autogen_struct(
         impl ::gadget_macros::ext::event_listeners::core::InitializableEventHandler for #struct_name {
             async fn init_event_handler(
                 &self,
-            ) -> Option<::gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), ::gadget_macros::ext::event_listeners::core::Error<::gadget_macros::ext::event_listeners::core::error::Unit>>>> {
+            ) -> Option<
+                ::gadget_macros::ext::tokio::sync::oneshot::Receiver<
+                    Result<(), Box<dyn ::core::error::Error + Send>>
+                >
+            > {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }
@@ -537,9 +553,9 @@ pub fn generate_autogen_struct(
 pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
-    replacement_for_self: Option<proc_macro2::TokenStream>,
+    replacement_for_self: Option<TokenStream>,
     is_raw: bool,
-) -> syn::Result<(usize, Vec<proc_macro2::TokenStream>)> {
+) -> syn::Result<(usize, Vec<TokenStream>)> {
     let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
 
     let additional_var_indexes: Vec<usize> =
@@ -607,7 +623,7 @@ pub fn get_fn_call_ordered(
     Ok((ctx_pos, ret))
 }
 
-fn get_asyncness(input: &ItemFn) -> proc_macro2::TokenStream {
+fn get_asyncness(input: &ItemFn) -> TokenStream {
     if input.sig.asyncness.is_some() {
         quote! {.await}
     } else {
@@ -623,19 +639,21 @@ pub fn generate_specialized_logic(
     suffix: &str,
     param_map: &IndexMap<Ident, Type>,
     job_params: &[Ident],
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let (_fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
     match event_listener_args.get_event_listener().listener_type {
+        #[cfg(feature = "evm")]
         ListenerType::Evm => {
             generate_evm_specific_impl(&struct_name, event_listener_args, param_map, job_params)
         }
 
+        #[cfg(feature = "tangle")]
         ListenerType::Tangle => {
             generate_tangle_specific_impl(&struct_name, param_map, job_params, event_listener_args)
         }
 
-        ListenerType::Custom => Ok(proc_macro2::TokenStream::default()),
+        ListenerType::Custom => Ok(TokenStream::default()),
     }
 }
 
@@ -715,9 +733,7 @@ impl Parse for Results {
     }
 }
 
-pub(crate) fn generate_combined_event_listener_selector(
-    struct_name: &Ident,
-) -> proc_macro2::TokenStream {
+pub(crate) fn generate_combined_event_listener_selector(struct_name: &Ident) -> TokenStream {
     quote! {
         let (tx, rx) = ::gadget_macros::ext::tokio::sync::oneshot::channel();
         let task = async move {
@@ -732,7 +748,9 @@ pub(crate) fn generate_combined_event_listener_selector(
                         res
                     },
                     Err(e) => {
-                        Err(::gadget_macros::ext::event_listeners::core::Error::Other(format!("Error in Event Handler for {}: {e:?}", stringify!(#struct_name))))
+                        Err(Box::new(::gadget_macros::ext::event_listeners::core::Error::<
+                                ::gadget_macros::ext::event_listeners::core::error::Unit
+                            >::Other(format!("Error in Event Handler for {}: {e:?}", stringify!(#struct_name)))) as Box<dyn ::core::error::Error + Send>)
                     }
                 };
 

@@ -16,7 +16,6 @@ gadget-std = { workspace = true }
 gadget-config = { workspace = true }
 gadget-contexts = { workspace = true }
 gadget-keystore = { workspace = true }
-gadget-networking = { workspace = true }
 gadget-clients = { workspace = true, optional = true }
 gadget-event-listeners = { workspace = true, optional = true }
 gadget-logging = { workspace = true, optional = true }
@@ -47,7 +46,6 @@ std = [
 	"gadget-crypto?/std",
 	"gadget-event-listeners?/std",
 	"gadget-logging?/std",
-	"gadget-networking/std",
 	"gadget-std/std",
 	"tangle-subxt?/std",
 ]
@@ -68,7 +66,9 @@ tangle = [
 	"gadget-clients?/tangle",
 	"gadget-context-derive/tangle",
 	"gadget-crypto/tangle-pair-signer",
+	"gadget-keystore/tangle",
 	"gadget-event-listeners/tangle",
+	"gadget-blueprint-proc-macro/tangle",
 ]
 evm = [
 	"dep:alloy-network",
@@ -81,6 +81,7 @@ evm = [
 	"gadget-clients?/evm",
 	"gadget-context-derive/evm",
 	"gadget-event-listeners/evm",
+	"gadget-blueprint-proc-macro/evm",
 ]
 
 [lints]

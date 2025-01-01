@@ -11,15 +11,14 @@ repository.workspace = true
 async-trait = { workspace = true, default-features = false }
 gadget-std = { workspace = true, default-features = false }
 gadget-logging = { workspace = true, default-features = false }
-subxt = { workspace = true, optional = true }
+tangle-subxt = { workspace = true }
 tracing = { workspace = true, default-features = false, features = ["attributes"] }
 
 [features]
 default = ["std"]
 std = [
-    "dep:subxt",
-    "gadget-std/std",
-    "gadget-logging/std",
-    "subxt/native",
+	"gadget-std/std",
+	"gadget-logging/std",
+	"tangle-subxt/std",
 ]
-web = ["dep:subxt", "subxt/web"]
+web = ["tangle-subxt/web"]
