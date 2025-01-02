@@ -11,7 +11,7 @@ use gadget_contexts::tangle::TangleClientContext as _;
 use gadget_macros::ext::clients::GadgetServicesClient as _;
 use gadget_macros::ext::crypto::k256_crypto::K256VerifyingKey;
 use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
-use gadget_networking::PublicKey;
+use gadget_networking::GossipMsgPublicKey;
 use gadget_std::collections::BTreeMap;
 use gadget_std::sync::Arc;
 use gadget_stores::local_database::LocalDatabase;
@@ -110,7 +110,7 @@ impl Network for StubNetwork {
         Ok(())
     }
 
-    fn public_id(&self) -> PublicKey {
+    fn public_id(&self) -> GossipMsgPublicKey {
         todo!()
     }
 }
