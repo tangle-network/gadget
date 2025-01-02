@@ -13,8 +13,10 @@ publish = false
 # Gadget dependencies
 gadget-std = { workspace = true, features = ["std"] }
 gadget-event-listeners-tangle = { workspace = true, features = ["std"] }
-gadget-macros = { workspace = true, features = ["tangle"] }
+gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["std"] }
+gadget-logging = { workspace = true, features = ["std"] }
+gadget-runners = { workspace = true, features = ["tangle"] }
 
 [features]
 

@@ -25,6 +25,16 @@ pub(crate) struct SdkMainArgs {
 }
 
 pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<TokenStream> {
+    #[cfg(not(feature = "std"))]
+    if args.env {
+        use syn::spanned::Spanned;
+
+        return Err(syn::Error::new(
+            input.span(),
+            "`env` creation requires the `std` feature",
+        ));
+    }
+
     let tokio_args = if let Some(args) = &args.tokio_args {
         quote! { ( crate = "::gadget_macros::ext::tokio", #(#args),* ) }
     } else {
@@ -32,7 +42,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     };
 
     let env_function_signature = if args.env {
-        quote! { env: ::gadget_macros::ext::config::GadgetConfiguration<gadget_sdk::parking_lot::RawRwLock> }
+        quote! { env: ::gadget_macros::ext::config::GadgetConfiguration }
     } else {
         quote! {}
     };
@@ -46,9 +56,9 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     let standard_setup = if args.env {
         quote! {
             // Load the environment and create the gadget runner
-            let config: gadget_sdk::config::ContextConfig = gadget_sdk::clap::Parser::parse();
-            let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
-            gadget_sdk::utils::test_utils::check_for_test(&config).expect("Failed to check for test");
+            let config: ::gadget_macros::ext::config::ContextConfig = ::gadget_macros::ext::clap::Parser::parse();
+            let env = ::gadget_macros::ext::config::load(config.clone()).expect("Failed to load environment");
+            ::gadget_macros::ext::testing_utils::tangle_utils::check_for_test(&config).expect("Failed to check for test");
         }
     } else {
         proc_macro2::TokenStream::default()
@@ -65,15 +75,15 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     // Next, we need to consider the input. It should be in the form "async fn main() { ... }"
     // We must remove all the async fn main() and keep everything else
     let main_ret = match &input.sig.output {
-        syn::ReturnType::Default => quote! { Result<(), Box<dyn std::error::Error>> },
+        syn::ReturnType::Default => quote! { Result<(), Box<dyn core::error::Error>> },
         syn::ReturnType::Type(_, ty) => quote! { #ty },
     };
     let input_attrs = input.attrs.iter();
     let input = input.block.clone();
 
     let tokens = quote! {
-        #[gadget_sdk::tokio::main #tokio_args]
-        async fn main() -> Result<(), Box<dyn std::error::Error>> {
+        #[::gadget_macros::ext::tokio::main #tokio_args]
+        async fn main() -> Result<(), Box<dyn core::error::Error>> {
             #logger
             #standard_setup
             inner_main(#env_passed_var).await?;
