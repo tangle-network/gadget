@@ -6918,13 +6918,18 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
+ "async-trait",
  "blueprint-metadata",
+ "gadget-client-tangle",
  "gadget-config",
- "gadget-event-listeners-tangle",
+ "gadget-event-listeners",
  "gadget-logging",
  "gadget-macros",
+ "gadget-runner-tangle",
  "gadget-runners",
  "gadget-std",
+ "gadget-testing-utils",
+ "tokio",
 ]
 
 [[package]]
