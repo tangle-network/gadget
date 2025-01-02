@@ -1,12 +1,17 @@
-use gadget_sdk::info;
-use gadget_sdk::runners::tangle::TangleConfig;
-use gadget_sdk::runners::BlueprintRunner;
-use gadget_sdk::tangle_subxt::subxt::tx::Signer;
+use gadget_logging::info;
+use gadget_macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
+use gadget_runners::core::runner::BlueprintRunner;
+use gadget_runners::tangle::tangle::TangleConfig;
 use incredible_squaring_blueprint as blueprint;
 
-#[gadget_sdk::main(env)]
+#[gadget_macros::main(env)]
 async fn main() {
-    let x_square = blueprint::XsquareEventHandler::new(&env, blueprint::MyContext).await?;
+    let context = blueprint::MyContext {
+        env: env.clone(),
+        call_id: None,
+    };
+
+    let x_square = blueprint::XsquareEventHandler::new(&env, context).await?;
 
     info!(
         "Starting the event watcher for {} ...",

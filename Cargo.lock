@@ -5495,6 +5495,7 @@ dependencies = [
  "alloy-provider",
  "alloy-transport",
  "async-trait",
+ "clap",
  "futures",
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
@@ -5508,6 +5509,7 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
+ "gadget-testing-utils",
  "tangle-subxt",
  "tokio",
 ]
@@ -5674,6 +5676,7 @@ dependencies = [
  "async-trait",
  "futures",
  "gadget-config",
+ "gadget-logging",
  "gadget-runners",
  "serde_json",
  "tempfile",
@@ -6917,7 +6920,9 @@ version = "0.1.1"
 dependencies = [
  "gadget-config",
  "gadget-event-listeners-tangle",
+ "gadget-logging",
  "gadget-macros",
+ "gadget-runners",
  "gadget-std",
 ]
 

@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 gadget-runners = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["tangle", "std"] }
+gadget-logging = { workspace = true, features = ["std"] }
+
 tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 async-trait = { workspace = true }
