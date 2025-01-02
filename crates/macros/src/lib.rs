@@ -38,6 +38,7 @@ pub mod ext {
 
     #[cfg(feature = "tangle")]
     pub mod tangle {
+        #[allow(clippy::module_name_repetitions)]
         pub use tangle_subxt;
     }
 }
