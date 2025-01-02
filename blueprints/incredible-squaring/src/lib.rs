@@ -12,7 +12,7 @@ use gadget_std::convert::Infallible;
 #[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct MyContext {
     #[config]
-    pub config: gadget_config::GadgetConfiguration,
+    pub env: gadget_config::GadgetConfiguration,
     #[call_id]
     pub call_id: Option<u64>,
 }

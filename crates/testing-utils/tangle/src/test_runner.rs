@@ -1,4 +1,4 @@
-use crate::error::TestRunnerError as Error;
+use crate::error::Error;
 use futures::Future;
 use gadget_config::GadgetConfiguration;
 use gadget_runners::core::config::BlueprintConfig;
