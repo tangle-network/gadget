@@ -1,10 +1,12 @@
 #[cfg(feature = "evm")]
 use crate::job::evm::EvmArgs;
 use crate::job::ParameterType;
+#[cfg(feature = "evm")]
 use proc_macro2::Ident;
 use quote::{format_ident, quote, quote_spanned};
 use std::str::FromStr;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
+#[cfg(any(not(feature = "evm"), not(feature = "tangle")))]
 use syn::spanned::Spanned;
 use syn::{Index, Token, Type};
 
@@ -95,6 +97,7 @@ impl Parse for EventListenerArgs {
         let mut listener = None;
         let mut pre_processor = None;
         let mut post_processor = None;
+        #[allow(unused_mut)]
         let mut is_evm = false;
         // EVM specific
         #[cfg(feature = "evm")]
@@ -176,8 +179,7 @@ impl Parse for EventListenerArgs {
         // In the case of tangle and everything other listener type, we don't pass evm_args
         let ty_str = quote! { #listener }.to_string();
 
-        let this_listener;
-        if is_evm {
+        let this_listener = if is_evm {
             #[cfg(not(feature = "evm"))]
             return Err(syn::Error::new(
                 listener.span(),
@@ -197,14 +199,14 @@ impl Parse for EventListenerArgs {
                     return Err(content.error("Expected `abi` argument for EVM event listener"));
                 }
 
-                this_listener = SingleListener {
+                SingleListener {
                     listener,
                     #[cfg(feature = "evm")]
                     evm_args: Some(EvmArgs { instance, abi }),
                     listener_type,
                     post_processor,
                     pre_processor,
-                };
+                }
             }
         } else {
             let listener_type = if ty_str.contains(TANGLE_EVENT_LISTENER_TAG) {
@@ -220,14 +222,14 @@ impl Parse for EventListenerArgs {
                 ListenerType::Custom
             };
 
-            this_listener = SingleListener {
+            SingleListener {
                 listener,
                 #[cfg(feature = "evm")]
                 evm_args: None,
                 listener_type,
                 post_processor,
                 pre_processor,
-            };
+            }
         };
 
         Ok(Self {

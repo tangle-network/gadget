@@ -118,7 +118,7 @@ impl<C: ThreadSafeCloneable, E: EventMatcher>
             .blocks()
             .subscribe_finalized()
             .await
-            .map_err(|e| Self::ProcessorError::from(e))?;
+            .map_err(Self::ProcessorError::from)?;
         let listener = Mutex::new(blocks);
 
         let (tx, rx) = tokio::sync::oneshot::channel();

@@ -39,7 +39,7 @@ impl<E: SolEvent + Send + Sync + 'static>
         let chain_id = provider
             .get_chain_id()
             .await
-            .map_err(|e| Self::ProcessorError::from(e))?;
+            .map_err(Self::ProcessorError::from)?;
 
         let local_db = LocalDatabase::open(format!("./db/{}", Uuid::new_v4()));
         Ok(Self {
