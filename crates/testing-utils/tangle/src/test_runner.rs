@@ -13,20 +13,27 @@ use tracing::info;
 pub struct RunnerSetup<C: BlueprintConfig> {
     pub config: C,
     pub setup: Box<
-        dyn FnOnce(&mut BlueprintRunner) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>
+        dyn for<'r> FnOnce(
+                &'r mut BlueprintRunner,
+            )
+                -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'static>>
             + Send,
     >,
 }
 
 impl<C: BlueprintConfig> RunnerSetup<C> {
-    pub fn new<F, Fut>(config: C, setup: F) -> Self
+    pub fn new<F>(config: C, setup: F) -> Self
     where
-        F: FnOnce(&mut BlueprintRunner) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<(), Error>> + Send + 'static,
+        F: for<'r> FnOnce(
+                &'r mut BlueprintRunner,
+            )
+                -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'static>>
+            + Send
+            + 'static,
     {
         RunnerSetup {
             config,
-            setup: Box::new(move |runner| Box::pin(setup(runner))),
+            setup: Box::new(setup),
         }
     }
 }
@@ -149,9 +156,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_runners() {
-        let env = RunnerTestEnv::new().unwrap();
-
-        let test_runner = |_runner: &mut BlueprintRunner| async { Ok(()) };
+        let test_runner = |_runner: &mut BlueprintRunner| {
+            Box::pin(async { Ok(()) })
+                as Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'static>>
+        };
 
         let setups = vec![
             RunnerSetup::new(MockConfig::default(), test_runner),
@@ -159,6 +167,7 @@ mod tests {
             RunnerSetup::new(MockConfig::default(), test_runner),
         ];
 
+        let env = RunnerTestEnv::new().unwrap();
         env.run_multiple_runners(setups).await.unwrap();
     }
 }
