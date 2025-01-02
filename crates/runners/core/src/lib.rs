@@ -4,4 +4,4 @@ pub mod jobs;
 pub mod runner;
 
 #[cfg(test)]
-mod runner_test;
+mod tests;

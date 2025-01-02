@@ -1,13 +1,12 @@
-use gadget_event_listeners_tangle::events::TangleEventListener;
-use gadget_event_listeners_tangle::services::{services_post_processor, services_pre_processor};
+use gadget_event_listeners::tangle::events::TangleEventListener;
+use gadget_event_listeners::tangle::services::{services_post_processor, services_pre_processor};
 use gadget_macros::contexts::{ServicesContext, TangleClientContext};
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_macros::job;
 use gadget_std::convert::Infallible;
 
-// TODO(donovan): Finish these tests
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct MyContext {
