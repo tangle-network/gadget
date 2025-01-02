@@ -13,7 +13,7 @@ pub fn generate_context_impl(
     }: DeriveInput,
     config_field: FieldInfo,
 ) -> proc_macro2::TokenStream {
-    let _field_access = match config_field {
+    let field_access = match config_field {
         FieldInfo::Named(ident) => quote! { self.#ident },
         FieldInfo::Unnamed(index) => quote! { self.#index },
     };
@@ -25,14 +25,14 @@ pub fn generate_context_impl(
         impl #impl_generics ::gadget_macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
             fn p2p_client(
                 &self,
-                name: gadget_macros::ext::contexts::p2p::proc_macro2::Ident,
+                name: ::gadget_macros::ext::std::string::String,
                 target_addr: gadget_std::net::IpAddr,
                 target_port: u16,
                 my_ecdsa_key: gadget_macros::ext::contexts::p2p::GossipMsgKeyPair,
             ) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
                 ::gadget_macros::ext::contexts::p2p::P2PClient::new(
-                    name.clone(),
-                    self.config.clone(),
+                    name,
+                    #field_access.clone(),
                     target_addr,
                     target_port,
                     my_ecdsa_key.clone()

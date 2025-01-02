@@ -18,6 +18,9 @@ gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle"] }
 
+[build-dependencies]
+blueprint-metadata.workspace = true
+
 [features]
 
 [package.metadata.blueprint]
