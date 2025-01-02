@@ -286,7 +286,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             // identity transformation
             quote! {
                 |evt| async move {
-                    Ok(evt)
+                    Ok(Some(evt))
                 }
             }
         };
