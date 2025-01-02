@@ -9,14 +9,17 @@ use gadget_contexts::p2p::P2pContext as _;
 use gadget_contexts::services::ServicesContext as _;
 use gadget_contexts::tangle::TangleClientContext as _;
 use gadget_macros::ext::clients::GadgetServicesClient as _;
-use gadget_macros::ext::crypto::k256_crypto::K256VerifyingKey;
+use gadget_macros::ext::crypto::sp_core_crypto::SpEcdsaPublic;
+use gadget_macros::ext::keystore::backends::tangle::TangleBackend;
 use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
-use gadget_networking::GossipMsgPublicKey;
+use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};
 use gadget_std::collections::BTreeMap;
 use gadget_std::sync::Arc;
 use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv4Addr};
+use subxt_core::ext::sp_core::Pair;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
 #[allow(dead_code)]
@@ -40,7 +43,7 @@ fn main() {
         };
 
         // Test existing context functions
-        let _keystore = ctx.keystore();
+        let keystore = ctx.keystore();
         let _evm_provider = ctx.evm_client();
         let tangle_client = ctx.tangle_client().await.unwrap();
         let _services_client = ctx.services_client().await;
@@ -49,7 +52,14 @@ fn main() {
             .current_service_operators([0; 32], 0)
             .await
             .unwrap();
-        let p2p_client = ctx.p2p_client();
+        let pub_key = keystore.ecdsa_generate_new(None).unwrap();
+        let pair = keystore.expose_ecdsa_secret(&pub_key).unwrap().unwrap();
+        let p2p_client = ctx.p2p_client(
+            String::from("Foo"),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            1337,
+            GossipMsgKeyPair(pair.clone()),
+        );
 
         // Test MPC context utility functions
         let _config = p2p_client.config();
@@ -61,7 +71,7 @@ fn main() {
         let party_index = 0;
         let task_hash = [0u8; 32];
         let mut parties = BTreeMap::<u16, _>::new();
-        parties.insert(0, K256VerifyingKey::from_bytes(&[0u8; 33]).unwrap());
+        parties.insert(0, SpEcdsaPublic(pair.public()));
 
         // Test network delivery wrapper creation
         let _network_wrapper = p2p_client.create_network_delivery_wrapper::<StubMessage>(

@@ -7,7 +7,7 @@ pub use proc_macro2;
 pub trait P2pContext {
     fn p2p_client(
         &self,
-        name: proc_macro2::Ident,
+        name: gadget_std::string::String,
         target_addr: IpAddr,
         target_port: u16,
         my_ecdsa_key: GossipMsgKeyPair,

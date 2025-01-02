@@ -9,15 +9,15 @@ gadget-logging.workspace = true
 gadget-std = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 
 [features]
 default = ["std"]
 std = [
-    "gadget-std/std",
-    "gadget-logging/std",
-    "tokio/full",
+	"gadget-std/std",
+	"gadget-logging/std",
+	"tokio/full",
 ]
 testing = [
-    "dep:futures"
+	"dep:futures"
 ]

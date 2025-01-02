@@ -11,16 +11,16 @@ use gadget_std::sync::Arc;
 use round_based::PartyIndex;
 
 pub struct P2PClient {
-    pub name: proc_macro2::Ident,
-    pub config: GadgetConfiguration,
-    pub target_addr: IpAddr,
-    pub target_port: u16,
-    pub gossip_msg_keypair: GossipMsgKeyPair,
+    name: String,
+    config: GadgetConfiguration,
+    target_addr: IpAddr,
+    target_port: u16,
+    gossip_msg_keypair: GossipMsgKeyPair,
 }
 
 impl P2PClient {
     pub fn new(
-        name: proc_macro2::Ident,
+        name: String,
         config: GadgetConfiguration,
         target_addr: IpAddr,
         target_port: u16,
@@ -41,10 +41,10 @@ impl P2PClient {
 
     /// Returns the network protocol identifier
     pub fn network_protocol(&self, version: Option<String>) -> String {
-        let name = self.name.to_string();
+        let name = self.name.to_lowercase();
         match version {
-            Some(v) => format!("/{}/{}", name.to_lowercase(), v),
-            None => format!("/{}/1.0.0", name.to_lowercase()),
+            Some(v) => format!("/{}/{}", name, v),
+            None => format!("/{}/1.0.0", name),
         }
     }
 
