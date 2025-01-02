@@ -12,11 +12,19 @@ publish = false
 [dependencies]
 # Gadget dependencies
 gadget-std = { workspace = true, features = ["std"] }
-gadget-event-listeners-tangle = { workspace = true, features = ["std"] }
+# gadget-event-listeners-tangle = { workspace = true, features = ["std"] }
+gadget-event-listeners = { workspace = true, features = ["std", "tangle"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+gadget-client-tangle = { workspace = true }
+gadget-runner-tangle = { workspace = true }
+gadget-testing-utils = { workspace = true, features = ["tangle"] }
+async-trait = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata.workspace = true
