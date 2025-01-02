@@ -118,6 +118,7 @@ where
 
 pub type BoxedFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 
+#[allow(clippy::type_complexity)]
 pub struct EventFlowWrapper<
     Ctx: Send + 'static,
     Event: Send + 'static,

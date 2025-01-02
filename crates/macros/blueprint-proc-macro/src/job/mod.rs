@@ -70,14 +70,12 @@ impl JobDef {
 
         if self.args.skip_codegen {
             let input = &self.input;
-            let gen = quote! {
+            return Ok(quote! {
                 #job_const_block
 
                 #[allow(unused_variables)]
                 #input
-            };
-
-            return Ok(gen.into());
+            });
         }
 
         let (event_listener_gen, event_listener_calls) = generate_event_workflow_tokenstream(
@@ -108,7 +106,7 @@ impl JobDef {
 
         // Generates final TokenStream that will be returned
         let input = &self.input;
-        let gen = quote! {
+        Ok(quote! {
             #job_const_block
 
             #autogen_struct
@@ -119,9 +117,7 @@ impl JobDef {
             #input
 
             #additional_specific_logic
-        };
-
-        Ok(gen.into())
+        })
     }
 }
 
