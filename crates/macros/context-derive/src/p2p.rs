@@ -26,14 +26,12 @@ pub fn generate_context_impl(
             fn p2p_client(
                 &self,
                 name: ::gadget_macros::ext::std::string::String,
-                target_addr: gadget_std::net::IpAddr,
                 target_port: u16,
                 my_ecdsa_key: gadget_macros::ext::contexts::p2p::GossipMsgKeyPair,
             ) -> ::gadget_macros::ext::contexts::p2p::P2PClient {
                 ::gadget_macros::ext::contexts::p2p::P2PClient::new(
                     name,
                     #field_access.clone(),
-                    target_addr,
                     target_port,
                     my_ecdsa_key.clone()
                 )
