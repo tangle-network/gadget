@@ -7,7 +7,7 @@ edition = "2021"
 gadget-runners = { workspace = true, features = ["std"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
-
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 async-trait = { workspace = true }
