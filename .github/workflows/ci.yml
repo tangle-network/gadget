@@ -82,7 +82,6 @@ jobs:
             # Clients
             gadget-client-eigenlayer,
             gadget-client-evm,
-            gadget-client-networking,
             gadget-client-tangle,
 
             # Crypto
