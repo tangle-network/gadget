@@ -576,6 +576,18 @@ mod tests {
         )
         .expect("Failed to convert command output to string");
         let base_path = PathBuf::from(output.trim()).join("blueprints/incredible-squaring/");
+
+        let output = std::process::Command::new("cargo")
+            .arg("build")
+            .current_dir(&base_path)
+            .output()
+            .expect("Failed to run cargo build");
+        assert!(
+            output.status.success(),
+            "Failed to build incredible-squaring: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
         let blueprint_path = base_path.join("blueprint.json");
 
         let blueprint_content =
