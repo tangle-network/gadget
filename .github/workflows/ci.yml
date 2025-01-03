@@ -105,6 +105,7 @@ jobs:
             gadget-logging,
             gadget-std,
             gadget-utils-tangle,
+            gadget-networking,
           ]
     steps:
       - name: checkout code
@@ -129,8 +130,18 @@ jobs:
           tool: nextest
 
       - name: tests
+        if: matrix.package != 'gadget-networking'
         run: cargo nextest run --profile ci --package ${{ matrix.package }}
+
+      - name: networking tests
+        if: matrix.package == 'gadget-networking'
+        run: cargo nextest run --profile serial --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
+        if: matrix.package != 'gadget-networking'
         run: cargo test --package ${{ matrix.package }} --doc
+
+      - name: networking doc tests
+        if: matrix.package == 'gadget-networking'
+        run: cargo test --package ${{ matrix.package }} --doc -- --test-threads=1

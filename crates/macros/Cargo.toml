@@ -53,6 +53,7 @@ std = [
 	"gadget-std/std",
 	"tangle-subxt?/std",
 ]
+
 web = [
 	"gadget-clients?/web",
 	"gadget-event-listeners?/web",
@@ -75,6 +76,7 @@ tangle = [
 	"gadget-blueprint-proc-macro/tangle",
 	"gadget-testing-utils/tangle",
 ]
+
 evm = [
 	"dep:alloy-network",
 	"dep:alloy-transport",
