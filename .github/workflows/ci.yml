@@ -86,8 +86,6 @@ jobs:
             gadget-client-tangle,
 
             # Crypto
-            gadget-crypto,
-            gadget-crypto-core,
             gadget-crypto-sp-core,
             gadget-crypto-ed25519,
             gadget-crypto-bls,
