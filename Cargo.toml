@@ -130,23 +130,17 @@ async-trait = { version = "0.1.82", default-features = false }
 futures = { version = "0.3.30", default-features = false }
 futures-util = { version = "0.3.31", default-features = false }
 tokio = { version = "1.40", default-features = false }
-tokio-stream = { version = "0.1.16", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.21.3", default-features = false }
-cargo_toml = { version = "0.20.5", default-features = false }
 clap = { version = "4.5.16" }
 clap-cargo = { version = "0.14", default-features = false }
-cfg-if = { version = "1.0.0", default-features = false }
 toml = { version = "0.8.19", default-features = false }
 
 # Cryptography & Blockchain
-bip39 = { version = "2.1.0", default-features = false }
 ed25519-zebra = { version = "4", default-features = false }
-elliptic-curve = { version = "0.13.8", default-features = false }
 ethereum-types = { version = "0.14.1", default-features = false }
-getrandom = { version = "0.2.15", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 k256 = { version = "0.13.3", default-features = false }
 rand = { version = "0.8.5", default-features = false }
@@ -163,37 +157,22 @@ serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_test = { version = "1.0.177", default-features = false }
-serde_derive = { version = "1.0.216", default-features = false }
 
 # Error Handling & Logging
 anyhow = { version = "1.0.93", default-features = false }
-backon = { version = "1.2.0", default-features = false }
 color-eyre = { version = "0.6", default-features = false }
-eyre = { version = "0.6.12", default-features = false }
-failure = { version = "0.1.8", default-features = false }
 log = { version = "0.4.22", default-features = false }
 thiserror = { version = "2.0.6", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 
 # Networking & HTTP
-bollard = { version = "0.17", default-features = false }
-http-body-util = { version = "0.1.2", default-features = false }
-hyper = { version = "1.4.1", default-features = false }
-hyper-util = { version = "0.1.7", default-features = false }
-jsonrpc-core = { version = "18.0.0", default-features = false }
-jsonrpc-http-server = { version = "18.0.0", default-features = false }
 libp2p = { version = "0.54", default-features = false }
-matchbox_socket = { version = "0.10.0", default-features = false }
-multiaddr = { version = "0.18.1", default-features = false }
 reqwest = { version = "0.12.7", default-features = false }
 url = { version = "2.5.2", default-features = false }
-jsonrpsee = { version = "0.22.5", default-features = false }
 
 # System & OS
-environmental = { version = "1.1.4", default-features = false }
 fs2 = { version = "0.4", default-features = false }
-lazy_static = { version = "1.5.0", default-features = false }
 lock_api = { version = "0.4.12", default-features = false }
 nix = { version = "0.29.0", default-features = false }
 parking_lot = { version = "0.12.3", default-features = false }
@@ -201,21 +180,17 @@ sysinfo = { version = "0.31.2", default-features = false }
 tempfile = { version = "3.10.1", default-features = false }
 uuid = { version = "1.10.0", default-features = false }
 blake3 = { version = "1.5.5", default-features = false }
-erased-serde = { version = "0.4", default-features = false }
 
 # Development & Testing
 auto_impl = { version = "1.2.0", default-features = false }
-derive_more = { version = "1.0.0", default-features = false }
 escargot = { version = "0.5.12", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
 paste = { version = "1.0.15", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
 quote = { version = "1.0", default-features = false }
 rustdoc-types = { version = "0.31.0", default-features = false }
-sqlx = { version = "=0.7.3", default-features = false }
 syn = { version = "2.0.75", default-features = false }
 trybuild = { version = "1.0", default-features = false }
-tsify = { version = "0.4.5", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
 
 # Alloy (EVM)
@@ -243,7 +218,6 @@ ripemd = { version = "0.1.3", default-features = false }
 alloy-signer-aws = { version = "0.7.3", default-features = false }
 alloy-signer-gcp = { version = "0.7.3", default-features = false }
 alloy-signer-ledger = { version = "0.5", default-features = false, features = ["eip712"] }
-alloy-signer-trezor = { version = "0.7.3", default-features = false }
 aws-config = { version = "1", default-features = false }
 aws-sdk-kms = { version = "1", default-features = false }
 gcloud-sdk = { version = "0.25", default-features = false }
@@ -252,7 +226,6 @@ gcloud-sdk = { version = "0.25", default-features = false }
 ark-bn254 = { version = "0.5.0", default-features = false }
 ark-ec = { version = "0.5.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
-ark-std = { version = "0.5.0", default-features = false }
 ark-serialize = { version = "0.5.0", default-features = false, features = ["derive"] }
 num-bigint = { version = "0.4.6", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
@@ -271,8 +244,6 @@ lru-mem = { version = "0.3.0", default-features = false }
 
 # Metrics
 metrics = { version = "0.24.1", default-features = false }
-metrics-exporter-prometheus = { version = "0.16" }
-prometheus = { version = "0.13.4", default-features = false }
 
 [profile.dev.package.backtrace]
 opt-level = 3
