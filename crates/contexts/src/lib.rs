@@ -10,3 +10,8 @@ pub mod p2p;
 pub mod services;
 #[cfg(feature = "tangle")]
 pub mod tangle;
+
+#[test]
+fn it_works() {
+    assert_eq!(2 + 2, 4);
+}
