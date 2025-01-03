@@ -76,9 +76,18 @@ jobs:
       matrix:
         package:
           [
-            gadget-blueprint-serde,
-            gadget-clients,
-            gadget-contexts,
+            # Macros
+            gadget-blueprint-proc-macro,
+            gadget-blueprint-proc-macro-core,
+            gadget-context-derive,
+
+            # Clients
+            gadget-client-eigenlayer,
+            gadget-client-evm,
+            gadget-client-networking,
+            gadget-client-tangle,
+
+            # Crypto
             gadget-crypto,
             gadget-crypto-core,
             gadget-crypto-sp-core,
@@ -87,10 +96,16 @@ jobs:
             gadget-crypto-k256,
             gadget-crypto-sr25519,
             gadget-crypto-tangle-pair-signer,
+
+            # Event listeners
             gadget-event-listeners-core,
             gadget-event-listeners-evm,
             gadget-event-listeners-periodic,
             gadget-event-listeners-tangle,
+
+            gadget-blueprint-serde,
+            gadget-config,
+            gadget-executor,
             gadget-keystore,
             gadget-logging,
             gadget-std,
@@ -121,7 +136,7 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}
+        run: cargo nextest run --profile ci --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
