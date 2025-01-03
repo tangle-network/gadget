@@ -4948,7 +4948,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-anvil-utils"
+name = "gadget-anvil-testing-utils"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
@@ -5033,7 +5033,7 @@ dependencies = [
  "alloy-pubsub",
  "alloy-transport",
  "eigensdk",
- "gadget-anvil-utils",
+ "gadget-anvil-testing-utils",
  "gadget-config",
  "gadget-std",
  "gadget-utils-evm",
@@ -5062,7 +5062,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
- "gadget-anvil-utils",
+ "gadget-anvil-testing-utils",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
@@ -5178,6 +5178,22 @@ dependencies = [
  "gadget-std",
  "proc-macro2",
  "subxt",
+]
+
+[[package]]
+name = "gadget-core-testing-utils"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "gadget-config",
+ "gadget-logging",
+ "gadget-runners",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.7",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -5682,16 +5698,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-tangle-utils"
+name = "gadget-tangle-testing-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "futures-util",
  "gadget-config",
+ "gadget-core-testing-utils",
  "gadget-logging",
  "gadget-runners",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.7",
  "tokio",
  "tracing",
 ]
@@ -5700,8 +5719,9 @@ dependencies = [
 name = "gadget-testing-utils"
 version = "0.1.0"
 dependencies = [
- "gadget-anvil-utils",
- "gadget-tangle-utils",
+ "gadget-anvil-testing-utils",
+ "gadget-core-testing-utils",
+ "gadget-tangle-testing-utils",
 ]
 
 [[package]]

@@ -11,7 +11,7 @@ use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::core::runner::BlueprintRunner;
 use gadget_std::{future::Future, pin::Pin};
-use gadget_testing_utils::tangle_utils::test_runner::{RunnerSetup, RunnerTestEnv};
+use gadget_testing_utils::tangle_utils::runner::{RunnerSetup, RunnerTestEnv};
 use gadget_testing_utils::tangle_utils::Error as TangleError;
 
 #[derive(Clone)]

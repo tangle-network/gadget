@@ -1,19 +1,16 @@
 [package]
-name = "gadget-tangle-testing-utils"
+name = "gadget-core-testing-utils"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gadget-runners = { workspace = true, features = ["tangle", "std"] }
-gadget-config = { workspace = true, features = ["tangle", "std"] }
+gadget-runners = { workspace = true, features = ["std"] }
+gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
-gadget-core-testing-utils = { workspace = true }
-
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
-futures-util = { workspace = true }
 async-trait = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }

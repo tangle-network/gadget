@@ -1,4 +1,4 @@
-use gadget_sdk::contexts::KeystoreContext;
+use gadget_context_derive::KeystoreContext;
 
 #[derive(KeystoreContext)]
 struct MyContext;

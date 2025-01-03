@@ -1,9 +1,12 @@
+pub use error::TestRunnerError;
 use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
+pub use runner::{GenericTestRunner, PlatformConfig, TestJob};
 use std::io::Write;
 use std::path::Path;
 
-pub use gadget_core_testing_utils::Error;
+mod error;
+pub use error::TestRunnerError as Error;
 
 pub mod runner;
 

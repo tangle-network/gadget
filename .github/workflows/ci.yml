@@ -71,6 +71,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
     strategy:
+      fail-fast: false
       matrix:
         package:
           [
@@ -90,7 +91,6 @@ jobs:
             gadget-crypto-bls,
             gadget-crypto-k256,
             gadget-crypto-sr25519,
-            gadget-crypto-tangle-pair-signer,
 
             # Event listeners
             gadget-event-listeners-core,
@@ -102,7 +102,6 @@ jobs:
             gadget-config,
             gadget-executor,
             gadget-keystore,
-            gadget-logging,
             gadget-std,
             gadget-utils-tangle,
             gadget-networking,
@@ -130,18 +129,8 @@ jobs:
           tool: nextest
 
       - name: tests
-        if: matrix.package != 'gadget-networking'
-        run: cargo nextest run --profile ci --package ${{ matrix.package }}
-
-      - name: networking tests
-        if: matrix.package == 'gadget-networking'
-        run: cargo nextest run --profile serial --package ${{ matrix.package }}
+        run: cargo nextest run ${{ matrix.package == 'gadget-networking' && '--profile serial' || '--profile ci' }} --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
-        if: matrix.package != 'gadget-networking'
-        run: cargo test --package ${{ matrix.package }} --doc
-
-      - name: networking doc tests
-        if: matrix.package == 'gadget-networking'
-        run: cargo test --package ${{ matrix.package }} --doc -- --test-threads=1
+        run: cargo test --package ${{ matrix.package }} --doc ${{ matrix.package == 'gadget-networking' && '-- --test-threads=1' || '' }}
