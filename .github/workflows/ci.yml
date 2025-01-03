@@ -65,7 +65,7 @@ jobs:
         run: cargo clippy --tests --examples -- -D warnings
 
   testing:
-    timeout-minutes: 90
+    timeout-minutes: 30
     name: cargo test
     runs-on: ubuntu-latest
     env:
