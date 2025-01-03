@@ -36,7 +36,7 @@ jobs:
   linting:
     timeout-minutes: 120
     name: cargo clippy
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -62,8 +62,10 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf
+      - name: install protobuf and gmp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
@@ -71,7 +73,7 @@ jobs:
   testing:
     timeout-minutes: 90
     name: cargo test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         package:
@@ -124,13 +126,10 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf gmp
-
-      - name: Set Relevant M1 env vars
+      - name: install protobuf and gmp
         run: |
-          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
