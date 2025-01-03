@@ -7,7 +7,7 @@ compile_error!("evm feature is currently only supported on std");
 pub mod ext {
     pub use async_trait;
     pub use futures;
-    #[cfg(any(feature = "tangle", feature = "evm"))]
+    #[cfg(any(feature = "tangle", feature = "evm", feature = "std"))]
     pub use tokio;
 
     #[cfg(feature = "std")]
