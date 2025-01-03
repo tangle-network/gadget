@@ -40,3 +40,44 @@ impl<
         self.listener.next_event().await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn periodic_event_listener() {
+        struct UnitListener;
+
+        #[async_trait]
+        impl EventListener<(), ()> for UnitListener {
+            type ProcessorError = gadget_event_listeners_core::error::Unit;
+
+            async fn new(_context: &()) -> Result<Self, CoreError<Self::ProcessorError>>
+            where
+                Self: Sized,
+            {
+                Ok(UnitListener)
+            }
+
+            async fn next_event(&mut self) -> Option<()> {
+                Some(())
+            }
+        }
+
+        let mut listener = PeriodicEventListener::<100, UnitListener, (), ()>::new(&())
+            .await
+            .unwrap();
+
+        let mut units = Vec::new();
+        tokio::time::timeout(Duration::from_millis(310), async {
+            while units.len() < 3 {
+                units.push(listener.next_event().await.unwrap());
+            }
+        })
+        .await
+        .expect("Not all events completed");
+
+        assert_eq!(units.len(), 3);
+    }
+}
