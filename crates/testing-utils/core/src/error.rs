@@ -1,6 +1,5 @@
 use gadget_runners::core::error::RunnerError;
-use std::error::Error as StdError;
-use std::fmt;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TestRunnerError {

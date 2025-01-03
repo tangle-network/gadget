@@ -1,36 +1,62 @@
 use async_trait::async_trait;
-use futures::Future;
-use std::marker::PhantomData;
-use std::path::PathBuf;
-use std::pin::Pin;
-use tempfile::TempDir;
-use thiserror::Error;
-use tokio::task::JoinHandle;
-use gadget_logging::{error, info};
 
 use gadget_config::GadgetConfiguration;
-use gadget_runners::core::{config::BlueprintConfig, error::RunnerError, runner::BlueprintRunner};
+use gadget_core_testing_utils::{PlatformConfig, TestRunnerError};
+use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::tangle::tangle::TangleConfig;
-use gadget_core_testing_utils::runner::PlatformConfig;
-use gadget_core_testing_utils::TestRunnerError;
+
+// Newtype wrapper around TangleConfig to implement external traits
+#[derive(Clone)]
+pub struct TangleTestConfig(TangleConfig);
+
+impl From<TangleConfig> for TangleTestConfig {
+    fn from(config: TangleConfig) -> Self {
+        TangleTestConfig(config)
+    }
+}
+
+impl std::ops::Deref for TangleTestConfig {
+    type Target = TangleConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[async_trait]
-impl PlatformConfig for TangleConfig {
+impl PlatformConfig for TangleTestConfig {
     async fn init(&self, env: &GadgetConfiguration) -> Result<(), TestRunnerError> {
-        // Tangle-specific initialization
         if self
             .requires_registration(env)
+            .await
             .map_err(|e| TestRunnerError::SetupError(e.to_string()))?
         {
             self.register(env)
+                .await
                 .map_err(|e| TestRunnerError::SetupError(e.to_string()))?;
         }
         Ok(())
     }
 
     async fn cleanup(&self) -> Result<(), TestRunnerError> {
-        // Tangle-specific cleanup if needed
         Ok(())
+    }
+}
+
+#[async_trait]
+impl BlueprintConfig for TangleTestConfig {
+    async fn register(
+        &self,
+        env: &GadgetConfiguration,
+    ) -> Result<(), gadget_runners::core::error::RunnerError> {
+        self.0.register(env).await
+    }
+
+    async fn requires_registration(
+        &self,
+        env: &GadgetConfiguration,
+    ) -> Result<bool, gadget_runners::core::error::RunnerError> {
+        self.0.requires_registration(env).await
     }
 }
 
@@ -60,10 +86,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_single_job() {
-        let runner =
-            GenericTestRunner::<tangle::TangleConfig, MockJob>::new(TangleConfig::default(), None)
-                .await
-                .unwrap();
+        let runner = GenericTestRunner::<TangleTestConfig, MockJob>::new(
+            TangleTestConfig::from(TangleConfig::default()),
+            None,
+        )
+        .await
+        .unwrap();
 
         let job = MockJob {
             result: Arc::from("test_result"),
@@ -75,10 +103,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_jobs() {
-        let runner =
-            GenericTestRunner::<tangle::TangleConfig, MockJob>::new(TangleConfig::default(), None)
-                .await
-                .unwrap();
+        let runner = GenericTestRunner::<TangleTestConfig, MockJob>::new(
+            TangleTestConfig::from(TangleConfig::default()),
+            None,
+        )
+        .await
+        .unwrap();
 
         let jobs = vec![
             MockJob {

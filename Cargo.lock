@@ -5180,6 +5180,7 @@ dependencies = [
  "gadget-runners",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.7",
  "tokio",
  "tracing",
 ]
@@ -5690,12 +5691,14 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "futures-util",
  "gadget-config",
  "gadget-core-testing-utils",
  "gadget-logging",
  "gadget-runners",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.7",
  "tokio",
  "tracing",
 ]
