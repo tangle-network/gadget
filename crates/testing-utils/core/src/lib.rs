@@ -1,7 +1,7 @@
 pub use error::TestRunnerError;
 use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
-pub use runner::{GenericTestRunner, PlatformConfig, TestJob};
+pub use runner::{GenericTestEnv, RunnerSetup};
 use std::io::Write;
 use std::path::Path;
 
