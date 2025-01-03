@@ -68,6 +68,8 @@ jobs:
     timeout-minutes: 90
     name: cargo test
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
     strategy:
       matrix:
         package:
@@ -125,8 +127,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
 
       - name: tests
         run: cargo nextest run --profile ci --package ${{ matrix.package }}
