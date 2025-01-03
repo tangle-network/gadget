@@ -63,6 +63,8 @@ impl BlueprintConfig for TangleTestConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gadget_core_testing_utils::{GenericTestRunner, TestJob};
+    use gadget_runners::core::runner::BlueprintRunner;
     use std::sync::Arc;
 
     // Mock implementation for testing
