@@ -18,7 +18,6 @@ use gadget_std::sync::Arc;
 use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, Ipv4Addr};
 use subxt_core::ext::sp_core::Pair;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
@@ -54,12 +53,7 @@ fn main() {
             .unwrap();
         let pub_key = keystore.ecdsa_generate_new(None).unwrap();
         let pair = keystore.expose_ecdsa_secret(&pub_key).unwrap().unwrap();
-        let p2p_client = ctx.p2p_client(
-            String::from("Foo"),
-            IpAddr::V4(Ipv4Addr::LOCALHOST),
-            1337,
-            GossipMsgKeyPair(pair.clone()),
-        );
+        let p2p_client = ctx.p2p_client(String::from("Foo"), 1337, GossipMsgKeyPair(pair.clone()));
 
         // Test MPC context utility functions
         let _config = p2p_client.config();

@@ -8,7 +8,6 @@ pub trait P2pContext {
     fn p2p_client(
         &self,
         name: gadget_std::string::String,
-        target_addr: IpAddr,
         target_port: u16,
         my_ecdsa_key: GossipMsgKeyPair,
     ) -> P2PClient;

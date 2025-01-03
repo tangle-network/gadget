@@ -6,14 +6,12 @@ use gadget_networking::setup::NetworkConfig;
 use gadget_networking::{networking::NetworkMultiplexer, round_based};
 use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};
 use gadget_std::collections::BTreeMap;
-use gadget_std::net::IpAddr;
 use gadget_std::sync::Arc;
 use round_based::PartyIndex;
 
 pub struct P2PClient {
     name: String,
     config: GadgetConfiguration,
-    target_addr: IpAddr,
     target_port: u16,
     gossip_msg_keypair: GossipMsgKeyPair,
 }
@@ -22,14 +20,12 @@ impl P2PClient {
     pub fn new(
         name: String,
         config: GadgetConfiguration,
-        target_addr: IpAddr,
         target_port: u16,
         gossip_msg_keypair: GossipMsgKeyPair,
     ) -> Self {
         Self {
             name,
             config,
-            target_addr,
             target_port,
             gossip_msg_keypair,
         }
