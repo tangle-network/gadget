@@ -102,7 +102,6 @@ jobs:
             gadget-config,
             gadget-executor,
             gadget-keystore,
-            gadget-logging,
             gadget-std,
             gadget-utils-tangle,
             gadget-networking,
