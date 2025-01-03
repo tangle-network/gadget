@@ -30,7 +30,7 @@ tokio-util = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
-gadget-anvil-utils = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true }
 gadget-utils-evm = { workspace = true }
 alloy-primitives = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

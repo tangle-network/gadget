@@ -1,5 +1,5 @@
 [package]
-name = "gadget-anvil-utils"
+name = "gadget-anvil-testing-utils"
 version = "0.1.0"
 edition = "2021"
 
