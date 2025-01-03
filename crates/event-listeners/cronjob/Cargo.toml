@@ -1,5 +1,5 @@
 [package]
-name = "gadget-event-listeners-periodic"
+name = "gadget-event-listeners-cronjob"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,6 +10,7 @@ gadget-logging = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
 
 [features]
 default = ["std"]
