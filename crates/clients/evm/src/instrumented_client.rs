@@ -813,7 +813,7 @@ mod tests {
         pubsub::SubscriptionResult, BlockId, BlockNumberOrTag, BlockTransactionsKind,
     };
     use alloy_signer_local::PrivateKeySigner;
-    use gadget_anvil_utils::{start_anvil_container, wait_transaction, ANVIL_STATE_PATH};
+    use gadget_anvil_testing_utils::{start_anvil_container, wait_transaction, ANVIL_STATE_PATH};
     use gadget_utils_evm::get_provider_http;
     use tokio;
 
