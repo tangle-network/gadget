@@ -124,17 +124,6 @@ round-based = { version = "0.3.0", default-features = false }
 # Substrate dependencies
 sp-core = { version = "31.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
-sp-runtime = { version = "39.0.0", default-features = false }
-sc-utils = { version = "17.0.0", default-features = false }
-sp-api = { version = "34.0.0", default-features = false }
-sp-application-crypto = { version = "34.0.0", default-features = false }
-sp-keystore = { version = "0.37.0", default-features = false }
-sp-externalities = { version = "0.27.0", default-features = false }
-sc-client-api = { version = "37.0.0", default-features = false }
-sc-keystore = { version = "28.0.0", default-features = false }
-parity-scale-codec = { version = "3.6.12", default-features = false }
-scale-info = { version = "2.11.3", default-features = false }
 
 # Async & Runtime
 async-trait = { version = "0.1.82", default-features = false }
@@ -269,15 +258,6 @@ num-bigint = { version = "0.4.6", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
 rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
-
-# WebAssembly
-js-sys = { version = "0.3.70", default-features = false }
-serde-wasm-bindgen = { version = "0.6.5", default-features = false }
-wasm-bindgen = { version = "0.2.93", default-features = false }
-wasm-bindgen-futures = { version = "0.4.43", default-features = false }
-wasmtime = { version = "23.0.2", default-features = false }
-wasmtimer = { version = "0.2", default-features = false }
-secp256k1 = { version = "0.29.1", default-features = false }
 
 # Eigenlayer
 eigensdk = { version = "0.1.1", default-features = false }
