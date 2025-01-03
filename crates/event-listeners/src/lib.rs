@@ -6,5 +6,5 @@ pub use gadget_event_listeners_evm as evm;
 #[cfg(feature = "tangle")]
 pub use gadget_event_listeners_tangle as tangle;
 
-#[cfg(feature = "periodic")]
-pub use gadget_event_listeners_periodic as periodic;
+#[cfg(feature = "cronjob")]
+pub use gadget_event_listeners_cronjob as cronjob;

@@ -65,7 +65,7 @@ gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-featu
 gadget-event-listeners = { version = "0.1.0", path = "./crates/event-listeners", default-features = false }
 gadget-event-listeners-core = { version = "0.1.0", path = "./crates/event-listeners/core", default-features = false }
 gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listeners/evm", default-features = false }
-gadget-event-listeners-periodic = { version = "0.1.0", path = "./crates/event-listeners/periodic", default-features = false }
+gadget-event-listeners-cronjob = { version = "0.1.0", path = "./crates/event-listeners/cronjob", default-features = false }
 gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
 
 # Executor
@@ -142,6 +142,7 @@ futures-util = { version = "0.3.31", default-features = false }
 tokio = { version = "1.40", default-features = false }
 tokio-stream = { version = "0.1.16", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
+tokio-cron-scheduler = "0.13.0"
 
 # CLI & Configuration
 cargo-generate = { version = "0.21.3", default-features = false }

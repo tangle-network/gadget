@@ -7,16 +7,16 @@ edition = "2021"
 gadget-std = { workspace = true }
 gadget-event-listeners-evm = { workspace = true, optional = true }
 gadget-event-listeners-core = { workspace = true }
-gadget-event-listeners-periodic = { workspace = true, optional = true }
+gadget-event-listeners-cronjob = { workspace = true, optional = true }
 gadget-event-listeners-tangle = { workspace = true, optional = true }
 
 [features]
-default = ["std", "evm", "periodic", "tangle"]
+default = ["std", "evm", "cronjob", "tangle"]
 std = [
     "gadget-std/std",
     "gadget-event-listeners-core/std",
     "gadget-event-listeners-evm?/std",
-    "gadget-event-listeners-periodic?/std",
+    "gadget-event-listeners-cronjob?/std",
     "gadget-event-listeners-tangle?/std",
 ]
 web = [
@@ -25,7 +25,7 @@ web = [
 
 
 evm = ["gadget-event-listeners-evm"]
-periodic = ["gadget-event-listeners-periodic"]
+cronjob = ["gadget-event-listeners-cronjob"]
 tangle = ["gadget-event-listeners-tangle"]
 testing = [
     "gadget-event-listeners-core/testing"
