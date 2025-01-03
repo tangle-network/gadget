@@ -90,7 +90,6 @@ jobs:
             gadget-crypto-bls,
             gadget-crypto-k256,
             gadget-crypto-sr25519,
-            gadget-crypto-tangle-pair-signer,
 
             # Event listeners
             gadget-event-listeners-core,
