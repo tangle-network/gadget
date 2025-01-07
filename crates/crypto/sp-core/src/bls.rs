@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use gadget_crypto_core::KeyEncoding;
 use gadget_std::{
     string::{String, ToString},

@@ -1,215 +1,299 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod error;
 #[cfg(feature = "bls")]
-mod sp_core_bls_util;
-mod sp_core_util;
+mod bls;
+#[cfg(feature = "bls")]
+pub use bls::*;
 
-#[cfg(feature = "bls")]
-pub use sp_core_bls_util::*;
-pub use sp_core_util::*;
+pub mod error;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use gadget_crypto_core::KeyType;
+mod tests;
 
-    mod ecdsa_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(SpEcdsa, SpEcdsaPair, SpEcdsaSignature);
-    }
+use gadget_crypto_core::KeyEncoding;
+use gadget_std::{string::String, vec::Vec};
+use sp_core::{ByteArray, Pair};
 
-    mod ed25519_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(SpEd25519, SpEd25519Pair, SpEd25519Signature);
-    }
+/// Implements serde and KeyType trait for any sp_core crypto type.
+///
+/// Implements common functionality for key pairs and public keys.
+macro_rules! impl_sp_core_pair_public {
+    ($key_type:ident, $pair_type:ty, $public:ty) => {
+        paste::paste! {
+            /// Wrapper struct for the cryptographic key pair.
+            ///
+            /// This provides a safe interface for serialization and deserialization
+            /// of the underlying key pair type.
+            #[derive(Clone)]
+            pub struct [<Sp $key_type Pair>](pub $pair_type);
 
-    mod sr25519_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(SpSr25519, SpSr25519Pair, SpSr25519Signature);
-    }
+            impl PartialEq for [<Sp $key_type Pair>] {
+                fn eq(&self, other: &Self) -> bool {
+                    self.to_bytes() == other.to_bytes()
+                }
+            }
 
-    mod bls381_tests {
-        use sp_core::Pair;
+            impl Eq for [<Sp $key_type Pair>] {}
 
-        use super::*;
+            impl PartialOrd for [<Sp $key_type Pair>] {
+                fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                    Some(self.cmp(other))
+                }
+            }
 
-        #[test]
-        fn test_bls381_key_generation() {
-            // Test random key generation
-            let secret = SpBls381::generate_with_seed(None).unwrap();
-            let public = SpBls381::public_from_secret(&secret);
+            impl Ord for [<Sp $key_type Pair>] {
+                fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                    self.to_bytes().cmp(&other.to_bytes())
+                }
+            }
 
-            // Test generation with seed
-            let seed: [u8; 32] = [1u8; 32];
-            let secret_with_seed = SpBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public_with_seed = SpBls381::public_from_secret(&secret_with_seed);
+            impl gadget_std::fmt::Debug for [<Sp $key_type Pair>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{:?}", self.to_bytes())
+                }
+            }
 
-            assert_ne!(
-                secret.0.to_raw_vec(),
-                secret_with_seed.0.to_raw_vec(),
-                "Random and seeded keys should be different"
-            );
-            assert_ne!(public, public_with_seed, "Public keys should be different");
+            impl serde::Serialize for [<Sp $key_type Pair>] {
+                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer,
+                {
+                    serializer.serialize_bytes(&self.to_bytes())
+                }
+            }
+
+            impl<'de> serde::Deserialize<'de> for [<Sp $key_type Pair>] {
+                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    let seed = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                    let pair = <$pair_type>::from_seed_slice(&seed).map_err(|_| serde::de::Error::custom("Invalid seed length"))?;
+                    Ok([<Sp $key_type Pair>](pair))
+                }
+            }
+
+            /// Wrapper struct for the cryptographic public key.
+            #[derive(Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<Sp $key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
+
+            impl KeyEncoding for [<Sp $key_type Public>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    Self::from_bytes_impl(bytes)
+                }
+            }
+
+            impl PartialEq for [<Sp $key_type Public>]{
+                fn eq(&self, other: &Self) -> bool {
+                    self.0 == other.0
+                }
+            }
+
+            impl Eq for [<Sp $key_type Public>]{}
+
+            impl PartialOrd for [<Sp $key_type Public>]{
+                fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                    Some(self.cmp(other))
+                }
+            }
+
+            impl Ord for [<Sp $key_type Public>]{
+                fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                    self.to_bytes().cmp(&other.to_bytes())
+                }
+            }
+
+            impl gadget_std::fmt::Debug for [<Sp $key_type Public>]{
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{:?}", self.to_bytes())
+                }
+            }
         }
+    };
+}
 
-        #[test]
-        fn test_bls381_sign_and_verify() {
-            let seed: [u8; 32] = [1u8; 32];
-            let mut secret = SpBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public = SpBls381::public_from_secret(&secret);
+/// Implements signature functionality for non-BLS signatures.
+macro_rules! impl_sp_core_signature {
+    ($key_type:ident, $pair_type:ty) => {
+        paste::paste! {
+            #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            pub struct [<Sp $key_type Signature>](pub <$pair_type as sp_core::Pair>::Signature);
 
-            // Test normal signing
-            let message = b"Hello, world!";
-            let signature = SpBls381::sign_with_secret(&mut secret, message).unwrap();
-            assert!(
-                SpBls381::verify(&public, message, &signature),
-                "Signature verification failed"
-            );
+            impl PartialOrd for [<Sp $key_type Signature>] {
+                fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                    Some(self.cmp(other))
+                }
+            }
 
-            // Test pre-hashed signing
-            let hashed_msg = [42u8; 32];
-            let signature =
-                SpBls381::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
+            impl Ord for [<Sp $key_type Signature>] {
+                fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                    self.0.0.cmp(&other.0.0)
+                }
+            }
 
-            // Verify with wrong message should fail
-            let wrong_message = b"Wrong message";
-            assert!(
-                !SpBls381::verify(&public, wrong_message, &signature),
-                "Verification should fail with wrong message"
-            );
+            impl gadget_std::fmt::Debug for [<Sp $key_type Signature>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{:?}", self.0.0)
+                }
+            }
         }
+    };
+}
 
-        #[test]
-        fn test_bls381_key_serialization() {
-            let seed: [u8; 32] = [1u8; 32];
-            let secret = SpBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public = SpBls381::public_from_secret(&secret);
+/// Implements KeyType trait for non-BLS signatures.
+macro_rules! impl_sp_core_key_type {
+    ($key_type:ident, $pair_type:ty) => {
+        paste::paste! {
+            pub struct [<Sp $key_type>];
 
-            // Test signing key serialization using seed
-            let serialized = serde_json::to_vec(&seed).unwrap();
-            let deserialized: SpBls381Pair = serde_json::from_slice(&serialized).unwrap();
-            assert_eq!(
-                secret.0.to_raw_vec(),
-                deserialized.0.to_raw_vec(),
-                "SigningKey serialization roundtrip failed"
-            );
+            impl gadget_crypto_core::KeyType for [<Sp $key_type>] {
+                type Public = [<Sp $key_type Public>];
+                type Secret = [<Sp $key_type Pair>];
+                type Signature = [<Sp $key_type Signature>];
+                type Error = $crate::error::SpCoreError;
 
-            // Test verifying key serialization
-            let serialized = serde_json::to_string(&public).unwrap();
-            let deserialized = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(
-                public, deserialized,
-                "VerifyingKey serialization roundtrip failed"
-            );
+                fn key_type_id() -> gadget_crypto_core::KeyTypeId {
+                    gadget_crypto_core::KeyTypeId::$key_type
+                }
+
+                fn generate_with_seed(seed: Option<&[u8]>) -> $crate::error::Result<Self::Secret> {
+                    match seed {
+                        Some(seed) => {
+                            if seed.len() != 32 {
+                                return Err($crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()));
+                            }
+                            let seed_array: [u8; 32] = seed.try_into()
+                                .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()))?;
+                            let pair = <$pair_type>::from_seed(&seed_array);
+                            Ok([<Sp $key_type Pair>](pair))
+                        }
+                        None => {
+                            #[cfg(feature = "std")]
+                            let (pair, _) = <$pair_type>::generate();
+                            #[cfg(not(feature = "std"))]
+                            let pair = {
+                                use gadget_std::Rng;
+                                let seed = Self::get_test_rng().gen::<[u8; 32]>();
+                                <$pair_type>::from_seed(&seed)
+                            };
+                            Ok([<Sp $key_type Pair>](pair))
+                        }
+                    }
+                }
+
+                fn generate_with_string(secret: String) -> $crate::error::Result<Self::Secret> {
+                    // For now, treat the string as a hex-encoded seed
+                    let seed = hex::decode(&secret)
+                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid hex string".into()))?;
+                    if seed.len() != 32 {
+                        return Err($crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()));
+                    }
+                    let seed_array: [u8; 32] = seed.try_into()
+                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid seed length".into()))?;
+                    let pair = <$pair_type>::from_seed(&seed_array);
+                    Ok([<Sp $key_type Pair>](pair))
+                }
+
+                fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+                    [<Sp $key_type Public>](secret.0.public())
+                }
+
+                fn sign_with_secret(
+                    secret: &mut Self::Secret,
+                    msg: &[u8],
+                ) -> $crate::error::Result<Self::Signature> {
+                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
+                }
+
+                fn sign_with_secret_pre_hashed(
+                    secret: &mut Self::Secret,
+                    msg: &[u8; 32],
+                ) -> $crate::error::Result<Self::Signature> {
+                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
+                }
+
+                fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+                    <$pair_type as sp_core::Pair>::verify(&signature.0, msg, &public.0)
+                }
+            }
+
+            impl [<Sp $key_type Pair>] {
+                pub fn public(&self) -> [<Sp $key_type Public>] {
+                    [<Sp $key_type Public>](self.0.public())
+                }
+            }
+
+            impl KeyEncoding for [<Sp $key_type Pair>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    let inner = <$pair_type>::from_seed_slice(bytes).map_err(|_| serde::de::Error::custom("Invalid seed length"))?;
+                    Ok(Self(inner))
+                }
+            }
+
+            impl gadget_std::ops::Deref for [<Sp $key_type Pair>] {
+                type Target = $pair_type;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl gadget_std::ops::DerefMut for [<Sp $key_type Pair>] {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.0
+                }
+            }
         }
+    };
+}
 
-        #[test]
-        fn test_bls381_signature_serialization() {
-            let seed: [u8; 32] = [1u8; 32];
-            let mut secret = SpBls381::generate_with_seed(Some(&seed)).unwrap();
-            let message = b"Test message";
-            let signature = SpBls381::sign_with_secret(&mut secret, message).unwrap();
+/// Implements both pair/public and signature traits for a given sp_core crypto type
+macro_rules! impl_sp_core_crypto {
+    ($key_type:ident, $module:ident) => {
+        impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, sp_core::$module::Public);
+        impl_sp_core_signature!($key_type, sp_core::$module::Pair);
+        impl_sp_core_key_type!($key_type, sp_core::$module::Pair);
+    };
+}
 
-            // Test signature serialization
-            let serialized = serde_json::to_string(&signature).unwrap();
-            let deserialized: SpBls381Signature = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(
-                signature, deserialized,
-                "Signature serialization roundtrip failed"
-            );
-        }
-    }
+impl_sp_core_crypto!(Ecdsa, ecdsa);
 
-    mod bls377_tests {
-        use sp_core::Pair;
-
-        use super::*;
-
-        #[test]
-        fn test_bls377_key_generation() {
-            // Test random key generation
-            let secret = SpBls377::generate_with_seed(None).unwrap();
-            let public = SpBls377::public_from_secret(&secret);
-
-            // Test generation with seed
-            let seed: [u8; 32] = [1u8; 32];
-            let secret_with_seed = SpBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public_with_seed = SpBls377::public_from_secret(&secret_with_seed);
-
-            assert_ne!(
-                secret.0.to_raw_vec(),
-                secret_with_seed.0.to_raw_vec(),
-                "Random and seeded keys should be different"
-            );
-            assert_ne!(public, public_with_seed, "Public keys should be different");
-        }
-
-        #[test]
-        fn test_bls377_sign_and_verify() {
-            let seed: [u8; 32] = [1u8; 32];
-            let mut secret = SpBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public = SpBls377::public_from_secret(&secret);
-
-            // Test normal signing
-            let message = b"Hello, world!";
-            let signature = SpBls377::sign_with_secret(&mut secret, message).unwrap();
-            assert!(
-                SpBls377::verify(&public, message, &signature),
-                "Signature verification failed"
-            );
-
-            // Test pre-hashed signing
-            let hashed_msg = [42u8; 32];
-            let signature =
-                SpBls377::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
-
-            // Verify with wrong message should fail
-            let wrong_message = b"Wrong message";
-            assert!(
-                !SpBls377::verify(&public, wrong_message, &signature),
-                "Verification should fail with wrong message"
-            );
-        }
-
-        #[test]
-        fn test_bls377_key_serialization() {
-            let seed: [u8; 32] = [1u8; 32];
-            let secret = SpBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public = SpBls377::public_from_secret(&secret);
-
-            // Test signing key serialization using seed
-            let serialized = serde_json::to_vec(&seed).unwrap();
-            let deserialized: SpBls377Pair = serde_json::from_slice(&serialized).unwrap();
-            assert_eq!(
-                secret.0.to_raw_vec(),
-                deserialized.0.to_raw_vec(),
-                "SigningKey serialization roundtrip failed"
-            );
-
-            // Test verifying key serialization
-            let serialized = serde_json::to_string(&public).unwrap();
-            let deserialized = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(
-                public, deserialized,
-                "VerifyingKey serialization roundtrip failed"
-            );
-        }
-
-        #[test]
-        fn test_bls377_signature_serialization() {
-            let seed: [u8; 32] = [1u8; 32];
-            let mut secret = SpBls377::generate_with_seed(Some(&seed)).unwrap();
-            let message = b"Test message";
-            let signature = SpBls377::sign_with_secret(&mut secret, message).unwrap();
-
-            // Test signature serialization
-            let serialized = serde_json::to_string(&signature).unwrap();
-            let deserialized: SpBls377Signature = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(
-                signature, deserialized,
-                "Signature serialization roundtrip failed"
-            );
-        }
+impl SpEcdsaPublic {
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self, serde::de::value::Error> {
+        let inner = <sp_core::ecdsa::Pair as sp_core::Pair>::Public::from_full(bytes)
+            .map_err(|_| serde::de::Error::custom("Invalid public key length"))?;
+        Ok(Self(inner))
     }
 }
+
+impl_sp_core_crypto!(Ed25519, ed25519);
+
+impl SpEd25519Public {
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self, serde::de::value::Error> {
+        let inner = <sp_core::ed25519::Pair as sp_core::Pair>::Public::from_slice(bytes)
+            .map_err(|_| serde::de::Error::custom("Invalid public key length"))?;
+        Ok(Self(inner))
+    }
+}
+
+impl_sp_core_crypto!(Sr25519, sr25519);
+
+impl SpSr25519Public {
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self, serde::de::value::Error> {
+        let inner = <sp_core::sr25519::Pair as sp_core::Pair>::Public::from_slice(bytes)
+            .map_err(|_| serde::de::Error::custom("Invalid public key length"))?;
+        Ok(Self(inner))
+    }
+}
+
+impl Copy for SpEcdsaPublic {}
+impl Copy for SpEd25519Public {}
+impl Copy for SpSr25519Public {}
