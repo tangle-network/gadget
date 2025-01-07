@@ -25,6 +25,7 @@ gadget-client-tangle = { workspace = true }
 gadget-runner-tangle = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["tangle"] }
 async-trait = { workspace = true }
+url = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata.workspace = true

@@ -14,10 +14,10 @@ pub trait BackgroundService: Send + Sync + 'static {
 }
 
 pub struct BlueprintRunner {
-    pub(crate) config: Box<dyn BlueprintConfig>,
-    pub(crate) jobs: Vec<Box<dyn InitializableEventHandler + Send + 'static>>,
-    pub(crate) env: GadgetConfiguration,
-    pub(crate) background_services: Vec<Box<dyn BackgroundService>>,
+    pub config: Box<dyn BlueprintConfig>,
+    pub jobs: Vec<Box<dyn InitializableEventHandler + Send + 'static>>,
+    pub env: GadgetConfiguration,
+    pub background_services: Vec<Box<dyn BackgroundService>>,
 }
 
 impl BlueprintRunner {

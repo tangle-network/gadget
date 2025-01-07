@@ -1,57 +1,62 @@
 use gadget_config::GadgetConfiguration;
-use gadget_logging::info;
 use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError as Error;
 use gadget_runners::core::runner::BlueprintRunner;
-use std::future::Future;
-use std::pin::Pin;
+use gadget_event_listeners::core::InitializableEventHandler;
+use gadget_runners::core::jobs::JobBuilder;
 
-type RunnerSetupFn = Box<
-    dyn FnOnce(&mut BlueprintRunner) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>
-        + Send,
->;
-
-pub struct RunnerSetup<C: BlueprintConfig> {
-    pub config: C,
-    pub setup: RunnerSetupFn,
+pub struct TestRunner {
+    inner: BlueprintRunner,
 }
 
-impl<C: BlueprintConfig> RunnerSetup<C> {
-    pub fn new<F, Fut>(config: C, setup: F) -> Self
+impl TestRunner {
+    pub fn new<J, T, C>(config: C, env: GadgetConfiguration, jobs: Vec<J>) -> Self
     where
-        F: FnOnce(&mut BlueprintRunner) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<(), Error>> + Send + 'static,
+        J: Into<JobBuilder<T>> + 'static,
+        T: InitializableEventHandler + Send + 'static,
+        C: BlueprintConfig,
     {
-        RunnerSetup {
-            config,
-            setup: Box::new(move |runner| Box::pin(setup(runner))),
+        let mut runner = BlueprintRunner::new(config, env);
+
+        for job in jobs.into_iter() {
+            let job: JobBuilder<T> = job.into();
+            runner.job(job);
         }
+
+        TestRunner { inner: runner }
+    }
+
+    pub async fn run(&mut self) -> Result<(), Error> {
+        self.inner.run().await
     }
 }
 
-pub struct GenericTestEnv {
-    pub config: GadgetConfiguration,
+pub trait TestEnv {
+    type Config: BlueprintConfig;
+
+    fn new<J, T>(config: Self::Config, env: GadgetConfiguration, jobs: Vec<J>) -> Result<Self, Error>
+    where
+        J: Into<JobBuilder<T>> + 'static,
+        T: InitializableEventHandler + Send + 'static,
+        Self: Sized;
+    fn get_gadget_config(self) -> GadgetConfiguration;
+    fn run_runner(&mut self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
 }
 
-impl GenericTestEnv {
-    pub fn new(config: GadgetConfiguration) -> Self {
-        Self { config }
+pub struct GenericTestEnv<E: TestEnv> {
+    env: E,
+}
+
+impl<E: TestEnv> GenericTestEnv<E> {
+    pub fn new<J, EH>(config: E::Config, env: GadgetConfiguration, jobs: Vec<J>) -> Result<Self, Error>
+    where
+        J: Into<JobBuilder<EH>> + 'static,
+        EH: InitializableEventHandler + Send + 'static,
+    {
+        Ok(Self { env: E::new(config, env, jobs)? })
     }
 
-    pub async fn run_runner<C: BlueprintConfig>(&self, setup: RunnerSetup<C>) -> Result<(), Error> {
-        info!("Setting up runner test environment");
-        let mut runner = BlueprintRunner::new(setup.config, self.config.clone());
-
-        (setup.setup)(&mut runner).await
-    }
-
-    pub async fn run_multiple_runners<C: BlueprintConfig>(
-        &self,
-        setups: Vec<RunnerSetup<C>>,
-    ) -> Result<(), Error> {
-        for setup in setups {
-            self.run_runner(setup).await?;
-        }
-        Ok(())
+    pub async fn run_runner(&mut self) -> Result<(), Error> {
+        self.env.run_runner().await
     }
 }
