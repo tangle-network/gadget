@@ -1,7 +1,7 @@
 //! Backing storage implementations for local keystores
 
 use crate::error::Result;
-use gadget_crypto::{KeyType, KeyTypeId};
+use gadget_crypto::{KeyEncoding, KeyType, KeyTypeId};
 use gadget_std::{boxed::Box, vec::Vec};
 use serde::de::DeserializeOwned;
 
@@ -20,7 +20,11 @@ pub trait RawStorage: Send + Sync {
         public_bytes: Vec<u8>,
         secret_bytes: Vec<u8>,
     ) -> Result<()>;
-    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>>;
+    fn load_secret_raw(
+        &self,
+        type_id: KeyTypeId,
+        public_bytes: Vec<u8>,
+    ) -> Result<Option<Box<[u8]>>>;
     fn remove_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<()>;
     fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool;
     fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_>;
@@ -37,8 +41,8 @@ impl<S: RawStorage> TypedStorage<S> {
     }
 
     pub fn store<T: KeyType>(&self, public: &T::Public, secret: &T::Secret) -> Result<()> {
-        let public_bytes = serde_json::to_vec(public)?;
-        let secret_bytes = serde_json::to_vec(secret)?;
+        let public_bytes = public.to_bytes();
+        let secret_bytes = secret.to_bytes();
         self.storage
             .store_raw(T::key_type_id(), public_bytes, secret_bytes)
     }
@@ -47,10 +51,13 @@ impl<S: RawStorage> TypedStorage<S> {
     where
         T::Secret: DeserializeOwned,
     {
-        let public_bytes = serde_json::to_vec(public)?;
-        match self.storage.load_raw(T::key_type_id(), public_bytes)? {
+        let public_bytes = public.to_bytes();
+        match self
+            .storage
+            .load_secret_raw(T::key_type_id(), public_bytes)?
+        {
             Some(secret_bytes) => {
-                let secret = serde_json::from_slice(&secret_bytes)?;
+                let secret = T::Secret::from_bytes(&*secret_bytes)?;
                 Ok(Some(secret))
             }
             None => Ok(None),
@@ -58,16 +65,13 @@ impl<S: RawStorage> TypedStorage<S> {
     }
 
     pub fn remove<T: KeyType>(&self, public: &T::Public) -> Result<()> {
-        let public_bytes = serde_json::to_vec(public)?;
+        let public_bytes = public.to_bytes();
         self.storage.remove_raw(T::key_type_id(), public_bytes)
     }
 
     pub fn contains<T: KeyType>(&self, public: &T::Public) -> bool {
-        if let Ok(public_bytes) = serde_json::to_vec(public) {
-            self.storage.contains_raw(T::key_type_id(), public_bytes)
-        } else {
-            false
-        }
+        self.storage
+            .contains_raw(T::key_type_id(), public.to_bytes())
     }
 
     pub fn list<T: KeyType>(&self) -> impl Iterator<Item = T::Public> + '_
@@ -76,6 +80,6 @@ impl<S: RawStorage> TypedStorage<S> {
     {
         self.storage
             .list_raw(T::key_type_id())
-            .filter_map(move |bytes| serde_json::from_slice(&bytes).ok())
+            .filter_map(move |bytes| T::Public::from_bytes(&bytes).ok())
     }
 }

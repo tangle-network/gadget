@@ -1,8 +1,8 @@
+use gadget_crypto_core::KeyEncoding;
 use gadget_std::{
     string::{String, ToString},
     vec::Vec,
 };
-use sp_core::ByteArray;
 use sp_core::Pair;
 
 /// Implements serde and KeyType trait for any sp_core crypto type.
@@ -16,89 +16,110 @@ macro_rules! impl_sp_core_bls_pair_public {
             /// This provides a safe interface for serialization and deserialization
             /// of the underlying key pair type.
             #[derive(Clone)]
-            pub struct [<$key_type Pair>](pub $pair_type);
+            pub struct [<Sp $key_type Pair>](pub $pair_type);
 
-            impl PartialEq for [<$key_type Pair>] {
+            impl PartialEq for [<Sp $key_type Pair>] {
                 fn eq(&self, other: &Self) -> bool {
-                    self.0.to_raw_vec() == other.0.to_raw_vec()
+                    self.to_bytes() == other.to_bytes()
                 }
             }
 
-            impl Eq for [<$key_type Pair>] {}
+            impl Eq for [<Sp $key_type Pair>] {}
 
-            impl PartialOrd for [<$key_type Pair>] {
+            impl PartialOrd for [<Sp $key_type Pair>] {
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
                     Some(self.cmp(other))
                 }
             }
 
-            impl Ord for [<$key_type Pair>] {
+            impl Ord for [<Sp $key_type Pair>] {
                 fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                    self.0.to_raw_vec().cmp(&other.0.to_raw_vec())
+                    self.to_bytes().cmp(&other.to_bytes())
                 }
             }
 
-            impl gadget_std::fmt::Debug for [<$key_type Pair>] {
+            impl gadget_std::fmt::Debug for [<Sp $key_type Pair>] {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                    write!(f, "{:?}", self.0.to_raw_vec())
+                    write!(f, "{:?}", self.to_bytes())
                 }
             }
 
-            impl serde::Serialize for [<$key_type Pair>] {
+            impl KeyEncoding for [<Sp $key_type Pair>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    <$pair_type>::from_seed_slice(&bytes)
+                        .map_err(|e| serde::de::Error::custom(format!("Failed to create pair from seed: {}", e)))
+                        .map(Self)
+                }
+            }
+
+            impl serde::Serialize for [<Sp $key_type Pair>] {
                 fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
                 where
                     S: serde::Serializer,
                 {
                     // Get the raw seed bytes
-                    let bytes = self.0.to_raw_vec();
+                    let bytes = self.to_bytes();
                     // Serialize as raw bytes
                     serializer.serialize_bytes(&bytes)
                 }
             }
 
-            impl<'de> serde::Deserialize<'de> for [<$key_type Pair>] {
+            impl<'de> serde::Deserialize<'de> for [<Sp $key_type Pair>] {
                 fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
                 where
                     D: serde::Deserializer<'de>,
                 {
                     // Deserialize directly into a Vec<u8> for the seed
-                    let seed = Vec::<u8>::deserialize(deserializer)
+                    let seed = <serde_bytes::ByteBuf>::deserialize(deserializer)
                         .map_err(|e| serde::de::Error::custom(format!("Failed to deserialize seed bytes: {}", e)))?;
 
                     // Generate a new pair from the seed bytes
-                    <$pair_type>::from_seed_slice(&seed)
-                        .map_err(|e| serde::de::Error::custom(format!("Failed to create pair from seed: {}", e)))
-                        .map(|pair| [<$key_type Pair>](pair))
+                    Self::from_bytes(seed.as_slice()).map_err(|e| serde::de::Error::custom(e.to_string()))
                 }
             }
 
             /// Wrapper struct for the cryptographic public key.
             #[derive(Clone, serde::Serialize, serde::Deserialize)]
-            pub struct [<$key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
+            pub struct [<Sp $key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
 
-            impl PartialEq for [<$key_type Public>]{
+            impl PartialEq for [<Sp $key_type Public>]{
                 fn eq(&self, other: &Self) -> bool {
                     self.0 == other.0
                 }
             }
 
-            impl Eq for [<$key_type Public>]{}
+            impl Eq for [<Sp $key_type Public>]{}
 
-            impl PartialOrd for [<$key_type Public>]{
+            impl PartialOrd for [<Sp $key_type Public>]{
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
                     Some(self.cmp(other))
                 }
             }
 
-            impl Ord for [<$key_type Public>]{
+            impl Ord for [<Sp $key_type Public>]{
                 fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                    self.0.to_raw_vec().cmp(&other.0.to_raw_vec())
+                    self.to_bytes().cmp(&other.to_bytes())
                 }
             }
 
-            impl gadget_std::fmt::Debug for [<$key_type Public>]{
+            impl gadget_std::fmt::Debug for [<Sp $key_type Public>]{
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                    write!(f, "{:?}", self.0.to_raw_vec())
+                    write!(f, "{:?}", self.to_bytes())
+                }
+            }
+
+            impl KeyEncoding for [<Sp $key_type Public>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw().to_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    let bytes = bytes.try_into().map_err(|_| serde::de::Error::custom("Invalid public key length"))?;
+                    Ok(Self(<$pair_type as sp_core::Pair>::Public::from_raw(bytes)))
                 }
             }
         }
@@ -109,12 +130,12 @@ macro_rules! impl_sp_core_bls_pair_public {
 macro_rules! impl_sp_core_bls_key_type {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
-            pub struct $key_type;
+            pub struct [<Sp $key_type>];
 
-            impl gadget_crypto_core::KeyType for $key_type {
-                type Public = [<$key_type Public>];
-                type Secret = [<$key_type Pair>];
-                type Signature = [<$key_type Signature>];
+            impl gadget_crypto_core::KeyType for [<Sp $key_type>] {
+                type Public = [<Sp $key_type Public>];
+                type Secret = [<Sp $key_type Pair>];
+                type Signature = [<Sp $key_type Signature>];
                 type Error = $crate::error::SpCoreError;
 
                 fn key_type_id() -> gadget_crypto_core::KeyTypeId {
@@ -127,7 +148,7 @@ macro_rules! impl_sp_core_bls_key_type {
                             let pair = <$pair_type>::from_seed_slice(seed)
                                 .map_err($crate::error::SecretStringErrorWrapper)
                                 .map_err(Into::<$crate::error::SpCoreError>::into)?;
-                            Ok([<$key_type Pair>](pair))
+                            Ok([<Sp $key_type Pair>](pair))
                         }
                         None => {
                             #[cfg(feature = "std")]
@@ -140,7 +161,7 @@ macro_rules! impl_sp_core_bls_key_type {
                                     .map_err($crate::error::SecretStringErrorWrapper)
                                     .map_err(Into::<$crate::error::SpCoreError>::into)?
                             };
-                            Ok([<$key_type Pair>](pair))
+                            Ok([<Sp $key_type Pair>](pair))
                         }
                     }
                 }
@@ -148,25 +169,25 @@ macro_rules! impl_sp_core_bls_key_type {
                 fn generate_with_string(secret: String) -> $crate::error::Result<Self::Secret> {
                     let pair = <$pair_type>::from_string(&secret, None)
                         .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid secret string".to_string()))?;
-                    Ok([<$key_type Pair>](pair))
+                    Ok([<Sp $key_type Pair>](pair))
                 }
 
                 fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-                    [<$key_type Public>](secret.0.public())
+                    [<Sp $key_type Public>](secret.0.public())
                 }
 
                 fn sign_with_secret(
                     secret: &mut Self::Secret,
                     msg: &[u8],
                 ) -> $crate::error::Result<Self::Signature> {
-                    Ok([<$key_type Signature>](secret.0.sign(msg)))
+                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
                 }
 
                 fn sign_with_secret_pre_hashed(
                     secret: &mut Self::Secret,
                     msg: &[u8; 32],
                 ) -> $crate::error::Result<Self::Signature> {
-                    Ok([<$key_type Signature>](secret.0.sign(msg)))
+                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
                 }
 
                 fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
@@ -174,13 +195,13 @@ macro_rules! impl_sp_core_bls_key_type {
                 }
             }
 
-            impl [<$key_type Pair>] {
-                pub fn public(&self) -> [<$key_type Public>] {
-                    [<$key_type Public>](self.0.public())
+            impl [<Sp $key_type Pair>] {
+                pub fn public(&self) -> [<Sp $key_type Public>] {
+                    [<Sp $key_type Public>](self.0.public())
                 }
             }
 
-            impl gadget_std::ops::Deref for [<$key_type Pair>] {
+            impl gadget_std::ops::Deref for [<Sp $key_type Pair>] {
                 type Target = $pair_type;
 
                 fn deref(&self) -> &Self::Target {
@@ -188,7 +209,7 @@ macro_rules! impl_sp_core_bls_key_type {
                 }
             }
 
-            impl gadget_std::ops::DerefMut for [<$key_type Pair>] {
+            impl gadget_std::ops::DerefMut for [<Sp $key_type Pair>] {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     &mut self.0
                 }
@@ -202,15 +223,15 @@ macro_rules! impl_sp_core_bls_signature {
     ($key_type:ident, $signature:ty) => {
         paste::paste! {
             #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-            pub struct [<$key_type Signature>](pub $signature);
+            pub struct [<Sp $key_type Signature>](pub $signature);
 
-            impl PartialOrd for [<$key_type Signature>] {
+            impl PartialOrd for [<Sp $key_type Signature>] {
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
                     Some(self.cmp(other))
                 }
             }
 
-            impl Ord for [<$key_type Signature>] {
+            impl Ord for [<Sp $key_type Signature>] {
                 fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
                     let self_bytes: &[u8] = self.0.as_ref();
                     let other_bytes: &[u8] = other.0.as_ref();
@@ -218,7 +239,7 @@ macro_rules! impl_sp_core_bls_signature {
                 }
             }
 
-            impl gadget_std::fmt::Debug for [<$key_type Signature>] {
+            impl gadget_std::fmt::Debug for [<Sp $key_type Signature>] {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
                     let bytes: &[u8] = self.0.as_ref();
                     write!(f, "{:?}", bytes)
@@ -237,5 +258,5 @@ macro_rules! impl_sp_core_bls_crypto {
     };
 }
 
-impl_sp_core_bls_crypto!(SpBls377, bls377);
-impl_sp_core_bls_crypto!(SpBls381, bls381);
+impl_sp_core_bls_crypto!(Bls377, bls377);
+impl_sp_core_bls_crypto!(Bls381, bls381);

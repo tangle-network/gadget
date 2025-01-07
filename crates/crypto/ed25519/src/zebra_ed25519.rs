@@ -1,4 +1,5 @@
 use crate::error::{Ed25519Error, Result};
+use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
     string::{String, ToString},
@@ -15,7 +16,7 @@ macro_rules! impl_zebra_serde {
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
-                self.0.as_ref() == other.0.as_ref()
+                self.to_bytes() == other.to_bytes()
             }
         }
 
@@ -29,13 +30,23 @@ macro_rules! impl_zebra_serde {
 
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                self.0.as_ref().cmp(other.0.as_ref())
+                self.to_bytes().cmp(&other.to_bytes())
             }
         }
 
         impl gadget_std::fmt::Debug for $name {
             fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                write!(f, "{:?}", self.0.as_ref())
+                write!(f, "{:?}", self.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.to_bytes_impl()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                Self::from_bytes_impl(bytes).map_err(|e| serde::de::Error::custom(e.to_string()))
             }
         }
 
@@ -45,7 +56,7 @@ macro_rules! impl_zebra_serde {
                 S: serde::Serializer,
             {
                 // Get the raw bytes
-                let bytes = self.0.as_ref().to_vec();
+                let bytes = self.to_bytes();
                 Vec::serialize(&bytes, serializer)
             }
         }
@@ -56,7 +67,7 @@ macro_rules! impl_zebra_serde {
                 D: serde::Deserializer<'de>,
             {
                 // Deserialize as bytes
-                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
 
                 // Convert bytes back to inner type
                 let inner = <$inner>::try_from(bytes.as_slice())
@@ -69,70 +80,43 @@ macro_rules! impl_zebra_serde {
 }
 
 impl_zebra_serde!(Ed25519SigningKey, ed25519_zebra::SigningKey);
-impl_zebra_serde!(Ed25519VerificationKey, ed25519_zebra::VerificationKey);
 
-impl Ed25519VerificationKey {
-    pub fn to_bytes(&self) -> Vec<u8> {
+impl Ed25519SigningKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
         self.0.as_ref().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::SigningKey::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidSigner(e.to_string()))?;
+        Ok(Ed25519SigningKey(inner))
+    }
+}
+
+impl_zebra_serde!(Ed25519VerificationKey, ed25519_zebra::VerificationKey);
+
+impl Ed25519VerificationKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
+    }
+
+    pub fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
         let inner = ed25519_zebra::VerificationKey::try_from(bytes)
             .map_err(|e| Ed25519Error::InvalidVerifyingKey(e.to_string()))?;
         Ok(Ed25519VerificationKey(inner))
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Ed25519Signature(pub ed25519_zebra::Signature);
+impl_zebra_serde!(Ed25519Signature, ed25519_zebra::Signature);
 
 impl Ed25519Signature {
-    pub fn to_bytes(&self) -> Vec<u8> {
+    fn to_bytes_impl(&self) -> Vec<u8> {
         self.0.to_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
         let inner = ed25519_zebra::Signature::try_from(bytes)
             .map_err(|e| Ed25519Error::InvalidSignature(e.to_string()))?;
-        Ok(Ed25519Signature(inner))
-    }
-}
-
-impl PartialOrd for Ed25519Signature {
-    fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Ed25519Signature {
-    fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-        self.0.to_bytes().cmp(&other.0.to_bytes())
-    }
-}
-
-impl serde::Serialize for Ed25519Signature {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // Get the raw bytes
-        let bytes = self.0.to_bytes();
-        serializer.serialize_bytes(&bytes)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Ed25519Signature {
-    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // Deserialize as bytes
-        let bytes = <Vec<u8>>::deserialize(deserializer)?;
-
-        // Convert bytes back to inner type
-        let inner = ed25519_zebra::Signature::try_from(bytes.as_slice())
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-
         Ok(Ed25519Signature(inner))
     }
 }
@@ -144,7 +128,7 @@ impl KeyType for Ed25519Zebra {
     type Error = Ed25519Error;
 
     fn key_type_id() -> KeyTypeId {
-        KeyTypeId::ZebraEd25519
+        KeyTypeId::Ed25519
     }
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {

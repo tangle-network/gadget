@@ -8,7 +8,7 @@ gadget-crypto-core = { workspace = true, features = ["bls"] }
 gadget-std = { workspace = true }
 w3f-bls = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
+serde_bytes = { workspace = true, features = ["alloc"] }
 ark-serialize = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
@@ -16,14 +16,16 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 gadget-crypto-hashing = { workspace = true, features = ["sha2"] }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
 default = ["std"]
 std = [
-    "ark-serialize/std",
-    "gadget-crypto-core/std",
-    "gadget-std/std",
-    "serde/std",
-    "serde_json/std",
-    "w3f-bls/std",
+	"ark-serialize/std",
+	"gadget-crypto-core/std",
+	"gadget-std/std",
+	"serde/std",
+	"serde_json/std",
+	"serde_bytes/std",
+	"w3f-bls/std",
 ] 
