@@ -1,28 +1,40 @@
 use gadget_config::GadgetConfiguration;
-use gadget_core_testing_utils::runner::{GenericTestEnv, RunnerSetup};
+use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_runners::core::error::RunnerError as Error;
+use gadget_runners::core::jobs::JobBuilder;
 use gadget_runners::tangle::tangle::TangleConfig;
+use gadget_event_listeners::core::InitializableEventHandler;
 
 pub struct TangleTestEnv {
-    generic_env: GenericTestEnv,
+    runner: TestRunner,
+    config: TangleConfig,
+    gadget_config: GadgetConfiguration,
 }
 
-impl TangleTestEnv {
-    pub fn new() -> Result<Self, Error> {
-        let config = GadgetConfiguration::default();
+impl TestEnv for TangleTestEnv {
+    type Config = TangleConfig;
+
+    fn new<J, T>(config: Self::Config, env: GadgetConfiguration, jobs: Vec<J>) -> Result<Self, Error>
+    where
+        J: Into<JobBuilder<T>> + 'static,
+        T: InitializableEventHandler + Send + 'static,
+    {
+        let gadget_config = GadgetConfiguration::default();
+        let config = TangleConfig::default();
+        let runner = TestRunner::new::<J, T, Self::Config>(config.clone(), gadget_config.clone(), vec![]);
+
         Ok(Self {
-            generic_env: GenericTestEnv::new(config),
+            runner,
+            config,
+            gadget_config,
         })
     }
 
-    pub async fn run_runner(&self, setup: RunnerSetup<TangleConfig>) -> Result<(), Error> {
-        self.generic_env.run_runner(setup).await
+    fn get_gadget_config(self) -> GadgetConfiguration {
+        self.gadget_config.clone()
     }
 
-    pub async fn run_multiple_runners(
-        &self,
-        setups: Vec<RunnerSetup<TangleConfig>>,
-    ) -> Result<(), Error> {
-        self.generic_env.run_multiple_runners(setups).await
+    async fn run_runner(&mut self) -> Result<(), Error> {
+        self.runner.run().await
     }
 }

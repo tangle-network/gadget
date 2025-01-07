@@ -6,8 +6,8 @@ use gadget_macros::job;
 use gadget_std::convert::Infallible;
 
 // TODO: Uncomment once tests are working
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct MyContext {
