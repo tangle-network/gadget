@@ -34,6 +34,9 @@ pub enum Error {
     /// Invalid hex decoding
     #[error("Invalid hex decoding")]
     InvalidHexDecoding,
+    /// Failed to deserialize key
+    #[error("Failed to deserialize key: {0}")]
+    KeyDeserialization(#[from] serde::de::value::Error),
     /// Invalid seed
     #[error("Invalid seed: {0}")]
     InvalidSeed(String),

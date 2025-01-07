@@ -18,7 +18,8 @@ thiserror.workspace = true
 zeroize.workspace = true
 serde = { workspace = true, features = ["derive"] }
 blake3.workspace = true
-serde_json = { workspace = true, features = ["alloc"] }
+serde_json = { workspace = true, features = ["alloc", "std"], optional = true }
+serde_bytes.workspace = true
 
 # Crypto primitives (optional)
 k256 = { workspace = true, optional = true }
@@ -69,32 +70,33 @@ default = ["std", "tangle-full", "eigenlayer-full", "all-remote-signers"]
 
 # Core features
 std = [
-    # Basic std dependencies
-    "serde/std",
-    "hex/std",
-    "zeroize/std",
-    "gadget-crypto/std",
-    "gadget-std/std",
-    "thiserror/std",
-    "tokio",
-    "serde_json/std",
-    # Conditional std enables for misc
-    "hex?/std",
-    # Condition std enables for alloy
-    "alloy-primitives?/std",
-    # Conditional std enables for crypto
-    "k256?/std",
-    "schnorrkel?/std",
-    "ed25519-zebra?/std",
-    "w3f-bls?/std",
-    "rust-bls-bn254?/std",
-    # Conditional std enables for protocols
-    "alloy-primitives?/std",
-    "sp-core?/std",
-    "sp-io?/std",
-    "subxt-core?/std",
-    "subxt?/native",
-    "ark-serialize?/std",
+	# Basic std dependencies
+	"dep:serde_json",
+	"serde/std",
+	"serde_bytes/std",
+	"hex/std",
+	"zeroize/std",
+	"gadget-crypto/std",
+	"gadget-std/std",
+	"thiserror/std",
+	"tokio",
+	# Conditional std enables for misc
+	"hex?/std",
+	# Condition std enables for alloy
+	"alloy-primitives?/std",
+	# Conditional std enables for crypto
+	"k256?/std",
+	"schnorrkel?/std",
+	"ed25519-zebra?/std",
+	"w3f-bls?/std",
+	"rust-bls-bn254?/std",
+	# Conditional std enables for protocols
+	"alloy-primitives?/std",
+	"sp-core?/std",
+	"sp-io?/std",
+	"subxt-core?/std",
+	"subxt?/native",
+	"ark-serialize?/std",
 ]
 
 # Crypto primitive features
@@ -109,36 +111,36 @@ substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt",
 
 # Protocol features
 evm = [
-    "ecdsa",
-    "alloy-primitives",
-    "alloy-signer",
-    "alloy-signer-local",
-    "alloy-network",
+	"ecdsa",
+	"alloy-primitives",
+	"alloy-signer",
+	"alloy-signer-local",
+	"alloy-network",
 ]
 
 tangle = [
-    "substrate",
-    "ecdsa",
-    "sr25519-schnorrkel",
-    "zebra",
-    "gadget-crypto/tangle-pair-signer",
+	"substrate",
+	"ecdsa",
+	"sr25519-schnorrkel",
+	"zebra",
+	"gadget-crypto/tangle-pair-signer",
 ]
 
 tangle-bls = [
-    "tangle",
-    "sp-core/bls-experimental",
-    "gadget-crypto/sp-core-bls",
+	"tangle",
+	"sp-core/bls-experimental",
+	"gadget-crypto/sp-core-bls",
 ]
 
 eigenlayer = [
-    "evm",
-    "eigensdk",
-    "rust-bls-bn254",
-    "bn254",
+	"evm",
+	"eigensdk",
+	"rust-bls-bn254",
+	"bn254",
 ]
 
 symbiotic = [
-    "evm",
+	"evm",
 ]
 
 remote = []
@@ -156,7 +158,7 @@ ledger-node = ["remote", "evm", "alloy-signer-ledger/node", "std"]
 all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "ledger-node", "std"]
 
 web = [
-    "subxt/web",
+	"subxt/web",
 ]
 
 [package.metadata.docs.rs]

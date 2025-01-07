@@ -8,7 +8,7 @@ pub use zebra_ed25519::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gadget_crypto_core::KeyType;
+    use gadget_crypto_core::{KeyEncoding, KeyType};
 
     mod ed25519_crypto_tests {
         use super::*;

@@ -2,6 +2,7 @@ use crate::error::{Bn254Error, Result};
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{Field, PrimeField, UniformRand};
+use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
     format,
@@ -10,7 +11,7 @@ use gadget_std::{
     vec::Vec,
 };
 
-use super::{from_bytes, sign, to_bytes, verify};
+use super::{from_bytes, sign, verify};
 
 /// BLS-BN254 key type
 pub struct ArkBlsBn254;
@@ -28,7 +29,18 @@ macro_rules! impl_ark_serde {
 
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                to_bytes(self.0).cmp(&to_bytes(other.0))
+                self.to_bytes().cmp(&other.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                crate::to_bytes(self.0)
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                let inner = from_bytes::<$inner>(&bytes);
+                Ok($name(inner))
             }
         }
 
@@ -37,7 +49,7 @@ macro_rules! impl_ark_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                let bytes = to_bytes(self.0);
+                let bytes = self.to_bytes();
                 Vec::serialize(&bytes, serializer)
             }
         }
@@ -47,7 +59,7 @@ macro_rules! impl_ark_serde {
             where
                 D: serde::Deserializer<'de>,
             {
-                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
                 let inner = from_bytes::<$inner>(&bytes);
                 Ok($name(inner))
             }
@@ -66,7 +78,7 @@ impl KeyType for ArkBlsBn254 {
     type Error = Bn254Error;
 
     fn key_type_id() -> KeyTypeId {
-        KeyTypeId::ArkBn254
+        KeyTypeId::Bn254
     }
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {

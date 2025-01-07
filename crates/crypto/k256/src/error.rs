@@ -7,6 +7,8 @@ pub enum K256Error {
     InvalidSeed(String),
     #[error("Invalid verifying key: {0}")]
     InvalidVerifyingKey(String),
+    #[error("Invalid signing key: {0}")]
+    InvalidSigner(String),
     #[error("Invalid hex string: {0}")]
     HexError(hex::FromHexError),
     #[error("Invalid signature: {0}")]

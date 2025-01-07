@@ -1,3 +1,4 @@
+use crate::keys::generate_key;
 use crate::signer::{load_evm_signer_from_env, load_signer_from_env, EVM_SIGNER_ENV, SIGNER_ENV};
 use color_eyre::eyre::Result;
 use gadget_crypto::bn254_crypto::ArkBlsBn254;
@@ -7,7 +8,7 @@ use gadget_keystore::backends::tangle_bls::TangleBlsBackend;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use std::env;
-use std::process::Command;
+use std::path::PathBuf;
 use tangle_subxt::subxt_signer::bip39;
 use tempfile::tempdir;
 
@@ -15,63 +16,41 @@ use tempfile::tempdir;
 fn test_cli_fs_key_generation() -> Result<()> {
     let temp_dir = tempdir()?;
     let output_path = temp_dir.path();
-    let keystore = Keystore::new(KeystoreConfig::new().fs_root(output_path))?;
 
     for key_type in [
-        KeyTypeId::SpSr25519,
-        KeyTypeId::SpEd25519,
-        KeyTypeId::SpEcdsa,
-        KeyTypeId::SpBls381,
-        KeyTypeId::ArkBn254,
+        KeyTypeId::Sr25519,
+        KeyTypeId::Ed25519,
+        KeyTypeId::Ecdsa,
+        KeyTypeId::Bls381,
+        KeyTypeId::Bn254,
     ]
     .iter()
     {
         println!("Testing key generation for: {:?}", key_type);
-        let mut cmd = Command::new("./../target/release/cargo-tangle");
-        let key_str = format!("{:?}", key_type).to_lowercase();
+        let (public, secret) = generate_key(*key_type, Some(&output_path), None, true)?;
+        assert!(!public.is_empty());
+        assert!(secret.is_some());
+        assert!(!secret.unwrap().is_empty());
 
-        let output = cmd
-            .arg("blueprint")
-            .arg("keygen")
-            .arg("-k")
-            .arg(key_str)
-            .arg("-p")
-            .arg(output_path)
-            .arg("--show-secret")
-            .output()?;
-
-        assert!(&output.stderr.is_empty());
-
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            stdout_str.contains("Public key:"),
-            "Public key not found in output for {:?}",
-            key_type
-        );
-        assert!(
-            stdout_str.contains("Private key:"),
-            "Secret key not found in output for {:?}",
-            key_type
-        );
-
+        let keystore = Keystore::new(KeystoreConfig::new().fs_root(output_path))?;
         match key_type {
-            KeyTypeId::SpSr25519 => {
+            KeyTypeId::Sr25519 => {
                 let public = keystore.iter_sr25519().next().unwrap();
                 assert!(!public.is_empty());
             }
-            KeyTypeId::SpEd25519 => {
+            KeyTypeId::Ed25519 => {
                 let public = keystore.iter_ed25519().next().unwrap();
                 assert!(!public.is_empty());
             }
-            KeyTypeId::SpEcdsa => {
+            KeyTypeId::Ecdsa => {
                 let public = keystore.iter_ecdsa().next().unwrap();
                 assert!(!public.0.is_empty());
             }
-            KeyTypeId::SpBls381 => {
+            KeyTypeId::Bls381 => {
                 let public = keystore.iter_bls381().next().unwrap();
                 assert!(!public.is_empty());
             }
-            KeyTypeId::ArkBn254 => {
+            KeyTypeId::Bn254 => {
                 let keys = keystore.list_local::<ArkBlsBn254>()?;
                 assert!(!keys.is_empty());
             }
@@ -84,39 +63,19 @@ fn test_cli_fs_key_generation() -> Result<()> {
 #[test]
 fn test_cli_mem_key_generation() -> Result<()> {
     for key_type in [
-        KeyTypeId::SpSr25519,
-        KeyTypeId::SpEd25519,
-        KeyTypeId::SpEcdsa,
-        KeyTypeId::SpBls381,
-        KeyTypeId::ArkBn254,
+        KeyTypeId::Sr25519,
+        KeyTypeId::Ed25519,
+        KeyTypeId::Ecdsa,
+        KeyTypeId::Bls381,
+        KeyTypeId::Bn254,
     ]
     .iter()
     {
         println!("Testing key generation for: {:?}", key_type);
-        let mut cmd = Command::new("./../target/release/cargo-tangle");
-        let key_str = format!("{:?}", key_type).to_lowercase();
-
-        let output = cmd
-            .arg("blueprint")
-            .arg("keygen")
-            .arg("-k")
-            .arg(key_str)
-            .arg("--show-secret")
-            .output()?;
-
-        assert!(&output.stderr.is_empty());
-
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            stdout_str.contains("Public key:"),
-            "Public key not found in output for {:?}",
-            key_type
-        );
-        assert!(
-            stdout_str.contains("Private key:"),
-            "Secret key not found in output for {:?}",
-            key_type
-        );
+        let (public, secret) = generate_key(*key_type, None::<&PathBuf>, None, true)?;
+        assert!(!public.is_empty());
+        assert!(secret.is_some());
+        assert!(!secret.unwrap().is_empty());
     }
     Ok(())
 }
