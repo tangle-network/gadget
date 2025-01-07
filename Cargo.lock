@@ -7029,7 +7029,6 @@ dependencies = [
  "gadget-runner-core",
  "gadget-std",
  "gadget-utils",
- "k256",
  "sp-core",
  "subxt",
  "tangle-subxt",
@@ -7081,7 +7080,6 @@ name = "gadget-tangle-testing-utils"
 version = "0.1.0"
 dependencies = [
  "alloy-provider",
- "alloy-rpc-types",
  "async-trait",
  "cargo-tangle",
  "dirs",
@@ -7089,11 +7087,8 @@ dependencies = [
  "futures-util",
  "gadget-config",
  "gadget-core-testing-utils",
- "gadget-crypto-sr25519",
  "gadget-event-listeners",
  "gadget-logging",
- "gadget-runner-core",
- "gadget-runner-tangle",
  "gadget-runners",
  "reqwest 0.12.9",
  "serde_json",
