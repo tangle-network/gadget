@@ -67,7 +67,7 @@ default = ["std", "tangle"]
 std = [
 	"gadget-blueprint-proc-macro-core/std",
 	"gadget-clients/std",
-	"gadget-keystore/std",
+	"gadget-keystore?/std",
 	"gadget-logging/std",
 	"gadget-std/std",
 	"gadget-utils-tangle/std",
@@ -75,6 +75,7 @@ std = [
 
 # Main features
 tangle = [
+	"dep:gadget-keystore",
 	"tangle-subxt/std",
 	"subxt/native",
 	"gadget-clients/tangle",
@@ -84,6 +85,7 @@ tangle = [
 
 # Protocol features
 eigenlayer = [
+	"dep:gadget-keystore",
 	"gadget-clients/eigenlayer",
 	"gadget-keystore/eigenlayer-full",
 	"evm",
@@ -91,6 +93,7 @@ eigenlayer = [
 
 # Core functionality features
 evm = [
+	"dep:gadget-keystore",
 	"alloy-json-abi",
 	"alloy-provider",
 	"alloy-network",
