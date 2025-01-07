@@ -1,6 +1,6 @@
-# Tangle Network Gadget Workspace
+# Tangle Network: Gadget SDK
 
-A comprehensive toolkit for building, deploying, and managing blueprints (gadgets) on the Tangle Network. This workspace provides a collection of Rust crates that enable developers to create and interact with blockchain-based applications.
+A comprehensive toolkit for building, deploying, and managing blueprints to run on gadgets on the Tangle Network. This workspace provides a collection of Rust crates that enable developers to create and interact with blockchain-based applications.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ A comprehensive toolkit for building, deploying, and managing blueprints (gadget
 
 ## Overview
 
-The Tangle Network Gadget Workspace is a modular framework designed to simplify the development and deployment of blockchain applications (blueprints) on the Tangle Network. It provides a comprehensive set of tools and libraries for blockchain interaction, cryptographic operations, and network communication.
+Tangle Network's Gadget SDK is a modular framework designed to simplify the development and deployment of blockchain applications (blueprints) on the Tangle Network. It provides a comprehensive set of tools and libraries for blockchain interaction, cryptographic operations, and network communication.
 
 ## 🌟 Features
 
@@ -171,23 +171,31 @@ The CLI and core libraries support various feature flags for customizing functio
 
 | Feature Flag | Description | Components Included |
 |--------------|-------------|-------------------|
-| default | Standard installation | Tangle + EVM support |
-| evm | EVM chain support only | EVM clients and utilities |
-| eigenlayer | EigenLayer integration | EigenLayer clients and BLS crypto |
-| keys | Key management tools | All cryptographic backends |
-| full | Complete installation | All available features |
+| default | Standard installation | Tangle + EVM support with standard library features |
+| std | Standard library features | Core functionality with std support |
+| tangle | Tangle Network support | Tangle Network client, keystore, and EVM integration |
+| eigenlayer | EigenLayer integration | EigenLayer clients, keystore, and EVM support |
+| evm | EVM chain support | Ethereum JSON ABI, provider, network, and signer support |
+
+The crypto system supports multiple signature schemes:
+- k256 (ECDSA)
+- sr25519 (Schnorrkel)
+- ed25519
+- BLS (including BN254)
+- Tangle pair signer
+- Substrate crypto (sp-core)
 
 Installation examples:
 
 ```bash
-# Default installation
+# Default installation (includes Tangle + EVM)
 cargo install cargo-tangle
 
 # EVM support only
 cargo install cargo-tangle --features evm
 
-# Full installation
-cargo install cargo-tangle --features "tangle,eigenlayer,keys"
+# Full installation with EigenLayer support
+cargo install cargo-tangle --features "tangle,eigenlayer"
 ```
 
 ### Environment Variables

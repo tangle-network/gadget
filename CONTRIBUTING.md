@@ -1,4 +1,4 @@
-# Contributing to Tangle Network Gadget
+# Contributing to Tangle Network's Gadget Repository
 
 Thank you for your interest in contributing to the Tangle Network Gadget project! This document provides guidelines and instructions for contributing.
 
