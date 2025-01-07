@@ -72,8 +72,8 @@ fn test_cli_fs_key_generation() -> Result<()> {
                 assert!(!public.is_empty());
             }
             KeyTypeId::ArkBn254 => {
-                let keys = keystore.list_local::<ArkBlsBn254>().unwrap();
-                assert!(keys.first().is_some());
+                let keys = keystore.list_local::<ArkBlsBn254>()?;
+                assert!(!keys.is_empty());
             }
             _ => unreachable!(),
         }
