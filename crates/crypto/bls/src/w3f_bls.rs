@@ -7,7 +7,7 @@ macro_rules! impl_w3f_serde {
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
-                to_bytes(self.0.clone()) == to_bytes(other.0.clone())
+                self.to_bytes() == other.to_bytes()
             }
         }
 
@@ -21,13 +21,23 @@ macro_rules! impl_w3f_serde {
 
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                to_bytes(self.0.clone()).cmp(&to_bytes(other.0.clone()))
+                self.to_bytes().cmp(&other.to_bytes())
             }
         }
 
         impl gadget_std::fmt::Debug for $name {
             fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-                write!(f, "{:?}", to_bytes(self.0.clone()))
+                write!(f, "{:?}", self.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                crate::to_bytes(self.0.clone())
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                Ok($name(crate::from_bytes(bytes)))
             }
         }
 
@@ -36,7 +46,7 @@ macro_rules! impl_w3f_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                let bytes = to_bytes(self.0.clone());
+                let bytes = self.to_bytes();
                 Vec::serialize(&bytes, serializer)
             }
         }
@@ -47,7 +57,7 @@ macro_rules! impl_w3f_serde {
                 D: serde::Deserializer<'de>,
             {
                 // Deserialize as Vec
-                let bytes = <gadget_std::vec::Vec<u8>>::deserialize(deserializer)?;
+                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
 
                 // Convert bytes back to inner type
                 let inner = from_bytes::<$inner>(&bytes);
@@ -64,8 +74,8 @@ macro_rules! define_bls_key {
             $(
             pub mod [<$ty:lower>] {
                 use crate::error::{BlsError, Result};
-                use crate::{from_bytes, to_bytes};
-                use gadget_crypto_core::{KeyType, KeyTypeId};
+                use crate::from_bytes;
+                use gadget_crypto_core::{KeyType, KeyTypeId, KeyEncoding};
                 use gadget_std::{UniformRand, string::{String, ToString}};
                 use w3f_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, [<Tiny $ty:upper>]};
 
@@ -84,7 +94,7 @@ macro_rules! define_bls_key {
                     type Error = BlsError;
 
                     fn key_type_id() -> KeyTypeId {
-                        KeyTypeId::[<W3f $ty>]
+                        KeyTypeId::$ty
                     }
 
                     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {

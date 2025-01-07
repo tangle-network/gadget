@@ -1,4 +1,5 @@
 use crate::error::{Result, Sr25519Error};
+use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
     string::{String, ToString},
@@ -26,13 +27,24 @@ macro_rules! impl_schnorrkel_serde {
             }
         }
 
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.0.to_bytes().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                <$inner>::from_bytes(bytes)
+                    .map(Self)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))
+            }
+        }
+
         impl serde::Serialize for $name {
             fn serialize<S: serde::Serializer>(
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                let bytes = self.0.to_bytes().into();
-                Vec::serialize(&bytes, serializer)
+                serializer.serialize_bytes(&self.to_bytes())
             }
         }
 
@@ -40,7 +52,7 @@ macro_rules! impl_schnorrkel_serde {
             fn deserialize<D: serde::Deserializer<'de>>(
                 deserializer: D,
             ) -> core::result::Result<Self, D::Error> {
-                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
                 let inner = <$inner>::from_bytes(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                 Ok($name(inner))
@@ -60,7 +72,7 @@ impl KeyType for SchnorrkelSr25519 {
     type Error = Sr25519Error;
 
     fn key_type_id() -> KeyTypeId {
-        KeyTypeId::SchnorrkelSr25519
+        KeyTypeId::Sr25519
     }
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {

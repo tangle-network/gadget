@@ -1,4 +1,5 @@
 use crate::error::{K256Error, Result};
+use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
@@ -12,14 +13,14 @@ pub struct K256Ecdsa;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct K256VerifyingKey(pub VerifyingKey);
 
-impl K256VerifyingKey {
-    pub fn to_bytes(&self) -> Vec<u8> {
+impl KeyEncoding for K256VerifyingKey {
+    fn to_bytes(&self) -> Vec<u8> {
         self.0.to_sec1_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
         let vk = VerifyingKey::from_sec1_bytes(bytes)
-            .map_err(|e| K256Error::InvalidVerifyingKey(e.to_string()))?;
+            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(K256VerifyingKey(vk))
     }
 }
@@ -49,7 +50,18 @@ macro_rules! impl_serde_bytes {
 
         impl Ord for $wrapper {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-                self.0.to_bytes().cmp(&other.0.to_bytes())
+                self.to_bytes().cmp(&other.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $wrapper {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.to_bytes_impl().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                <$wrapper>::from_bytes_impl(bytes)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))
             }
         }
 
@@ -58,7 +70,7 @@ macro_rules! impl_serde_bytes {
             where
                 S: serde::Serializer,
             {
-                let bytes = self.0.to_bytes().to_vec();
+                let bytes = self.to_bytes();
                 Vec::serialize(&bytes, serializer)
             }
         }
@@ -68,7 +80,7 @@ macro_rules! impl_serde_bytes {
             where
                 D: serde::Deserializer<'de>,
             {
-                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
                 let inner = <$inner>::from_slice(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                 Ok($wrapper(inner))
@@ -78,14 +90,27 @@ macro_rules! impl_serde_bytes {
 }
 
 impl_serde_bytes!(K256SigningKey, k256::ecdsa::SigningKey);
-impl_serde_bytes!(K256Signature, k256::ecdsa::Signature);
 
-impl K256Signature {
-    pub fn to_bytes(&self) -> Vec<u8> {
+impl K256SigningKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
         self.0.to_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let key = k256::ecdsa::SigningKey::try_from(bytes)
+            .map_err(|e| K256Error::InvalidSigner(e.to_string()))?;
+        Ok(K256SigningKey(key))
+    }
+}
+
+impl_serde_bytes!(K256Signature, k256::ecdsa::Signature);
+
+impl K256Signature {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
         let sig = k256::ecdsa::Signature::try_from(bytes)
             .map_err(|e| K256Error::InvalidSignature(e.to_string()))?;
         Ok(K256Signature(sig))
@@ -99,7 +124,7 @@ impl KeyType for K256Ecdsa {
     type Error = K256Error;
 
     fn key_type_id() -> KeyTypeId {
-        KeyTypeId::K256Ecdsa
+        KeyTypeId::Ecdsa
     }
 
     fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {

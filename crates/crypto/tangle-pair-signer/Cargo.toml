@@ -9,7 +9,6 @@ gadget-crypto-core = { workspace = true, features = ["tangle"] }
 gadget-crypto-sp-core = { workspace = true }
 k256 = { workspace = true, optional = true }
 serde = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
 subxt = { workspace = true, features = ["substrate-compat"] }
 subxt-core = { workspace = true, features = ["substrate-compat"] }
 thiserror = { workspace = true }
@@ -24,7 +23,6 @@ std = [
 	"gadget-crypto-sp-core/std",
 	"gadget-std/std",
 	"serde/std",
-	"serde_json/std",
 	"subxt/native",
 	"subxt/substrate-compat",
 	"subxt-core/std",

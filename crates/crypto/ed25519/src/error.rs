@@ -7,6 +7,8 @@ pub enum Ed25519Error {
     InvalidSeed(String),
     #[error("Invalid public key: {0}")]
     InvalidVerifyingKey(String),
+    #[error("Invalid signing key: {0}")]
+    InvalidSigner(String),
     #[error("Invalid signature: {0}")]
     InvalidSignature(String),
     #[error("Zebra error: {0}")]

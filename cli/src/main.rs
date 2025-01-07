@@ -149,7 +149,14 @@ async fn main() -> color_eyre::Result<()> {
                 show_secret,
             } => {
                 let seed = seed.map(hex::decode).transpose()?;
-                keys::generate_key(key_type, path, seed.as_deref(), show_secret)?;
+                let (public, secret) =
+                    keys::generate_key(key_type, path.as_ref(), seed.as_deref(), show_secret)?;
+
+                eprintln!("Generated {} key:", key_type.name());
+                eprintln!("Public key: {}", public);
+                if show_secret || path.is_none() {
+                    eprintln!("Private key: {}", secret.expect("Should exist"));
+                }
             }
         },
     }

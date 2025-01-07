@@ -15,7 +15,7 @@ impl From<K256VerifyingKey> for VerifyingKey {
 mod tests {
     use super::*;
     use error::K256Error;
-    use gadget_crypto_core::KeyType;
+    use gadget_crypto_core::{KeyEncoding, KeyType};
     use k256_ecdsa::{K256Ecdsa, K256Signature, K256SigningKey, K256VerifyingKey};
 
     mod k256_crypto_tests {
