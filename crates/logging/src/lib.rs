@@ -8,6 +8,9 @@ pub use tracing_subscriber;
 /// [`trace`]: tracing::trace
 #[macro_export]
 macro_rules! trace {
+    (target: $target:expr, $($tt:tt)*) => {
+        $crate::tracing::trace!(target: $target, $($tt)*)
+    };
     ($($tt:tt)*) => {
         $crate::tracing::trace!(target: "gadget", $($tt)*)
     }
@@ -18,28 +21,11 @@ macro_rules! trace {
 /// [`debug`]: tracing::debug
 #[macro_export]
 macro_rules! debug {
+    (target: $target:expr, $($tt:tt)*) => {
+        $crate::tracing::debug!(target: $target, $($tt)*)
+    };
     ($($tt:tt)*) => {
         $crate::tracing::debug!(target: "gadget", $($tt)*)
-    }
-}
-
-/// An [`error`] log with the target `"gadget"`
-///
-/// [`error`]: tracing::error
-#[macro_export]
-macro_rules! error {
-    ($($tt:tt)*) => {
-        $crate::tracing::error!(target: "gadget", $($tt)*)
-    }
-}
-
-/// A [`warn`] log with the target `"gadget"`
-///
-/// [`warn`]: tracing::warn
-#[macro_export]
-macro_rules! warn {
-    ($($tt:tt)*) => {
-        $crate::tracing::warn!(target: "gadget", $($tt)*)
     }
 }
 
@@ -48,8 +34,37 @@ macro_rules! warn {
 /// [`info`]: tracing::info
 #[macro_export]
 macro_rules! info {
+    (target: $target:expr, $($tt:tt)*) => {
+        $crate::tracing::info!(target: $target, $($tt)*)
+    };
     ($($tt:tt)*) => {
         $crate::tracing::info!(target: "gadget", $($tt)*)
+    }
+}
+
+/// A [`warn`] log with the target `"gadget"`
+///
+/// [`warn`]: tracing::warn
+#[macro_export]
+macro_rules! warn {
+    (target: $target:expr, $($tt:tt)*) => {
+        $crate::tracing::warn!(target: $target, $($tt)*)
+    };
+    ($($tt:tt)*) => {
+        $crate::tracing::warn!(target: "gadget", $($tt)*)
+    }
+}
+
+/// An [`error`] log with the target `"gadget"`
+///
+/// [`error`]: tracing::error
+#[macro_export]
+macro_rules! error {
+    (target: $target:expr, $($tt:tt)*) => {
+        $crate::tracing::error!(target: $target, $($tt)*)
+    };
+    ($($tt:tt)*) => {
+        $crate::tracing::error!(target: "gadget", $($tt)*)
     }
 }
 

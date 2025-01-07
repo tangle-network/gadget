@@ -1,9 +1,8 @@
 use crate::TestClient;
+use sp_core::crypto::AccountId32;
 use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
 use alloy_provider::{Provider, WsConnect};
 use gadget_crypto_sr25519::TanglePairSigner;
-use gadget_runner_core::event_listener::tangle::AccountId32;
-use gadget_runner_core::{error, info};
 use gadget_runner_tangle::deploy::PrivateKeySigner;
 use gadget_runner_tangle::runtime::TangleConfig;
 use gadget_runner_tangle::tangle_runtime::api;
@@ -22,12 +21,14 @@ use gadget_runner_tangle::tangle_runtime::api::services::calls::types::request::
 use gadget_runner_tangle::tangle_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
 };
+use gadget_logging::*;
 use sp_core::H160;
 use std::error::Error;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
 use subxt::tx::signer::Signer;
 use subxt::tx::TxProgress;
+use tangle_subxt::tangle_testnet_runtime::api::services::events::MasterBlueprintServiceManagerRevised;
 
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision(

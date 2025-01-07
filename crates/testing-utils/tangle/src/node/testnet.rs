@@ -119,7 +119,7 @@ impl SubstrateNodeBuilder {
             let binary_path = &std::path::absolute(binary_path)
                 .expect("bad path")
                 .into_os_string();
-            gadget_logging::info!(target: "gadget", "Trying to spawn binary at {:?}", binary_path);
+            gadget_logging::info!("Trying to spawn binary at {:?}", binary_path);
             self.custom_flags
                 .insert("base-path".into(), Some(path.clone().into()));
 
