@@ -1,45 +1,37 @@
+use gadget_config::{ContextConfig, GadgetConfiguration};
+use gadget_config::supported_chains::SupportedChains;
 use crate::MyContext;
 use gadget_logging::info;
 use gadget_runner_tangle::error::TangleError;
 use gadget_runner_tangle::tangle::TangleConfig;
-use gadget_testing_utils::runner::RunnerSetup;
 use gadget_testing_utils::tangle::runner::TangleTestEnv;
+use crate as blueprint;
+use url::Url;
+use gadget_testing_utils::runner::TestEnv;
 
 #[tokio::test]
-async fn test_incredible_squaring_multi_node() -> Result<(), TangleError> {
-    let test_env = TangleTestEnv::new()?;
+async fn test_incredible_squaring() -> Result<(), TangleError> {
+    let context_config = ContextConfig::create_tangle_config(
+        Url::parse("http://127.0.0.1:0").unwrap(),
+        Url::parse("ws://127.0.0.1:0").unwrap(),
+        Default::default(),
+        None,
+        SupportedChains::LocalTestnet,
+        0,
+        Some(0),
+    );
+    let env = ::gadget_macros::ext::config::load(context_config.clone()).expect("Failed to load environment");
 
-    let test_cases = vec![(5u64, 25u64), (1000u64, 1_000_000u64), (u64::MAX, u64::MAX)];
+    let context = MyContext {
+        env: env.clone(),
+        call_id: None,
+    };
 
-    let mut runner_setups = Vec::new();
+    let x_square = blueprint::XsquareEventHandler::new(&env, context).await.unwrap();
 
-    for (input, expected) in test_cases {
-        let config = TangleConfig::default();
+    let mut test_env = TangleTestEnv::new(TangleConfig::default(), env, vec![x_square]).unwrap();
 
-        let setup = RunnerSetup::new(config, move |runner| {
-            async move {
-                info!("Running test with input: {}", input);
-                let context = MyContext {
-                    env: runner.env().clone(),
-                    call_id: None,
-                };
-
-                let x_square = blueprint::XsquareEventHandler::new(runner.env(), context).await?;
-
-                runner.job(x_square);
-
-                runner.run().await?;
-
-                // Add assertion here to check if the result matches the expected value
-
-                Ok(())
-            }
-        });
-
-        runner_setups.push(setup);
-    }
-
-    test_env.run_multiple_runners(runner_setups).await?;
+    test_env.run_runner().await.unwrap();
 
     Ok(())
 }

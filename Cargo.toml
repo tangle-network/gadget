@@ -32,6 +32,7 @@ broken_intra_doc_links = "deny"
 [workspace.dependencies]
 # Blueprint Examples
 incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
+incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./blueprints/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
@@ -134,6 +135,7 @@ tokio-util = { version = "0.7.12", default-features = false }
 tokio-cron-scheduler = "0.13.0"
 
 # CLI & Configuration
+cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo-generate = { version = "0.21.3", default-features = false }
 clap = { version = "4.5.16" }
 clap-cargo = { version = "0.14", default-features = false }
@@ -193,6 +195,7 @@ rustdoc-types = { version = "0.31.0", default-features = false }
 syn = { version = "2.0.75", default-features = false }
 trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
+dirs = { version = "5.0.1", default-features = false }
 
 # Alloy (EVM)
 alloy-primitives = { version = "0.8.12", default-features = false }
