@@ -222,7 +222,7 @@ impl TangleBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpSr25519Pair(pair) = SpSr25519Pair::from_bytes(&*secret_bytes)?;
+                    let SpSr25519Pair(pair) = SpSr25519Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -242,7 +242,7 @@ impl TangleBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpEd25519Pair(pair) = SpEd25519Pair::from_bytes(&*secret_bytes)?;
+                    let SpEd25519Pair(pair) = SpEd25519Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -262,7 +262,7 @@ impl TangleBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpEcdsaPair(pair) = SpEcdsaPair::from_bytes(&*secret_bytes)?;
+                    let SpEcdsaPair(pair) = SpEcdsaPair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -284,7 +284,7 @@ impl TangleBackend for Keystore {
                 .storage
                 .list_raw(KEY_TYPE_ID)
                 .filter_map(|bytes| {
-                    SpSr25519Public::from_bytes(&*bytes)
+                    SpSr25519Public::from_bytes(&bytes)
                         .ok()
                         .map(|public| public.0)
                 })
@@ -307,7 +307,7 @@ impl TangleBackend for Keystore {
                 .storage
                 .list_raw(KEY_TYPE_ID)
                 .filter_map(|bytes| {
-                    SpEd25519Public::from_bytes(&*bytes)
+                    SpEd25519Public::from_bytes(&bytes)
                         .ok()
                         .map(|public| public.0)
                 })
@@ -330,7 +330,7 @@ impl TangleBackend for Keystore {
                 .storage
                 .list_raw(KEY_TYPE_ID)
                 .filter_map(|bytes| {
-                    SpEcdsaPublic::from_bytes(&*bytes)
+                    SpEcdsaPublic::from_bytes(&bytes)
                         .ok()
                         .map(|public| public.0)
                 })
