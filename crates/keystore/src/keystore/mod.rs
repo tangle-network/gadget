@@ -194,7 +194,7 @@ impl Backend for Keystore {
                 let mut backend_keys: Vec<T::Public> = entry
                     .storage
                     .list_raw(T::key_type_id())
-                    .filter_map(|bytes| T::Public::from_bytes(&*bytes).ok())
+                    .filter_map(|bytes| T::Public::from_bytes(&bytes).ok())
                     .collect();
                 keys.append(&mut backend_keys);
             }
@@ -220,7 +220,7 @@ impl Backend for Keystore {
                 .storage
                 .load_secret_raw(T::key_type_id(), key_id.into())?
             {
-                let public: T::Public = T::Public::from_bytes(&*bytes)?;
+                let public: T::Public = T::Public::from_bytes(&bytes)?;
                 return Ok(public);
             }
         }
@@ -282,7 +282,7 @@ impl Backend for Keystore {
                 .storage
                 .load_secret_raw(T::key_type_id(), public_bytes.clone())?
             {
-                let secret: T::Secret = T::Secret::from_bytes(&*bytes)?;
+                let secret: T::Secret = T::Secret::from_bytes(&bytes)?;
                 return Ok(secret);
             }
         }

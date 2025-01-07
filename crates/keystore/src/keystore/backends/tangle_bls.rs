@@ -127,7 +127,7 @@ impl TangleBlsBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpBls381Pair(pair) = SpBls381Pair::from_bytes(&*secret_bytes)?;
+                    let SpBls381Pair(pair) = SpBls381Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -150,7 +150,7 @@ impl TangleBlsBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpBls377Pair(pair) = SpBls377Pair::from_bytes(&*secret_bytes)?;
+                    let SpBls377Pair(pair) = SpBls377Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -172,7 +172,7 @@ impl TangleBlsBackend for Keystore {
                 .storage
                 .list_raw(KEY_TYPE_ID)
                 .filter_map(|bytes| {
-                    SpBls381Public::from_bytes(&*bytes)
+                    SpBls381Public::from_bytes(&bytes)
                         .ok()
                         .map(|public| public.0)
                 })
@@ -195,7 +195,7 @@ impl TangleBlsBackend for Keystore {
                 .storage
                 .list_raw(KEY_TYPE_ID)
                 .filter_map(|bytes| {
-                    SpBls377Public::from_bytes(&*bytes)
+                    SpBls377Public::from_bytes(&bytes)
                         .ok()
                         .map(|public| public.0)
                 })
