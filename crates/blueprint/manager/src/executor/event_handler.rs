@@ -129,7 +129,7 @@ pub(crate) fn check_blueprint_events(
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> EventPollResult {
-    let pre_registation_events = event.events.find::<PreRegistration>();
+    let pre_registration_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
@@ -138,7 +138,7 @@ pub(crate) fn check_blueprint_events(
 
     let mut result = EventPollResult::default();
 
-    for evt in pre_registation_events {
+    for evt in pre_registration_events {
         match evt {
             Ok(evt) => {
                 if &evt.operator == account_id {
