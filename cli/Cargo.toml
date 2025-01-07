@@ -42,7 +42,7 @@ gadget-crypto = { workspace = true, features = [
 	"tangle-pair-signer",
 ] }
 gadget-crypto-core = { workspace = true, features = ["clap"] }
-gadget-keystore = { workspace = true, optional = true }
+gadget-keystore = { workspace = true }
 
 # Optional crypto dependencies
 w3f-bls = { workspace = true, optional = true }
