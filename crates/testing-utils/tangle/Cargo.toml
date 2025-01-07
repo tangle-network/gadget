@@ -7,7 +7,7 @@ edition = "2021"
 gadget-runners = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
-gadget-testing-utils = { workspace = true, features = ["std"] }
+gadget-core-testing-utils = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["std"] }
 cargo-tangle = { workspace = true }
 
