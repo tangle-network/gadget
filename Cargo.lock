@@ -7029,6 +7029,7 @@ dependencies = [
  "gadget-runner-core",
  "gadget-std",
  "gadget-utils",
+ "k256",
  "sp-core",
  "subxt",
  "tangle-subxt",
@@ -7081,25 +7082,22 @@ version = "0.1.0"
 dependencies = [
  "alloy-provider",
  "alloy-rpc-types",
- "alloy-signer-local",
  "async-trait",
  "cargo-tangle",
  "dirs",
  "futures",
  "futures-util",
- "gadget-clients",
  "gadget-config",
  "gadget-core-testing-utils",
- "gadget-crypto",
+ "gadget-crypto-sr25519",
  "gadget-event-listeners",
- "gadget-keystore",
  "gadget-logging",
+ "gadget-runner-core",
+ "gadget-runner-tangle",
  "gadget-runners",
- "gadget-std",
- "parking_lot",
  "reqwest 0.12.9",
  "serde_json",
- "sp-core 31.0.0",
+ "sp-core",
  "subxt",
  "tangle-subxt",
  "tempfile",
@@ -8409,16 +8407,8 @@ dependencies = [
  "gadget-runners",
  "gadget-std",
  "gadget-testing-utils",
- "tempfile",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "incredible-squaring-blueprint-eigenlayer"
-version = "0.1.1"
-dependencies = [
- "tempfile",
 ]
 
 [[package]]

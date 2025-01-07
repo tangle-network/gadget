@@ -301,8 +301,10 @@ impl Backend for Keystore {
 
 #[cfg(test)]
 mod tests {
+    use gadget_crypto::ed25519_crypto::Ed25519Zebra;
     use super::*;
     use gadget_crypto::k256_crypto::K256Ecdsa;
+    use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
 
     #[test]
     fn test_generate_from_string() -> Result<()> {
@@ -324,18 +326,31 @@ mod tests {
 
     #[tokio::test]
     async fn test_local_operations() -> Result<()> {
+        test_local_operations_inner::<K256Ecdsa>().await?;
+        test_local_operations_inner::<Ed25519Zebra>().await?;
+        test_local_operations_inner::<SpSr25519>().await?;
+        test_local_operations_inner::<SpEcdsa>().await?;
+        test_local_operations_inner::<SpBls377>().await?;
+        test_local_operations_inner::<SpBls381>().await?;
+        Ok(())
+    }
+
+    async fn test_local_operations_inner<T: KeyType>() -> Result<()>
+        where <T as gadget_crypto::KeyType>::Error: IntoCryptoError {
         let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate and test local key
-        let public = keystore.generate::<K256Ecdsa>(None)?;
+        let public = keystore.generate::<T>(None)?;
         let message = b"test message";
-        let signature = keystore.sign_with_local::<K256Ecdsa>(&public, message)?;
-        assert!(K256Ecdsa::verify(&public, message, &signature));
+        let signature = keystore.sign_with_local::<T>(&public, message)?;
+        assert!(T::verify(&public, message, &signature));
 
         // List local keys
-        let local_keys = keystore.list_local::<K256Ecdsa>()?;
+        let local_keys = keystore.list_local::<T>()?;
         assert_eq!(local_keys.len(), 1);
-        assert_eq!(local_keys[0], public);
+        if local_keys[0] != public {
+            panic!("Expected local key to be the same as generated key");
+        }
 
         Ok(())
     }
