@@ -1,9 +1,9 @@
 use gadget_config::GadgetConfiguration;
+use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::runner::BlueprintRunner;
-use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::jobs::JobBuilder;
+use gadget_runners::core::runner::BlueprintRunner;
 
 pub struct TestRunner {
     inner: BlueprintRunner,
@@ -34,7 +34,11 @@ impl TestRunner {
 pub trait TestEnv {
     type Config: BlueprintConfig;
 
-    fn new<J, T>(config: Self::Config, env: GadgetConfiguration, jobs: Vec<J>) -> Result<Self, Error>
+    fn new<J, T>(
+        config: Self::Config,
+        env: GadgetConfiguration,
+        jobs: Vec<J>,
+    ) -> Result<Self, Error>
     where
         J: Into<JobBuilder<T>> + 'static,
         T: InitializableEventHandler + Send + 'static,
@@ -48,12 +52,18 @@ pub struct GenericTestEnv<E: TestEnv> {
 }
 
 impl<E: TestEnv> GenericTestEnv<E> {
-    pub fn new<J, EH>(config: E::Config, env: GadgetConfiguration, jobs: Vec<J>) -> Result<Self, Error>
+    pub fn new<J, EH>(
+        config: E::Config,
+        env: GadgetConfiguration,
+        jobs: Vec<J>,
+    ) -> Result<Self, Error>
     where
         J: Into<JobBuilder<EH>> + 'static,
         EH: InitializableEventHandler + Send + 'static,
     {
-        Ok(Self { env: E::new(config, env, jobs)? })
+        Ok(Self {
+            env: E::new(config, env, jobs)?,
+        })
     }
 
     pub async fn run_runner(&mut self) -> Result<(), Error> {
