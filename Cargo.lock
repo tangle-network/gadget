@@ -5187,6 +5187,7 @@ dependencies = [
  "async-trait",
  "futures",
  "gadget-config",
+ "gadget-event-listeners",
  "gadget-logging",
  "gadget-runners",
  "serde_json",
@@ -5706,6 +5707,7 @@ dependencies = [
  "futures-util",
  "gadget-config",
  "gadget-core-testing-utils",
+ "gadget-event-listeners",
  "gadget-logging",
  "gadget-runners",
  "serde_json",
@@ -6962,6 +6964,14 @@ dependencies = [
  "gadget-std",
  "gadget-testing-utils",
  "tokio",
+ "url",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-eigenlayer"
+version = "0.1.1"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
