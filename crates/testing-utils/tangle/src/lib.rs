@@ -5,8 +5,8 @@ use std::path::Path;
 
 pub use gadget_core_testing_utils::Error;
 
-pub mod runner;
 pub mod node;
+pub mod runner;
 
 #[allow(irrefutable_let_patterns)]
 pub fn check_for_test(config: &ContextConfig) -> Result<(), Error> {

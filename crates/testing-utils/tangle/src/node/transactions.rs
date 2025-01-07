@@ -1,27 +1,33 @@
+use crate::TestClient;
 use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
 use alloy_provider::{Provider, WsConnect};
-use cargo_tangle::deploy::PrivateKeySigner;
-use gadget_keystore::TanglePairSigner;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::module::Call;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeCall;
+use gadget_crypto_sr25519::TanglePairSigner;
+use gadget_runner_core::event_listener::tangle::AccountId32;
+use gadget_runner_core::{error, info};
+use gadget_runner_tangle::deploy::PrivateKeySigner;
+use gadget_runner_tangle::runtime::TangleConfig;
+use gadget_runner_tangle::tangle_runtime::api;
+use gadget_runner_tangle::tangle_runtime::api::runtime_types::pallet_services::module::Call;
+use gadget_runner_tangle::tangle_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_primitives::services::Asset;
+use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_runtime::RuntimeCall;
+use gadget_runner_tangle::tangle_runtime::api::services::calls::types::call::{Args, Job};
+use gadget_runner_tangle::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
+use gadget_runner_tangle::tangle_runtime::api::services::calls::types::register::{
+    Preferences, RegistrationArgs,
+};
+use gadget_runner_tangle::tangle_runtime::api::services::calls::types::request::{
+    Assets, PaymentAsset,
+};
+use gadget_runner_tangle::tangle_runtime::api::services::events::{
+    JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
+};
 use sp_core::H160;
+use std::error::Error;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
-use std::error::Error;
-use gadget_sdk::event_listener::tangle::AccountId32;
-use gadget_sdk::{error, info};
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised};
+use subxt::tx::signer::Signer;
 use subxt::tx::TxProgress;
-use gadget_sdk::clients::tangle::runtime::TangleConfig;
-use gadget_sdk::subxt_core::tx::signer::Signer;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{Assets, PaymentAsset};
-use crate::TestClient;
 
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision(
