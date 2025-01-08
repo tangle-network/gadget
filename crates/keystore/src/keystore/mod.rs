@@ -302,9 +302,12 @@ impl Backend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gadget_crypto::bls_crypto::bls377::W3fBls377;
+    use gadget_crypto::bls_crypto::bls381::W3fBls381;
     use gadget_crypto::ed25519_crypto::Ed25519Zebra;
     use gadget_crypto::k256_crypto::K256Ecdsa;
     use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
+    use gadget_crypto::sr25519_crypto::SchnorrkelSr25519;
 
     #[test]
     fn test_generate_from_string() -> Result<()> {
@@ -324,16 +327,29 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_local_operations() -> Result<()> {
-        test_local_operations_inner::<K256Ecdsa>().await?;
-        test_local_operations_inner::<Ed25519Zebra>().await?;
-        test_local_operations_inner::<SpSr25519>().await?;
-        test_local_operations_inner::<SpEcdsa>().await?;
-        test_local_operations_inner::<SpBls377>().await?;
-        test_local_operations_inner::<SpBls381>().await?;
-        Ok(())
+    macro_rules! local_operations {
+        ($($key_ty:ty),+ $(,)?) => {
+            $(
+            paste::paste! {
+                #[tokio::test]
+                async fn [<test_local_ $key_ty:snake>]() -> Result<()> {
+                    test_local_operations_inner::<$key_ty>().await
+                }
+            }
+            )+
+        }
     }
+
+    local_operations!(
+        K256Ecdsa,
+        Ed25519Zebra,
+        W3fBls377,
+        W3fBls381,
+        SchnorrkelSr25519
+    );
+
+    // sp-core backend
+    local_operations!(SpBls377, SpBls381, SpEcdsa, SpSr25519,);
 
     async fn test_local_operations_inner<T: KeyType>() -> Result<()>
     where
