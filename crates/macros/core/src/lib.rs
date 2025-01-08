@@ -561,21 +561,13 @@ mod tests {
     #[test]
     fn test_blueprint_deserialization() {
         // get the root of the git repo using a command, then make a path using {git repo root}/blueprints/incredible-squaring/blueprint.json
-        let process = std::process::Command::new("git")
-            .arg("rev-parse")
-            .arg("--show-toplevel")
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-            .expect("Failed to run git command");
+        const CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
-        let output = String::from_utf8(
-            process
-                .wait_with_output()
-                .expect("Failed to get output of git command")
-                .stdout,
-        )
-        .expect("Failed to convert command output to string");
-        let base_path = PathBuf::from(output.trim()).join("blueprints/incredible-squaring/");
+        let base_path = PathBuf::from(CRATE_ROOT)
+            .join("../../..")
+            .join("blueprints/incredible-squaring/")
+            .canonicalize()
+            .unwrap();
 
         let output = std::process::Command::new("cargo")
             .arg("build")
