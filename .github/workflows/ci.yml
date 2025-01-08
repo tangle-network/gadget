@@ -129,7 +129,7 @@ jobs:
           tool: nextest
 
       - name: tests
-        run: cargo nextest run ${{ matrix.package == 'gadget-networking' && '--profile serial' || '--profile ci' }} --package ${{ matrix.package }}
+        run: cargo nextest run --profile ci --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
