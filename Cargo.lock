@@ -679,8 +679,6 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 0.5.4",
  "derive_more 1.0.0",
- "jsonwebtoken 9.3.0",
- "rand",
  "serde",
  "strum 0.26.3",
 ]
@@ -7090,15 +7088,16 @@ dependencies = [
  "dirs",
  "futures",
  "futures-util",
- "gadget-client-tangle",
+ "gadget-clients",
  "gadget-config",
  "gadget-core-testing-utils",
- "gadget-crypto-sr25519",
+ "gadget-crypto",
  "gadget-event-listeners",
+ "gadget-keystore",
  "gadget-logging",
- "gadget-runner-core",
- "gadget-runner-tangle",
  "gadget-runners",
+ "gadget-std",
+ "parking_lot",
  "reqwest 0.12.9",
  "serde_json",
  "sp-core",
@@ -8411,8 +8410,16 @@ dependencies = [
  "gadget-runners",
  "gadget-std",
  "gadget-testing-utils",
+ "tempfile",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-eigenlayer"
+version = "0.1.1"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
