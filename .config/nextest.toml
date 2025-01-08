@@ -1,3 +1,6 @@
 [profile.ci]
 failure-output = "immediate-final"
 fail-fast = false
+
+[profile.serial]
+test-threads=1
