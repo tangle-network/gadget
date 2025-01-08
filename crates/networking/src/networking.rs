@@ -654,6 +654,7 @@ mod tests {
         }
     }
 
+    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_p2p() {
@@ -903,6 +904,7 @@ mod tests {
 
     const MESSAGE_COUNT: u64 = 100;
 
+    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_stress_test_multiplexer() {
         setup_log();
@@ -1003,6 +1005,7 @@ mod tests {
         tokio::try_join!(handle0, handle1).unwrap();
     }
 
+    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_nested_multiplexer() {
