@@ -560,7 +560,6 @@ mod tests {
 
     #[test]
     fn test_blueprint_deserialization() {
-        // get the root of the git repo using a command, then make a path using {git repo root}/blueprints/incredible-squaring/blueprint.json
         const CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
         let base_path = PathBuf::from(CRATE_ROOT)
