@@ -1,20 +1,31 @@
 use crate as blueprint;
 use crate::MyContext;
 use gadget_config::supported_chains::SupportedChains;
-use gadget_config::{ContextConfig, GadgetConfiguration};
-use gadget_logging::info;
+use gadget_config::ContextConfig;
 use gadget_runner_tangle::error::TangleError;
 use gadget_runner_tangle::tangle::TangleConfig;
 use gadget_testing_utils::runner::TestEnv;
+use gadget_testing_utils::tangle::node::NodeConfig;
 use gadget_testing_utils::tangle::runner::TangleTestEnv;
 use url::Url;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<(), TangleError> {
+    // Start Local Tangle Node
+    let node_config = NodeConfig::new(false);
+    let tangle_node = gadget_testing_utils::tangle::node::run(node_config)
+        .await
+        .unwrap();
+
+    // Setup testing directory
+    let tmp_dir = tempfile::TempDir::new().map_err(TangleError::Io)?;
+    let tmp_dir_path = tmp_dir.path().to_string_lossy().into_owned();
+    // std::env::current_dir().expect("Failed to get current directory");
+
     let context_config = ContextConfig::create_tangle_config(
-        Url::parse("http://127.0.0.1:0").unwrap(),
-        Url::parse("ws://127.0.0.1:0").unwrap(),
-        Default::default(),
+        Url::parse(&format!("http://127.0.0.1:{}", tangle_node.ws_port())).unwrap(),
+        Url::parse(&format!("ws://127.0.0.1:{}", tangle_node.ws_port())).unwrap(),
+        tmp_dir_path,
         None,
         SupportedChains::LocalTestnet,
         0,
