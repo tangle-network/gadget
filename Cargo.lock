@@ -8428,13 +8428,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "incredible-squaring-blueprint-eigenlayer"
-version = "0.1.1"
-dependencies = [
- "tempfile",
-]
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17507,8 +17500,9 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.8.0"
-source = "git+https://github.com/tangle-network/tangle?branch=serial%2Fbump-subxt#207c962065b50e861fdf476471ff0c75c8bb5964"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76c8bc3b867c65e238232df5f06193fd20d8133ddbc1fdac16df383b6eaa93f0"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
