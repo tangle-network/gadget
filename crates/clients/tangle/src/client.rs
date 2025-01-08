@@ -41,7 +41,7 @@ pub struct TangleClient {
     account_id: AccountId32,
     pub config: GadgetConfiguration,
     keystore: Arc<Keystore>,
-    services_client: TangleServicesClient<subxt::PolkadotConfig>,
+    services_client: TangleServicesClient<TangleConfig>,
 }
 
 const KEY_ID: &str = "tangle-default";
@@ -172,6 +172,14 @@ impl TangleClient {
 
     pub async fn now(&self) -> Option<[u8; 32]> {
         Some(self.latest_event().await?.hash)
+    }
+}
+
+impl gadget_std::ops::Deref for TangleClient {
+    type Target = TangleServicesClient<TangleConfig>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.services_client
     }
 }
 

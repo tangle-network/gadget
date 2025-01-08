@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use gadget_config::GadgetConfiguration;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_event_listeners::core::InitializableEventHandler;
@@ -23,15 +24,12 @@ impl TestEnv for TangleTestEnv {
         J: Into<JobBuilder<T>> + 'static,
         T: InitializableEventHandler + Send + 'static,
     {
-        let gadget_config = GadgetConfiguration::default();
-        let config = TangleConfig::default();
-        let runner =
-            TestRunner::new::<J, T, Self::Config>(config.clone(), gadget_config.clone(), vec![]);
+        let runner = TestRunner::new::<J, T, Self::Config>(config.clone(), env.clone(), jobs);
 
         Ok(Self {
             runner,
             config,
-            gadget_config,
+            gadget_config: env,
         })
     }
 
