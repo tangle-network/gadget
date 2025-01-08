@@ -103,7 +103,7 @@ impl TangleClient {
         &self,
         at: [u8; 32],
     ) -> subxt::runtime_api::RuntimeApi<TangleConfig, OnlineClient> {
-        let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
+        let block_ref = BlockRef::from_hash(subxt::utils::H256::from_slice(&at));
         self.services_client.rpc_client.runtime_api().at(block_ref)
     }
 
@@ -286,7 +286,13 @@ impl GadgetServicesClient for TangleClient {
             })?;
 
             if let Some(pref) = maybe_pref {
-                map.insert(operator, ecdsa::Public(pref.key));
+                let public = ecdsa::Public::from_full(pref.key.as_slice()).map_err(|_| {
+                    Error::Other(format!(
+                        "Failed to convert the ECDSA public key for operator: {operator}"
+                    ))
+                })?;
+
+                map.insert(operator, public);
             } else {
                 return Err(Error::MissingEcdsa(operator));
             }

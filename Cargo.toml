@@ -113,17 +113,17 @@ gadget-tangle-testing-utils = { version = "0.1.0", path = "./crates/testing-util
 gadget-metrics = { version = "0.1.0", path = "./crates/metrics", default-features = false }
 gadget-rpc-calls = { version = "0.1.0", path = "./crates/metrics/rpc-calls", default-features = false }
 
+cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.7.1", default-features = false }
-subxt-signer = { version = "0.37.0", default-features = false }
-subxt = { version = "0.37.0", default-features = false }
-subxt-core = { version = "0.37.0", default-features = false }
+tangle-subxt = { git = "https://github.com/tangle-network/tangle", branch = "serial/bump-subxt", default-features = false }
+subxt = { version = "0.38.0", default-features = false }
+subxt-core = { version = "0.38.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
-sp-core = { version = "31.0.0", default-features = false }
+sp-core = { version = "34.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
 
 # Async & Runtime
@@ -135,8 +135,7 @@ tokio-util = { version = "0.7.12", default-features = false }
 tokio-cron-scheduler = "0.13.0"
 
 # CLI & Configuration
-cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
-cargo-generate = { version = "0.21.3", default-features = false }
+cargo-generate = { version = "0.22.1", default-features = false }
 clap = { version = "4.5.16" }
 clap-cargo = { version = "0.14", default-features = false }
 toml = { version = "0.8.19", default-features = false }

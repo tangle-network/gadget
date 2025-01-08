@@ -12,12 +12,12 @@ gadget-keystore = { workspace = true, features = ["tangle-full"] }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true }
 gadget-crypto = { workspace = true, features = ["tangle-pair-signer"] }
-
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 sp-core = { workspace = true, default-features = false }
 tangle-subxt = { workspace = true }
 subxt = { workspace = true }
+k256 = { workspace = true }
 
 [features]
 default = ["std"]

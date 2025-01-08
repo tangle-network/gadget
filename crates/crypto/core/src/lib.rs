@@ -6,79 +6,49 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum KeyTypeId {
     #[cfg(feature = "bn254")]
-    ArkBn254,
-    #[cfg(feature = "k256")]
-    K256Ecdsa,
-    #[cfg(feature = "sr25519-schnorrkel")]
-    SchnorrkelSr25519,
-    #[cfg(feature = "bls")]
-    W3fBls381,
-    #[cfg(feature = "bls")]
-    W3fBls377,
-    #[cfg(feature = "zebra")]
-    ZebraEd25519,
-    #[cfg(feature = "tangle")]
-    SpBls377,
-    #[cfg(feature = "tangle")]
-    SpBls381,
-    #[cfg(feature = "tangle")]
-    SpEcdsa,
-    #[cfg(feature = "tangle")]
-    SpEd25519,
-    #[cfg(feature = "tangle")]
-    SpSr25519,
+    Bn254,
+    #[cfg(any(feature = "k256", feature = "tangle"))]
+    Ecdsa,
+    #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
+    Sr25519,
+    #[cfg(any(feature = "bls", feature = "tangle"))]
+    Bls381,
+    #[cfg(any(feature = "bls", feature = "tangle"))]
+    Bls377,
+    #[cfg(any(feature = "zebra", feature = "tangle"))]
+    Ed25519,
 }
 
 impl KeyTypeId {
     pub const ENABLED: &'static [Self] = &[
         #[cfg(feature = "bn254")]
-        Self::ArkBn254,
-        #[cfg(feature = "k256")]
-        Self::K256Ecdsa,
-        #[cfg(feature = "sr25519-schnorrkel")]
-        Self::SchnorrkelSr25519,
-        #[cfg(feature = "bls")]
-        Self::W3fBls377,
-        #[cfg(feature = "bls")]
-        Self::W3fBls381,
-        #[cfg(feature = "zebra")]
-        Self::ZebraEd25519,
-        #[cfg(feature = "tangle")]
-        Self::SpBls377,
-        #[cfg(feature = "tangle")]
-        Self::SpBls381,
-        #[cfg(feature = "tangle")]
-        Self::SpEcdsa,
-        #[cfg(feature = "tangle")]
-        Self::SpEd25519,
-        #[cfg(feature = "tangle")]
-        Self::SpSr25519,
+        Self::Bn254,
+        #[cfg(any(feature = "k256", feature = "tangle"))]
+        Self::Ecdsa,
+        #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
+        Self::Sr25519,
+        #[cfg(any(feature = "bls", feature = "tangle"))]
+        Self::Bls381,
+        #[cfg(any(feature = "bls", feature = "tangle"))]
+        Self::Bls377,
+        #[cfg(any(feature = "zebra", feature = "tangle"))]
+        Self::Ed25519,
     ];
 
     pub fn name(&self) -> &'static str {
         match *self {
             #[cfg(feature = "bn254")]
-            Self::ArkBn254 => "ark-bn254",
-            #[cfg(feature = "k256")]
-            Self::K256Ecdsa => "k256-ecdsa",
-            #[cfg(feature = "sr25519-schnorrkel")]
-            Self::SchnorrkelSr25519 => "schnorrkel-sr25519",
-            #[cfg(feature = "bls")]
-            Self::W3fBls381 => "w3f-bls381",
-            #[cfg(feature = "bls")]
-            Self::W3fBls377 => "w3f-bls377",
-            #[cfg(feature = "zebra")]
-            Self::ZebraEd25519 => "zebra-ed25519",
-            #[cfg(feature = "tangle")]
-            Self::SpBls377 => "sp-bls377",
-            #[cfg(feature = "tangle")]
-            Self::SpBls381 => "sp-bls381",
-            #[cfg(feature = "tangle")]
-            Self::SpEcdsa => "sp-ecdsa",
-            #[cfg(feature = "tangle")]
-            Self::SpEd25519 => "sp-ed25519",
-            #[cfg(feature = "tangle")]
-            Self::SpSr25519 => "sp-sr25519",
+            Self::Bn254 => "bn254",
+            #[cfg(any(feature = "k256", feature = "tangle"))]
+            Self::Ecdsa => "ecdsa",
+            #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
+            Self::Sr25519 => "sr25519",
+            #[cfg(any(feature = "bls", feature = "tangle"))]
+            Self::Bls381 => "bls381",
+            #[cfg(any(feature = "bls", feature = "tangle"))]
+            Self::Bls377 => "bls377",
+            #[cfg(any(feature = "zebra", feature = "tangle"))]
+            Self::Ed25519 => "ed25519",
             #[cfg(all(
                 not(feature = "bn254"),
                 not(feature = "k256"),
@@ -92,10 +62,15 @@ impl KeyTypeId {
     }
 }
 
+pub trait KeyEncoding: Sized {
+    fn to_bytes(&self) -> Vec<u8>;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, serde::de::value::Error>;
+}
+
 /// Trait for key types that can be stored in the keystore
 pub trait KeyType: Sized + 'static {
-    type Secret: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync;
-    type Public: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync;
+    type Secret: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync + KeyEncoding;
+    type Public: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync + KeyEncoding;
     type Signature: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync;
     type Error: Clone + Send + Sync;
 
@@ -135,47 +110,29 @@ pub trait KeyType: Sized + 'static {
 impl clap::ValueEnum for KeyTypeId {
     fn value_variants<'a>() -> &'a [Self] {
         &[
-            Self::SchnorrkelSr25519,
-            Self::ZebraEd25519,
-            Self::K256Ecdsa,
-            Self::W3fBls381,
-            Self::ArkBn254,
-            Self::SpEcdsa,
-            Self::SpEd25519,
-            Self::SpSr25519,
-            Self::SpBls377,
-            Self::SpBls381,
+            Self::Sr25519,
+            Self::Ed25519,
+            Self::Ecdsa,
+            Self::Bls381,
+            Self::Bn254,
         ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         Some(match self {
-            Self::SchnorrkelSr25519 => {
+            Self::Sr25519 => {
                 clap::builder::PossibleValue::new("sr25519").help("Schnorrkel/Ristretto x25519")
             }
-            Self::ZebraEd25519 => {
+            Self::Ed25519 => {
                 clap::builder::PossibleValue::new("ed25519").help("Edwards Curve 25519")
             }
-            Self::K256Ecdsa => clap::builder::PossibleValue::new("ecdsa")
+            Self::Ecdsa => clap::builder::PossibleValue::new("ecdsa")
                 .help("Elliptic Curve Digital Signature Algorithm"),
-            Self::W3fBls381 => {
+            Self::Bls381 => {
                 clap::builder::PossibleValue::new("bls381").help("Boneh-Lynn-Shacham on BLS12-381")
             }
-            Self::ArkBn254 => {
+            Self::Bn254 => {
                 clap::builder::PossibleValue::new("blsbn254").help("Boneh-Lynn-Shacham on BN254")
-            }
-            Self::SpEcdsa => clap::builder::PossibleValue::new("sp-ecdsa").help("Substrate ECDSA"),
-            Self::SpEd25519 => {
-                clap::builder::PossibleValue::new("sp-ed25519").help("Substrate Ed25519")
-            }
-            Self::SpSr25519 => {
-                clap::builder::PossibleValue::new("sp-sr25519").help("Substrate Sr25519")
-            }
-            Self::SpBls377 => {
-                clap::builder::PossibleValue::new("sp-bls377").help("Substrate BLS377")
-            }
-            Self::SpBls381 => {
-                clap::builder::PossibleValue::new("sp-bls381").help("Substrate BLS381")
             }
             _ => return None,
         })

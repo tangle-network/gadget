@@ -7,9 +7,9 @@ cfg_remote! {
 
 mod config;
 pub use config::KeystoreConfig;
-use gadget_crypto::IntoCryptoError;
 use gadget_crypto::KeyType;
 use gadget_crypto::KeyTypeId;
+use gadget_crypto::{IntoCryptoError, KeyEncoding};
 
 use crate::error::{Error, Result};
 #[cfg(feature = "std")]
@@ -150,11 +150,9 @@ impl Backend for Keystore {
 
         // Store in all available storage backends
         for entry in backends {
-            entry.storage.store_raw(
-                T::key_type_id(),
-                serde_json::to_vec(&public)?,
-                serde_json::to_vec(&secret)?,
-            )?;
+            entry
+                .storage
+                .store_raw(T::key_type_id(), public.to_bytes(), secret.to_bytes())?;
         }
 
         Ok(public)
@@ -196,7 +194,7 @@ impl Backend for Keystore {
                 let mut backend_keys: Vec<T::Public> = entry
                     .storage
                     .list_raw(T::key_type_id())
-                    .filter_map(|bytes| serde_json::from_slice(&bytes).ok())
+                    .filter_map(|bytes| T::Public::from_bytes(&bytes).ok())
                     .collect();
                 keys.append(&mut backend_keys);
             }
@@ -218,8 +216,11 @@ impl Backend for Keystore {
             .ok_or(Error::KeyTypeNotSupported)?;
 
         for entry in storages {
-            if let Some(bytes) = entry.storage.load_raw(T::key_type_id(), key_id.into())? {
-                let public: T::Public = serde_json::from_slice(&bytes)?;
+            if let Some(bytes) = entry
+                .storage
+                .load_secret_raw(T::key_type_id(), key_id.into())?
+            {
+                let public: T::Public = T::Public::from_bytes(&bytes)?;
                 return Ok(public);
             }
         }
@@ -228,7 +229,7 @@ impl Backend for Keystore {
     }
 
     fn contains_local<T: KeyType>(&self, public: &T::Public) -> Result<bool> {
-        let public_bytes = serde_json::to_vec(public)?;
+        let public_bytes = public.to_bytes();
         let storages = self
             .storages
             .get(&T::key_type_id())
@@ -250,7 +251,7 @@ impl Backend for Keystore {
     where
         T::Public: DeserializeOwned,
     {
-        let public_bytes = serde_json::to_vec(public)?;
+        let public_bytes = public.to_bytes();
         let storages = self
             .storages
             .get(&T::key_type_id())
@@ -275,13 +276,13 @@ impl Backend for Keystore {
             .get(&T::key_type_id())
             .ok_or(Error::KeyTypeNotSupported)?;
 
-        let public_bytes = serde_json::to_vec(public)?;
+        let public_bytes = public.to_bytes();
         for entry in storages {
             if let Some(bytes) = entry
                 .storage
-                .load_raw(T::key_type_id(), public_bytes.clone())?
+                .load_secret_raw(T::key_type_id(), public_bytes.clone())?
             {
-                let secret: T::Secret = serde_json::from_slice(&bytes)?;
+                let secret: T::Secret = T::Secret::from_bytes(&bytes)?;
                 return Ok(secret);
             }
         }
@@ -301,7 +302,9 @@ impl Backend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gadget_crypto::ed25519_crypto::Ed25519Zebra;
     use gadget_crypto::k256_crypto::K256Ecdsa;
+    use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
 
     #[test]
     fn test_generate_from_string() -> Result<()> {
@@ -323,18 +326,33 @@ mod tests {
 
     #[tokio::test]
     async fn test_local_operations() -> Result<()> {
+        test_local_operations_inner::<K256Ecdsa>().await?;
+        test_local_operations_inner::<Ed25519Zebra>().await?;
+        test_local_operations_inner::<SpSr25519>().await?;
+        test_local_operations_inner::<SpEcdsa>().await?;
+        test_local_operations_inner::<SpBls377>().await?;
+        test_local_operations_inner::<SpBls381>().await?;
+        Ok(())
+    }
+
+    async fn test_local_operations_inner<T: KeyType>() -> Result<()>
+    where
+        <T as gadget_crypto::KeyType>::Error: IntoCryptoError,
+    {
         let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate and test local key
-        let public = keystore.generate::<K256Ecdsa>(None)?;
+        let public = keystore.generate::<T>(None)?;
         let message = b"test message";
-        let signature = keystore.sign_with_local::<K256Ecdsa>(&public, message)?;
-        assert!(K256Ecdsa::verify(&public, message, &signature));
+        let signature = keystore.sign_with_local::<T>(&public, message)?;
+        assert!(T::verify(&public, message, &signature));
 
         // List local keys
-        let local_keys = keystore.list_local::<K256Ecdsa>()?;
+        let local_keys = keystore.list_local::<T>()?;
         assert_eq!(local_keys.len(), 1);
-        assert_eq!(local_keys[0], public);
+        if local_keys[0] != public {
+            panic!("Expected local key to be the same as generated key");
+        }
 
         Ok(())
     }

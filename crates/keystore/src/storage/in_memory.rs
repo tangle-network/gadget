@@ -62,7 +62,11 @@ impl RawStorage for InMemoryStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_secret_raw(
+        &self,
+        type_id: KeyTypeId,
+        public_bytes: Vec<u8>,
+    ) -> Result<Option<Box<[u8]>>> {
         let data = self.data.read();
         Ok(data
             .get(&type_id)

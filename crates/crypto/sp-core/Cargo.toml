@@ -10,19 +10,20 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
+serde_bytes = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 gadget-crypto-sp-core = { path = ".", features = ["std", "bls"] }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
 default = ["std"]
 std = [
-    "gadget-crypto-core/std",
-    "gadget-std/std",
-    "serde/std",
-    "serde_json/std",
-    "sp-core/std",
-] 
+	"gadget-crypto-core/std",
+	"gadget-std/std",
+	"serde/std",
+	"serde_bytes/std",
+	"sp-core/std",
+]
 bls = ["sp-core/bls-experimental"]

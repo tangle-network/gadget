@@ -5,7 +5,7 @@ use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, B256};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_signer_local::{coins_bip39::English, MnemonicBuilder};
-use gadget_crypto::KeyType;
+use gadget_crypto::{KeyEncoding, KeyType};
 use gadget_std::string::ToString;
 use serde::de::DeserializeOwned;
 
@@ -52,7 +52,7 @@ impl EvmBackend for Keystore {
     where
         T::Public: DeserializeOwned,
     {
-        let public_bytes = serde_json::to_vec(public)?;
+        let public_bytes = public.to_bytes();
         Ok(Address::from_slice(&public_bytes[..20]))
     }
 

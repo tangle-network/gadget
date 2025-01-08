@@ -83,7 +83,11 @@ impl RawStorage for FileStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_secret_raw(
+        &self,
+        type_id: KeyTypeId,
+        public_bytes: Vec<u8>,
+    ) -> Result<Option<Box<[u8]>>> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if !path.exists() {
             return Ok(None);
