@@ -1,8 +1,7 @@
 use crate as blueprint;
 use crate::MyContext;
 use gadget_config::supported_chains::SupportedChains;
-use gadget_config::{ContextConfig, GadgetConfiguration};
-use gadget_logging::info;
+use gadget_config::ContextConfig;
 use gadget_runner_tangle::error::TangleError;
 use gadget_runner_tangle::tangle::TangleConfig;
 use gadget_testing_utils::runner::TestEnv;

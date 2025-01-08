@@ -57,7 +57,7 @@ impl<S: RawStorage> TypedStorage<S> {
             .load_secret_raw(T::key_type_id(), public_bytes)?
         {
             Some(secret_bytes) => {
-                let secret = T::Secret::from_bytes(&*secret_bytes)?;
+                let secret = T::Secret::from_bytes(&secret_bytes)?;
                 Ok(Some(secret))
             }
             None => Ok(None),

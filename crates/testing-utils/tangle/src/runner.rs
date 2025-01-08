@@ -23,15 +23,12 @@ impl TestEnv for TangleTestEnv {
         J: Into<JobBuilder<T>> + 'static,
         T: InitializableEventHandler + Send + 'static,
     {
-        let gadget_config = GadgetConfiguration::default();
-        let config = TangleConfig::default();
-        let runner =
-            TestRunner::new::<J, T, Self::Config>(config.clone(), gadget_config.clone(), vec![]);
+        let runner = TestRunner::new::<J, T, Self::Config>(config.clone(), env.clone(), jobs);
 
         Ok(Self {
             runner,
             config,
-            gadget_config,
+            gadget_config: env,
         })
     }
 

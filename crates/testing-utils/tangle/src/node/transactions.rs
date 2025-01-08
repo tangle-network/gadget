@@ -1,26 +1,15 @@
-use crate::TestClient;
-use sp_core::crypto::AccountId32;
-use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
+use alloy_provider::network::ReceiptResponse;
+use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
-use gadget_crypto_sr25519::TanglePairSigner;
-use gadget_runner_tangle::deploy::PrivateKeySigner;
-use gadget_runner_tangle::runtime::TangleConfig;
-use gadget_runner_tangle::tangle_runtime::api;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::pallet_services::module::Call;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_primitives::services::Asset;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_runtime::RuntimeCall;
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::call::{Args, Job};
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::request::{
-    Assets, PaymentAsset,
-};
-use gadget_runner_tangle::tangle_runtime::api::services::events::{
-    JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
-};
+use alloy_signer_local::PrivateKeySigner;
+use api::runtime_types::sp_arithmetic::per_things::Percent;
+use api::runtime_types::tangle_testnet_runtime::RuntimeCall;
+use api::services::calls::types::call::{Args, Job};
+use api::services::calls::types::create_blueprint::Blueprint;
+use api::services::calls::types::register::{Preferences, RegistrationArgs};
+use api::services::events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised};
+use api::services::Call;
+use gadget_client_tangle::client::TangleClient;
 use gadget_logging::*;
 use sp_core::H160;
 use std::error::Error;
@@ -28,13 +17,23 @@ use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
 use subxt::tx::signer::Signer;
 use subxt::tx::TxProgress;
-use tangle_subxt::tangle_testnet_runtime::api::services::events::MasterBlueprintServiceManagerRevised;
+use subxt::{Config, PolkadotConfig};
+use tangle_subxt::subxt_core::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{
+    Assets, PaymentAsset,
+};
+
+pub type TestClient = TangleClient;
+/// The [Config](subxt::Config) providing the runtime types.
+pub type TangleConfig = PolkadotConfig;
 
 /// Deploy a new MBSM revision and returns the result.
-pub async fn deploy_new_mbsm_revision(
+pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     evm_rpc_endpoint: &str,
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
+    account_id: &T,
     signer_evm: PrivateKeySigner,
     bytecode: &[u8],
 ) -> Result<MasterBlueprintServiceManagerRevised, Box<dyn Error>> {
@@ -80,6 +79,7 @@ pub async fn deploy_new_mbsm_revision(
         },
     ));
     let res = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&sudo_call, account_id)
         .await?;
@@ -90,13 +90,14 @@ pub async fn deploy_new_mbsm_revision(
     Ok(ev)
 }
 
-pub async fn create_blueprint(
+pub async fn create_blueprint<T: Signer<TangleConfig>>(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
+    account_id: &T,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
     let res = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
@@ -104,15 +105,16 @@ pub async fn create_blueprint(
     Ok(())
 }
 
-pub async fn join_operators(
+pub async fn join_operators<T: Signer<TangleConfig>>(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
+    account_id: &T,
 ) -> Result<(), Box<dyn Error>> {
     info!("Joining operators ...");
     let call_pre = api::tx()
         .multi_asset_delegation()
         .join_operators(1_000_000_000_000_000);
     let res_pre = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call_pre, account_id)
         .await?;
@@ -121,9 +123,9 @@ pub async fn join_operators(
     Ok(())
 }
 
-pub async fn register_blueprint(
+pub async fn register_blueprint<T: Signer<TangleConfig>>(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
+    account_id: &T,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -134,6 +136,7 @@ pub async fn register_blueprint(
         .services()
         .register(blueprint_id, preferences, registration_args, value);
     let res = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
@@ -141,9 +144,9 @@ pub async fn register_blueprint(
     Ok(())
 }
 
-pub async fn submit_job(
+pub async fn submit_job<T: Signer<TangleConfig>>(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core::sr25519::Pair>,
+    user: &T,
     service_id: u64,
     job_id: Job,
     job_params: Args,
@@ -151,6 +154,7 @@ pub async fn submit_job(
 ) -> Result<JobCalled, Box<dyn Error>> {
     let call = api::tx().services().call(service_id, job_id, job_params);
     let events = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?
@@ -174,14 +178,15 @@ pub async fn submit_job(
 
 /// Requests a service with a given blueprint. This is meant for testing, and will allow any node
 /// to make a call to run a service, and will have all nodes running the service.
-pub async fn request_service(
+pub async fn request_service<T: Signer<TangleConfig>>(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core::sr25519::Pair>,
+    user: &T,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
     value: u128,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().request(
+        None, // TODO: Ensure this is okay for testing
         blueprint_id,
         test_nodes.clone(),
         test_nodes,
@@ -192,6 +197,7 @@ pub async fn request_service(
         value,
     );
     let res = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?;
@@ -199,9 +205,9 @@ pub async fn request_service(
     Ok(())
 }
 
-pub async fn wait_for_in_block_success(
-    mut res: TxProgress<TangleConfig, TestClient>,
-) -> Result<ExtrinsicEvents<TangleConfig>, Box<dyn Error>> {
+pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
+    mut res: TxProgress<T, C>,
+) -> Result<ExtrinsicEvents<T>, Box<dyn Error>> {
     let mut val = Err("Failed to get in block success".into());
     while let Some(Ok(event)) = res.next().await {
         let Some(block) = event.as_in_block() else {
@@ -220,7 +226,7 @@ pub async fn wait_for_completion_of_tangle_job(
     required_count: usize,
 ) -> Result<JobResultSubmitted, Box<dyn Error>> {
     let mut count = 0;
-    let mut blocks = client.blocks().subscribe_best().await?;
+    let mut blocks = client.subxt_client().blocks().subscribe_best().await?;
     while let Some(Ok(block)) = blocks.next().await {
         let events = block.events().await?;
         let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
@@ -254,6 +260,7 @@ pub async fn wait_for_completion_of_tangle_job(
 pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_blueprint_id();
     let res = client
+        .subxt_client()
         .storage()
         .at_latest()
         .await?
@@ -265,6 +272,7 @@ pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn E
 pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_instance_id();
     let res = client
+        .subxt_client()
         .storage()
         .at_latest()
         .await?
@@ -276,6 +284,7 @@ pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Err
 pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_job_call_id();
     let res = client
+        .subxt_client()
         .storage()
         .at_latest()
         .await?
@@ -291,19 +300,20 @@ pub async fn get_latest_mbsm_revision(
         .services()
         .master_blueprint_service_manager_revisions();
     let mut res = client
+        .subxt_client()
         .storage()
         .at_latest()
         .await?
         .fetch_or_default(&call)
         .await?;
     let ver = res.0.len() as u64;
-    Ok(res.0.pop().map(|addr| (ver, addr)))
+    Ok(res.0.pop().map(|addr| (ver, addr.0.into())))
 }
 
 /// Approves a service request. This is meant for testing, and will always approve the request.
-pub async fn approve_service(
+pub async fn approve_service<T: Signer<TangleConfig>>(
     client: &TestClient,
-    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
+    caller: &T,
     request_id: u64,
     restaking_percent: u8,
 ) -> Result<(), Box<dyn Error>> {
@@ -312,6 +322,7 @@ pub async fn approve_service(
         .services()
         .approve(request_id, Percent(restaking_percent));
     let res = client
+        .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, caller)
         .await?;
@@ -323,6 +334,7 @@ pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Err
     info!("Fetching next request ID ...");
     let next_request_id_addr = api::storage().services().next_service_request_id();
     let next_request_id = client
+        .subxt_client()
         .storage()
         .at_latest()
         .await

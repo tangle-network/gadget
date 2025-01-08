@@ -12,7 +12,9 @@ gadget-event-listeners = { workspace = true, features = ["std"] }
 gadget-runner-core = { workspace = true}
 gadget-runner-tangle = { workspace = true }
 gadget-crypto-sr25519 = { workspace = true }
-alloy-rpc-types = { workspace = true }
+alloy-rpc-types = { workspace = true, features = ["default"] }
+gadget-client-tangle = { workspace = true }
+alloy-signer-local = { workspace = true }
 cargo-tangle = { workspace = true }
 
 alloy-provider = { workspace = true }

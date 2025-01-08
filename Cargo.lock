@@ -679,6 +679,8 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 0.5.4",
  "derive_more 1.0.0",
+ "jsonwebtoken 9.3.0",
+ "rand",
  "serde",
  "strum 0.26.3",
 ]
@@ -7082,11 +7084,13 @@ version = "0.1.0"
 dependencies = [
  "alloy-provider",
  "alloy-rpc-types",
+ "alloy-signer-local",
  "async-trait",
  "cargo-tangle",
  "dirs",
  "futures",
  "futures-util",
+ "gadget-client-tangle",
  "gadget-config",
  "gadget-core-testing-utils",
  "gadget-crypto-sr25519",

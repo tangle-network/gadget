@@ -1,6 +1,5 @@
 use crate::node::testnet::{Error, SubstrateNode, TANGLE_NODE_ENV};
 use reqwest;
-use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;

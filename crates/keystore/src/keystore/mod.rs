@@ -194,7 +194,7 @@ impl Backend for Keystore {
                 let mut backend_keys: Vec<T::Public> = entry
                     .storage
                     .list_raw(T::key_type_id())
-                    .filter_map(|bytes| T::Public::from_bytes(&*bytes).ok())
+                    .filter_map(|bytes| T::Public::from_bytes(&bytes).ok())
                     .collect();
                 keys.append(&mut backend_keys);
             }
@@ -220,7 +220,7 @@ impl Backend for Keystore {
                 .storage
                 .load_secret_raw(T::key_type_id(), key_id.into())?
             {
-                let public: T::Public = T::Public::from_bytes(&*bytes)?;
+                let public: T::Public = T::Public::from_bytes(&bytes)?;
                 return Ok(public);
             }
         }
@@ -282,7 +282,7 @@ impl Backend for Keystore {
                 .storage
                 .load_secret_raw(T::key_type_id(), public_bytes.clone())?
             {
-                let secret: T::Secret = T::Secret::from_bytes(&*bytes)?;
+                let secret: T::Secret = T::Secret::from_bytes(&bytes)?;
                 return Ok(secret);
             }
         }
@@ -301,8 +301,8 @@ impl Backend for Keystore {
 
 #[cfg(test)]
 mod tests {
-    use gadget_crypto::ed25519_crypto::Ed25519Zebra;
     use super::*;
+    use gadget_crypto::ed25519_crypto::Ed25519Zebra;
     use gadget_crypto::k256_crypto::K256Ecdsa;
     use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
 
@@ -336,7 +336,9 @@ mod tests {
     }
 
     async fn test_local_operations_inner<T: KeyType>() -> Result<()>
-        where <T as gadget_crypto::KeyType>::Error: IntoCryptoError {
+    where
+        <T as gadget_crypto::KeyType>::Error: IntoCryptoError,
+    {
         let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate and test local key
