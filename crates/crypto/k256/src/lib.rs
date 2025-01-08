@@ -93,7 +93,7 @@ macro_rules! impl_serde_bytes {
             where
                 D: serde::Deserializer<'de>,
             {
-                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                let bytes = Vec::<u8>::deserialize(deserializer)?;
                 let inner = <$inner>::from_slice(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                 Ok($wrapper(inner))
