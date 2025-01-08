@@ -1,33 +1,33 @@
-use crate::TestClient;
 use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
 use alloy_provider::{Provider, WsConnect};
-use gadget_crypto_sr25519::TanglePairSigner;
-use gadget_runner_core::event_listener::tangle::AccountId32;
-use gadget_runner_core::{error, info};
-use gadget_runner_tangle::deploy::PrivateKeySigner;
-use gadget_runner_tangle::runtime::TangleConfig;
-use gadget_runner_tangle::tangle_runtime::api;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::pallet_services::module::Call;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_primitives::services::Asset;
-use gadget_runner_tangle::tangle_runtime::api::runtime_types::tangle_runtime::RuntimeCall;
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::call::{Args, Job};
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use gadget_runner_tangle::tangle_runtime::api::services::calls::types::request::{
-    Assets, PaymentAsset,
-};
-use gadget_runner_tangle::tangle_runtime::api::services::events::{
-    JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
-};
+use alloy_signer_local::PrivateKeySigner;
+use gadget_clients::tangle::client::TangleClient as TestClient;
+use gadget_clients::tangle::client::TangleConfig;
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_logging::{error, info};
 use sp_core::H160;
 use std::error::Error;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
 use subxt::tx::signer::Signer;
 use subxt::tx::TxProgress;
+use subxt::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::module::Call;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeCall;
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{
+    Preferences, RegistrationArgs,
+};
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{
+    Assets, PaymentAsset,
+};
+use tangle_subxt::tangle_testnet_runtime::api::services::events::{
+    JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
+};
 
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision(
@@ -198,9 +198,12 @@ pub async fn request_service(
     Ok(())
 }
 
-pub async fn wait_for_in_block_success(
-    mut res: TxProgress<TangleConfig, TestClient>,
-) -> Result<ExtrinsicEvents<TangleConfig>, Box<dyn Error>> {
+pub async fn wait_for_in_block_success<T>(
+    mut res: TxProgress<TangleConfig, T>,
+) -> Result<ExtrinsicEvents<TangleConfig>, Box<dyn Error>>
+where
+    T: OnlineClientT<TangleConfig>,
+{
     let mut val = Err("Failed to get in block success".into());
     while let Some(Ok(event)) = res.next().await {
         let Some(block) = event.as_in_block() else {

@@ -119,7 +119,7 @@ impl SubstrateNodeBuilder {
             let binary_path = &std::path::absolute(binary_path)
                 .expect("bad path")
                 .into_os_string();
-            gadget_logging::info!(target: "gadget", "Trying to spawn binary at {:?}", binary_path);
+            gadget_logging::info!("Trying to spawn binary at {:?}", binary_path);
             self.custom_flags
                 .insert("base-path".into(), Some(path.clone().into()));
 
@@ -148,7 +148,7 @@ impl SubstrateNodeBuilder {
         let stderr_handle = thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines().map_while(Result::ok) {
-                gadget_logging::debug!(target: "node-stderr", "{}", line);
+                gadget_logging::debug!("node-stderr: {}", line);
                 let _ = init_tx_clone.send(line.clone());
                 let _ = log_tx_clone.send(line);
             }
@@ -162,7 +162,7 @@ impl SubstrateNodeBuilder {
         let stdout_handle = thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines().map_while(Result::ok) {
-                gadget_logging::debug!(target: "node-stdout", "{}", line);
+                gadget_logging::debug!("node-stdout: {}", line);
                 let _ = log_tx_stdout.send(line);
             }
         });
@@ -284,7 +284,7 @@ impl SubstrateNode {
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines().map_while(Result::ok) {
-                    gadget_logging::debug!(target: "node-stdout", "{}", line);
+                    gadget_logging::debug!("node-stdout: {}", line);
                     let _ = log_tx_clone.send(line);
                 }
             });
@@ -297,7 +297,7 @@ impl SubstrateNode {
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
-                    gadget_logging::debug!(target: "node-stderr", "{}", line);
+                    gadget_logging::debug!("node-stderr: {}", line);
                     let _ = log_tx_clone.send(line);
                 }
             });
@@ -330,7 +330,7 @@ impl SubstrateNode {
         cmd.arg(format!("--rpc-port={}", self.ws_port));
         cmd.arg(format!("--port={}", self.p2p_port));
 
-        gadget_logging::debug!(target: "gadget", "Restarting node with command: {:?}", cmd);
+        gadget_logging::debug!("Restarting node with command: {:?}", cmd);
         cmd.spawn()
     }
 
@@ -340,7 +340,7 @@ impl SubstrateNode {
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines().map_while(Result::ok) {
-                    gadget_logging::debug!(target: "node-stdout", "{}", line);
+                    gadget_logging::debug!("node-stdout: {}", line);
                     if let Some(tx) = &log_tx {
                         let _ = tx.send(line);
                     }
@@ -354,7 +354,7 @@ impl SubstrateNode {
             let handle = thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
-                    gadget_logging::debug!(target: "node-stderr", "{}", line);
+                    gadget_logging::debug!("node-stderr: {}", line);
                     if let Some(tx) = &log_tx {
                         let _ = tx.send(line);
                     }
@@ -409,7 +409,7 @@ fn try_find_substrate_port_from_output(rx: mpsc::Receiver<String>) -> SubstrateN
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         };
 
-        gadget_logging::debug!(target: "gadget-init", "{}", line);
+        gadget_logging::debug!("{}", line);
         log.push_str(&line);
         log.push('\n');
 

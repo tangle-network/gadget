@@ -5,6 +5,7 @@ use std::path::Path;
 
 pub use gadget_core_testing_utils::Error;
 
+pub mod keys;
 pub mod node;
 pub mod runner;
 

@@ -21,6 +21,7 @@ gadget-runners = { workspace = true, features = ["tangle"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+tempfile = { workspace = true }
 gadget-client-tangle = { workspace = true }
 gadget-runner-tangle = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["tangle"] }
