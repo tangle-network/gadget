@@ -73,16 +73,10 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
         .context("Getting Metadata about the workspace")?;
 
     let package = find_package(&metadata, pkg_name)?.clone();
-    let package_clone = &package.clone();
-    let blueprint = load_blueprint_metadata(&package)?;
-    build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(
-        rpc_url.as_ref(),
-        package_clone,
-        &mut blueprint.clone(),
-        signer_evm,
-    )
-    .await?;
+
+    let mut blueprint = load_blueprint_metadata(&package)?;
+    build_contracts_if_needed(&package, &blueprint).context("Building contracts")?;
+    deploy_contracts_to_tangle(rpc_url.as_ref(), &package, &mut blueprint, signer_evm).await?;
     bake_blueprint(blueprint)
 }
 
@@ -109,9 +103,9 @@ pub async fn deploy_to_tangle(
 
     let my_account_id = signer.account_id();
     let client = subxt::OnlineClient::from_url(ws_rpc_url.clone()).await?;
-    println!("Connected to Tangle Network at: {}", ws_rpc_url);
+    tracing::info!("Connected to Tangle Network at: {}", ws_rpc_url);
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
-    println!("Created blueprint...");
+    tracing::info!("Created blueprint...");
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
@@ -120,9 +114,9 @@ pub async fn deploy_to_tangle(
         use gadget_utils_tangle::TxProgressExt;
         progress.wait_for_in_block_success().await?
     } else {
-        println!("Waiting for the transaction to be finalized...");
+        tracing::debug!("Waiting for the transaction to be finalized...");
         let result = progress.wait_for_finalized_success().await?;
-        println!("Transaction finalized...");
+        tracing::debug!("Transaction finalized...");
         result
     };
     let event = result
@@ -136,7 +130,7 @@ pub async fn deploy_to_tangle(
                 e
             )
         })?;
-    println!(
+    tracing::info!(
         "Blueprint #{} created successfully by {} with extrinsic hash: {}",
         event.blueprint_id,
         event.owner,
@@ -156,7 +150,7 @@ pub fn load_blueprint_metadata(
         .unwrap();
 
     if !blueprint_json_path.exists() {
-        eprintln!("Could not find blueprint.json; running `cargo build`...");
+        tracing::warn!("Could not find blueprint.json; running `cargo build`...");
         // Need to run cargo build for the current package.
         escargot::CargoBuild::new()
             .manifest_path(&package.manifest_path)
@@ -171,10 +165,10 @@ pub fn load_blueprint_metadata(
     Ok(blueprint)
 }
 
-async fn deploy_contracts_to_tangle<'a>(
+async fn deploy_contracts_to_tangle(
     rpc_url: &str,
     package: &cargo_metadata::Package,
-    blueprint: &'a mut ServiceBlueprint<'a>,
+    blueprint: &mut ServiceBlueprint<'_>,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
@@ -237,14 +231,15 @@ async fn deploy_contracts_to_tangle<'a>(
         .await?;
 
     let chain_id = provider.get_chain_id().await?;
-    eprintln!("Chain ID: {chain_id}");
+    tracing::debug!("Chain ID: {chain_id}");
 
     for (kind, name, contract) in contracts {
-        eprintln!("Deploying contract: {name} ...");
+        tracing::info!("Deploying contract: {name} ...");
         let Some(bytecode) = contract.bytecode.clone() else {
-            eprintln!("Contract {name} does not have deployed bytecode! Skipping ...");
+            tracing::warn!("Contract {name} does not have deployed bytecode! Skipping ...");
             continue;
         };
+
         let tx = TransactionRequest::default().with_deploy_code(bytecode);
         // Deploy the contract.
         let receipt = provider.send_transaction(tx).await?.get_receipt().await?;
@@ -252,15 +247,15 @@ async fn deploy_contracts_to_tangle<'a>(
         if receipt.status() {
             let contract_address =
                 alloy_network::ReceiptResponse::contract_address(&receipt).unwrap();
-            eprintln!("Contract {name} deployed at: {contract_address}");
+            tracing::info!("Contract {name} deployed at: {contract_address}");
             match kind {
                 ContractKind::Manager => {
                     blueprint.manager = BlueprintManager::Evm(contract_address.to_string());
                 }
             }
         } else {
-            eprintln!("Contract {name} deployment failed!");
-            eprintln!("Receipt: {receipt:#?}");
+            tracing::error!("Contract {name} deployment failed!");
+            tracing::debug!("Receipt: {receipt:#?}");
         }
     }
     Ok(())

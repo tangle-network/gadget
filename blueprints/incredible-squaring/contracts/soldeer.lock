@@ -1,0 +1,6 @@
+[[dependencies]]
+name = "tnt-core"
+version = "0.1.0"
+source = "https://soldeer-revisions.s3.amazonaws.com/tnt-core/0_1_0_10-12-2024_20:51:20_tnt-core.zip"
+checksum = "628b2475c4d629c1cb2578b41b2e10daa3711d711aa5f5b0dd6153959808620f"
+integrity = "552a92191a4d97d8cac544a7409c562918cb162bdf0ed27d3d72a1823cb6e0b2"

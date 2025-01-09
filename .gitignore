@@ -14,3 +14,5 @@ certs
 .DS_Store
 
 node_modules
+
+blueprints/**/dependencies/
