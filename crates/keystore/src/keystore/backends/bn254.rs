@@ -1,7 +1,7 @@
 use super::*;
 use crate::error::{Error, Result};
 use crate::Keystore;
-use gadget_crypto::bn254_crypto::{
+use gadget_crypto::bn254::{
     ArkBlsBn254, ArkBlsBn254Public, ArkBlsBn254Secret, ArkBlsBn254Signature,
 };
 use gadget_crypto::{KeyEncoding, KeyTypeId};

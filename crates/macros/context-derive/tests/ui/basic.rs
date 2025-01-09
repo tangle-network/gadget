@@ -9,7 +9,7 @@ use gadget_contexts::p2p::P2pContext as _;
 use gadget_contexts::services::ServicesContext as _;
 use gadget_contexts::tangle::TangleClientContext as _;
 use gadget_macros::ext::clients::GadgetServicesClient as _;
-use gadget_macros::ext::crypto::sp_core_crypto::SpEcdsaPublic;
+use gadget_macros::ext::crypto::sp_core::SpEcdsaPublic;
 use gadget_macros::ext::keystore::backends::tangle::TangleBackend;
 use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
 use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};

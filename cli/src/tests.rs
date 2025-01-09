@@ -1,7 +1,7 @@
 use crate::keys::generate_key;
 use crate::signer::{load_evm_signer_from_env, load_signer_from_env, EVM_SIGNER_ENV, SIGNER_ENV};
 use color_eyre::eyre::Result;
-use gadget_crypto::bn254_crypto::ArkBlsBn254;
+use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_crypto_core::KeyTypeId;
 use gadget_keystore::backends::tangle::TangleBackend;
 use gadget_keystore::backends::tangle_bls::TangleBlsBackend;
