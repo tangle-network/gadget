@@ -176,8 +176,7 @@ impl TangleBackend for Keystore {
         let string = &format!("//{}", string);
 
         let secret = SpSr25519Pair(
-            sr25519::Pair::from_string(string, None)
-                .map_err(|e| Error::Other(e.to_string()))?,
+            sr25519::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,
         );
         let public = SpSr25519Public(secret.0.public());
 
