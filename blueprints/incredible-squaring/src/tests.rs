@@ -23,7 +23,7 @@ use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::servi
 use gadget_runners::core::error::RunnerError;
 
 #[tokio::test]
-async fn test_incredible_squaring() -> Result<(), TangleError> {
+async fn test_incredible_squaring() -> color_eyre::Result<()> {
     setup_log();
 
     // Start Local Tangle Node
@@ -131,7 +131,7 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
         Ok(id) => id,
         Err(err) => {
             gadget_logging::error!("Failed to deploy blueprint: {err}");
-            panic!("Failed to deploy blueprint: {err}");
+            return Err(err);
         }
     };
 
