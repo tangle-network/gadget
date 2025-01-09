@@ -45,15 +45,25 @@ impl TangleBlsBackend for Keystore {
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls381::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Bls381;
 
+        let mut final_seed = [0; 32];
+        match seed {
+            Some(seed) => final_seed.copy_from_slice(seed),
+            None => {
+                let mut seed = [0; 32];
+                gadget_std::rand::thread_rng().fill_bytes(&mut seed[..]);
+                final_seed = seed
+            }
+        };
+
         let secret = SpBls381Pair(
-            sp_core::bls381::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
+            sp_core::bls381::Pair::from_seed_slice(final_seed.as_slice())
                 .map_err(|e| Error::Other(e.to_string()))?,
         );
         let public = SpBls381Public(secret.0.public());
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = secret.to_bytes();
+        let secret_bytes = final_seed.to_vec();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -69,29 +79,31 @@ impl TangleBlsBackend for Keystore {
     fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Bls377;
 
-        let seed_initial = if let Some(seed) = seed {
-            seed.to_vec()
-        } else {
-            let mut seed_rand = [0u8; 32];
-            gadget_std::rand::thread_rng().fill_bytes(&mut seed_rand);
-            seed_rand.to_vec()
+        let mut final_seed = [0; 32];
+        match seed {
+            Some(seed) => final_seed.copy_from_slice(seed),
+            None => {
+                let mut seed = [0; 32];
+                gadget_std::rand::thread_rng().fill_bytes(&mut seed[..]);
+                final_seed = seed
+            }
         };
 
-        let sp_core_pair = sp_core::bls377::Pair::from_seed_slice(&seed_initial)
-            .map_err(|e| Error::Other(e.to_string()))?;
-
-        let pair = SpBls377Pair(sp_core_pair.clone());
-
+        let pair = SpBls377Pair(
+            sp_core::bls377::Pair::from_seed_slice(final_seed.as_slice())
+                .map_err(|e| Error::Other(e.to_string()))?,
+        );
         let public = SpBls377Public(pair.0.public());
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
+        let secret_bytes = final_seed.to_vec();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
                 entry
                     .storage
-                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), seed_initial.clone())?;
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
             }
         }
 
@@ -230,7 +242,6 @@ mod tests {
         // Sign message
         let msg = b"test message";
         let signature = keystore.bls381_sign(&public, msg)?.unwrap();
-        println!("{:?}", signature);
         // Verify signature
         assert!(sp_core::bls381::Pair::verify(&signature, msg, &public));
 
@@ -247,7 +258,6 @@ mod tests {
         // Sign message
         let msg = b"test message";
         let signature = keystore.bls377_sign(&public, msg)?.unwrap();
-        println!("{:?}", signature);
         // Verify signature
         assert!(sp_core::bls377::Pair::verify(&signature, msg, &public));
 
