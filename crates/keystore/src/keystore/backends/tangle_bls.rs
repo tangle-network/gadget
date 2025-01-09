@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::keystore::backends::tangle::TangleBackend;
 use crate::keystore::Keystore;
-use gadget_crypto::sp_core_crypto::{SpBls377Pair, SpBls377Public, SpBls381Pair, SpBls381Public};
+use gadget_crypto::sp_core::{SpBls377Pair, SpBls377Public, SpBls381Pair, SpBls381Public};
 use gadget_crypto::{KeyEncoding, KeyTypeId};
 use sp_core::Pair;
 

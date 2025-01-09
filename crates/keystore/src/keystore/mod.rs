@@ -44,7 +44,7 @@ impl Keystore {
     ///
     /// ```rust
     /// use gadget_keystore::backends::Backend;
-    /// use gadget_keystore::key_types::zebra_ed25519::Ed25519Zebra;
+    /// use gadget_keystore::crypto::ed25519_crypto::Ed25519Zebra;
     /// use gadget_keystore::{Keystore, KeystoreConfig};
     ///
     /// # fn main() -> gadget_keystore::Result<()> {
@@ -302,12 +302,12 @@ impl Backend for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gadget_crypto::bls_crypto::bls377::W3fBls377;
-    use gadget_crypto::bls_crypto::bls381::W3fBls381;
-    use gadget_crypto::ed25519_crypto::Ed25519Zebra;
-    use gadget_crypto::k256_crypto::K256Ecdsa;
-    use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
-    use gadget_crypto::sr25519_crypto::SchnorrkelSr25519;
+    use gadget_crypto::bls::bls377::W3fBls377;
+    use gadget_crypto::bls::bls381::W3fBls381;
+    use gadget_crypto::ed25519::Ed25519Zebra;
+    use gadget_crypto::k256::K256Ecdsa;
+    use gadget_crypto::sp_core::{SpBls377, SpBls381, SpEcdsa, SpSr25519};
+    use gadget_crypto::sr25519::SchnorrkelSr25519;
 
     #[test]
     fn test_generate_from_string() -> Result<()> {

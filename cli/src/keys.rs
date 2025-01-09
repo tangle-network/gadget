@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
-use gadget_crypto::sp_core_crypto::{SpBls377, SpBls381, SpEcdsa, SpEd25519, SpSr25519};
-use gadget_crypto::{bn254_crypto::ArkBlsBn254, KeyTypeId};
+use gadget_crypto::sp_core::{SpBls377, SpBls381, SpEcdsa, SpEd25519, SpSr25519};
+use gadget_crypto::{bn254::ArkBlsBn254, KeyTypeId};
 use gadget_crypto_core::KeyEncoding;
 use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
 use std::path::Path;
