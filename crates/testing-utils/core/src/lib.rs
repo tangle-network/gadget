@@ -1,10 +1,10 @@
+use cargo_toml::Manifest;
 pub use error::TestRunnerError;
 use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
 pub use runner::TestRunner;
 use std::io::Write;
 use std::path::Path;
-use cargo_toml::Manifest;
 
 mod error;
 pub use error::TestRunnerError as Error;

@@ -140,7 +140,8 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
 
     let keypair = sr25519_pair.clone();
 
-    let key = gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_id.signer().public().0).unwrap();
+    let key =
+        gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_id.signer().public().0).unwrap();
 
     let preferences = Preferences {
         key,
@@ -176,8 +177,6 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
         gadget_logging::error!("Failed to register as operator: {err}");
         panic!("Failed to register as operator: {err}");
     }
-
-
 
     let mut test_env = TangleTestEnv::new(TangleConfig::default(), env, vec![x_square]).unwrap();
 
