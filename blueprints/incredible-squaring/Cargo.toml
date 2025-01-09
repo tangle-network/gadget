@@ -14,17 +14,24 @@ publish = false
 gadget-std = { workspace = true, features = ["std"] }
 gadget-event-listeners = { workspace = true, features = ["std", "tangle"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
+gadget-crypto = { workspace = true, features = ["default"] }
+gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle"] }
-tracing = "0.1.41"
-tracing-core = "0.1.33"
+tracing = { workspace = true }
+tracing-core = { workspace = true }
 
 [dev-dependencies]
+# TODO: Move into testing crate
+alloy-signer-local = { workspace = true }
+cargo-tangle = { workspace = true, features = ["tangle"] }
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
+futures-util = { workspace = true }
+
 tokio = { workspace = true, features = ["full"] }
 tempfile = { workspace = true }
 gadget-client-tangle = { workspace = true }
-gadget-runner-tangle = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["tangle"] }
 async-trait = { workspace = true }
 url = { workspace = true }

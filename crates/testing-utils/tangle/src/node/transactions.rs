@@ -1,5 +1,5 @@
 use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
-use alloy_provider::{Provider, WsConnect};
+use alloy_provider::{Provider, WalletProvider, WsConnect};
 use alloy_signer_local::PrivateKeySigner;
 use gadget_clients::tangle::client::TangleClient as TestClient;
 use gadget_clients::tangle::client::TangleConfig;
@@ -52,6 +52,7 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         Ok(tx) => tx,
         Err(err) => {
             error!("Failed to send transaction: {err}");
+            panic!("Failed to send transaction: {err}");
             return Err("Failed to deploy MBSM Contract".into());
         }
     };
