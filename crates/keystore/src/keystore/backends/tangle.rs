@@ -396,7 +396,7 @@ mod tests {
         let keystore = Keystore::new(KeystoreConfig::new())?;
 
         // Generate from string
-        let public = keystore.ecdsa_generate_from_string("test seed")?;
+        let public = keystore.ecdsa_generate_from_string("//Test")?;
 
         // Sign message
         let msg = b"test message";
