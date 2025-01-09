@@ -17,10 +17,17 @@ use gadget_macros::ext::contexts::tangle::TangleClientContext;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_logging::setup_log;
 use gadget_macros::ext::keystore::backends::tangle::TangleBackend;
+use gadget_macros::ext::tangle::tangle_subxt::subxt::config::Header;
 use gadget_macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
+use gadget_macros::ext::tangle::tangle_subxt::subxt_core::utils::AccountId32;
+use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::Job;
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::update_price_targets::PriceTargets;
 use gadget_runners::core::error::RunnerError;
+use gadget_testing_utils::tangle::node::transactions::wait_for_completion_of_tangle_job;
+
+pub type InputValue = gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> color_eyre::Result<()> {
@@ -169,7 +176,7 @@ async fn test_incredible_squaring() -> color_eyre::Result<()> {
 
     if let Err(err) = transactions::register_blueprint(
         &client,
-        &sr25519_id,
+        &sr25519_id.clone(),
         blueprint_id,
         preferences,
         registration_args.clone(),
@@ -181,9 +188,104 @@ async fn test_incredible_squaring() -> color_eyre::Result<()> {
         panic!("Failed to register as operator: {err}");
     }
 
-    let mut test_env = TangleTestEnv::new(TangleConfig::default(), env, vec![x_square]).unwrap();
+    if let Err(err) = transactions::request_service(
+        &client,
+        &sr25519_id,
+        blueprint_id,
+        vec![account_id.clone()],
+        0,
+    )
+    .await
+    {
+        gadget_logging::error!("Failed to register service: {err}");
+        panic!("Failed to register service: {err}");
+    }
 
-    test_env.run_runner().await.unwrap();
+    let next_request_id = transactions::get_next_request_id(&client)
+        .await
+        .expect("Failed to get next request ID")
+        .saturating_sub(1);
+
+    if let Err(err) = transactions::approve_service(&client, &sr25519_id, next_request_id, 20).await
+    {
+        gadget_logging::error!("Failed to approve service request {next_request_id}: {err}");
+        panic!("Failed to approve service request {next_request_id}: {err}");
+    }
+
+    let now = client
+        .blocks()
+        .at_latest()
+        .await
+        .expect("Unable to get block")
+        .header()
+        .hash()
+        .0;
+    let blueprints = client
+        .query_operator_blueprints(now, account_id)
+        .await
+        .expect("Failed to query operator blueprints");
+    assert!(!blueprints.is_empty(), "No blueprints found");
+
+    let blueprint = blueprints
+        .into_iter()
+        .find(|r| r.blueprint_id == blueprint_id)
+        .expect("Blueprint not found in operator's blueprints");
+
+    // Spawn job submitter
+    let selected_service = &blueprint.services[0];
+    let service_id = selected_service.id;
+    gadget_logging::info!("Submitting job 0 with service ID {service_id}");
+    let client_clone = client.clone();
+    let sr25519_id_clone = sr25519_id.clone();
+    tokio::spawn(async move {
+        let mut test_env =
+            TangleTestEnv::new(TangleConfig::default(), env, vec![x_square]).unwrap();
+
+        test_env.run_runner().await.unwrap();
+    });
+
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    let job_args = vec![(InputValue::Uint64(5))];
+    let job = gadget_testing_utils::tangle::node::transactions::submit_job(
+        &client_clone,
+        &sr25519_id_clone,
+        service_id,
+        Job::from(0u8),
+        job_args,
+        0,
+    )
+    .await
+    .expect("Failed to submit job");
+
+    let call_id = job.call_id;
+
+    gadget_logging::info!("Submitted job 0 with service ID {service_id} has call id {call_id}");
+
+    let job_results = wait_for_completion_of_tangle_job(&client, service_id, call_id, 1)
+        .await
+        .expect("Failed to wait for job completion");
+
+    assert_eq!(job_results.service_id, service_id);
+    assert_eq!(job_results.call_id, call_id);
+
+    let expected_outputs = vec![OutputValue::Uint64(25)];
+    if expected_outputs.is_empty() {
+        gadget_logging::info!("No expected outputs specified, skipping verification");
+    }
+
+    assert_eq!(
+        job_results.result.len(),
+        expected_outputs.len(),
+        "Number of outputs doesn't match expected"
+    );
+
+    for (result, expected) in job_results
+        .result
+        .into_iter()
+        .zip(expected_outputs.into_iter())
+    {
+        assert_eq!(result, expected);
+    }
 
     Ok(())
 }
