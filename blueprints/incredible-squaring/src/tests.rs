@@ -35,7 +35,8 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
     // Setup testing directory
     let tmp_dir = tempfile::TempDir::new().map_err(TangleError::Io)?;
     let tmp_dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    inject_tangle_key(&tmp_dir_path, "Alice").map_err(|e| TangleError::Keystore(e.to_string()))?;
+    inject_tangle_key(&tmp_dir_path, "//Alice")
+        .map_err(|e| TangleError::Keystore(e.to_string()))?;
 
     let context_config = ContextConfig::create_tangle_config(
         http_endpoint,
@@ -62,7 +63,6 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
     let client = env.tangle_client().await.unwrap();
 
     let sr25519_public = env.keystore().iter_sr25519().next().unwrap();
-    println!("sr25519_public: {}", sr25519_public);
     let sr25519_pair = env
         .keystore()
         .expose_sr25519_secret(&sr25519_public)

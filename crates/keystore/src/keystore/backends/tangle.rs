@@ -153,12 +153,26 @@ impl TangleBackend for Keystore {
     }
 
     fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public> {
-        let seed = if string.as_bytes().len() == 32 {
-            string.as_bytes().to_vec()
-        } else {
-            blake3::hash(string.as_bytes()).as_bytes().to_vec()
-        };
-        self.ecdsa_generate_new(Some(&seed))
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Ecdsa;
+
+        let secret = SpEcdsaPair(
+            ecdsa::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,
+        );
+        let public = SpEcdsaPublic(secret.0.public());
+
+        // Store in all available storage backends
+        let public_bytes = public.to_bytes();
+        let secret_bytes = secret.to_bytes();
+
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
+            for entry in storages {
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
+            }
+        }
+
+        Ok(public.0)
     }
 
     fn ed25519_generate_from_string(&self, string: &str) -> Result<ed25519::Public> {
@@ -172,8 +186,6 @@ impl TangleBackend for Keystore {
 
     fn sr25519_generate_from_string(&self, string: &str) -> Result<sr25519::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Sr25519;
-
-        let string = &format!("//{}", string);
 
         let secret = SpSr25519Pair(
             sr25519::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,

@@ -44,7 +44,7 @@ impl Keystore {
     ///
     /// ```rust
     /// use gadget_keystore::backends::Backend;
-    /// use gadget_keystore::crypto::ed25519_crypto::Ed25519Zebra;
+    /// use gadget_keystore::crypto::ed25519::Ed25519Zebra;
     /// use gadget_keystore::{Keystore, KeystoreConfig};
     ///
     /// # fn main() -> gadget_keystore::Result<()> {

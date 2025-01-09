@@ -52,7 +52,6 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         Ok(tx) => tx,
         Err(err) => {
             error!("Failed to send transaction: {err}");
-            panic!("Failed to send transaction: {err}");
             return Err("Failed to deploy MBSM Contract".into());
         }
     };
