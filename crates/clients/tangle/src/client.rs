@@ -62,7 +62,8 @@ impl TangleClient {
         let client = TangleServicesClient::new(subxt::OnlineClient::from_url(rpc_url).await?);
 
         let account_id = keystore
-            .get_public_key_local::<SpSr25519>(KEY_ID)?
+            .get_public_key_local::<SpSr25519>(KEY_ID)
+            .unwrap()
             .0
              .0
             .into();
