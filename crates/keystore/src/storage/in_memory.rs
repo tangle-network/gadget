@@ -59,7 +59,7 @@ impl RawStorage for InMemoryStorage {
     ) -> Result<()> {
         let mut data = self.data.write();
         let type_map = data.entry(type_id).or_default();
-        type_map.insert(public_bytes.to_vec(), secret_bytes.to_vec());
+        type_map.insert(public_bytes, secret_bytes);
         Ok(())
     }
 
