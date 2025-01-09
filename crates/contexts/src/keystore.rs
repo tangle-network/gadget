@@ -11,7 +11,7 @@ impl KeystoreContext for GadgetConfiguration {
     fn keystore(&self) -> Keystore {
         // TODO(XXX): This needs to be the keystore URI, not the data dir. Completely different responsibilities
         let config = KeystoreConfig::new()
-            .fs_root(self.data_dir.clone().expect("data dir should be present"));
+            .fs_root(self.keystore_uri.clone());
         Keystore::new(config).expect("Failed to create keystore")
     }
 }

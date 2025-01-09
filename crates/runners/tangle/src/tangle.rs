@@ -179,7 +179,7 @@ pub async fn register_impl(
 }
 
 // TODO: Push this upstream: https://docs.rs/sp-core/latest/src/sp_core/ecdsa.rs.html#59-74
-fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
+pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
     // Parse the compressed public key
     let pk = k256::PublicKey::from_sec1_bytes(compressed).ok()?;
     // Convert to uncompressed format
@@ -191,18 +191,19 @@ fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
     Some(result)
 }
 
-pub(crate) async fn get_client(
+pub async fn get_client(
     ws_url: &str,
     http_url: &str,
 ) -> Result<tangle::client::OnlineClient, RunnerError> {
     let task0 = tangle::client::OnlineClient::from_url(ws_url);
     let task1 = tangle::client::OnlineClient::from_url(http_url);
-    Ok(select_ok([Box::pin(task0), Box::pin(task1)])
+    let client = select_ok([Box::pin(task0), Box::pin(task1)])
         .await
         .map_err(|e| {
             <crate::error::TangleError as Into<RunnerError>>::into(
                 crate::error::TangleError::Network(e.to_string()),
             )
         })?
-        .0)
+        .0;
+    Ok(client)
 }

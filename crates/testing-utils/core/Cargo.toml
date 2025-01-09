@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+cargo_toml = { workspace = true }
 gadget-runners = { workspace = true, features = ["std"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }

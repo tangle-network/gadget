@@ -3284,6 +3284,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_toml"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fbd1fe9db3ebf71b89060adaf7b0504c2d6a425cf061313099547e382c2e472"
+dependencies = [
+ "serde",
+ "toml 0.8.19",
+]
+
+[[package]]
 name = "cbor4ii"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6565,6 +6575,7 @@ name = "gadget-core-testing-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "cargo_toml",
  "futures",
  "gadget-config",
  "gadget-event-listeners",
@@ -8410,22 +8421,34 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
+ "alloy-signer-local",
  "async-trait",
  "blueprint-metadata",
+ "cargo-tangle",
+ "futures-util",
  "gadget-client-tangle",
  "gadget-config",
+ "gadget-crypto",
+ "gadget-crypto-tangle-pair-signer",
  "gadget-event-listeners",
  "gadget-logging",
  "gadget-macros",
- "gadget-runner-tangle",
  "gadget-runners",
  "gadget-std",
  "gadget-testing-utils",
  "tempfile",
+ "tnt-core-bytecode",
  "tokio",
  "tracing",
  "tracing-core",
  "url",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-eigenlayer"
+version = "0.1.1"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
@@ -17797,6 +17820,14 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "tnt-core-bytecode"
+version = "0.1.0"
+source = "git+https://github.com/tangle-network/tnt-core.git?branch=donovan%2Fbytecode#b85cc4f149edf48de413184334dcea5514e064de"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "tokio"
