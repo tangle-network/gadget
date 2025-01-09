@@ -80,7 +80,7 @@ macro_rules! impl_w3f_serde {
                 D: serde::Deserializer<'de>,
             {
                 // Deserialize as Vec
-                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
 
                 // Convert bytes back to inner type
                 let inner = from_bytes::<$inner>(&bytes);
