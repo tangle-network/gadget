@@ -18,8 +18,8 @@ impl InMemoryStorage {
     ///
     /// ```rust
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
-    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::crypto::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::crypto::KeyType;
     /// use gadget_keystore::storage::{InMemoryStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
     ///
