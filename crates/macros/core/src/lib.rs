@@ -68,7 +68,7 @@ impl FieldType {
     ///
     /// # Examples
     /// ```
-    /// use crate::FieldType;
+    /// use gadget_blueprint_proc_macro_core::FieldType;
     ///
     /// let uint8_type = FieldType::Uint8;
     /// assert_eq!(uint8_type.as_rust_type(), "u8");
