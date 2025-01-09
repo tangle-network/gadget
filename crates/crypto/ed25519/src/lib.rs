@@ -74,7 +74,7 @@ macro_rules! impl_zebra_serde {
                 D: serde::Deserializer<'de>,
             {
                 // Deserialize as bytes
-                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
 
                 // Convert bytes back to inner type
                 let inner = <$inner>::try_from(bytes.as_slice())

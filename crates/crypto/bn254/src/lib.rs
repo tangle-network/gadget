@@ -144,7 +144,7 @@ macro_rules! impl_ark_serde {
             where
                 D: serde::Deserializer<'de>,
             {
-                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
                 let inner = from_bytes::<$inner>(&bytes);
                 Ok($name(inner))
             }

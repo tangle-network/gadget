@@ -51,7 +51,7 @@ macro_rules! impl_schnorrkel_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                serializer.serialize_bytes(&self.to_bytes())
+                <Vec<u8>>::serialize(&self.to_bytes(), serializer)
             }
         }
 
@@ -59,7 +59,7 @@ macro_rules! impl_schnorrkel_serde {
             fn deserialize<D: serde::Deserializer<'de>>(
                 deserializer: D,
             ) -> core::result::Result<Self, D::Error> {
-                let bytes = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
                 let inner = <$inner>::from_bytes(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                 Ok($name(inner))
