@@ -181,12 +181,12 @@ pub async fn register_impl(
 
 // TODO: Push this upstream: https://docs.rs/sp-core/latest/src/sp_core/ecdsa.rs.html#59-74
 pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
-    // Parse the compressed public key
+    // Uncompress the public key
     let pk = k256::PublicKey::from_sec1_bytes(compressed).ok()?;
-
     let uncompressed = pk.to_encoded_point(false);
     let uncompressed_bytes = uncompressed.as_bytes();
 
+    // Ensure the key has the correct length
     if uncompressed_bytes.len() != 65 {
         return None;
     }
