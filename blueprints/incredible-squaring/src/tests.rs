@@ -4,7 +4,7 @@ use crate as blueprint;
 use crate::MyContext;
 use gadget_config::supported_chains::SupportedChains;
 use gadget_config::ContextConfig;
-use gadget_runners::tangle::{tangle::{get_client, TangleConfig}, error::TangleError};
+use gadget_runners::tangle::{tangle::{TangleConfig}, error::TangleError};
 use gadget_testing_utils::runner::TestEnv;
 use gadget_testing_utils::tangle::keys::inject_tangle_key;
 use gadget_testing_utils::tangle::node::{transactions, NodeConfig};
@@ -23,7 +23,6 @@ use gadget_macros::ext::tangle::tangle_subxt::subxt_core::utils::AccountId32;
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::Job;
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::update_price_targets::PriceTargets;
-use gadget_runners::core::error::RunnerError;
 use gadget_testing_utils::tangle::node::transactions::wait_for_completion_of_tangle_job;
 
 pub type InputValue = gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -99,7 +98,7 @@ async fn test_incredible_squaring() -> color_eyre::Result<()> {
         .expect("Failed to read blueprint's Cargo.toml");
     let blueprint_name = manifest.package.as_ref().unwrap().name.clone();
 
-    let mut opts = Opts {
+    let opts = Opts {
         pkg_name: Some(blueprint_name),
         http_rpc_url: format!("http://127.0.0.1:{}", tangle_node.ws_port()),
         ws_rpc_url: format!("ws://127.0.0.1:{}", tangle_node.ws_port()),
@@ -147,8 +146,6 @@ async fn test_incredible_squaring() -> color_eyre::Result<()> {
 
     let client = client.clone();
     let registration_args = registration_args.clone();
-
-    let keypair = sr25519_pair.clone();
 
     let key =
         gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_id.signer().public().0).unwrap();

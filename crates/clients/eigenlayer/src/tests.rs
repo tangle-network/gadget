@@ -110,7 +110,7 @@ async fn get_operator_stake_in_quorums() {
         config: env.config.clone(),
     };
     let result = client
-        .get_operator_stake_in_quorums_at_block(1, vec![1, 2].into())
+        .get_operator_stake_in_quorums_at_block(200, vec![0].into())
         .await;
     assert!(result.is_ok());
 }

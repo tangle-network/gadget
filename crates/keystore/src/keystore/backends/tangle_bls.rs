@@ -3,6 +3,7 @@ use crate::keystore::backends::tangle::TangleBackend;
 use crate::keystore::Keystore;
 use gadget_crypto::sp_core::{SpBls377Pair, SpBls377Public, SpBls381Pair, SpBls381Public};
 use gadget_crypto::{KeyEncoding, KeyTypeId};
+use gadget_std::rand::RngCore;
 use sp_core::Pair;
 
 #[async_trait::async_trait]
@@ -68,21 +69,29 @@ impl TangleBlsBackend for Keystore {
     fn bls377_generate_new(&self, seed: Option<&[u8]>) -> Result<sp_core::bls377::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Bls377;
 
-        let secret = SpBls377Pair(
-            sp_core::bls377::Pair::from_seed_slice(seed.unwrap_or(&[0u8; 32]))
-                .map_err(|e| Error::Other(e.to_string()))?,
-        );
-        let public = SpBls377Public(secret.0.public());
+        let seed_initial = if let Some(seed) = seed {
+            seed.to_vec()
+        } else {
+            let mut seed_rand = [0u8; 32];
+            gadget_std::rand::thread_rng().fill_bytes(&mut seed_rand);
+            seed_rand.to_vec()
+        };
+
+        let sp_core_pair = sp_core::bls377::Pair::from_seed_slice(&seed_initial)
+            .map_err(|e| Error::Other(e.to_string()))?;
+
+        let pair = SpBls377Pair(sp_core_pair.clone());
+
+        let public = SpBls377Public(pair.0.public());
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = secret.to_bytes();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
                 entry
                     .storage
-                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), seed_initial.clone())?;
             }
         }
 

@@ -1,5 +1,5 @@
 use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
-use alloy_provider::{Provider, WalletProvider, WsConnect};
+use alloy_provider::{Provider, WsConnect};
 use alloy_signer_local::PrivateKeySigner;
 use gadget_clients::tangle::client::TangleClient as TestClient;
 use gadget_clients::tangle::client::TangleConfig;
