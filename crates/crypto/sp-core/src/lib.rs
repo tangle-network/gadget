@@ -58,7 +58,7 @@ macro_rules! impl_sp_core_pair_public {
                 where
                     S: serde::Serializer,
                 {
-                    serializer.serialize_bytes(&self.to_bytes())
+                    <Vec::<u8>>::serialize(&self.to_bytes(), serializer)
                 }
             }
 
@@ -67,7 +67,7 @@ macro_rules! impl_sp_core_pair_public {
                 where
                     D: serde::Deserializer<'de>,
                 {
-                    let seed = <serde_bytes::ByteBuf>::deserialize(deserializer)?;
+                    let seed = <Vec::<u8>>::deserialize(deserializer)?;
                     let pair = <$pair_type>::from_seed_slice(&seed).map_err(|_| serde::de::Error::custom("Invalid seed length"))?;
                     Ok([<Sp $key_type Pair>](pair))
                 }

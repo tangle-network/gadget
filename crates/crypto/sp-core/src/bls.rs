@@ -67,7 +67,7 @@ macro_rules! impl_sp_core_bls_pair_public {
                     // Get the raw seed bytes
                     let bytes = self.to_bytes();
                     // Serialize as raw bytes
-                    Vec::<u8>::serialize(&bytes, serializer)
+                    <Vec::<u8>>::serialize(&bytes, serializer)
                 }
             }
 
@@ -77,7 +77,7 @@ macro_rules! impl_sp_core_bls_pair_public {
                     D: serde::Deserializer<'de>,
                 {
                     // Deserialize directly into a Vec<u8> for the seed
-                    let seed = Vec::<u8>::deserialize(deserializer)
+                    let seed = <Vec::<u8>>::deserialize(deserializer)
                         .map_err(|e| serde::de::Error::custom(format!("Failed to deserialize seed bytes: {}", e)))?;
 
                     // Generate a new pair from the seed bytes
