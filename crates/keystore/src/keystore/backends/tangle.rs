@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::keystore::Keystore;
-use gadget_crypto::sp_core_crypto::{
+use gadget_crypto::sp_core::{
     SpEcdsaPair, SpEcdsaPublic, SpEd25519Pair, SpEd25519Public, SpSr25519Pair, SpSr25519Public,
 };
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
