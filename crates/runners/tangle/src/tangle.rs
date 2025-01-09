@@ -1,3 +1,4 @@
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use crate::error::TangleError;
 use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
@@ -182,12 +183,16 @@ pub async fn register_impl(
 pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
     // Parse the compressed public key
     let pk = k256::PublicKey::from_sec1_bytes(compressed).ok()?;
-    // Convert to uncompressed format
-    let uncompressed = pk.to_sec1_bytes();
 
-    // Convert to fixed size array
+    let uncompressed = pk.to_encoded_point(false);
+    let uncompressed_bytes = uncompressed.as_bytes();
+
+    if uncompressed_bytes.len() != 65 {
+        return None;
+    }
+
     let mut result = [0u8; 65];
-    result.copy_from_slice(&uncompressed);
+    result.copy_from_slice(uncompressed_bytes);
     Some(result)
 }
 
