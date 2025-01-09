@@ -15,6 +15,7 @@ use gadget_crypto_tangle_pair_signer::sp_core::Pair;
 use gadget_macros::ext::contexts::keystore::KeystoreContext;
 use gadget_macros::ext::contexts::tangle::TangleClientContext;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
+use gadget_logging::setup_log;
 use gadget_macros::ext::keystore::backends::tangle::TangleBackend;
 use gadget_macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
 use gadget_macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
@@ -23,6 +24,8 @@ use gadget_runners::core::error::RunnerError;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<(), TangleError> {
+    setup_log();
+
     // Start Local Tangle Node
     let node_config = NodeConfig::new(false);
     let tangle_node = gadget_testing_utils::tangle::node::run(node_config)
