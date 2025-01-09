@@ -1,4 +1,3 @@
-use k256::elliptic_curve::sec1::ToEncodedPoint;
 use crate::error::TangleError;
 use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
@@ -7,6 +6,7 @@ use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_std::string::ToString;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use subxt::ext::futures::future::select_ok;
 use subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api;
