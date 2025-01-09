@@ -12,12 +12,13 @@ publish = false
 [dependencies]
 # Gadget dependencies
 gadget-std = { workspace = true, features = ["std"] }
-# gadget-event-listeners-tangle = { workspace = true, features = ["std"] }
 gadget-event-listeners = { workspace = true, features = ["std", "tangle"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle"] }
+tracing = "0.1.41"
+tracing-core = "0.1.33"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

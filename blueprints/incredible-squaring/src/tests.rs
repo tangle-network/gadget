@@ -5,6 +5,7 @@ use gadget_config::ContextConfig;
 use gadget_runner_tangle::error::TangleError;
 use gadget_runner_tangle::tangle::TangleConfig;
 use gadget_testing_utils::runner::TestEnv;
+use gadget_testing_utils::tangle::keys::inject_tangle_key;
 use gadget_testing_utils::tangle::node::NodeConfig;
 use gadget_testing_utils::tangle::runner::TangleTestEnv;
 use url::Url;
@@ -20,7 +21,7 @@ async fn test_incredible_squaring() -> Result<(), TangleError> {
     // Setup testing directory
     let tmp_dir = tempfile::TempDir::new().map_err(TangleError::Io)?;
     let tmp_dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    // std::env::current_dir().expect("Failed to get current directory");
+    inject_tangle_key(&tmp_dir_path, "alice").map_err(|e| TangleError::Keystore(e.to_string()))?;
 
     let context_config = ContextConfig::create_tangle_config(
         Url::parse(&format!("http://127.0.0.1:{}", tangle_node.ws_port())).unwrap(),
