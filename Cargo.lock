@@ -8445,13 +8445,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "incredible-squaring-blueprint-eigenlayer"
-version = "0.1.1"
-dependencies = [
- "tempfile",
-]
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
