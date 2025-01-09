@@ -5,22 +5,22 @@ use thiserror::Error;
 pub use gadget_crypto_core::*;
 
 #[cfg(feature = "k256")]
-pub use gadget_crypto_k256 as k256_crypto;
+pub use gadget_crypto_k256 as k256;
 
 #[cfg(feature = "sr25519-schnorrkel")]
-pub use gadget_crypto_sr25519 as sr25519_crypto;
+pub use gadget_crypto_sr25519 as sr25519;
 
 #[cfg(feature = "ed25519")]
-pub use gadget_crypto_ed25519 as ed25519_crypto;
+pub use gadget_crypto_ed25519 as ed25519;
 
 #[cfg(feature = "bls")]
-pub use gadget_crypto_bls as bls_crypto;
+pub use gadget_crypto_bls as bls;
 
 #[cfg(feature = "bn254")]
-pub use gadget_crypto_bn254 as bn254_crypto;
+pub use gadget_crypto_bn254 as bn254;
 
 #[cfg(feature = "sp-core")]
-pub use gadget_crypto_sp_core as sp_core_crypto;
+pub use gadget_crypto_sp_core as sp_core;
 
 #[cfg(feature = "tangle-pair-signer")]
 pub use gadget_crypto_tangle_pair_signer as tangle_pair_signer;

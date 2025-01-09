@@ -18,7 +18,8 @@ impl InMemoryStorage {
     ///
     /// ```rust
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::crypto::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::crypto::k256::K256Ecdsa;
+    /// use gadget_keystore::crypto::IntoCryptoError;
     /// use gadget_keystore::crypto::KeyType;
     /// use gadget_keystore::storage::{InMemoryStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
@@ -29,7 +30,7 @@ impl InMemoryStorage {
     /// let storage = TypedStorage::new(storage);
     ///
     /// // Generate a key pair
-    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let secret = K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
     /// let public = K256Ecdsa::public_from_secret(&secret);
     ///
     /// // Start storing
@@ -106,7 +107,7 @@ impl RawStorage for InMemoryStorage {
 
 #[cfg(test)]
 mod tests {
-    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
+    use gadget_crypto::{k256::K256Ecdsa, IntoCryptoError, KeyType};
 
     use super::*;
     use crate::storage::TypedStorage;

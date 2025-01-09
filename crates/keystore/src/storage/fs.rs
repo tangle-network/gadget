@@ -25,7 +25,7 @@ impl FileStorage {
     ///
     /// ```rust,no_run
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::crypto::k256_ecdsa::K256Ecdsa;
+    /// use gadget_keystore::crypto::ecdsa::K256Ecdsa;
     /// use gadget_keystore::crypto::KeyType;
     /// use gadget_keystore::storage::{FileStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
@@ -142,7 +142,7 @@ mod tests {
     use crate::storage::TypedStorage;
 
     use super::*;
-    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
+    use gadget_crypto::{k256::K256Ecdsa, IntoCryptoError, KeyType};
     use tempfile::tempdir;
 
     #[test]
