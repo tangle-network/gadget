@@ -15,7 +15,6 @@ use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::vec::Vec;
 use gadget_std::{
-    format,
     str::FromStr,
     string::{String, ToString},
 };
@@ -179,8 +178,8 @@ impl KeyType for ArkBlsBn254 {
     }
 
     fn generate_with_string(secret: String) -> Result<Self::Secret> {
-        let secret =
-            Fr::from_str(&secret).map_err(|e| Bn254Error::InvalidSeed(format!("{:?}", e)))?;
+        let secret = Fr::from_str(&secret)
+            .map_err(|_| Bn254Error::InvalidSeed("Invalid secret string".to_string()))?;
         Ok(ArkBlsBn254Secret(secret))
     }
 

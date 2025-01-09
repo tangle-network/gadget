@@ -7,7 +7,7 @@ edition = "2021"
 gadget-std = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["tangle", "std"] }
-gadget-crypto = { workspace = true, features = ["std", "tangle-pair-signer", "sr25519-schnorrkel", "ed25519", "sp-core"] }
+gadget-crypto = { workspace = true, features = ["default"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
