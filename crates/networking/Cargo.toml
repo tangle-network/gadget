@@ -39,40 +39,41 @@ round-based = { workspace = true, optional = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
-    "tokio",
-    "gossipsub",
-    "mdns",
-    "noise",
-    "macros",
-    "yamux",
-    "tcp",
-    "quic",
-    "request-response",
-    "cbor",
-    "identify",
-    "kad",
-    "dcutr",
-    "relay",
-    "ping",
-    "dns",
-    "autonat",
+	"tokio",
+	"gossipsub",
+	"mdns",
+	"noise",
+	"macros",
+	"yamux",
+	"tcp",
+	"quic",
+	"request-response",
+	"cbor",
+	"identify",
+	"kad",
+	"dcutr",
+	"relay",
+	"ping",
+	"dns",
+	"autonat",
 ]
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
+serial_test = { workspace = true, features = ["async"] }
 
 [features]
 default = ["std"]
 std = [
-    "gadget-crypto/std",
-    "gadget-logging/std",
-    "gadget-std/std",
-    "gadget-std/tokio",
-    "k256/std",
-    "tokio/full",
-    "serde/std",
-    "serde_json/std",
-    "round-based?/std",
+	"gadget-crypto/std",
+	"gadget-logging/std",
+	"gadget-std/std",
+	"gadget-std/tokio",
+	"k256/std",
+	"tokio/full",
+	"serde/std",
+	"serde_json/std",
+	"round-based?/std",
 ]
 
 round-based-compat = ["round-based"]

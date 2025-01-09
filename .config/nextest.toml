@@ -3,6 +3,4 @@ failure-output = "immediate-final"
 fail-fast = false
 
 [profile.serial]
-failure-output = "immediate-final"
-fail-fast = false
-test-threads = 1
+test-threads=1
