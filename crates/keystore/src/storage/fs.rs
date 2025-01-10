@@ -36,7 +36,7 @@ impl FileStorage {
     /// let storage = TypedStorage::new(storage);
     ///
     /// // Generate a key pair
-    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let secret = K256Ecdsa::generate_with_seed(None).unwrap();
     /// let public = K256Ecdsa::public_from_secret(&secret);
     ///
     /// // Start storing

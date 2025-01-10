@@ -30,7 +30,7 @@ impl InMemoryStorage {
     /// let storage = TypedStorage::new(storage);
     ///
     /// // Generate a key pair
-    /// let secret = K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
+    /// let secret = K256Ecdsa::generate_with_seed(None).unwrap();
     /// let public = K256Ecdsa::public_from_secret(&secret);
     ///
     /// // Start storing
