@@ -1,0 +1,47 @@
+[package]
+name = "incredible-squaring-blueprint"
+version = "0.1.1"
+description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Gadget dependencies
+gadget-std = { workspace = true, features = ["std"] }
+gadget-event-listeners = { workspace = true, features = ["std", "tangle"] }
+gadget-macros = { workspace = true, features = ["tangle", "std"] }
+gadget-crypto = { workspace = true, features = ["default"] }
+gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
+gadget-config = { workspace = true, features = ["std"] }
+gadget-logging = { workspace = true, features = ["std"] }
+gadget-runners = { workspace = true, features = ["tangle"] }
+tracing = { workspace = true }
+tracing-core = { workspace = true }
+
+[dev-dependencies]
+# TODO: Move into testing crate
+alloy-signer-local = { workspace = true }
+color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
+cargo-tangle = { workspace = true, features = ["tangle"] }
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
+futures-util = { workspace = true }
+
+tokio = { workspace = true, features = ["full"] }
+tempfile = { workspace = true }
+gadget-client-tangle = { workspace = true }
+gadget-testing-utils = { workspace = true, features = ["tangle"] }
+async-trait = { workspace = true }
+url = { workspace = true }
+
+[build-dependencies]
+blueprint-metadata.workspace = true
+
+[features]
+
+[package.metadata.blueprint]
+manager = { Evm = "IncredibleSquaringBlueprint" }
+master_revision = "Latest"

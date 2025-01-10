@@ -14,6 +14,7 @@ use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 /// Abi proc-macro
+#[cfg(feature = "std")]
 mod abi;
 /// Benchmarking proc-macro
 mod benchmark;
@@ -25,8 +26,6 @@ mod job;
 mod report;
 /// Shared utilities for the Blueprint Macros
 mod shared;
-
-mod special_impls;
 
 mod sdk_main;
 
@@ -46,8 +45,8 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as job::JobArgs);
     let input = parse_macro_input!(input as syn::ItemFn);
 
-    match job::job_impl(&args, &input) {
-        Ok(tokens) => tokens,
+    match job::job_impl(args, input) {
+        Ok(tokens) => tokens.into(),
         Err(err) => err.to_compile_error().into(),
     }
 }
@@ -114,6 +113,7 @@ pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A procedural macro that outputs the JsonAbi for the given file path.
 #[proc_macro]
+#[cfg(feature = "std")]
 pub fn load_abi(input: TokenStream) -> TokenStream {
     abi::load_abi(input)
 }

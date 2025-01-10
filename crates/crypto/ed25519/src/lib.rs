@@ -1,191 +1,179 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod error;
-mod zebra_ed25519;
-
-pub use zebra_ed25519::*;
+use error::{Ed25519Error, Result};
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use gadget_crypto_core::KeyType;
+mod tests;
 
-    mod ed25519_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(Ed25519Zebra, Ed25519SigningKey, Ed25519Signature);
+use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::{
+    string::{String, ToString},
+    vec::Vec,
+};
+
+/// Ed25519 key type
+pub struct Ed25519Zebra;
+
+macro_rules! impl_zebra_serde {
+    ($name:ident, $inner:ty) => {
+        #[derive(Clone)]
+        pub struct $name(pub $inner);
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.to_bytes() == other.to_bytes()
+            }
+        }
+
+        impl Eq for $name {}
+
+        impl PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                self.to_bytes().cmp(&other.to_bytes())
+            }
+        }
+
+        impl gadget_std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                write!(f, "{:?}", self.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.to_bytes_impl()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                Self::from_bytes_impl(bytes).map_err(|e| serde::de::Error::custom(e.to_string()))
+            }
+        }
+
+        impl serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                // Get the raw bytes
+                let bytes = self.to_bytes();
+                Vec::serialize(&bytes, serializer)
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                // Deserialize as bytes
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+
+                // Convert bytes back to inner type
+                let inner = <$inner>::try_from(bytes.as_slice())
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+
+                Ok($name(inner))
+            }
+        }
+    };
+}
+
+impl_zebra_serde!(Ed25519SigningKey, ed25519_zebra::SigningKey);
+
+impl Ed25519SigningKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
     }
 
-    #[test]
-    fn test_key_generation_deterministic() {
-        // Test seed-based generation is deterministic
-        let seed = b"deterministic_test_seed";
-        let key1 = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let key2 = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
+    pub fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::SigningKey::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidSigner(e.to_string()))?;
+        Ok(Ed25519SigningKey(inner))
+    }
+}
 
-        assert_eq!(key1, key2, "Same seed should produce identical keys");
+impl_zebra_serde!(Ed25519VerificationKey, ed25519_zebra::VerificationKey);
 
-        // Different seeds should produce different keys
-        let different_seed = b"different_seed";
-        let key3 = Ed25519Zebra::generate_with_seed(Some(different_seed)).unwrap();
-        assert_ne!(key1, key3, "Different seeds should produce different keys");
+impl Ed25519VerificationKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
     }
 
-    #[test]
-    fn test_signature_verification_edge_cases() {
-        let seed = b"test_signature_verification";
-        let mut secret = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let public = Ed25519Zebra::public_from_secret(&secret);
+    pub fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::VerificationKey::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidVerifyingKey(e.to_string()))?;
+        Ok(Ed25519VerificationKey(inner))
+    }
+}
 
-        // Test empty message
-        let empty_msg = vec![];
-        let empty_sig = Ed25519Zebra::sign_with_secret(&mut secret, &empty_msg).unwrap();
-        assert!(Ed25519Zebra::verify(&public, &empty_msg, &empty_sig));
+impl_zebra_serde!(Ed25519Signature, ed25519_zebra::Signature);
 
-        // Test large message
-        let large_msg = vec![0xFF; 1_000_000];
-        let large_sig = Ed25519Zebra::sign_with_secret(&mut secret, &large_msg).unwrap();
-        assert!(Ed25519Zebra::verify(&public, &large_msg, &large_sig));
-
-        // Test message modification
-        let msg = b"original message".to_vec();
-        let sig = Ed25519Zebra::sign_with_secret(&mut secret, &msg).unwrap();
-        let mut modified_msg = msg.clone();
-        modified_msg[0] ^= 1;
-        assert!(!Ed25519Zebra::verify(&public, &modified_msg, &sig));
+impl Ed25519Signature {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.to_bytes().to_vec()
     }
 
-    #[test]
-    fn test_key_reuse() {
-        let seed = b"key_reuse_test";
-        let mut secret = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let public = Ed25519Zebra::public_from_secret(&secret);
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let inner = ed25519_zebra::Signature::try_from(bytes)
+            .map_err(|e| Ed25519Error::InvalidSignature(e.to_string()))?;
+        Ok(Ed25519Signature(inner))
+    }
+}
 
-        // Sign multiple messages with the same key
-        let messages = vec![
-            b"message1".to_vec(),
-            b"message2".to_vec(),
-            b"message3".to_vec(),
-        ];
+impl KeyType for Ed25519Zebra {
+    type Public = Ed25519VerificationKey;
+    type Secret = Ed25519SigningKey;
+    type Signature = Ed25519Signature;
+    type Error = Ed25519Error;
 
-        for msg in &messages {
-            let sig = Ed25519Zebra::sign_with_secret(&mut secret, msg).unwrap();
-            assert!(Ed25519Zebra::verify(&public, msg, &sig));
+    fn key_type_id() -> KeyTypeId {
+        KeyTypeId::Ed25519
+    }
+
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
+        if let Some(seed) = seed {
+            let mut seed_bytes = [0u8; 32];
+            let len = seed.len().min(32);
+            seed_bytes[..len].copy_from_slice(&seed[..len]);
+            let seed = seed_bytes;
+            Ok(Ed25519SigningKey(ed25519_zebra::SigningKey::from(seed)))
+        } else {
+            let mut rng = Self::get_rng();
+            Ok(Ed25519SigningKey(ed25519_zebra::SigningKey::new(&mut rng)))
         }
     }
 
-    #[test]
-    fn test_signature_malleability() {
-        let seed = b"malleability_test";
-        let mut secret = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let public = Ed25519Zebra::public_from_secret(&secret);
-        let message = b"test message".to_vec();
-
-        let signature = Ed25519Zebra::sign_with_secret(&mut secret, &message).unwrap();
-
-        // Try to modify signature
-        let mut modified_sig = signature.clone();
-        let mut bytes = modified_sig.0.to_bytes().to_vec();
-        bytes[0] = if bytes[0] == 0 { 1 } else { 0 };
-        modified_sig = Ed25519Signature::from_bytes(&bytes).unwrap();
-        assert!(!Ed25519Zebra::verify(&public, &message, &modified_sig));
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
+        let hex_encoded = hex::decode(secret)?;
+        let secret = ed25519_zebra::SigningKey::try_from(hex_encoded.as_slice())
+            .map_err(|e| Ed25519Error::InvalidSeed(e.to_string()))?;
+        Ok(Ed25519SigningKey(secret))
     }
 
-    #[test]
-    fn test_cross_key_verification() {
-        let seed1 = b"key1";
-        let seed2 = b"key2";
-        let mut secret1 = Ed25519Zebra::generate_with_seed(Some(seed1)).unwrap();
-        let mut secret2 = Ed25519Zebra::generate_with_seed(Some(seed2)).unwrap();
-        let public1 = Ed25519Zebra::public_from_secret(&secret1);
-        let public2 = Ed25519Zebra::public_from_secret(&secret2);
-
-        let message = b"test message".to_vec();
-        let sig1 = Ed25519Zebra::sign_with_secret(&mut secret1, &message).unwrap();
-        let sig2 = Ed25519Zebra::sign_with_secret(&mut secret2, &message).unwrap();
-
-        // Verify correct signatures
-        assert!(Ed25519Zebra::verify(&public1, &message, &sig1));
-        assert!(Ed25519Zebra::verify(&public2, &message, &sig2));
-
-        // Cross verification should fail
-        assert!(!Ed25519Zebra::verify(&public1, &message, &sig2));
-        assert!(!Ed25519Zebra::verify(&public2, &message, &sig1));
+    fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+        Ed25519VerificationKey((&secret.0).into())
     }
 
-    #[test]
-    fn test_boundary_conditions() {
-        let seed = b"boundary_test";
-        let mut secret = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let public = Ed25519Zebra::public_from_secret(&secret);
-
-        // Test with various message sizes
-        let test_sizes = [0, 1, 32, 64, 128, 256, 1024, 4096];
-
-        for size in test_sizes.iter() {
-            let message = vec![0xAA; *size];
-            let signature = Ed25519Zebra::sign_with_secret(&mut secret, &message).unwrap();
-            assert!(Ed25519Zebra::verify(&public, &message, &signature));
-        }
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
+        Ok(Ed25519Signature(secret.0.sign(msg)))
     }
 
-    #[test]
-    fn test_key_serialization() {
-        let seed = b"serialization_test";
-        let secret = Ed25519Zebra::generate_with_seed(Some(seed)).unwrap();
-        let public = Ed25519Zebra::public_from_secret(&secret);
-
-        // Test public key serialization
-        let public_bytes = public.to_bytes();
-        let recovered_public = Ed25519VerificationKey::from_bytes(&public_bytes).unwrap();
-        assert_eq!(public, recovered_public);
-
-        // Test signature serialization
-        let message = b"test message".to_vec();
-        let mut secret_clone = secret.clone();
-        let signature = Ed25519Zebra::sign_with_secret(&mut secret_clone, &message).unwrap();
-
-        let sig_bytes = signature.to_bytes();
-        let recovered_sig = Ed25519Signature::from_bytes(&sig_bytes).unwrap();
-        assert_eq!(signature, recovered_sig);
+    fn sign_with_secret_pre_hashed(
+        secret: &mut Self::Secret,
+        msg: &[u8; 32],
+    ) -> Result<Self::Signature> {
+        Ok(Ed25519Signature(secret.0.sign(msg)))
     }
 
-    #[test]
-    fn test_invalid_key_deserialization() {
-        // Test with wrong length
-        let short_bytes = vec![0xFF; 31];
-        assert!(Ed25519VerificationKey::from_bytes(&short_bytes).is_err());
-
-        let long_bytes = vec![0xFF; 33];
-        assert!(Ed25519VerificationKey::from_bytes(&long_bytes).is_err());
-    }
-
-    #[test]
-    fn test_concurrent_key_usage() {
-        use gadget_std::sync::Arc;
-        use gadget_std::thread;
-
-        let seed = b"concurrent_test";
-        let secret = Arc::new(Ed25519Zebra::generate_with_seed(Some(seed)).unwrap());
-        let public = Ed25519Zebra::public_from_secret(&secret);
-
-        let mut handles = vec![];
-
-        // Create multiple threads signing different messages
-        for i in 0..10 {
-            let secret = Arc::clone(&secret);
-            let handle = thread::spawn(move || {
-                let message = format!("message {}", i).into_bytes();
-                let mut secret = (*secret).clone();
-                let signature = Ed25519Zebra::sign_with_secret(&mut secret, &message).unwrap();
-                (message, signature)
-            });
-            handles.push(handle);
-        }
-
-        // Verify all signatures
-        for handle in handles {
-            let (message, signature) = handle.join().unwrap();
-            assert!(Ed25519Zebra::verify(&public, &message, &signature));
-        }
+    fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+        public.0.verify(&signature.0, msg).is_ok()
     }
 }

@@ -5,32 +5,34 @@ edition = "2021"
 
 [dependencies]
 gadget-runner-core = { workspace = true, features = ["tangle"] }
-async-trait = { workspace = true }
 gadget-config = { workspace = true, features = ["tangle"] }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["tangle"] }
-thiserror = { workspace = true }
 gadget-keystore = { workspace = true, features = ["tangle-full"] }
-sp-core = { workspace = true, default-features = false }
 gadget-clients = { workspace = true, features = ["tangle"] }
-gadget-std = { workspace = true, default-features = false }
+gadget-std = { workspace = true }
+gadget-crypto = { workspace = true, features = ["tangle-pair-signer"] }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+sp-core = { workspace = true, default-features = false }
 tangle-subxt = { workspace = true }
 subxt = { workspace = true }
+k256 = { workspace = true }
 
 [features]
 default = ["std"]
 
 std = [
-    "gadget-runner-core/std",
-    "gadget-config/std",
-    "gadget-logging/std",
-    "gadget-utils/std",
-    "gadget-clients/std",
-    "gadget-keystore/std",
-    "gadget-config/std",
-    "gadget-config/keystore",
-    "sp-core/std",
-    "subxt/native",
+	"gadget-runner-core/std",
+	"gadget-config/std",
+	"gadget-logging/std",
+	"gadget-utils/std",
+	"gadget-clients/std",
+	"gadget-keystore/std",
+	"gadget-config/std",
+	"gadget-config/keystore",
+	"sp-core/std",
+	"subxt/native",
 ]
 
 [dev-dependencies]

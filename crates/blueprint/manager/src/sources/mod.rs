@@ -16,6 +16,7 @@ pub trait BinarySourceFetcher: Send + Sync {
     fn name(&self) -> String;
 }
 
+#[must_use]
 pub fn process_arguments_and_env(
     gadget_config: &GadgetConfiguration,
     manager_opts: &BlueprintManagerConfig,

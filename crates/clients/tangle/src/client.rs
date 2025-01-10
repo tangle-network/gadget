@@ -41,7 +41,7 @@ pub struct TangleClient {
     account_id: AccountId32,
     pub config: GadgetConfiguration,
     keystore: Arc<Keystore>,
-    services_client: TangleServicesClient<subxt::PolkadotConfig>,
+    services_client: TangleServicesClient<TangleConfig>,
 }
 
 const KEY_ID: &str = "tangle-default";
@@ -61,11 +61,21 @@ impl TangleClient {
         let rpc_url = config.ws_rpc_endpoint.as_str();
         let client = TangleServicesClient::new(subxt::OnlineClient::from_url(rpc_url).await?);
 
+        // TODO: Update once keystore is updated
         let account_id = keystore
-            .get_public_key_local::<SpSr25519>(KEY_ID)?
+            .list_local::<SpSr25519>()
+            .map_err(Error::Keystore)?
+            .iter()
+            .next()
+            .unwrap()
             .0
              .0
             .into();
+        // .get_public_key_local::<SpSr25519>(KEY_ID)
+        // .unwrap()
+        // .0
+        //  .0
+        // .into();
 
         Ok(Self {
             keystore,
@@ -103,7 +113,7 @@ impl TangleClient {
         &self,
         at: [u8; 32],
     ) -> subxt::runtime_api::RuntimeApi<TangleConfig, OnlineClient> {
-        let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
+        let block_ref = BlockRef::from_hash(subxt::utils::H256::from_slice(&at));
         self.services_client.rpc_client.runtime_api().at(block_ref)
     }
 
@@ -172,6 +182,14 @@ impl TangleClient {
 
     pub async fn now(&self) -> Option<[u8; 32]> {
         Some(self.latest_event().await?.hash)
+    }
+}
+
+impl gadget_std::ops::Deref for TangleClient {
+    type Target = TangleServicesClient<TangleConfig>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.services_client
     }
 }
 
@@ -278,7 +296,13 @@ impl GadgetServicesClient for TangleClient {
             })?;
 
             if let Some(pref) = maybe_pref {
-                map.insert(operator, ecdsa::Public(pref.key));
+                let public = ecdsa::Public::from_full(pref.key.as_slice()).map_err(|_| {
+                    Error::Other(format!(
+                        "Failed to convert the ECDSA public key for operator: {operator}"
+                    ))
+                })?;
+
+                map.insert(operator, public);
             } else {
                 return Err(Error::MissingEcdsa(operator));
             }

@@ -8,22 +8,28 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 gadget-std = { workspace = true }
 gadget-clients = { workspace = true }
+gadget-networking = { workspace = true, optional = true }
 gadget-keystore = { workspace = true, optional = true }
+gadget-config = { workspace = true, optional = true }
+
+async-trait.workspace = true
+proc-macro2 = { workspace = true, optional = true }
 
 subxt = { workspace = true, optional = true }
 
 [features]
 default = ["std", "keystore"]
 std = [
-    "gadget-std/std",
-    "gadget-keystore?/std",
+	"gadget-std/std",
+	"gadget-clients/std",
+	"gadget-keystore?/std",
+	"gadget-networking?/std",
 ]
 
 evm = ["gadget-clients/evm"]
 eigenlayer = ["gadget-clients/eigenlayer"]
-networking = ["gadget-clients/networking"]
-keystore = ["gadget-keystore"]
+networking = ["gadget-clients/networking", "gadget-networking", "proc-macro2"]
+keystore = ["dep:gadget-config", "dep:gadget-keystore"]
 tangle = ["dep:subxt", "gadget-clients/tangle"]

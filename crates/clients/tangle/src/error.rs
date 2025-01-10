@@ -21,7 +21,7 @@ pub enum Error {
     #[error(transparent)]
     Keystore(#[from] gadget_keystore::Error),
     #[error(transparent)]
-    Core(#[from] gadget_client_core::Error),
+    Core(#[from] gadget_client_core::error::Error),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
     #[error("Subxt error: {0}")]

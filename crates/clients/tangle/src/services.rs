@@ -25,6 +25,14 @@ impl<C: Config> TangleServicesClient<C> {
     }
 }
 
+impl<C: Config> gadget_std::ops::Deref for TangleServicesClient<C> {
+    type Target = OnlineClient<C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.rpc_client
+    }
+}
+
 /// A list of services provided by an operator, along with their blueprint
 pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64, u128>;
 

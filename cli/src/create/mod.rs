@@ -56,6 +56,7 @@ pub fn new_blueprint(
         lib: false,
         bin: true,
         ssh_identity: None,
+        gitconfig: None,
         define: Default::default(),
         init: false,
         destination: None,

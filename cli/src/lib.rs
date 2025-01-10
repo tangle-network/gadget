@@ -1,6 +1,7 @@
 pub mod create;
 pub mod deploy;
 pub mod foundry;
+#[cfg(feature = "tangle")]
 pub mod keys;
 
 #[cfg(feature = "tangle")]

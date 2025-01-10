@@ -34,6 +34,9 @@ pub enum Error {
     /// Invalid hex decoding
     #[error("Invalid hex decoding")]
     InvalidHexDecoding,
+    /// Failed to deserialize key
+    #[error("Failed to deserialize key: {0}")]
+    KeyDeserialization(#[from] serde::de::value::Error),
     /// Invalid seed
     #[error("Invalid seed: {0}")]
     InvalidSeed(String),
@@ -82,13 +85,9 @@ pub enum Error {
     #[cfg(feature = "zebra")]
     Ed25519(#[from] ed25519_zebra::Error),
     /// An error occurred during bls381 module operation
-    #[error("bls381: {0}")]
+    #[error("bls: {0}")]
     #[cfg(feature = "bls")]
-    Bls381(String),
-    /// An error occurred during bls377 module operation
-    #[error("bls381: {0}")]
-    #[cfg(feature = "bls")]
-    Bls377(String),
+    Bls(String),
     /// An error occurred during bls_bn254 module operation
     #[error("bls_bn254: {0}")]
     #[cfg(feature = "bn254")]

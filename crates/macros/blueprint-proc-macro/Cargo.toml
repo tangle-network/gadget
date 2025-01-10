@@ -23,10 +23,14 @@ serde_json = { workspace = true, features = ["alloc"] }
 indexmap = { workspace = true }
 
 [dev-dependencies]
-trybuild = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["testing"] }
-gadget-macros = { workspace = true }
+gadget-macros = { workspace = true, features = ["std", "tangle", "evm"] }
+
+trybuild = { workspace = true }
 
 [features]
 default = ["std"]
 std = ["gadget-blueprint-proc-macro-core/std", "gadget-std/std", "indexmap/std"]
+
+tangle = []
+evm = []

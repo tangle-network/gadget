@@ -1,4 +1,4 @@
-use crate::EventListener;
+use crate::{Error, EventListener};
 use async_trait::async_trait;
 
 /// Only useful for testing job syntax, not running jobs.
@@ -9,9 +9,9 @@ pub struct PendingEventListener<T, Ctx>(gadget_std::marker::PhantomData<(T, Ctx)
 impl<T: Send + 'static, Ctx: Send + 'static> EventListener<T, Ctx>
     for PendingEventListener<T, Ctx>
 {
-    type Error = std::io::Error;
+    type ProcessorError = std::io::Error;
 
-    async fn new(_context: &Ctx) -> Result<Self, std::io::Error>
+    async fn new(_context: &Ctx) -> Result<Self, Error<std::io::Error>>
     where
         Self: Sized,
     {

@@ -72,7 +72,7 @@ pub fn load_evm_signer_from_env() -> Result<PrivateKeySigner> {
         PrivateKeySigner::from_str(hex_str)
             .context("Parsing the hex string into a PrivateKeySigner")?
     } else {
-        let phrase = bip39::Mnemonic::from_str(uri.phrase.expose_secret().as_str())?;
+        let phrase = bip39::Mnemonic::from_str(uri.phrase.expose_secret())?;
         let secret_bytes = phrase.to_entropy();
         PrivateKeySigner::from_slice(secret_bytes.as_slice())
             .context("Creating a PrivateKeySigner from the mnemonic phrase")?

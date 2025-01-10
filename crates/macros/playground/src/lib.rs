@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use gadget_sdk::config::StdGadgetConfiguration;
 use gadget_sdk::contexts::TangleClientContext;
+use gadget_sdk::event_listener::tangle::events::TangleEventListener;
 use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
-use gadget_sdk::event_listener::tangle::TangleEventListener;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted,
 };

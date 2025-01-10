@@ -7,9 +7,11 @@ compile_error!("evm feature is currently only supported on std");
 pub mod ext {
     pub use async_trait;
     pub use futures;
-    #[cfg(any(feature = "tangle", feature = "evm"))]
+    #[cfg(any(feature = "tangle", feature = "evm", feature = "std"))]
     pub use tokio;
 
+    #[cfg(feature = "std")]
+    pub use clap;
     #[cfg(feature = "tangle")]
     pub use gadget_blueprint_serde as blueprint_serde;
     #[cfg(any(feature = "tangle", feature = "evm"))]
@@ -23,8 +25,9 @@ pub mod ext {
     pub use gadget_keystore as keystore;
     #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use gadget_logging as logging;
-    pub use gadget_networking as networking;
     pub use gadget_std as std;
+    #[cfg(feature = "std")]
+    pub use gadget_testing_utils as testing_utils;
 
     #[cfg(all(feature = "std", feature = "evm"))]
     pub mod evm {
@@ -35,6 +38,7 @@ pub mod ext {
 
     #[cfg(feature = "tangle")]
     pub mod tangle {
+        #[allow(clippy::module_name_repetitions)]
         pub use tangle_subxt;
     }
 }

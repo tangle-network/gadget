@@ -41,7 +41,7 @@ pub mod inner {
     pub use colored::Colorize;
 
     // print-trace requires std, so these imports are well-defined
-    pub use gadget_std::{
+    pub use crate::{
         format, println,
         string::{String, ToString},
         sync::atomic::{AtomicUsize, Ordering},

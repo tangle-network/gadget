@@ -21,6 +21,8 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
 };
 
+const DEFAULT_PROTOCOL: Protocol = Protocol::Tangle;
+
 pub struct VerifiedBlueprint<'a> {
     pub(crate) fetcher: Box<dyn BinarySourceFetcher + 'a>,
     pub(crate) blueprint: FilteredBlueprint,
@@ -127,7 +129,7 @@ pub(crate) fn check_blueprint_events(
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> EventPollResult {
-    let pre_registation_events = event.events.find::<PreRegistration>();
+    let pre_registration_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
@@ -136,7 +138,7 @@ pub(crate) fn check_blueprint_events(
 
     let mut result = EventPollResult::default();
 
-    for evt in pre_registation_events {
+    for evt in pre_registration_events {
         match evt {
             Ok(evt) => {
                 if &evt.operator == account_id {
@@ -220,7 +222,7 @@ pub(crate) fn check_blueprint_events(
     result
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &[RpcServicesWithBlueprint],
@@ -231,11 +233,6 @@ pub(crate) async fn handle_tangle_event(
     client: &TangleServicesClient<TangleConfig>,
 ) -> Result<()> {
     info!("Received notification {}", event.number);
-    const DEFAULT_PROTOCOL: Protocol = Protocol::Tangle;
-    warn!("Using Tangle protocol as default over Eigen. This is a temporary development workaround. You can alter this behavior here");
-
-    // const DEFAULT_PROTOCOL: Protocol = Protocol::Eigenlayer;
-    // warn!("Using Eigen protocol as default over Tangle. This is a temporary development workaround. You can alter this behavior here");
 
     let mut registration_blueprints = vec![];
     // First, check to see if we need to register any new services invoked by the PreRegistration event
@@ -254,7 +251,7 @@ pub(crate) async fn handle_tangle_event(
                 blueprint_id: *blueprint_id,
                 services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
                 gadget: blueprint.gadget,
-                name: bounded_string_to_string(blueprint.metadata.name)?,
+                name: bounded_string_to_string(&blueprint.metadata.name)?,
                 registration_mode: true,
                 protocol: DEFAULT_PROTOCOL,
             };
@@ -271,7 +268,7 @@ pub(crate) async fn handle_tangle_event(
             blueprint_id: r.blueprint_id,
             services: r.services.iter().map(|r| r.id).collect(),
             gadget: r.blueprint.gadget.clone(),
-            name: bounded_string_to_string(r.clone().blueprint.metadata.name)
+            name: bounded_string_to_string(&r.blueprint.metadata.name)
                 .unwrap_or("unknown_blueprint_name".to_string()),
             registration_mode: false,
             protocol: DEFAULT_PROTOCOL,

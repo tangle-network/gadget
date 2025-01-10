@@ -1,132 +1,138 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod error;
-mod schnorrkel_sr25519;
-pub use schnorrkel_sr25519::*;
+use error::{Result, Sr25519Error};
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use gadget_crypto_core::KeyType;
+mod tests;
 
-    mod sr25519_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(
-            SchnorrkelSr25519,
-            SchnorrkelSecret,
-            SchnorrkelSignature
-        );
-    }
+use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::{
+    string::{String, ToString},
+    vec::Vec,
+};
+use schnorrkel::MiniSecretKey;
 
-    #[test]
-    fn test_key_generation_deterministic() {
-        // Test seed-based generation is deterministic
-        let seed = b"deterministic_test_seed";
-        let key1 = SchnorrkelSr25519::generate_with_seed(Some(seed)).unwrap();
-        let key2 = SchnorrkelSr25519::generate_with_seed(Some(seed)).unwrap();
+/// Schnorrkel key type
+pub struct SchnorrkelSr25519;
 
-        assert_eq!(key1, key2, "Same seed should produce identical keys");
+macro_rules! impl_schnorrkel_serde {
+    ($name:ident, $inner:ty) => {
+        #[derive(Clone, PartialEq, Eq, Debug)]
+        pub struct $name(pub $inner);
 
-        // Different seeds should produce different keys
-        let different_seed = b"different_seed";
-        let key3 = SchnorrkelSr25519::generate_with_seed(Some(different_seed)).unwrap();
-        assert_ne!(key1, key3, "Different seeds should produce different keys");
-    }
-
-    #[test]
-    fn test_sr25519_pair_serialization() {
-        // Create a known seed
-        let seed: [u8; 32] = [1u8; 32];
-
-        // Create the original pair
-        let original_pair = SchnorrkelSr25519::generate_with_seed(Some(&seed)).unwrap();
-
-        // Serialize and deserialize the pair directly
-        let serialized = serde_json::to_vec(&original_pair).unwrap();
-        let deserialized_pair: SchnorrkelSecret =
-            serde_json::from_slice(&serialized).expect("Failed to deserialize pair");
-
-        // Verify the pairs match
-        assert_eq!(
-            original_pair.0.to_bytes(),
-            deserialized_pair.0.to_bytes(),
-            "Deserialized pair doesn't match original"
-        );
-    }
-
-    #[test]
-    fn test_signature_verification_edge_cases() {
-        let seed = b"test_signature_verification";
-        let mut secret = SchnorrkelSr25519::generate_with_seed(Some(seed)).unwrap();
-        let public = SchnorrkelSr25519::public_from_secret(&secret);
-
-        // Test empty message
-        let empty_msg = vec![];
-        let empty_sig = SchnorrkelSr25519::sign_with_secret(&mut secret, &empty_msg).unwrap();
-        assert!(SchnorrkelSr25519::verify(&public, &empty_msg, &empty_sig));
-
-        // Test large message
-        let large_msg = vec![0xFF; 1_000_000];
-        let large_sig = SchnorrkelSr25519::sign_with_secret(&mut secret, &large_msg).unwrap();
-        assert!(SchnorrkelSr25519::verify(&public, &large_msg, &large_sig));
-
-        // Test message modification
-        let msg = b"original message".to_vec();
-        let sig = SchnorrkelSr25519::sign_with_secret(&mut secret, &msg).unwrap();
-        let mut modified_msg = msg.clone();
-        modified_msg[0] ^= 1;
-        assert!(!SchnorrkelSr25519::verify(&public, &modified_msg, &sig));
-    }
-
-    #[test]
-    fn test_cross_key_verification() {
-        let seed1 = b"key1";
-        let seed2 = b"key2";
-        let mut secret1 = SchnorrkelSr25519::generate_with_seed(Some(seed1)).unwrap();
-        let mut secret2 = SchnorrkelSr25519::generate_with_seed(Some(seed2)).unwrap();
-        let public1 = SchnorrkelSr25519::public_from_secret(&secret1);
-        let public2 = SchnorrkelSr25519::public_from_secret(&secret2);
-
-        let message = b"test message".to_vec();
-        let sig1 = SchnorrkelSr25519::sign_with_secret(&mut secret1, &message).unwrap();
-        let sig2 = SchnorrkelSr25519::sign_with_secret(&mut secret2, &message).unwrap();
-
-        // Verify correct signatures
-        assert!(SchnorrkelSr25519::verify(&public1, &message, &sig1));
-        assert!(SchnorrkelSr25519::verify(&public2, &message, &sig2));
-
-        // Cross verification should fail
-        assert!(!SchnorrkelSr25519::verify(&public1, &message, &sig2));
-        assert!(!SchnorrkelSr25519::verify(&public2, &message, &sig1));
-    }
-
-    #[test]
-    fn test_concurrent_key_usage() {
-        use gadget_std::sync::Arc;
-        use gadget_std::thread;
-
-        let seed = b"concurrent_test";
-        let secret = Arc::new(SchnorrkelSr25519::generate_with_seed(Some(seed)).unwrap());
-        let public = SchnorrkelSr25519::public_from_secret(&secret);
-
-        let mut handles = vec![];
-
-        // Create multiple threads signing different messages
-        for i in 0..10 {
-            let secret = Arc::clone(&secret);
-            let handle = thread::spawn(move || {
-                let message = format!("message {}", i).into_bytes();
-                let mut secret = (*secret).clone();
-                let signature = SchnorrkelSr25519::sign_with_secret(&mut secret, &message).unwrap();
-                (message, signature)
-            });
-            handles.push(handle);
+        impl PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
         }
 
-        // Verify all signatures
-        for handle in handles {
-            let (message, signature) = handle.join().unwrap();
-            assert!(SchnorrkelSr25519::verify(&public, &message, &signature));
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                self.0.to_bytes().cmp(&other.0.to_bytes())
+            }
         }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.0.to_bytes().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                <$inner>::from_bytes(bytes)
+                    .map(Self)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))
+            }
+        }
+
+        impl serde::Serialize for $name {
+            fn serialize<S: serde::Serializer>(
+                &self,
+                serializer: S,
+            ) -> core::result::Result<S::Ok, S::Error> {
+                <Vec<u8>>::serialize(&self.to_bytes(), serializer)
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for $name {
+            fn deserialize<D: serde::Deserializer<'de>>(
+                deserializer: D,
+            ) -> core::result::Result<Self, D::Error> {
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+                let inner = <$inner>::from_bytes(&bytes)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+                Ok($name(inner))
+            }
+        }
+    };
+}
+
+impl_schnorrkel_serde!(SchnorrkelPublic, schnorrkel::PublicKey);
+impl_schnorrkel_serde!(SchnorrkelSecret, schnorrkel::SecretKey);
+impl_schnorrkel_serde!(SchnorrkelSignature, schnorrkel::Signature);
+
+impl KeyType for SchnorrkelSr25519 {
+    type Secret = SchnorrkelSecret;
+    type Public = SchnorrkelPublic;
+    type Signature = SchnorrkelSignature;
+    type Error = Sr25519Error;
+
+    fn key_type_id() -> KeyTypeId {
+        KeyTypeId::Sr25519
+    }
+
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
+        let secret_key = if let Some(seed) = seed {
+            // Pad seed to 64 bytes or error if too large
+            if seed.len() > 64 {
+                return Err(Sr25519Error::InvalidSeed(
+                    "Seed must not exceed 64 bytes".into(),
+                ));
+            }
+            let mut padded_seed = [0u8; 64];
+            padded_seed[..seed.len()].copy_from_slice(seed);
+            schnorrkel::SecretKey::from_bytes(&padded_seed)
+                .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))
+        } else {
+            let mut rng = Self::get_rng();
+            let mini_secret_key = MiniSecretKey::generate_with(&mut rng);
+            Ok(mini_secret_key.expand(MiniSecretKey::UNIFORM_MODE))
+        };
+
+        secret_key.map(SchnorrkelSecret)
+    }
+
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
+        let hex_encoded = hex::decode(secret)?;
+        let secret_key = schnorrkel::SecretKey::from_bytes(&hex_encoded)
+            .map_err(|e| Sr25519Error::InvalidSeed(e.to_string()))?;
+        Ok(SchnorrkelSecret(secret_key))
+    }
+
+    fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+        SchnorrkelPublic(secret.0.to_public())
+    }
+
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
+        let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
+        Ok(SchnorrkelSignature(
+            secret.0.sign(ctx, &secret.0.to_public()),
+        ))
+    }
+
+    fn sign_with_secret_pre_hashed(
+        secret: &mut Self::Secret,
+        msg: &[u8; 32],
+    ) -> Result<Self::Signature> {
+        let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
+        Ok(SchnorrkelSignature(
+            secret.0.sign(ctx, &secret.0.to_public()),
+        ))
+    }
+
+    fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+        let ctx = schnorrkel::signing_context(b"tangle").bytes(msg);
+        public.0.verify(ctx, &signature.0).is_ok()
     }
 }

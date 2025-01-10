@@ -22,7 +22,7 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics ::gadget_macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
             fn keystore(&self) -> ::gadget_macros::ext::keystore::Keystore {
-                todo!()
+                <::gadget_macros::ext::config::GadgetConfiguration as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(&#field_access)
             }
         }
     }

@@ -1,0 +1,9 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["dependencies"]
+auto_detect_remappings = true
+solc_version = "0.8.20"
+
+[dependencies]
+tnt-core = "0.1.0"

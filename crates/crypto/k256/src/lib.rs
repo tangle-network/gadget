@@ -1,9 +1,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod error;
-mod k256_ecdsa;
+
+#[cfg(test)]
+mod tests;
+
+use crate::error::{K256Error, Result};
+use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::string::{String, ToString};
+use gadget_std::UniformRand;
+use k256::ecdsa::signature::SignerMut;
 use k256::ecdsa::VerifyingKey;
-pub use k256_ecdsa::*;
+use serde::{Deserialize, Serialize};
+
+/// ECDSA key type
+pub struct K256Ecdsa;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct K256VerifyingKey(pub VerifyingKey);
 
 impl From<K256VerifyingKey> for VerifyingKey {
     fn from(key: K256VerifyingKey) -> Self {
@@ -11,215 +26,182 @@ impl From<K256VerifyingKey> for VerifyingKey {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use error::K256Error;
-    use gadget_crypto_core::KeyType;
-    use k256_ecdsa::{K256Ecdsa, K256Signature, K256SigningKey, K256VerifyingKey};
-
-    mod k256_crypto_tests {
-        use super::*;
-        gadget_crypto_core::impl_crypto_tests!(K256Ecdsa, K256SigningKey, K256Signature);
+impl KeyEncoding for K256VerifyingKey {
+    fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_sec1_bytes().to_vec()
     }
 
-    #[test]
-    fn test_key_generation_deterministic() {
-        // Test seed-based generation is deterministic
-        let seed = b"deterministic_test_seed";
-        let key1 = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let key2 = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-
-        assert_eq!(key1, key2, "Same seed should produce identical keys");
-
-        // Different seeds should produce different keys
-        let different_seed = b"different_seed";
-        let key3 = K256Ecdsa::generate_with_seed(Some(different_seed)).unwrap();
-        assert_ne!(key1, key3, "Different seeds should produce different keys");
+    fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+        let vk = VerifyingKey::from_sec1_bytes(bytes)
+            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        Ok(K256VerifyingKey(vk))
     }
+}
 
-    #[test]
-    fn test_signature_verification_edge_cases() {
-        let seed = b"test_signature_verification";
-        let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
-
-        // Test empty message
-        let empty_msg = vec![];
-        let empty_sig = K256Ecdsa::sign_with_secret(&mut secret, &empty_msg).unwrap();
-        assert!(K256Ecdsa::verify(&public, &empty_msg, &empty_sig));
-
-        // Test large message
-        let large_msg = vec![0xFF; 1_000_000];
-        let large_sig = K256Ecdsa::sign_with_secret(&mut secret, &large_msg).unwrap();
-        assert!(K256Ecdsa::verify(&public, &large_msg, &large_sig));
-
-        // Test message modification
-        let msg = b"original message".to_vec();
-        let sig = K256Ecdsa::sign_with_secret(&mut secret, &msg).unwrap();
-        let mut modified_msg = msg.clone();
-        modified_msg[0] ^= 1;
-        assert!(!K256Ecdsa::verify(&public, &modified_msg, &sig));
+impl PartialOrd for K256VerifyingKey {
+    fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
+}
 
-    #[test]
-    fn test_key_reuse() {
-        let seed = b"key_reuse_test";
-        let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
-
-        // Sign multiple messages with the same key
-        let messages = vec![
-            b"message1".to_vec(),
-            b"message2".to_vec(),
-            b"message3".to_vec(),
-        ];
-
-        for msg in &messages {
-            let sig = K256Ecdsa::sign_with_secret(&mut secret, msg).unwrap();
-            assert!(K256Ecdsa::verify(&public, msg, &sig));
-        }
+impl Ord for K256VerifyingKey {
+    fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+        self.0.to_sec1_bytes().cmp(&other.0.to_sec1_bytes())
     }
+}
 
-    #[test]
-    fn test_signature_malleability() {
-        let seed = b"malleability_test";
-        let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
-        let message = b"test message".to_vec();
+macro_rules! impl_serde_bytes {
+    ($wrapper:ident, $inner:path) => {
+        #[derive(Clone, PartialEq, Eq, Debug)]
+        pub struct $wrapper(pub $inner);
 
-        let signature = K256Ecdsa::sign_with_secret(&mut secret, &message).unwrap();
-
-        // Try to modify signature
-        let mut modified_sig = signature.clone();
-        let mut bytes = modified_sig.0.to_bytes().to_vec();
-        bytes[0] ^= 1; // Flip one bit
-        modified_sig = K256Signature::from_bytes(&bytes).unwrap();
-        assert!(!K256Ecdsa::verify(&public, &message, &modified_sig));
-    }
-
-    #[test]
-    fn test_cross_key_verification() {
-        let seed1 = b"key1";
-        let seed2 = b"key2";
-        let mut secret1 = K256Ecdsa::generate_with_seed(Some(seed1)).unwrap();
-        let mut secret2 = K256Ecdsa::generate_with_seed(Some(seed2)).unwrap();
-        let public1 = K256Ecdsa::public_from_secret(&secret1);
-        let public2 = K256Ecdsa::public_from_secret(&secret2);
-
-        let message = b"test message".to_vec();
-        let sig1 = K256Ecdsa::sign_with_secret(&mut secret1, &message).unwrap();
-        let sig2 = K256Ecdsa::sign_with_secret(&mut secret2, &message).unwrap();
-
-        // Verify correct signatures
-        assert!(K256Ecdsa::verify(&public1, &message, &sig1));
-        assert!(K256Ecdsa::verify(&public2, &message, &sig2));
-
-        // Cross verification should fail
-        assert!(!K256Ecdsa::verify(&public1, &message, &sig2));
-        assert!(!K256Ecdsa::verify(&public2, &message, &sig1));
-    }
-
-    #[test]
-    fn test_boundary_conditions() {
-        let seed = b"boundary_test";
-        let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
-
-        // Test with various message sizes
-        let test_sizes = [0, 1, 32, 64, 128, 256, 1024, 4096];
-
-        for size in test_sizes.iter() {
-            let message = vec![0xAA; *size];
-            let signature = K256Ecdsa::sign_with_secret(&mut secret, &message).unwrap();
-            assert!(K256Ecdsa::verify(&public, &message, &signature));
-        }
-    }
-
-    #[test]
-    fn test_key_serialization() {
-        // Test seed that's too long
-        let long_seed = vec![0xFF; 33];
-        let result = K256Ecdsa::generate_with_seed(Some(&long_seed));
-        assert!(result.is_err());
-        match result {
-            Err(K256Error::InvalidSeed(msg)) => {
-                assert_eq!(msg, "Seed must not exceed 32 bytes");
+        impl PartialOrd for $wrapper {
+            fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                Some(self.cmp(other))
             }
-            _ => panic!("Expected InvalidSeed error"),
         }
 
-        let seed = b"serialization_test";
-        let secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let public = K256Ecdsa::public_from_secret(&secret);
-
-        // Test public key serialization
-        let public_bytes = public.to_bytes();
-        let recovered_public = K256VerifyingKey::from_bytes(&public_bytes).unwrap();
-        assert_eq!(public, recovered_public);
-
-        // Test signature serialization
-        let message = b"test message".to_vec();
-        let mut secret_clone = secret.clone();
-        let signature = K256Ecdsa::sign_with_secret(&mut secret_clone, &message).unwrap();
-
-        let sig_bytes = signature.to_bytes();
-        let recovered_sig = K256Signature::from_bytes(&sig_bytes).unwrap();
-        assert_eq!(signature, recovered_sig);
-    }
-
-    #[test]
-    fn test_invalid_key_deserialization() {
-        // Test with wrong length
-        let short_bytes = vec![0xFF; 31];
-        assert!(K256VerifyingKey::from_bytes(&short_bytes).is_err());
-
-        let long_bytes = vec![0xFF; 65];
-        assert!(K256VerifyingKey::from_bytes(&long_bytes).is_err());
-    }
-
-    #[test]
-    fn test_concurrent_key_usage() {
-        use gadget_std::sync::Arc;
-        use gadget_std::thread;
-
-        let seed = b"concurrent_test";
-        let secret = Arc::new(K256Ecdsa::generate_with_seed(Some(seed)).unwrap());
-        let public = K256Ecdsa::public_from_secret(&secret);
-
-        let mut handles = vec![];
-
-        // Create multiple threads signing different messages
-        for i in 0..10 {
-            let secret = Arc::clone(&secret);
-            let handle = thread::spawn(move || {
-                let message = format!("message {}", i).into_bytes();
-                let mut secret = (*secret).clone();
-                let signature = K256Ecdsa::sign_with_secret(&mut secret, &message).unwrap();
-                (message, signature)
-            });
-            handles.push(handle);
+        impl Ord for $wrapper {
+            fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                self.to_bytes().cmp(&other.to_bytes())
+            }
         }
 
-        // Verify all signatures
-        for handle in handles {
-            let (message, signature) = handle.join().unwrap();
-            assert!(K256Ecdsa::verify(&public, &message, &signature));
+        impl KeyEncoding for $wrapper {
+            fn to_bytes(&self) -> Vec<u8> {
+                self.to_bytes_impl().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                <$wrapper>::from_bytes_impl(bytes)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))
+            }
         }
+
+        impl serde::Serialize for $wrapper {
+            fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let bytes = self.to_bytes();
+                Vec::serialize(&bytes, serializer)
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for $wrapper {
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let bytes = Vec::<u8>::deserialize(deserializer)?;
+                let inner = <$inner>::from_slice(&bytes)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+                Ok($wrapper(inner))
+            }
+        }
+    };
+}
+
+impl_serde_bytes!(K256SigningKey, k256::ecdsa::SigningKey);
+
+impl K256SigningKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.to_bytes().to_vec()
     }
 
-    #[test]
-    fn test_low_s_normalization() {
-        let seed = b"low_s_test";
-        let mut secret = K256Ecdsa::generate_with_seed(Some(seed)).unwrap();
-        let message = b"test message".to_vec();
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let key = k256::ecdsa::SigningKey::try_from(bytes)
+            .map_err(|e| K256Error::InvalidSigner(e.to_string()))?;
+        Ok(K256SigningKey(key))
+    }
+}
 
-        let signature = K256Ecdsa::sign_with_secret(&mut secret, &message).unwrap();
+impl_serde_bytes!(K256Signature, k256::ecdsa::Signature);
 
-        // Verify that signature has low S value
-        let sig_bytes = signature.to_bytes();
-        let s_bytes = &sig_bytes[32..64];
-        let high_bit = s_bytes[0] & 0x80;
-        assert_eq!(high_bit, 0, "S value should be normalized to low S");
+impl K256Signature {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let sig = k256::ecdsa::Signature::try_from(bytes)
+            .map_err(|e| K256Error::InvalidSignature(e.to_string()))?;
+        Ok(K256Signature(sig))
+    }
+}
+
+impl KeyType for K256Ecdsa {
+    type Secret = K256SigningKey;
+    type Public = K256VerifyingKey;
+    type Signature = K256Signature;
+    type Error = K256Error;
+
+    fn key_type_id() -> KeyTypeId {
+        KeyTypeId::Ecdsa
+    }
+
+    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
+        let signing_key = if let Some(seed) = seed {
+            // Pad seed if less than 32 bytes, error if larger
+            if seed.len() > 32 {
+                return Err(K256Error::InvalidSeed(
+                    "Seed must not exceed 32 bytes".into(),
+                ));
+            }
+            let mut padded_seed = [0u8; 32];
+            padded_seed[..seed.len()].copy_from_slice(seed);
+            k256::ecdsa::SigningKey::from_bytes(&padded_seed.into())
+                .map_err(|e| K256Error::InvalidSeed(e.to_string()))
+        } else {
+            let mut rng = Self::get_rng();
+            let rand_bytes: [u8; 32] = <[u8; 32]>::rand(&mut rng);
+            k256::ecdsa::SigningKey::from_slice(&rand_bytes)
+                .map_err(|e| K256Error::InvalidSeed(e.to_string()))
+        };
+
+        signing_key.map(K256SigningKey)
+    }
+
+    fn generate_with_string(secret: String) -> Result<Self::Secret> {
+        let hex_encoded = hex::decode(secret)?;
+        let signing_key = k256::ecdsa::SigningKey::from_slice(&hex_encoded)
+            .map_err(|e| K256Error::InvalidSeed(e.to_string()))?;
+        Ok(K256SigningKey(signing_key))
+    }
+
+    fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+        K256VerifyingKey(*secret.0.verifying_key())
+    }
+
+    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
+        let sig = secret.0.sign(msg);
+        Ok(K256Signature(sig))
+    }
+
+    fn sign_with_secret_pre_hashed(
+        secret: &mut Self::Secret,
+        msg: &[u8; 32],
+    ) -> Result<Self::Signature> {
+        let (sig, _) = secret
+            .0
+            .sign_prehash_recoverable(msg)
+            .map_err(|e| K256Error::SignatureFailed(e.to_string()))?;
+        Ok(K256Signature(sig))
+    }
+
+    fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+        use k256::ecdsa::signature::Verifier;
+        public.0.verify(msg, &signature.0).is_ok()
+    }
+}
+
+impl K256SigningKey {
+    pub fn verifying_key(&self) -> K256VerifyingKey {
+        K256VerifyingKey(*self.0.verifying_key())
+    }
+
+    /// Alias for `verifying_key` for consistency
+    pub fn public(&self) -> K256VerifyingKey {
+        self.verifying_key()
     }
 }

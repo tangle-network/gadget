@@ -8,11 +8,14 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-anvil-utils = { workspace = true, optional = true }
+gadget-core-testing-utils = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true, optional = true }
+gadget-tangle-testing-utils = { workspace = true, optional = true }
 
 [features]
-default = ["anvil"]
-anvil = ["gadget-anvil-utils"]
+default = ["tangle"]
+anvil = ["gadget-anvil-testing-utils"]
+tangle = ["gadget-tangle-testing-utils"]
 
 [lints]
 workspace = true

@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod error;
-mod w3f_bls;
+#[cfg(test)]
+mod tests;
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use gadget_std::vec::Vec;
-pub use w3f_bls::*;
 
 /// Serialize this to a vector of bytes.
 pub fn to_bytes<T: CanonicalSerialize>(elt: T) -> Vec<u8> {
@@ -21,203 +21,151 @@ pub fn from_bytes<T: CanonicalDeserialize>(bytes: &[u8]) -> T {
     <T as CanonicalDeserialize>::deserialize_compressed(&mut &bytes[..]).unwrap()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        bls377::{W3fBls377, W3fBls377Public, W3fBls377Secret},
-        bls381::{W3fBls381, W3fBls381Public, W3fBls381Secret},
+pub const CONTEXT: &[u8] = b"tangle";
+
+macro_rules! impl_w3f_serde {
+    ($name:ident, $inner:ty) => {
+        #[derive(Clone)]
+        pub struct $name(pub $inner);
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.to_bytes() == other.to_bytes()
+            }
+        }
+
+        impl Eq for $name {}
+
+        impl PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
+                self.to_bytes().cmp(&other.to_bytes())
+            }
+        }
+
+        impl gadget_std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                write!(f, "{:?}", self.to_bytes())
+            }
+        }
+
+        impl KeyEncoding for $name {
+            fn to_bytes(&self) -> Vec<u8> {
+                crate::to_bytes(self.0.clone())
+            }
+
+            fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                Ok($name(crate::from_bytes(bytes)))
+            }
+        }
+
+        impl serde::Serialize for $name {
+            fn serialize<S: serde::Serializer>(
+                &self,
+                serializer: S,
+            ) -> core::result::Result<S::Ok, S::Error> {
+                let bytes = self.to_bytes();
+                Vec::serialize(&bytes, serializer)
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                // Deserialize as Vec
+                let bytes = <Vec<u8>>::deserialize(deserializer)?;
+
+                // Convert bytes back to inner type
+                let inner = from_bytes::<$inner>(&bytes);
+
+                Ok($name(inner))
+            }
+        }
     };
-    use gadget_crypto_core::KeyType;
-    use gadget_std::string::ToString;
+}
 
-    // Helper function to generate test message
-    fn test_message() -> Vec<u8> {
-        b"test message".to_vec()
-    }
+macro_rules! define_bls_key {
+    ($($ty:ident),+) => {
+        paste::paste! {
+            $(
+            pub mod [<$ty:lower>] {
+                use crate::error::{BlsError, Result};
+                use crate::from_bytes;
+                use gadget_crypto_core::{KeyType, KeyTypeId, KeyEncoding};
+                use gadget_std::{UniformRand, string::{String, ToString}};
+                use w3f_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, [<Tiny $ty:upper>]};
 
-    mod bls377_crypto_tests {
-        use super::bls377::{W3fBls377, W3fBls377Secret, W3fBls377Signature};
-        gadget_crypto_core::impl_crypto_tests!(W3fBls377, W3fBls377Secret, W3fBls377Signature);
-    }
+                #[doc = $ty:upper]
+                /// key type
+                pub struct [<W3f $ty>];
 
-    mod bls381_crypto_tests {
-        use super::bls381::{W3fBls381, W3fBls381Secret, W3fBls381Signature};
-        gadget_crypto_core::impl_crypto_tests!(W3fBls381, W3fBls381Secret, W3fBls381Signature);
-    }
+                impl_w3f_serde!([<W3f $ty Public>], PublicKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Secret>], SecretKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
 
-    mod bls377_tests {
-        use super::*;
-        use ::w3f_bls::SerializableToBytes;
-        use gadget_crypto_hashing::hashing::sha2_256;
+                impl KeyType for [<W3f $ty>] {
+                    type Public = [<W3f $ty Public>];
+                    type Secret = [<W3f $ty Secret>];
+                    type Signature = [<W3f $ty Signature>];
+                    type Error = BlsError;
 
-        #[test]
-        fn test_key_generation() {
-            // Test seed-based generation is deterministic
-            let seed = [0u8; 32];
-            let secret1 = W3fBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public1 = W3fBls377::public_from_secret(&secret1);
+                    fn key_type_id() -> KeyTypeId {
+                        KeyTypeId::$ty
+                    }
 
-            let secret2 = W3fBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public2 = W3fBls377::public_from_secret(&secret2);
+                    fn generate_with_seed(seed: Option<&[u8]>) -> Result<Self::Secret> {
+                        if let Some(seed) = seed {
+                            Ok([<W3f $ty Secret>](SecretKey::from_seed(seed)))
+                        } else {
+                            // Should only be used for testing. Pass a seed in production.
+                            let mut rng = gadget_std::test_rng();
+                            let rand_bytes = <[u8; 32]>::rand(&mut rng);
+                            Ok([<W3f $ty Secret>](SecretKey::from_seed(&rand_bytes)))
+                        }
+                    }
 
-            // Same seed should produce same keys
-            assert_eq!(public1, public2);
+                    fn generate_with_string(secret: String) -> Result<Self::Secret> {
+                        let hex_encoded = hex::decode(secret)?;
+                        let secret =
+                            SecretKey::from_bytes(&hex_encoded).map_err(|e| BlsError::InvalidSeed(e.to_string()))?;
+                        Ok([<W3f $ty Secret>](secret))
+                    }
 
-            let secret1_hex = hex::encode(secret1.0.to_bytes());
-            let secret2_hex = hex::encode(secret2.0.to_bytes());
+                    fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+                        [<W3f $ty Public>](secret.0.into_public())
+                    }
 
-            // Test string-based generation is deterministic
-            let secret_from_str1 = W3fBls377::generate_with_string(secret1_hex).unwrap();
-            let public_from_str1 = W3fBls377::public_from_secret(&secret_from_str1);
+                    fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
+                        let mut rng = Self::get_rng();
+                        let message: Message = Message::new(super::CONTEXT, msg);
+                        Ok([<W3f $ty Signature>](secret.0.sign(&message, &mut rng)))
+                    }
 
-            let secret_from_str2 = W3fBls377::generate_with_string(secret2_hex).unwrap();
-            let public_from_str2 = W3fBls377::public_from_secret(&secret_from_str2);
+                    fn sign_with_secret_pre_hashed(
+                        secret: &mut Self::Secret,
+                        msg: &[u8; 32],
+                    ) -> Result<Self::Signature> {
+                        let mut rng = Self::get_rng();
+                        let message: Message = Message::new(super::CONTEXT, msg);
+                        Ok([<W3f $ty Signature>](secret.0.sign(&message, &mut rng)))
+                    }
 
-            // Same string should produce same keys
-            assert_eq!(public_from_str1, public_from_str2);
-        }
-
-        #[test]
-        fn test_signing_and_verification() {
-            let seed = [0u8; 32];
-            let mut secret = W3fBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public = W3fBls377::public_from_secret(&secret);
-            let message = test_message();
-
-            // Test normal signing
-            let signature = W3fBls377::sign_with_secret(&mut secret, &message).unwrap();
-            assert!(W3fBls377::verify(&public, &message, &signature));
-
-            // Test pre-hashed signing
-            let hashed_msg = sha2_256(&message);
-            let signature_pre_hashed =
-                W3fBls377::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
-            assert!(W3fBls377::verify(
-                &public,
-                &hashed_msg,
-                &signature_pre_hashed
-            ));
-
-            // Test invalid signature
-            let wrong_message = b"wrong message".to_vec();
-            assert!(!W3fBls377::verify(&public, &wrong_message, &signature));
-        }
-
-        #[test]
-        fn test_serialization() {
-            let seed = [0u8; 32];
-            let secret = W3fBls377::generate_with_seed(Some(&seed)).unwrap();
-            let public = W3fBls377::public_from_secret(&secret);
-
-            // Test public key serialization
-            let public_bytes = to_bytes(public.0.clone());
-            let public_deserialized: W3fBls377Public = W3fBls377Public(from_bytes(&public_bytes));
-            assert_eq!(public, public_deserialized);
-
-            // Test secret key serialization
-            let secret_bytes = to_bytes(secret.0.clone());
-            let secret_deserialized: W3fBls377Secret = W3fBls377Secret(from_bytes(&secret_bytes));
-            assert_eq!(secret, secret_deserialized);
-        }
-
-        #[test]
-        fn test_error_handling() {
-            // Test invalid seed
-            let result = W3fBls377::generate_with_string("invalid hex".to_string());
-            assert!(result.is_err());
-
-            // Test empty seed
-            let result = W3fBls377::generate_with_string("".to_string());
-            assert!(result.is_err());
-        }
-    }
-
-    mod bls381_tests {
-        use super::*;
-        use ::w3f_bls::SerializableToBytes;
-        use gadget_crypto_hashing::hashing::sha2_256;
-
-        #[test]
-        fn test_key_generation() {
-            // Test seed-based generation is deterministic
-            let seed = [0u8; 32];
-            let secret1 = W3fBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public1 = W3fBls381::public_from_secret(&secret1);
-
-            let secret2 = W3fBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public2 = W3fBls381::public_from_secret(&secret2);
-
-            // Same seed should produce same keys
-            assert_eq!(public1, public2);
-
-            let secret1_hex = hex::encode(secret1.0.to_bytes());
-            let secret2_hex = hex::encode(secret2.0.to_bytes());
-
-            // Test string-based generation is deterministic
-            let secret_from_str1 = W3fBls381::generate_with_string(secret1_hex).unwrap();
-            let public_from_str1 = W3fBls381::public_from_secret(&secret_from_str1);
-
-            let secret_from_str2 = W3fBls381::generate_with_string(secret2_hex).unwrap();
-            let public_from_str2 = W3fBls381::public_from_secret(&secret_from_str2);
-
-            // Same string should produce same keys
-            assert_eq!(public_from_str1, public_from_str2);
-        }
-
-        #[test]
-        fn test_signing_and_verification() {
-            let seed = [0u8; 32];
-            let mut secret = W3fBls381::generate_with_seed(Some(&seed)).unwrap();
-            let public = W3fBls381::public_from_secret(&secret);
-            let message = test_message();
-
-            // Test normal signing
-            let signature = W3fBls381::sign_with_secret(&mut secret, &message).unwrap();
-            assert!(W3fBls381::verify(&public, &message, &signature));
-
-            // Test pre-hashed signing
-            let hashed_msg = sha2_256(&message);
-            let signature_pre_hashed =
-                W3fBls381::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
-            // For pre-hashed messages, we need to hash the verification message as well
-            assert!(W3fBls381::verify(
-                &public,
-                &hashed_msg,
-                &signature_pre_hashed
-            ));
-
-            // Test invalid signature
-            let wrong_message = b"wrong message".to_vec();
-            assert!(!W3fBls381::verify(&public, &wrong_message, &signature));
-        }
-
-        #[test]
-        fn test_serialization() {
-            let seed = b"test seed for serialization";
-            let secret = W3fBls381::generate_with_seed(Some(seed)).unwrap();
-            let public = W3fBls381::public_from_secret(&secret);
-
-            // Test public key serialization
-            let public_bytes = to_bytes(public.0.clone());
-            let public_deserialized: W3fBls381Public = W3fBls381Public(from_bytes(&public_bytes));
-            assert_eq!(public, public_deserialized);
-
-            // Test secret key serialization
-            let secret_bytes = to_bytes(secret.0.clone());
-            let secret_deserialized: W3fBls381Secret = W3fBls381Secret(from_bytes(&secret_bytes));
-            assert_eq!(secret, secret_deserialized);
-        }
-
-        #[test]
-        fn test_error_handling() {
-            // Test invalid seed
-            let result = W3fBls381::generate_with_string("invalid hex".to_string());
-            assert!(result.is_err());
-
-            // Test empty seed
-            let result = W3fBls381::generate_with_string("".to_string());
-            assert!(result.is_err());
+                    fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+                        let message = Message::new(super::CONTEXT, msg);
+                        signature.0.verify(&message, &public.0)
+                    }
+                }
+            }
+            )+
         }
     }
 }
+
+define_bls_key!(Bls377, Bls381);

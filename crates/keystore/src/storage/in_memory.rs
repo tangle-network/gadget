@@ -18,8 +18,9 @@ impl InMemoryStorage {
     ///
     /// ```rust
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
-    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::crypto::k256::K256Ecdsa;
+    /// use gadget_keystore::crypto::IntoCryptoError;
+    /// use gadget_keystore::crypto::KeyType;
     /// use gadget_keystore::storage::{InMemoryStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
     ///
@@ -29,7 +30,7 @@ impl InMemoryStorage {
     /// let storage = TypedStorage::new(storage);
     ///
     /// // Generate a key pair
-    /// let secret = K256Ecdsa::generate_with_seed(None)?;
+    /// let secret = K256Ecdsa::generate_with_seed(None).map_err(IntoCryptoError::into_crypto_error)?;
     /// let public = K256Ecdsa::public_from_secret(&secret);
     ///
     /// // Start storing
@@ -58,11 +59,15 @@ impl RawStorage for InMemoryStorage {
     ) -> Result<()> {
         let mut data = self.data.write();
         let type_map = data.entry(type_id).or_default();
-        type_map.insert(public_bytes.to_vec(), secret_bytes.to_vec());
+        type_map.insert(public_bytes, secret_bytes);
         Ok(())
     }
 
-    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_secret_raw(
+        &self,
+        type_id: KeyTypeId,
+        public_bytes: Vec<u8>,
+    ) -> Result<Option<Box<[u8]>>> {
         let data = self.data.read();
         Ok(data
             .get(&type_id)
@@ -102,7 +107,7 @@ impl RawStorage for InMemoryStorage {
 
 #[cfg(test)]
 mod tests {
-    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
+    use gadget_crypto::{k256::K256Ecdsa, IntoCryptoError, KeyType};
 
     use super::*;
     use crate::storage::TypedStorage;

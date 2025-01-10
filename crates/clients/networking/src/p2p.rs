@@ -1,34 +1,46 @@
 use crate::error::{Error, Result};
 use gadget_config::GadgetConfiguration;
-use gadget_crypto::k256_crypto::{K256SigningKey, K256VerifyingKey};
 use gadget_networking::gossip::GossipHandle;
 use gadget_networking::round_based_compat::NetworkDeliveryWrapper;
 use gadget_networking::setup::NetworkConfig;
 use gadget_networking::{networking::NetworkMultiplexer, round_based};
+use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};
 use gadget_std::collections::BTreeMap;
-use gadget_std::net::IpAddr;
 use gadget_std::sync::Arc;
 use round_based::PartyIndex;
 
 pub struct P2PClient {
-    name: proc_macro2::Ident,
+    name: String,
     config: GadgetConfiguration,
-    pub target_addr: IpAddr,
-    pub target_port: u16,
-    pub my_ecdsa_key: K256SigningKey,
+    target_port: u16,
+    gossip_msg_keypair: GossipMsgKeyPair,
 }
 
 impl P2PClient {
+    pub fn new(
+        name: String,
+        config: GadgetConfiguration,
+        target_port: u16,
+        gossip_msg_keypair: GossipMsgKeyPair,
+    ) -> Self {
+        Self {
+            name,
+            config,
+            target_port,
+            gossip_msg_keypair,
+        }
+    }
+
     pub fn config(&self) -> &GadgetConfiguration {
         &self.config
     }
 
     /// Returns the network protocol identifier
     pub fn network_protocol(&self, version: Option<String>) -> String {
-        let name = self.name.to_string();
+        let name = self.name.to_lowercase();
         match version {
-            Some(v) => format!("/{}/{}", name.to_lowercase(), v),
-            None => format!("/{}/1.0.0", name.to_lowercase()),
+            Some(v) => format!("/{}/{}", name, v),
+            None => format!("/{}/1.0.0", name),
         }
     }
 
@@ -48,7 +60,7 @@ impl P2PClient {
         let network_identity = self.libp2p_identity(ed25519_seed)?;
         let network_config = NetworkConfig::new_service_network(
             network_identity,
-            self.my_ecdsa_key.clone(),
+            self.gossip_msg_keypair.clone(),
             self.config.bootnodes.clone(),
             self.target_port,
             network_name,
@@ -89,7 +101,7 @@ impl P2PClient {
         mux: Arc<NetworkMultiplexer>,
         party_index: PartyIndex,
         task_hash: [u8; 32],
-        parties: BTreeMap<PartyIndex, K256VerifyingKey>,
+        parties: BTreeMap<PartyIndex, GossipMsgPublicKey>,
     ) -> NetworkDeliveryWrapper<M>
     where
         M: Clone

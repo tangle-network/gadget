@@ -1,12 +1,12 @@
 use crate::error::TangleError;
-use gadget_clients::tangle::runtime::TangleClient;
+use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
-use gadget_keystore::backends::tangle::{TangleBackend, TanglePairSigner};
+use gadget_keystore::backends::tangle::TangleBackend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_std::string::ToString;
-use sp_core::Pair;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use subxt::ext::futures::future::select_ok;
 use subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api;
@@ -126,10 +126,6 @@ pub async fn register_impl(
     let signer = subxt::tx::PairSigner::new(sr25519_pair);
 
     let ecdsa_key = keystore.iter_ecdsa().next().unwrap();
-    let ecdsa_pair = keystore.expose_ecdsa_secret(&ecdsa_key).unwrap().unwrap();
-    let ecdsa_pair = TanglePairSigner {
-        pair: subxt::tx::PairSigner::new(ecdsa_pair),
-    };
 
     // Parse Tangle protocol specific settings
     let ProtocolSettings::Tangle(blueprint_settings) = env.protocol_settings else {
@@ -159,10 +155,14 @@ pub async fn register_impl(
 
     let blueprint_id = blueprint_settings.blueprint_id;
 
+    let uncompressed_pk = decompress_pubkey(&ecdsa_key.0).ok_or_else(|| {
+        RunnerError::Other("Unable to convert compressed ECDSA key to uncompressed key".to_string())
+    })?;
+
     let xt = api::tx().services().register(
         blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa_pair.pair.signer().public().0,
+            key: uncompressed_pk,
             price_targets: price_targets.clone().0,
         },
         registration_args,
@@ -179,15 +179,36 @@ pub async fn register_impl(
     Ok(())
 }
 
-pub(crate) async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, RunnerError> {
-    let task0 = TangleClient::from_url(ws_url);
-    let task1 = TangleClient::from_url(http_url);
-    Ok(select_ok([Box::pin(task0), Box::pin(task1)])
+// TODO: Push this upstream: https://docs.rs/sp-core/latest/src/sp_core/ecdsa.rs.html#59-74
+pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
+    // Uncompress the public key
+    let pk = k256::PublicKey::from_sec1_bytes(compressed).ok()?;
+    let uncompressed = pk.to_encoded_point(false);
+    let uncompressed_bytes = uncompressed.as_bytes();
+
+    // Ensure the key has the correct length
+    if uncompressed_bytes.len() != 65 {
+        return None;
+    }
+
+    let mut result = [0u8; 65];
+    result.copy_from_slice(uncompressed_bytes);
+    Some(result)
+}
+
+pub async fn get_client(
+    ws_url: &str,
+    http_url: &str,
+) -> Result<tangle::client::OnlineClient, RunnerError> {
+    let task0 = tangle::client::OnlineClient::from_url(ws_url);
+    let task1 = tangle::client::OnlineClient::from_url(http_url);
+    let client = select_ok([Box::pin(task0), Box::pin(task1)])
         .await
         .map_err(|e| {
             <crate::error::TangleError as Into<RunnerError>>::into(
                 crate::error::TangleError::Network(e.to_string()),
             )
         })?
-        .0)
+        .0;
+    Ok(client)
 }

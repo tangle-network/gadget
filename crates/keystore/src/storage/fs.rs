@@ -25,8 +25,8 @@ impl FileStorage {
     ///
     /// ```rust,no_run
     /// use gadget_keystore::backends::{Backend, BackendConfig};
-    /// use gadget_keystore::key_types::k256_ecdsa::K256Ecdsa;
-    /// use gadget_keystore::key_types::KeyType;
+    /// use gadget_keystore::crypto::k256::K256Ecdsa;
+    /// use gadget_keystore::crypto::KeyType;
     /// use gadget_keystore::storage::{FileStorage, TypedStorage};
     /// use gadget_keystore::Keystore;
     ///
@@ -83,7 +83,11 @@ impl RawStorage for FileStorage {
         Ok(())
     }
 
-    fn load_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> Result<Option<Box<[u8]>>> {
+    fn load_secret_raw(
+        &self,
+        type_id: KeyTypeId,
+        public_bytes: Vec<u8>,
+    ) -> Result<Option<Box<[u8]>>> {
         let path = self.key_path(type_id, &public_bytes[..]);
         if !path.exists() {
             return Ok(None);
@@ -138,7 +142,7 @@ mod tests {
     use crate::storage::TypedStorage;
 
     use super::*;
-    use gadget_crypto::{k256_crypto::K256Ecdsa, IntoCryptoError, KeyType};
+    use gadget_crypto::{k256::K256Ecdsa, IntoCryptoError, KeyType};
     use tempfile::tempdir;
 
     #[test]

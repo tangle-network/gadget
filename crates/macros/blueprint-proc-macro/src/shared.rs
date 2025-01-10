@@ -88,9 +88,6 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
         .last()
         .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
     let ident = &seg.ident;
-    if ident == "ByteBuf" {
-        return Ok(FieldType::Bytes);
-    }
 
     let args = &seg.arguments;
     match args {
