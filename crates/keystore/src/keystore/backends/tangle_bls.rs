@@ -29,12 +29,12 @@ pub trait TangleBlsBackend: TangleBackend {
     fn expose_bls381_secret(
         &self,
         public: &sp_core::bls381::Public,
-    ) -> Result<Option<sp_core::bls381::Pair>>;
+    ) -> Result<Option<SpBls381Pair>>;
 
     fn expose_bls377_secret(
         &self,
         public: &sp_core::bls377::Public,
-    ) -> Result<Option<sp_core::bls377::Pair>>;
+    ) -> Result<Option<SpBls377Pair>>;
 
     // BLS Key Iteration
     fn iter_bls381(&self) -> Box<dyn Iterator<Item = sp_core::bls381::Public> + '_>;
@@ -55,15 +55,13 @@ impl TangleBlsBackend for Keystore {
             }
         };
 
-        let secret = SpBls381Pair(
-            sp_core::bls381::Pair::from_seed_slice(final_seed.as_slice())
-                .map_err(|e| Error::Other(e.to_string()))?,
-        );
-        let public = SpBls381Public(secret.0.public());
+        let pair = SpBls381Pair::from_bytes(final_seed.as_slice())
+            .map_err(|e| Error::Other(e.to_string()))?;
+        let public = pair.public();
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = final_seed.to_vec();
+        let secret_bytes = pair.to_bytes();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -89,15 +87,13 @@ impl TangleBlsBackend for Keystore {
             }
         };
 
-        let pair = SpBls377Pair(
-            sp_core::bls377::Pair::from_seed_slice(final_seed.as_slice())
-                .map_err(|e| Error::Other(e.to_string()))?,
-        );
-        let public = SpBls377Public(pair.0.public());
+        let pair = SpBls377Pair::from_bytes(final_seed.as_slice())
+            .map_err(|e| Error::Other(e.to_string()))?;
+        let public = pair.public();
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = final_seed.to_vec();
+        let secret_bytes = pair.to_bytes();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -137,7 +133,7 @@ impl TangleBlsBackend for Keystore {
     fn expose_bls381_secret(
         &self,
         public: &sp_core::bls381::Public,
-    ) -> Result<Option<sp_core::bls381::Pair>> {
+    ) -> Result<Option<SpBls381Pair>> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Bls381;
 
         let public_bytes = SpBls381Public(*public).to_bytes();
@@ -148,7 +144,7 @@ impl TangleBlsBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpBls381Pair(pair) = SpBls381Pair::from_bytes(&secret_bytes)?;
+                    let pair = SpBls381Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }
@@ -160,7 +156,7 @@ impl TangleBlsBackend for Keystore {
     fn expose_bls377_secret(
         &self,
         public: &sp_core::bls377::Public,
-    ) -> Result<Option<sp_core::bls377::Pair>> {
+    ) -> Result<Option<SpBls377Pair>> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Bls377;
 
         let public_bytes = SpBls377Public(*public).to_bytes();
@@ -171,7 +167,7 @@ impl TangleBlsBackend for Keystore {
                     .storage
                     .load_secret_raw(KEY_TYPE_ID, public_bytes.clone())?
                 {
-                    let SpBls377Pair(pair) = SpBls377Pair::from_bytes(&secret_bytes)?;
+                    let pair = SpBls377Pair::from_bytes(&secret_bytes)?;
                     return Ok(Some(pair));
                 }
             }

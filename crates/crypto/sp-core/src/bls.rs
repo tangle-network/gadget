@@ -19,7 +19,10 @@ macro_rules! impl_sp_core_bls_pair_public {
             /// This provides a safe interface for serialization and deserialization
             /// of the underlying key pair type.
             #[derive(Clone)]
-            pub struct [<Sp $key_type Pair>](pub $pair_type);
+            pub struct [<Sp $key_type Pair>] {
+                pair: $pair_type,
+                seed: [u8; 32],
+            }
 
             impl PartialEq for [<Sp $key_type Pair>] {
                 fn eq(&self, other: &Self) -> bool {
@@ -49,13 +52,16 @@ macro_rules! impl_sp_core_bls_pair_public {
 
             impl KeyEncoding for [<Sp $key_type Pair>] {
                 fn to_bytes(&self) -> Vec<u8> {
-                    self.0.to_raw_vec()
+                    self.seed.to_vec()
                 }
 
                 fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
-                    <$pair_type>::from_seed_slice(&bytes)
-                        .map_err(|e| serde::de::Error::custom(format!("Failed to create pair from seed: {}", e)))
-                        .map(Self)
+                    let seed: [u8; 32] = bytes.try_into().map_err(|_| serde::de::Error::invalid_length(bytes.len(), &"a seed of length 32"))?;
+                    let pair = <$pair_type>::from_seed_slice(seed.as_slice()).map_err(|e| serde::de::Error::custom(format!("Failed to generate pair: {e}")))?;
+                    Ok(Self {
+                        pair,
+                        seed,
+                    })
                 }
             }
 
@@ -80,7 +86,7 @@ macro_rules! impl_sp_core_bls_pair_public {
                     let seed = Vec::<u8>::deserialize(deserializer)
                         .map_err(|e| serde::de::Error::custom(format!("Failed to deserialize seed bytes: {}", e)))?;
 
-                    // Generate a new pair from the seed bytes
+                    // Generate a new secret from the seed bytes
                     Self::from_bytes(seed.as_slice()).map_err(|e| serde::de::Error::custom(e.to_string()))
                 }
             }
@@ -129,98 +135,6 @@ macro_rules! impl_sp_core_bls_pair_public {
     };
 }
 
-/// Implements KeyType trait for non-BLS signatures.
-macro_rules! impl_sp_core_bls_key_type {
-    ($key_type:ident, $pair_type:ty) => {
-        paste::paste! {
-            pub struct [<Sp $key_type>];
-
-            impl gadget_crypto_core::KeyType for [<Sp $key_type>] {
-                type Public = [<Sp $key_type Public>];
-                type Secret = [<Sp $key_type Pair>];
-                type Signature = [<Sp $key_type Signature>];
-                type Error = $crate::error::SpCoreError;
-
-                fn key_type_id() -> gadget_crypto_core::KeyTypeId {
-                    gadget_crypto_core::KeyTypeId::$key_type
-                }
-
-                fn generate_with_seed(seed: Option<&[u8]>) -> $crate::error::Result<Self::Secret> {
-                    match seed {
-                        Some(seed) => {
-                            let pair = <$pair_type>::from_seed_slice(seed)
-                                .map_err($crate::error::SecretStringErrorWrapper)
-                                .map_err(Into::<$crate::error::SpCoreError>::into)?;
-                            Ok([<Sp $key_type Pair>](pair))
-                        }
-                        None => {
-                            #[cfg(feature = "std")]
-                            let (pair, _) = <$pair_type>::generate();
-                            #[cfg(not(feature = "std"))]
-                            let pair = {
-                                use gadget_std::Rng;
-                                let mut seed = Self::get_test_rng().gen::<[u8; 32]>();
-                                <$pair_type>::from_seed_slice(&mut seed)
-                                    .map_err($crate::error::SecretStringErrorWrapper)
-                                    .map_err(Into::<$crate::error::SpCoreError>::into)?
-                            };
-                            Ok([<Sp $key_type Pair>](pair))
-                        }
-                    }
-                }
-
-                fn generate_with_string(secret: String) -> $crate::error::Result<Self::Secret> {
-                    let pair = <$pair_type>::from_string(&secret, None)
-                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid secret string".to_string()))?;
-                    Ok([<Sp $key_type Pair>](pair))
-                }
-
-                fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-                    [<Sp $key_type Public>](secret.0.public())
-                }
-
-                fn sign_with_secret(
-                    secret: &mut Self::Secret,
-                    msg: &[u8],
-                ) -> $crate::error::Result<Self::Signature> {
-                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
-                }
-
-                fn sign_with_secret_pre_hashed(
-                    secret: &mut Self::Secret,
-                    msg: &[u8; 32],
-                ) -> $crate::error::Result<Self::Signature> {
-                    Ok([<Sp $key_type Signature>](secret.0.sign(msg)))
-                }
-
-                fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
-                    <$pair_type as sp_core::Pair>::verify(&signature.0, msg, &public.0)
-                }
-            }
-
-            impl [<Sp $key_type Pair>] {
-                pub fn public(&self) -> [<Sp $key_type Public>] {
-                    [<Sp $key_type Public>](self.0.public())
-                }
-            }
-
-            impl gadget_std::ops::Deref for [<Sp $key_type Pair>] {
-                type Target = $pair_type;
-
-                fn deref(&self) -> &Self::Target {
-                    &self.0
-                }
-            }
-
-            impl gadget_std::ops::DerefMut for [<Sp $key_type Pair>] {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    &mut self.0
-                }
-            }
-        }
-    };
-}
-
 /// Implements signature functionality for BLS signatures.
 macro_rules! impl_sp_core_bls_signature {
     ($key_type:ident, $signature:ty) => {
@@ -246,6 +160,97 @@ macro_rules! impl_sp_core_bls_signature {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
                     let bytes: &[u8] = self.0.as_ref();
                     write!(f, "{:?}", bytes)
+                }
+            }
+        }
+    };
+}
+
+/// Implements KeyType trait for non-BLS signatures.
+macro_rules! impl_sp_core_bls_key_type {
+    ($key_type:ident, $pair_type:ty) => {
+        paste::paste! {
+            pub struct [<Sp $key_type>];
+
+            impl gadget_crypto_core::KeyType for [<Sp $key_type>] {
+                type Public = [<Sp $key_type Public>];
+                type Secret = [<Sp $key_type Pair>];
+                type Signature = [<Sp $key_type Signature>];
+                type Error = $crate::error::SpCoreError;
+
+                fn key_type_id() -> gadget_crypto_core::KeyTypeId {
+                    gadget_crypto_core::KeyTypeId::$key_type
+                }
+
+                fn generate_with_seed(seed: Option<&[u8]>) -> $crate::error::Result<Self::Secret> {
+                    match seed {
+                        Some(seed) => {
+                            let pair = <$pair_type>::from_seed_slice(seed)
+                                .map_err($crate::error::SecretStringErrorWrapper)
+                                .map_err(Into::<$crate::error::SpCoreError>::into)?;
+                            Ok([<Sp $key_type Pair>] {
+                                pair,
+                                seed: seed.try_into().unwrap(), // Infallible, `from_seed_slice` checks the length
+                            })
+                        }
+                        None => {
+                            use gadget_std::Rng;
+                            let mut seed = Self::get_test_rng().gen::<[u8; 32]>();
+                            let pair = <$pair_type>::from_seed_slice(&mut seed)
+                                    .map_err($crate::error::SecretStringErrorWrapper)
+                                    .map_err(Into::<$crate::error::SpCoreError>::into)?;
+                            Ok([<Sp $key_type Pair>] {
+                                pair,
+                                seed,
+                            })
+                        }
+                    }
+                }
+
+                fn generate_with_string(_secret: String) -> $crate::error::Result<Self::Secret> {
+                    todo!("sp-core BLS from string")
+                }
+
+                fn public_from_secret(secret: &Self::Secret) -> Self::Public {
+                    [<Sp $key_type Public>](secret.pair.public())
+                }
+
+                fn sign_with_secret(
+                    secret: &mut Self::Secret,
+                    msg: &[u8],
+                ) -> $crate::error::Result<Self::Signature> {
+                    Ok([<Sp $key_type Signature>](secret.pair.sign(msg)))
+                }
+
+                fn sign_with_secret_pre_hashed(
+                    secret: &mut Self::Secret,
+                    msg: &[u8; 32],
+                ) -> $crate::error::Result<Self::Signature> {
+                    Ok([<Sp $key_type Signature>](secret.pair.sign(msg)))
+                }
+
+                fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
+                    <$pair_type as sp_core::Pair>::verify(&signature.0, msg, &public.0)
+                }
+            }
+
+            impl [<Sp $key_type Pair>] {
+                pub fn public(&self) -> [<Sp $key_type Public>] {
+                    [<Sp $key_type Public>](self.pair.public())
+                }
+            }
+
+            impl gadget_std::ops::Deref for [<Sp $key_type Pair>] {
+                type Target = $pair_type;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.pair
+                }
+            }
+
+            impl gadget_std::ops::DerefMut for [<Sp $key_type Pair>] {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.pair
                 }
             }
         }
