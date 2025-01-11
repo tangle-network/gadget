@@ -17,8 +17,8 @@ mod bls381_tests {
         let public_with_seed = SpBls381::public_from_secret(&secret_with_seed);
 
         assert_ne!(
-            secret.0.to_raw_vec(),
-            secret_with_seed.0.to_raw_vec(),
+            secret.to_raw_vec(),
+            secret_with_seed.to_raw_vec(),
             "Random and seeded keys should be different"
         );
         assert_ne!(public, public_with_seed, "Public keys should be different");
@@ -60,8 +60,8 @@ mod bls381_tests {
         let serialized = serde_json::to_vec(&seed).unwrap();
         let deserialized: SpBls381Pair = serde_json::from_slice(&serialized).unwrap();
         assert_eq!(
-            secret.0.to_raw_vec(),
-            deserialized.0.to_raw_vec(),
+            secret.to_raw_vec(),
+            deserialized.to_raw_vec(),
             "SigningKey serialization roundtrip failed"
         );
 
@@ -107,8 +107,8 @@ mod bls377_tests {
         let public_with_seed = SpBls377::public_from_secret(&secret_with_seed);
 
         assert_ne!(
-            secret.0.to_raw_vec(),
-            secret_with_seed.0.to_raw_vec(),
+            secret.to_raw_vec(),
+            secret_with_seed.to_raw_vec(),
             "Random and seeded keys should be different"
         );
         assert_ne!(public, public_with_seed, "Public keys should be different");
@@ -150,8 +150,8 @@ mod bls377_tests {
         let serialized = serde_json::to_vec(&seed).unwrap();
         let deserialized: SpBls377Pair = serde_json::from_slice(&serialized).unwrap();
         assert_eq!(
-            secret.0.to_raw_vec(),
-            deserialized.0.to_raw_vec(),
+            secret.to_raw_vec(),
+            deserialized.to_raw_vec(),
             "SigningKey serialization roundtrip failed"
         );
 
