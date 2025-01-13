@@ -9,8 +9,8 @@ use gadget_contexts::p2p::P2pContext as _;
 use gadget_contexts::services::ServicesContext as _;
 use gadget_contexts::tangle::TangleClientContext as _;
 use gadget_macros::ext::clients::GadgetServicesClient as _;
-use gadget_macros::ext::crypto::sp_core::SpEcdsaPublic;
-use gadget_macros::ext::keystore::backends::tangle::TangleBackend;
+use gadget_macros::ext::crypto::sp_core::SpEcdsa;
+use gadget_macros::ext::keystore::backends::Backend;
 use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
 use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};
 use gadget_std::collections::BTreeMap;
@@ -18,7 +18,6 @@ use gadget_std::sync::Arc;
 use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
-use subxt_core::ext::sp_core::Pair;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext, P2pContext)]
 #[allow(dead_code)]
@@ -51,9 +50,10 @@ fn main() {
             .current_service_operators([0; 32], 0)
             .await
             .unwrap();
-        let pub_key = keystore.ecdsa_generate_new(None).unwrap();
-        let pair = keystore.expose_ecdsa_secret(&pub_key).unwrap().unwrap();
-        let p2p_client = ctx.p2p_client(String::from("Foo"), 1337, GossipMsgKeyPair(pair.clone()));
+        let pub_key = keystore.generate::<SpEcdsa>(None).unwrap();
+        let pair = keystore.get_secret::<SpEcdsa>(&pub_key).unwrap();
+        let p2p_client =
+            ctx.p2p_client(String::from("Foo"), 1337, GossipMsgKeyPair(pair.0.clone()));
 
         // Test MPC context utility functions
         let _config = p2p_client.config();
@@ -65,7 +65,7 @@ fn main() {
         let party_index = 0;
         let task_hash = [0u8; 32];
         let mut parties = BTreeMap::<u16, _>::new();
-        parties.insert(0, SpEcdsaPublic(pair.public()));
+        parties.insert(0, pair.public());
 
         // Test network delivery wrapper creation
         let _network_wrapper = p2p_client.create_network_delivery_wrapper::<StubMessage>(

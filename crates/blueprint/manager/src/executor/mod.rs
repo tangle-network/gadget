@@ -9,8 +9,9 @@ use gadget_clients::tangle::client::{TangleClient, TangleConfig};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use gadget_clients::tangle::EventsClient;
 use gadget_config::GadgetConfiguration;
+use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
-use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_logging::info;
 use std::collections::HashMap;
@@ -177,20 +178,13 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     // TODO: Actual error handling
     let (tangle_key, ecdsa_key) = {
         let keystore = Keystore::new(KeystoreConfig::new().fs_root(&gadget_config.keystore_uri))?;
-        let sr_key_pub = keystore
-            .iter_sr25519()
-            .next()
-            .expect("No SR25519 keys found");
-        let sr_pair = keystore
-            .expose_sr25519_secret(&sr_key_pub)?
-            .expect("No matching SR25519 key");
-        let sr_key = TanglePairSigner::new(sr_pair);
+        let sr_key_pub = keystore.first_local::<SpSr25519>()?;
+        let sr_pair = keystore.get_secret::<SpSr25519>(&sr_key_pub)?;
+        let sr_key = TanglePairSigner::new(sr_pair.0);
 
-        let ecdsa_key_pub = keystore.iter_ecdsa().next().expect("No ECDSA keys found");
-        let ecdsa_pair = keystore
-            .expose_ecdsa_secret(&ecdsa_key_pub)?
-            .expect("No matching ECDSA key");
-        let ecdsa_key = TanglePairSigner::new(ecdsa_pair);
+        let ecdsa_key_pub = keystore.first_local::<SpEcdsa>()?;
+        let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_key_pub)?;
+        let ecdsa_key = TanglePairSigner::new(ecdsa_pair.0);
 
         (sr_key, ecdsa_key)
     };

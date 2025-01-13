@@ -205,6 +205,18 @@ impl Backend for Keystore {
         Ok(keys)
     }
 
+    fn first_local<T: KeyType>(&self) -> Result<T::Public>
+    where
+        T::Public: DeserializeOwned,
+    {
+        let list = self.list_local::<T>()?;
+        let Some(first_key) = list.first() else {
+            return Err(Error::KeyNotFound);
+        };
+
+        Ok(first_key.clone())
+    }
+
     fn get_public_key_local<T: KeyType>(&self, key_id: &str) -> Result<T::Public>
     where
         T::Public: DeserializeOwned,
