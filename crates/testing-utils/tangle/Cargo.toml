@@ -1,17 +1,27 @@
 [package]
 name = "gadget-tangle-testing-utils"
 version = "0.1.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
+cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle", "std"] }
 gadget-config = { workspace = true, features = ["tangle", "std"] }
+gadget-contexts = { workspace = true, features = ["tangle", "std"] }
+gadget-context-derive = { workspace = true, features = ["tangle", "std"] }
+gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
+gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std", "evm"] }
 gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["std"] }
 gadget-keystore = { workspace = true }
+tnt-core-bytecode = { workspace = true }
 
 alloy-provider = { workspace = true, features = ["ws"] }
 alloy-signer-local = { workspace = true }
@@ -20,6 +30,13 @@ sp-core = { workspace = true }
 subxt = { workspace = true }
 tangle-subxt = { workspace = true }
 
+color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
 tracing = { workspace = true }
+tempfile = { workspace = true }
 reqwest = { workspace = true, features = ["json", "default-tls"] }
 dirs = { workspace = true }
+futures-util = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+gadget-client-tangle = { workspace = true }
+async-trait = { workspace = true }
+url = { workspace = true }

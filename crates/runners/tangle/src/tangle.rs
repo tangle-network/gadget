@@ -21,7 +21,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register:
 ///
 /// [`PriceTargets`]: tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets
 #[derive(Clone)]
-pub struct PriceTargets(TanglePriceTargets);
+pub struct PriceTargets(pub TanglePriceTargets);
 
 impl From<TanglePriceTargets> for PriceTargets {
     fn from(t: TanglePriceTargets) -> Self {
