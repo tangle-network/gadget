@@ -10,8 +10,9 @@ use std::path::Path;
 /// - `SR25519`: Tangle Dev Key
 /// - `ED25519`: Tangle Dev Key
 /// - `ECDSA`: Tangle Dev Key
+/// - `BLS381`: Tangle Dev Key
+/// - `BLS377`: Tangle Dev Key
 /// - `BLS BN254`: Random
-/// - `BLS381`: Random
 ///
 /// # Names
 /// - "alice"
