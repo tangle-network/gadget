@@ -63,10 +63,8 @@ impl TangleClient {
 
         // TODO: Update once keystore is updated
         let account_id = keystore
-            .list_local::<SpSr25519>()
+            .first_local::<SpSr25519>()
             .map_err(Error::Keystore)?
-            .first()
-            .unwrap()
             .0
              .0
             .into();

@@ -62,19 +62,23 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The signer is not found
             /// - The service ID is not found.
             pub async fn new(#(#new_function_signature)*) -> Result<Self, Box<dyn core::error::Error>> {
-                use gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
+                use ::gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
+                use ::gadget_macros::ext::keystore::backends::Backend as _;
 
                 let client =
                     <#env_type as ::gadget_macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
                         .await
                         .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?;
 
+                // TODO: Key IDs
                 let keystore = <#env_type as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
-                let public = keystore.iter_sr25519().next().ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
-                let pair = keystore.expose_sr25519_secret(&public)
-                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
-                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
-                let signer = gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair);
+                let public = keystore.first_local::<
+                    ::gadget_macros::ext::crypto::sp_core::SpSr25519
+                >().map_err(|_| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                let pair = keystore.get_secret::<
+                    ::gadget_macros::ext::crypto::sp_core::SpSr25519
+                >(&public)?;
+                let signer = gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair.0);
 
                 let service_id = env.protocol_settings
                     .tangle()

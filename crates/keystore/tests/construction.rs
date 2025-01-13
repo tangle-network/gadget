@@ -1,4 +1,6 @@
+use gadget_crypto::sp_core::SpEcdsa;
 use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_keystore::backends::Backend;
 use gadget_keystore::Result;
 use gadget_keystore::{Keystore, KeystoreConfig};
 
@@ -10,12 +12,10 @@ fn fs_keystore() -> Result<()> {
     let keystore = Keystore::new(KeystoreConfig::new().fs_root(tmp_dir.path()))?;
 
     keystore.ecdsa_generate_from_string("//Foo")?;
-    let mut iter = keystore.iter_ecdsa();
 
-    let key = iter.next().unwrap();
-    assert_eq!(key.0, &*hex::decode(EXPECTED).unwrap());
-
-    assert!(iter.next().is_none());
+    let ecdsa_keys = keystore.list_local::<SpEcdsa>()?;
+    assert_eq!(ecdsa_keys.len(), 1);
+    assert_eq!(ecdsa_keys[0].0 .0, &*hex::decode(EXPECTED).unwrap());
 
     Ok(())
 }
