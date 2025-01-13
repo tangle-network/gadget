@@ -205,13 +205,12 @@ pub mod bls {
         use crate::backends::Backend;
         use crate::KeystoreConfig;
         use gadget_crypto::sp_core::{SpBls377, SpBls377Public, SpBls381, SpBls381Public};
-        use sp_core::crypto::UncheckedFrom;
+        use gadget_crypto::KeyType;
         use sp_core::ByteArray;
 
         #[test]
         fn test_bls381_generation_from_string() -> Result<()> {
             const PUBLIC: &[u8] = b"88ff6c3a32542bc85f2adf1c490a929b7fcee50faeb95af9a036349390e9b3ea7326247c4fc4ebf88050688fd6265de0806284eec09ba0949f5df05dc93a787a14509749f36e4a0981bb748d953435483740907bb5c2fe8ffd97e8509e1a038b05fb08488db628ea0638b8d48c3ddf62ed437edd8b23d5989d6c65820fc70f80fb39b486a3766813e021124aec29a566";
-            const SIGNATURE: &[u8] = b"8c29473f44ac4f0a8ac4dc8c8da09adf9d2faa2dbe0cfdce3ce7c920714196a1b7bf48dc05048e453c161ebc2db9f44fae060b3be77e14e66d1a5262f14d3da0c3a18e650018761a7402b31abc7dd803d466bdcb71bc28c77eb73c610cbff53c00130b79116831e520a04a8ef6630e6f";
 
             let keystore = Keystore::new(KeystoreConfig::new())?;
 
@@ -223,12 +222,7 @@ pub mod bls {
             assert_eq!(public.as_slice(), hex::decode(PUBLIC).unwrap());
 
             let signature = keystore.sign_with_local::<SpBls381>(&SpBls381Public(public), b"")?;
-            assert_eq!(
-                signature.0,
-                sp_core::bls381::Signature::unchecked_from(
-                    hex::decode(SIGNATURE).unwrap().try_into().unwrap()
-                )
-            );
+            assert!(SpBls381::verify(&SpBls381Public(public), b"", &signature));
 
             Ok(())
         }
@@ -236,7 +230,6 @@ pub mod bls {
         #[test]
         fn test_bls377_generation_from_string() -> Result<()> {
             const PUBLIC: &[u8] = b"7a84ca8ce4c37c93c95ecee6a3c0c9a7b9c225093cf2f12dc4f69cbfb847ef9424a18f5755d5a742247d386ff2aabb806bcf160eff31293ea9616976628f77266c8a8cc1d8753be04197bd6cdd8c5c87a148f782c4c1568d599b48833fd539001e580cff64bbc71850605433fcd051f3afc3b74819786f815ffb5272030a8d03e5df61e6183f8fd8ea85f26defa83400";
-            const SIGNATURE: &[u8] = b"d1e3013161991e142d8751017d4996209c2ff8a9ee160f373733eda3b4b785ba6edce9f45f87104bbe07aa6aa6eb2780aa705efb2c13d3b317d6409d159d23bdc7cdd5c2a832d1551cf49d811d49c901495e527dbd532e3a462335ce2686009104aba7bc11c5b22be78f3198d2727a0b";
 
             let keystore = Keystore::new(KeystoreConfig::new())?;
 
@@ -246,14 +239,8 @@ pub mod bls {
             )?;
 
             assert_eq!(public.as_slice(), hex::decode(PUBLIC).unwrap());
-
             let signature = keystore.sign_with_local::<SpBls377>(&SpBls377Public(public), b"")?;
-            assert_eq!(
-                signature.0,
-                sp_core::bls377::Signature::unchecked_from(
-                    hex::decode(SIGNATURE).unwrap().try_into().unwrap()
-                )
-            );
+            assert!(SpBls377::verify(&SpBls377Public(public), b"", &signature));
 
             Ok(())
         }
