@@ -1,33 +1,39 @@
-use alloy_provider::network::{ReceiptResponse, TransactionBuilder};
-use alloy_provider::{Provider, WsConnect};
+use crate::{InputValue, OutputValue};
+use alloy_provider::{
+    network::{ReceiptResponse, TransactionBuilder},
+    Provider, WsConnect,
+};
 use alloy_signer_local::PrivateKeySigner;
-use gadget_clients::tangle::client::TangleClient as TestClient;
-use gadget_clients::tangle::client::TangleConfig;
+use color_eyre::eyre;
+use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
 use sp_core::H160;
+use subxt::{
+    blocks::ExtrinsicEvents,
+    client::OnlineClientT,
+    tx::{signer::Signer, TxProgress},
+    utils::AccountId32,
+    Config,
+};
+use tangle_subxt::tangle_testnet_runtime::api::{
+    self,
+    runtime_types::{
+        pallet_services::module::Call, sp_arithmetic::per_things::Percent,
+        tangle_primitives::services::Asset, tangle_testnet_runtime::RuntimeCall,
+    },
+    services::{
+        calls::types::{
+            call::{Args, Job},
+            create_blueprint::Blueprint,
+            register::{Preferences, RegistrationArgs},
+            request::{Assets, PaymentAsset},
+        },
+        events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised},
+    },
+};
+
+// Standard library imports
 use std::error::Error;
-use subxt::blocks::ExtrinsicEvents;
-use subxt::client::OnlineClientT;
-use subxt::tx::signer::Signer;
-use subxt::tx::TxProgress;
-use subxt::utils::AccountId32;
-use subxt::Config;
-use tangle_subxt::tangle_testnet_runtime::api;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::module::Call;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Asset;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeCall;
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::{
-    Assets, PaymentAsset,
-};
-use tangle_subxt::tangle_testnet_runtime::api::services::events::{
-    JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised,
-};
 
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
@@ -343,4 +349,100 @@ pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Err
         .await
         .expect("Failed to fetch next request ID");
     Ok(next_request_id)
+}
+
+/// Sets up an operator for a blueprint and returns the created service ID
+/// This function:
+/// 1. Joins the operator set
+/// 2. Registers for the blueprint
+/// 3. Requests a new service
+/// 4. Approves the service request
+/// 5. Returns the newly created service ID from events
+pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
+    client: &TestClient,
+    sr25519_signer: &T,
+    blueprint_id: u64,
+    preferences: Preferences,
+) -> Result<u64, Box<dyn Error>> {
+    // Join operators
+    join_operators(client, sr25519_signer).await?;
+
+    // Register for blueprint
+    register_blueprint(
+        client,
+        sr25519_signer,
+        blueprint_id,
+        preferences,
+        RegistrationArgs::new(),
+        0,
+    )
+    .await?;
+
+    // Get the current service ID before requesting new service
+    let prev_service_id = get_next_service_id(client).await?;
+
+    // Request service
+    let account_id = sr25519_signer.account_id();
+    request_service(
+        client,
+        sr25519_signer,
+        blueprint_id,
+        vec![account_id.clone()],
+        0,
+    )
+    .await?;
+
+    // Approve the service request and wait for completion
+    let request_id = get_next_request_id(client).await?.saturating_sub(1);
+    approve_service(client, sr25519_signer, request_id, 20).await?;
+
+    // Get the new service ID from events
+    let new_service_id = get_next_service_id(client).await?;
+    if new_service_id <= prev_service_id {
+        return Err("Failed to create new service".into());
+    }
+
+    // Verify the service belongs to our blueprint
+    let service = client
+        .subxt_client()
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(
+            &api::storage()
+                .services()
+                .instances(new_service_id.saturating_sub(1)),
+        )
+        .await?
+        .ok_or_else(|| eyre::eyre!("Service not found"))?;
+
+    if service.blueprint != blueprint_id {
+        return Err("Created service does not match blueprint ID".into());
+    }
+
+    Ok(new_service_id.saturating_sub(1))
+}
+
+pub async fn submit_and_verify_job<T: Signer<TangleConfig>>(
+    client: &TestClient,
+    signer: &T,
+    service_id: u64,
+    job: Job,
+    inputs: Vec<InputValue>,
+    expected_outputs: Vec<OutputValue>,
+) -> Result<JobResultSubmitted, Box<dyn Error>> {
+    let job = submit_job(client, signer, service_id, job, inputs, 0).await?;
+    let results = wait_for_completion_of_tangle_job(client, service_id, job.call_id, 1).await?;
+
+    assert_eq!(
+        results.result.len(),
+        expected_outputs.len(),
+        "Number of outputs doesn't match expected"
+    );
+
+    for (result, expected) in results.result.iter().zip(expected_outputs.iter()) {
+        assert_eq!(result, expected);
+    }
+
+    Ok(results)
 }
