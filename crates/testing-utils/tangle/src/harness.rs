@@ -17,7 +17,8 @@ use gadget_contexts::{
 use gadget_core_testing_utils::runner::TestEnv;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners::core::InitializableEventHandler;
-use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_runners::{
     core::jobs::JobBuilder,
     tangle::tangle::{PriceTargets, TangleConfig},
@@ -101,16 +102,13 @@ impl TangleTestHarness {
         TanglePairSigner<sp_core::ecdsa::Pair>,
         alloy_signer_local::PrivateKeySigner,
     )> {
-        let sr25519_public = env.keystore().iter_sr25519().next().unwrap();
-        let sr25519_pair = env
-            .keystore()
-            .expose_sr25519_secret(&sr25519_public)?
-            .unwrap();
-        let sr25519_signer = TanglePairSigner::new(sr25519_pair);
+        let sr25519_public = env.keystore().first_local::<SpSr25519>()?;
+        let sr25519_pair = env.keystore().get_secret::<SpSr25519>(&sr25519_public)?;
+        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
 
-        let ecdsa_public = env.keystore().iter_ecdsa().next().unwrap();
-        let ecdsa_pair = env.keystore().expose_ecdsa_secret(&ecdsa_public)?.unwrap();
-        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair);
+        let ecdsa_public = env.keystore().first_local::<SpEcdsa>()?;
+        let ecdsa_pair = env.keystore().get_secret::<SpEcdsa>(&ecdsa_public)?;
+        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
         let alloy_key = ecdsa_signer.alloy_key()?;
 
         Ok((sr25519_signer, ecdsa_signer, alloy_key))
