@@ -3,9 +3,6 @@ pub mod client;
 pub mod error;
 pub mod services;
 
-#[cfg(test)]
-mod tests;
-
 #[cfg(not(any(feature = "std", feature = "web")))]
 compile_error!("`std` or `web` feature required");
 

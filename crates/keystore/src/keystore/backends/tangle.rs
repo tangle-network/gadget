@@ -2,7 +2,7 @@ use crate::backends::Backend;
 use crate::error::{Error, Result};
 use crate::keystore::Keystore;
 use gadget_crypto::sp_core::{
-    SpEcdsa, SpEcdsaPair, SpEcdsaPublic, SpEd25519, SpSr25519, SpSr25519Pair, SpSr25519Public,
+    SpEcdsa, SpEcdsaPair, SpEd25519, SpEd25519Pair, SpSr25519, SpSr25519Pair,
 };
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_crypto::{KeyEncoding, KeyTypeId};
@@ -34,14 +34,14 @@ impl TangleBackend for Keystore {
     fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Ecdsa;
 
-        let secret = SpEcdsaPair(
+        let pair = SpEcdsaPair(
             ecdsa::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,
         );
-        let public = SpEcdsaPublic(secret.0.public());
+        let public = pair.public();
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = secret.to_bytes();
+        let secret_bytes = pair.to_bytes();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {
@@ -55,25 +55,39 @@ impl TangleBackend for Keystore {
     }
 
     fn ed25519_generate_from_string(&self, string: &str) -> Result<ed25519::Public> {
-        let seed = if string.as_bytes().len() == 32 {
-            string.as_bytes().to_vec()
-        } else {
-            blake3::hash(string.as_bytes()).as_bytes().to_vec()
-        };
-        self.generate::<SpEd25519>(Some(&seed)).map(|p| p.0)
+        const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Ed25519;
+
+        let pair = SpEd25519Pair(
+            ed25519::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,
+        );
+        let public = pair.public();
+
+        // Store in all available storage backends
+        let public_bytes = public.to_bytes();
+        let secret_bytes = pair.to_bytes();
+
+        if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
+            for entry in storages {
+                entry
+                    .storage
+                    .store_raw(KEY_TYPE_ID, public_bytes.clone(), secret_bytes.clone())?;
+            }
+        }
+
+        Ok(public.0)
     }
 
     fn sr25519_generate_from_string(&self, string: &str) -> Result<sr25519::Public> {
         const KEY_TYPE_ID: KeyTypeId = KeyTypeId::Sr25519;
 
-        let secret = SpSr25519Pair(
+        let pair = SpSr25519Pair(
             sr25519::Pair::from_string(string, None).map_err(|e| Error::Other(e.to_string()))?,
         );
-        let public = SpSr25519Public(secret.0.public());
+        let public = pair.public();
 
         // Store in all available storage backends
         let public_bytes = public.to_bytes();
-        let secret_bytes = secret.to_bytes();
+        let secret_bytes = pair.to_bytes();
 
         if let Some(storages) = self.storages.get(&KEY_TYPE_ID) {
             for entry in storages {

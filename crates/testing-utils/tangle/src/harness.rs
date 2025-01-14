@@ -9,11 +9,9 @@ use crate::{
     InputValue, OutputValue,
 };
 use color_eyre::Result;
+use gadget_client_tangle::client::TangleClient;
 use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
-use gadget_contexts::{
-    keystore::KeystoreContext,
-    tangle::{TangleClient, TangleClientContext},
-};
+use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
 use gadget_core_testing_utils::runner::TestEnv;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners::core::InitializableEventHandler;
@@ -26,7 +24,7 @@ use gadget_runners::{
 use sp_core::Pair;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
-    events::{JobResultSubmitted, MasterBlueprintServiceManagerRevised},
+    events::JobResultSubmitted,
 };
 use url::Url;
 
@@ -35,6 +33,7 @@ pub struct TangleTestHarness {
     pub env: GadgetConfiguration,
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
+    client: TangleClient,
     pub sr25519_signer: TanglePairSigner<sp_core::sr25519::Pair>,
     pub ecdsa_signer: TanglePairSigner<sp_core::ecdsa::Pair>,
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
@@ -70,12 +69,22 @@ impl TangleTestHarness {
         let env = gadget_macros::ext::config::load(context_config)?;
 
         // Setup signers
-        let (sr25519_signer, ecdsa_signer, alloy_key) = Self::setup_signers(&env)?;
+        let keystore = env.keystore();
+        let sr25519_public = keystore.first_local::<SpSr25519>()?;
+        let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_public)?;
+        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
 
+        let ecdsa_public = keystore.first_local::<SpEcdsa>()?;
+        let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_public)?;
+        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
+        let alloy_key = ecdsa_signer.alloy_key()?;
+
+        let client = env.tangle_client().await?;
         let context = Self {
             env,
             http_endpoint,
             ws_endpoint,
+            client,
             sr25519_signer,
             ecdsa_signer,
             alloy_key,
@@ -84,59 +93,41 @@ impl TangleTestHarness {
         };
 
         // Deploy MBSM if needed
-        context.deploy_mbsm_if_needed().await?;
+        context
+            .deploy_mbsm_if_needed()
+            .await
+            .map_err(|e| color_eyre::eyre::eyre!("Failed to deploy MBSM: {}", e))?;
 
         Ok(context)
     }
 
     /// Gets a reference to the Tangle client
-    pub async fn client(&self) -> Result<TangleClient> {
-        Ok(self.env.tangle_client().await?)
-    }
-
-    /// Sets up signers from the environment's keystore
-    fn setup_signers(
-        env: &GadgetConfiguration,
-    ) -> Result<(
-        TanglePairSigner<sp_core::sr25519::Pair>,
-        TanglePairSigner<sp_core::ecdsa::Pair>,
-        alloy_signer_local::PrivateKeySigner,
-    )> {
-        let sr25519_public = env.keystore().first_local::<SpSr25519>()?;
-        let sr25519_pair = env.keystore().get_secret::<SpSr25519>(&sr25519_public)?;
-        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
-
-        let ecdsa_public = env.keystore().first_local::<SpEcdsa>()?;
-        let ecdsa_pair = env.keystore().get_secret::<SpEcdsa>(&ecdsa_public)?;
-        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
-        let alloy_key = ecdsa_signer.alloy_key()?;
-
-        Ok((sr25519_signer, ecdsa_signer, alloy_key))
+    pub fn client(&self) -> &TangleClient {
+        &self.client
     }
 
     /// Deploys MBSM if not already deployed
-    async fn deploy_mbsm_if_needed(&self) -> Result<Option<MasterBlueprintServiceManagerRevised>> {
-        let client = self.client().await?;
-        let latest_revision = transactions::get_latest_mbsm_revision(&client)
+    async fn deploy_mbsm_if_needed(&self) -> Result<()> {
+        let latest_revision = transactions::get_latest_mbsm_revision(&self.client)
             .await
             .map_err(|e| color_eyre::eyre::eyre!("Failed to get latest MBSM revision: {}", e))?;
 
-        if latest_revision.is_none() {
-            let bytecode = tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
-            Ok(Some(
-                transactions::deploy_new_mbsm_revision(
-                    self.ws_endpoint.as_str(),
-                    &client,
-                    &self.sr25519_signer,
-                    self.alloy_key.clone(),
-                    bytecode,
-                )
-                .await
-                .map_err(|e| color_eyre::eyre::eyre!("Failed to deploy MBSM: {}", e))?,
-            ))
-        } else {
-            Ok(None)
+        if let Some((rev, addr)) = latest_revision {
+            tracing::debug!("MBSM is deployed at revision #{rev} at address {addr}");
+            return Ok(());
         }
+
+        let bytecode = tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
+        transactions::deploy_new_mbsm_revision(
+            self.ws_endpoint.as_str(),
+            &self.client,
+            &self.sr25519_signer,
+            self.alloy_key.clone(),
+            bytecode,
+        )
+        .await?;
+
+        Ok(())
     }
 
     /// Creates deploy options for a blueprint
@@ -187,14 +178,15 @@ impl TangleTestHarness {
         let blueprint_id = self.deploy_blueprint().await?;
 
         // Setup operator and get service
-        let client = self.client().await?;
         let preferences = self.get_default_operator_preferences();
-        let service_id =
-            setup_operator_and_service(&client, &self.sr25519_signer, blueprint_id, preferences)
-                .await
-                .map_err(|e| {
-                    color_eyre::eyre::eyre!("Failed to setup operator and service: {}", e)
-                })?;
+        let service_id = setup_operator_and_service(
+            &self.client,
+            &self.sr25519_signer,
+            blueprint_id,
+            preferences,
+        )
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup operator and service: {}", e))?;
 
         // Create and spawn test environment
         let mut test_env = TangleTestEnv::new(
@@ -230,9 +222,8 @@ impl TangleTestHarness {
         inputs: Vec<InputValue>,
         expected: Vec<OutputValue>,
     ) -> Result<JobResultSubmitted> {
-        let client = self.client().await?;
         let results = submit_and_verify_job(
-            &client,
+            &self.client,
             &self.sr25519_signer,
             service_id,
             Job::from(job_id),

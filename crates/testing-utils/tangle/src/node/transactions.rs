@@ -1,10 +1,9 @@
 use crate::{InputValue, OutputValue};
 use alloy_provider::{
     network::{ReceiptResponse, TransactionBuilder},
-    Provider, WsConnect,
+    PendingTransactionError, Provider, WsConnect,
 };
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::eyre;
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
 use sp_core::H160;
@@ -32,8 +31,29 @@ use tangle_subxt::tangle_testnet_runtime::api::{
     },
 };
 
-// Standard library imports
-use std::error::Error;
+#[derive(Debug, thiserror::Error)]
+pub enum TransactionError {
+    #[error("Failed to find `JobCalled` event")]
+    NoJobCalled,
+    #[error("Failed to get job result")]
+    NoJobResult,
+    #[error("Service not found")]
+    ServiceNotFound,
+    #[error("Created service does not match blueprint ID")]
+    ServiceIdMismatch,
+
+    #[error("{0}")]
+    Other(String),
+
+    #[error(transparent)]
+    JsonRpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
+    #[error(transparent)]
+    Rpc(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
+    #[error(transparent)]
+    PendingTransaction(#[from] PendingTransactionError),
+    #[error(transparent)]
+    Subxt(#[from] subxt::Error),
+}
 
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
@@ -42,7 +62,7 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     account_id: &T,
     signer_evm: PrivateKeySigner,
     bytecode: &[u8],
-) -> Result<MasterBlueprintServiceManagerRevised, Box<dyn Error>> {
+) -> Result<MasterBlueprintServiceManagerRevised, TransactionError> {
     info!("Deploying new MBSM revision ...");
 
     let wallet = alloy_provider::network::EthereumWallet::from(signer_evm);
@@ -58,26 +78,31 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         Ok(tx) => tx,
         Err(err) => {
             error!("Failed to send transaction: {err}");
-            return Err("Failed to deploy MBSM Contract".into());
+            return Err(err.into());
         }
     };
+
     // Deploy the contract.
     let tx_result = tx.get_receipt().await;
     let receipt = match tx_result {
         Ok(receipt) => receipt,
         Err(err) => {
             error!("Failed to deploy MBSM Contract: {err}");
-            return Err("Failed to deploy MBSM Contract".into());
+            return Err(err.into());
         }
     };
+
     // Check the receipt status.
     let mbsm_address = if receipt.status() {
         ReceiptResponse::contract_address(&receipt).unwrap()
     } else {
         error!("MBSM Contract deployment failed!");
         error!("Receipt: {receipt:#?}");
-        return Err("MBSM Contract deployment failed!".into());
+        return Err(TransactionError::Other(
+            "MBSM Contract deployment failed!".into(),
+        ));
     };
+
     info!("MBSM Contract deployed at: {mbsm_address}");
     let sudo_call = api::tx().sudo().sudo(RuntimeCall::Services(
         Call::update_master_blueprint_service_manager {
@@ -100,7 +125,7 @@ pub async fn create_blueprint<T: Signer<TangleConfig>>(
     client: &TestClient,
     account_id: &T,
     blueprint: Blueprint,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TransactionError> {
     let call = api::tx().services().create_blueprint(blueprint);
     let res = client
         .subxt_client()
@@ -114,7 +139,7 @@ pub async fn create_blueprint<T: Signer<TangleConfig>>(
 pub async fn join_operators<T: Signer<TangleConfig>>(
     client: &TestClient,
     account_id: &T,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TransactionError> {
     info!("Joining operators ...");
     let call_pre = api::tx()
         .multi_asset_delegation()
@@ -136,7 +161,7 @@ pub async fn register_blueprint<T: Signer<TangleConfig>>(
     preferences: Preferences,
     registration_args: RegistrationArgs,
     value: u128,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TransactionError> {
     info!("Registering to blueprint {blueprint_id} to become an operator ...");
     let call = api::tx()
         .services()
@@ -157,7 +182,7 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
     job_id: Job,
     job_params: Args,
     call_id: u64,
-) -> Result<JobCalled, Box<dyn Error>> {
+) -> Result<JobCalled, TransactionError> {
     let call = api::tx().services().call(service_id, job_id, job_params);
     let events = client
         .subxt_client()
@@ -179,7 +204,7 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
         }
     }
 
-    Err("Failed to find JobCalled event".into())
+    Err(TransactionError::NoJobCalled)
 }
 
 /// Requests a service with a given blueprint. This is meant for testing, and will allow any node
@@ -190,7 +215,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
     value: u128,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TransactionError> {
     let call = api::tx().services().request(
         None, // TODO: Ensure this is okay for testing
         blueprint_id,
@@ -213,7 +238,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
 
 pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
     mut res: TxProgress<T, C>,
-) -> Result<ExtrinsicEvents<T>, Box<dyn Error>> {
+) -> Result<ExtrinsicEvents<T>, TransactionError> {
     let mut val = Err("Failed to get in block success".into());
     while let Some(Ok(event)) = res.next().await {
         let Some(block) = event.as_in_block() else {
@@ -230,7 +255,7 @@ pub async fn wait_for_completion_of_tangle_job(
     service_id: u64,
     call_id: u64,
     required_count: usize,
-) -> Result<JobResultSubmitted, Box<dyn Error>> {
+) -> Result<JobResultSubmitted, TransactionError> {
     let mut count = 0;
     let mut blocks = client.subxt_client().blocks().subscribe_best().await?;
     while let Some(Ok(block)) = blocks.next().await {
@@ -260,10 +285,11 @@ pub async fn wait_for_completion_of_tangle_job(
             }
         }
     }
-    Err("Failed to get job result".into())
+
+    Err(TransactionError::NoJobResult)
 }
 
-pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, TransactionError> {
     let call = api::storage().services().next_blueprint_id();
     let res = client
         .subxt_client()
@@ -275,7 +301,7 @@ pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn E
     Ok(res)
 }
 
-pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+pub async fn get_next_service_id(client: &TestClient) -> Result<u64, TransactionError> {
     let call = api::storage().services().next_instance_id();
     let res = client
         .subxt_client()
@@ -287,7 +313,7 @@ pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Err
     Ok(res)
 }
 
-pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+pub async fn get_next_call_id(client: &TestClient) -> Result<u64, TransactionError> {
     let call = api::storage().services().next_job_call_id();
     let res = client
         .subxt_client()
@@ -301,7 +327,7 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
 
 pub async fn get_latest_mbsm_revision(
     client: &TestClient,
-) -> Result<Option<(u64, H160)>, Box<dyn Error>> {
+) -> Result<Option<(u64, H160)>, TransactionError> {
     let call = api::storage()
         .services()
         .master_blueprint_service_manager_revisions();
@@ -322,7 +348,7 @@ pub async fn approve_service<T: Signer<TangleConfig>>(
     caller: &T,
     request_id: u64,
     restaking_percent: u8,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TransactionError> {
     info!("Approving service request ...");
     let call = api::tx()
         .services()
@@ -336,7 +362,7 @@ pub async fn approve_service<T: Signer<TangleConfig>>(
     Ok(())
 }
 
-pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+pub async fn get_next_request_id(client: &TestClient) -> Result<u64, TransactionError> {
     info!("Fetching next request ID ...");
     let next_request_id_addr = api::storage().services().next_service_request_id();
     let next_request_id = client
@@ -363,7 +389,7 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     sr25519_signer: &T,
     blueprint_id: u64,
     preferences: Preferences,
-) -> Result<u64, Box<dyn Error>> {
+) -> Result<u64, TransactionError> {
     // Join operators
     join_operators(client, sr25519_signer).await?;
 
@@ -398,9 +424,7 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
 
     // Get the new service ID from events
     let new_service_id = get_next_service_id(client).await?;
-    if new_service_id <= prev_service_id {
-        return Err("Failed to create new service".into());
-    }
+    assert!(new_service_id > prev_service_id);
 
     // Verify the service belongs to our blueprint
     let service = client
@@ -414,10 +438,10 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
                 .instances(new_service_id.saturating_sub(1)),
         )
         .await?
-        .ok_or_else(|| eyre::eyre!("Service not found"))?;
+        .ok_or(TransactionError::ServiceNotFound)?;
 
     if service.blueprint != blueprint_id {
-        return Err("Created service does not match blueprint ID".into());
+        return Err(TransactionError::ServiceIdMismatch);
     }
 
     Ok(new_service_id.saturating_sub(1))
@@ -430,7 +454,7 @@ pub async fn submit_and_verify_job<T: Signer<TangleConfig>>(
     job: Job,
     inputs: Vec<InputValue>,
     expected_outputs: Vec<OutputValue>,
-) -> Result<JobResultSubmitted, Box<dyn Error>> {
+) -> Result<JobResultSubmitted, TransactionError> {
     let job = submit_job(client, signer, service_id, job, inputs, 0).await?;
     let results = wait_for_completion_of_tangle_job(client, service_id, job.call_id, 1).await?;
 

@@ -28,7 +28,7 @@ pub fn inject_tangle_key<P: AsRef<Path>>(
     keystore_path: P,
     name: &str,
 ) -> Result<(), gadget_keystore::Error> {
-    let config = KeystoreConfig::new().fs_root(keystore_path.as_ref());
+    let config = KeystoreConfig::new().fs_root(keystore_path);
     let keystore = Keystore::new(config)?;
 
     keystore.sr25519_generate_from_string(name)?;
