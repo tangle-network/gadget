@@ -7104,18 +7104,17 @@ dependencies = [
 name = "gadget-tangle-testing-utils"
 version = "0.1.0"
 dependencies = [
+ "alloy-json-rpc 0.8.0",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-signer-local",
- "async-trait",
+ "alloy-transport",
  "cargo-tangle",
  "color-eyre",
  "dirs",
- "futures-util",
  "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
- "gadget-context-derive",
  "gadget-contexts",
  "gadget-core-testing-utils",
  "gadget-crypto-tangle-pair-signer",
@@ -7130,6 +7129,7 @@ dependencies = [
  "subxt",
  "tangle-subxt",
  "tempfile",
+ "thiserror 2.0.7",
  "tnt-core-bytecode",
  "tokio",
  "tracing",
@@ -17825,7 +17825,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tnt-core-bytecode"
 version = "0.1.0"
-source = "git+https://github.com/tangle-network/tnt-core.git#27fe87e47e40b684eff2c3bde2dd8c96f82bb8b8"
+source = "git+https://github.com/tangle-network/tnt-core.git?branch=donovan%2Fbytecode#b85cc4f149edf48de413184334dcea5514e064de"
 dependencies = [
  "serde_json",
 ]

@@ -68,11 +68,6 @@ impl TangleClient {
             .0
              .0
             .into();
-        // .get_public_key_local::<SpSr25519>(KEY_ID)
-        // .unwrap()
-        // .0
-        //  .0
-        // .into();
 
         Ok(Self {
             keystore,
