@@ -29,21 +29,21 @@ color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"
 [features]
 default = ["std"]
 std = [
-    "dep:subxt",
-    "gadget-client-core/std",
-    "gadget-keystore/std",
-    "gadget-logging/std",
-    "gadget-config/std",
-    "gadget-std/std",
-    "gadget-std/tokio",
-    "serde/std",
-    "serde_json/std",
-    "sp-core/std",
-    "subxt/native",
-    "subxt-core/std",
-    "tangle-subxt/std",
+	"dep:subxt",
+	"gadget-client-core/std",
+	"gadget-keystore/std",
+	"gadget-logging/std",
+	"gadget-config/std",
+	"gadget-std/std",
+	"gadget-std/tokio",
+	"serde/std",
+	"serde_json/std",
+	"sp-core/std",
+	"subxt/native",
+	"subxt-core/std",
+	"tangle-subxt/std",
 ]
 web = [
-    "dep:subxt",
-    "subxt/web"
+	"dep:subxt",
+	"subxt/web"
 ]

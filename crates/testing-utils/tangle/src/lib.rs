@@ -6,6 +6,9 @@ use subxt::utils::AccountId32;
 
 pub use gadget_core_testing_utils::Error;
 
+#[cfg(test)]
+mod tests;
+
 pub mod harness;
 pub mod keys;
 pub mod node;

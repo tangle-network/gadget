@@ -17,7 +17,6 @@ mod tests {
     async fn test_transaction_submission() -> color_eyre::Result<()> {
         // Setup test harness
         let harness = TangleTestHarness::setup().await?;
-        let client = harness.client().await?;
 
         // Test basic transaction submission
         let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
@@ -29,7 +28,7 @@ mod tests {
                 1_000,
             );
 
-        let result = tx::send(&client, &harness.sr25519_signer, &tx).await;
+        let result = tx::send(harness.client(), &harness.sr25519_signer, &tx).await;
         assert!(result.is_ok(), "Transaction submission should succeed");
         Ok(())
     }
@@ -38,8 +37,6 @@ mod tests {
     async fn test_transaction_progress_tracking() -> color_eyre::Result<()> {
         // Setup test harness
         let harness = TangleTestHarness::setup().await?;
-        let binding = harness.client().await?;
-        let client = binding.subxt_client();
 
         // Submit transaction and track progress
         let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
@@ -51,7 +48,9 @@ mod tests {
                 1_000,
             );
 
-        let tx_progress = client
+        let tx_progress = harness
+            .client()
+            .subxt_client()
             .tx()
             .sign_and_submit_then_watch_default(&tx, &harness.sr25519_signer.clone())
             .await?;
