@@ -182,7 +182,7 @@ lock_api = { version = "0.4.12", default-features = false }
 nix = { version = "0.29.0", default-features = false }
 parking_lot = { version = "0.12.3", default-features = false }
 sysinfo = { version = "0.31.2", default-features = false }
-tempfile = { version = "3.10.1", default-features = false }
+tempfile = { version = "3.13.0", default-features = false }
 uuid = { version = "1.10.0", default-features = false }
 blake3 = { version = "1.5.5", default-features = false }
 
