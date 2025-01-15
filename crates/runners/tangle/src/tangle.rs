@@ -1,7 +1,8 @@
 use crate::error::TangleError;
 use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
-use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
+use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
@@ -20,7 +21,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register:
 ///
 /// [`PriceTargets`]: tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets
 #[derive(Clone)]
-pub struct PriceTargets(TanglePriceTargets);
+pub struct PriceTargets(pub TanglePriceTargets);
 
 impl From<TanglePriceTargets> for PriceTargets {
     fn from(t: TanglePriceTargets) -> Self {
@@ -76,13 +77,13 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
         .fs_root(keystore_path);
     let keystore = Keystore::new(keystore_config).unwrap();
 
-    let sr25519_key = keystore.iter_sr25519().next().unwrap();
-    let sr25519_pair = keystore
-        .expose_sr25519_secret(&sr25519_key)
-        .unwrap()
-        .unwrap();
+    // TODO: Key IDs
+    let sr25519_key = keystore
+        .first_local::<SpSr25519>()
+        .map_err(TangleError::from)?;
+    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
     let signer: subxt::tx::PairSigner<PolkadotConfig, sp_core::sr25519::Pair> =
-        subxt::tx::PairSigner::new(sr25519_pair);
+        subxt::tx::PairSigner::new(sr25519_pair.0);
 
     let account_id = signer.account_id();
 
@@ -118,14 +119,16 @@ pub async fn register_impl(
         .fs_root(keystore_path);
     let keystore = Keystore::new(keystore_config).unwrap();
 
-    let sr25519_key = keystore.iter_sr25519().next().unwrap();
-    let sr25519_pair = keystore
-        .expose_sr25519_secret(&sr25519_key)
-        .unwrap()
-        .unwrap();
-    let signer = subxt::tx::PairSigner::new(sr25519_pair);
+    // TODO: Key IDs
+    let sr25519_key = keystore
+        .first_local::<SpSr25519>()
+        .map_err(TangleError::from)?;
+    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
+    let signer = subxt::tx::PairSigner::new(sr25519_pair.0);
 
-    let ecdsa_key = keystore.iter_ecdsa().next().unwrap();
+    let ecdsa_key = keystore
+        .first_local::<SpEcdsa>()
+        .map_err(TangleError::from)?;
 
     // Parse Tangle protocol specific settings
     let ProtocolSettings::Tangle(blueprint_settings) = env.protocol_settings else {
@@ -155,7 +158,7 @@ pub async fn register_impl(
 
     let blueprint_id = blueprint_settings.blueprint_id;
 
-    let uncompressed_pk = decompress_pubkey(&ecdsa_key.0).ok_or_else(|| {
+    let uncompressed_pk = decompress_pubkey(&ecdsa_key.0 .0).ok_or_else(|| {
         RunnerError::Other("Unable to convert compressed ECDSA key to uncompressed key".to_string())
     })?;
 

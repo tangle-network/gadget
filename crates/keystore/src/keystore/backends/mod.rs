@@ -11,8 +11,6 @@ cfg_remote! {
 
 #[cfg(feature = "tangle")]
 pub mod tangle;
-#[cfg(feature = "tangle-bls")]
-pub mod tangle_bls;
 
 use super::LocalStorageEntry;
 use crate::error::Result;
@@ -57,6 +55,11 @@ pub trait Backend: Send + Sync {
 
     /// List all public keys of a given type from local storage
     fn list_local<T: KeyType>(&self) -> Result<Vec<T::Public>>
+    where
+        T::Public: DeserializeOwned;
+
+    /// Get whichever key of the given type that occurs first in local storage
+    fn first_local<T: KeyType>(&self) -> Result<T::Public>
     where
         T::Public: DeserializeOwned;
 

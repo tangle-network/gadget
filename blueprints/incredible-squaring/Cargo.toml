@@ -27,7 +27,6 @@ tracing-core = { workspace = true }
 alloy-signer-local = { workspace = true }
 color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
 cargo-tangle = { workspace = true, features = ["tangle"] }
-tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
 futures-util = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }

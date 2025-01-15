@@ -2,9 +2,8 @@ use crate::keys::generate_key;
 use crate::signer::{load_evm_signer_from_env, load_signer_from_env, EVM_SIGNER_ENV, SIGNER_ENV};
 use color_eyre::eyre::Result;
 use gadget_crypto::bn254::ArkBlsBn254;
+use gadget_crypto::sp_core::{SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto_core::KeyTypeId;
-use gadget_keystore::backends::tangle::TangleBackend;
-use gadget_keystore::backends::tangle_bls::TangleBlsBackend;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use std::env;
@@ -35,24 +34,19 @@ fn test_cli_fs_key_generation() -> Result<()> {
         let keystore = Keystore::new(KeystoreConfig::new().fs_root(output_path))?;
         match key_type {
             KeyTypeId::Sr25519 => {
-                let public = keystore.iter_sr25519().next().unwrap();
-                assert!(!public.is_empty());
+                keystore.first_local::<SpSr25519>()?;
             }
             KeyTypeId::Ed25519 => {
-                let public = keystore.iter_ed25519().next().unwrap();
-                assert!(!public.is_empty());
+                keystore.first_local::<SpEd25519>()?;
             }
             KeyTypeId::Ecdsa => {
-                let public = keystore.iter_ecdsa().next().unwrap();
-                assert!(!public.0.is_empty());
+                keystore.first_local::<SpEcdsa>()?;
             }
             KeyTypeId::Bls381 => {
-                let public = keystore.iter_bls381().next().unwrap();
-                assert!(!public.is_empty());
+                keystore.first_local::<SpBls381>()?;
             }
             KeyTypeId::Bn254 => {
-                let keys = keystore.list_local::<ArkBlsBn254>()?;
-                assert!(!keys.is_empty());
+                keystore.first_local::<ArkBlsBn254>()?;
             }
             _ => unreachable!(),
         }

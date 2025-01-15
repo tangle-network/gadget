@@ -20,7 +20,6 @@ gadget-clients = { workspace = true, optional = true }
 gadget-event-listeners = { workspace = true, optional = true }
 gadget-logging = { workspace = true, optional = true }
 gadget-crypto = { workspace = true, optional = true }
-gadget-testing-utils = { workspace = true, optional = true }
 
 # Misc. re-exports
 async-trait.workspace = true
@@ -41,7 +40,6 @@ alloy-provider = { workspace = true, optional = true }
 default = ["std"]
 std = [
 	"dep:clap",
-	"dep:gadget-testing-utils",
 	"gadget-blueprint-proc-macro-core/std",
 	"gadget-blueprint-proc-macro/std",
 	"gadget-blueprint-serde?/std",
@@ -74,7 +72,6 @@ tangle = [
 	"gadget-keystore/tangle",
 	"gadget-event-listeners/tangle",
 	"gadget-blueprint-proc-macro/tangle",
-	"gadget-testing-utils/tangle",
 ]
 
 evm = [
@@ -90,6 +87,8 @@ evm = [
 	"gadget-event-listeners/evm",
 	"gadget-blueprint-proc-macro/evm",
 ]
+
+networking = ["gadget-context-derive/networking"]
 
 [lints]
 workspace = true

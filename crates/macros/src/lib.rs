@@ -26,8 +26,6 @@ pub mod ext {
     #[cfg(any(feature = "tangle", feature = "evm"))]
     pub use gadget_logging as logging;
     pub use gadget_std as std;
-    #[cfg(feature = "std")]
-    pub use gadget_testing_utils as testing_utils;
 
     #[cfg(all(feature = "std", feature = "evm"))]
     pub mod evm {

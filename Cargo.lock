@@ -2688,6 +2688,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-sdk"
+version = "0.1.0"
+
+[[package]]
 name = "blueprint-util-meta"
 version = "0.1.0"
 dependencies = [
@@ -6488,12 +6492,14 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "auto_impl",
+ "color-eyre",
  "gadget-client-core",
  "gadget-config",
  "gadget-crypto-sp-core",
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
+ "gadget-tangle-testing-utils",
  "serde",
  "serde_json",
  "sp-core",
@@ -6936,7 +6942,6 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
- "gadget-testing-utils",
  "tangle-subxt",
  "tokio",
 ]
@@ -7103,23 +7108,36 @@ dependencies = [
 name = "gadget-tangle-testing-utils"
 version = "0.1.0"
 dependencies = [
+ "alloy-json-rpc 0.8.0",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-signer-local",
+ "alloy-transport",
+ "cargo-tangle",
+ "color-eyre",
  "dirs",
+ "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
+ "gadget-contexts",
  "gadget-core-testing-utils",
+ "gadget-crypto-tangle-pair-signer",
  "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
+ "gadget-macros",
  "gadget-runners",
  "gadget-std",
  "reqwest 0.12.9",
  "sp-core",
  "subxt",
  "tangle-subxt",
+ "tempfile",
+ "thiserror 2.0.7",
+ "tnt-core-bytecode",
+ "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -7173,9 +7191,12 @@ name = "gadget-utils-tangle"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "color-eyre",
  "gadget-logging",
  "gadget-std",
+ "gadget-tangle-testing-utils",
  "tangle-subxt",
+ "tokio",
  "tracing",
 ]
 
@@ -8429,7 +8450,6 @@ dependencies = [
  "gadget-std",
  "gadget-testing-utils",
  "tempfile",
- "tnt-core-bytecode",
  "tokio",
  "tracing",
  "tracing-core",
