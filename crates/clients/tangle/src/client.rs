@@ -49,12 +49,7 @@ const KEY_ID: &str = "tangle-default";
 impl TangleClient {
     /// Create a new Tangle runtime client from an existing [`GadgetConfiguration`].
     pub async fn new(config: GadgetConfiguration) -> std::result::Result<Self, Error> {
-        let keystore_config = KeystoreConfig::new();
-        let keystore_config = if config.test_mode {
-            keystore_config.in_memory(true)
-        } else {
-            keystore_config.fs_root(config.keystore_uri.replace("file://", ""))
-        };
+        let keystore_config = KeystoreConfig::new().fs_root(config.keystore_uri.replace("file://", ""));
 
         let keystore = Arc::new(Keystore::new(keystore_config)?);
 
