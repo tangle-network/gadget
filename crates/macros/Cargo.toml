@@ -88,5 +88,7 @@ evm = [
 	"gadget-blueprint-proc-macro/evm",
 ]
 
+networking = ["gadget-context-derive/networking"]
+
 [lints]
 workspace = true

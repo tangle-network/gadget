@@ -21,6 +21,7 @@ mod evm;
 /// Keystore context extension implementation.
 mod keystore;
 /// P2P context extension implementation.
+#[cfg(feature = "networking")]
 mod p2p;
 /// Tangle context extensions.
 #[cfg(feature = "tangle")]
@@ -117,6 +118,7 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `P2pContext`.
+#[cfg(feature = "networking")]
 #[proc_macro_derive(P2pContext, attributes(config))]
 pub fn derive_p2p_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
