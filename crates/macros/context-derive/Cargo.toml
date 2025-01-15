@@ -24,7 +24,7 @@ gadget-std = { workspace = true, features = ["std"] }
 gadget-config.workspace = true
 gadget-networking = { workspace = true, features = ["sp-core-ecdsa"] }
 gadget-contexts = { workspace = true, features = ["std", "evm", "tangle", "networking"] }
-gadget-context-derive = { workspace = true, features = ["std", "tangle", "evm"] }
+gadget-context-derive = { workspace = true, features = ["std", "tangle", "evm", "networking"] }
 gadget-macros = { workspace = true, features = ["std", "evm", "tangle"] }
 gadget-stores = { workspace = true, features = ["std"] }
 
@@ -41,6 +41,7 @@ subxt-core.workspace = true
 
 [features]
 default = ["std"]
+networking = ["gadget-contexts/networking"]
 std = []
 
 tangle = []
