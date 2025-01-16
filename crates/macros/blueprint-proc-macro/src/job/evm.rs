@@ -59,9 +59,9 @@ pub(crate) fn get_evm_instance_data(
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
     let instance = quote! {
         #instance_base::#instance_name<
-            ::gadget_macros::ext::event_listeners::evm::contracts::BoxTransport,
-            ::gadget_macros::ext::event_listeners::evm::contracts::AlloyRootProvider,
-            ::gadget_macros::ext::event_listeners::evm::contracts::Ethereum
+            gadget_macros::ext::event_listeners::evm::contracts::BoxTransport,
+            gadget_macros::ext::event_listeners::evm::contracts::AlloyRootProvider,
+            gadget_macros::ext::event_listeners::evm::contracts::Ethereum
         >
     };
 
@@ -134,7 +134,7 @@ pub(crate) fn generate_evm_specific_impl(
         #[automatically_derived]
         impl Deref for #struct_name
         {
-            type Target = ::gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance;
+            type Target = gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance;
             fn deref(&self) -> &Self::Target {
                 self.contract_instance.get_or_init(|| {
                     let abi_location = alloy_contract::Interface::new(alloy_json_abi::JsonAbi::from_json_str(&#abi_string).unwrap());
@@ -144,7 +144,7 @@ pub(crate) fn generate_evm_specific_impl(
         }
 
         #[automatically_derived]
-        impl ::gadget_macros::ext::event_listeners::core::marker::IsEvm for #struct_name {}
+        impl gadget_macros::ext::event_listeners::core::marker::IsEvm for #struct_name {}
     })
 }
 

@@ -8,35 +8,21 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
-default = ["std", "testing", "build", "networking"]
-
-networking = ["gadget-networking"]
+default = ["std"]
 
 std = [
     "gadget-event-listeners/std",
-    "gadget-macros/std",
     "gadget-config/std",
     "gadget-logging/std",
     "gadget-store-local-database/std",
-    "gadget-networking/std",
+    "gadget-macros/std",
+    "gadget-runners/std",
+    "gadget-crypto/std",
+    "gadget-crypto-tangle-pair-signer/std",
 ]
-
-testing = [
-    "gadget-client-tangle",
-    "gadget-tangle-testing-utils",
-    "gadget-testing-utils",
-    "tempfile"
-]
-
-build = [
-    "blueprint-metadata",
-    "blueprint-build-utils"
-]
-
-round-based-compat = ["gadget-networking/round-based-compat"]
 
 [dependencies]
-# Gadget dependencies
+# Tangle dependencies
 gadget-event-listeners = { workspace = true, features = ["tangle"] }
 gadget-macros = { workspace = true, features = ["tangle", "networking"] }
 gadget-crypto = { workspace = true }
@@ -45,17 +31,7 @@ gadget-config = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-runners = { workspace = true, features = ["tangle"] }
 gadget-store-local-database = { workspace = true }
-gadget-networking = { workspace = true, optional = true }
 
-# Optional dependencies for testing
-gadget-client-tangle = { workspace = true, optional = true }
-gadget-tangle-testing-utils = { workspace = true, optional = true }
-gadget-testing-utils = { workspace = true, features = ["tangle"], optional = true }
-tempfile = { version = "3.15.0", optional = true }
-
-# Optional dependencies for build
-blueprint-metadata = { workspace = true, optional = true }
-blueprint-build-utils = { workspace = true, optional = true }
 
 [lints]
 workspace = true

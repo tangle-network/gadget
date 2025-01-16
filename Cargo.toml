@@ -257,6 +257,9 @@ lru-mem = { version = "0.3.0", default-features = false }
 # Metrics
 metrics = { version = "0.24.1", default-features = false }
 
+# Testing Deps
+lazy_static = { version = "1.5.0", default-features = false }
+
 [profile.dev.package.backtrace]
 opt-level = 3
 
