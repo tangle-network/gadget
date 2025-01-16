@@ -23,7 +23,7 @@ pub(crate) fn generate_tangle_specific_impl(
         let _ = non_job_param_map.shift_remove_index(0);
     }
 
-    let env_type = quote! { ::gadget_macros::ext::config::GadgetConfiguration };
+    let env_type = quote! { gadget_macros::ext::config::GadgetConfiguration };
 
     // Push the expected types
     new_function_signature.push(quote! {
@@ -62,21 +62,21 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The signer is not found
             /// - The service ID is not found.
             pub async fn new(#(#new_function_signature)*) -> Result<Self, Box<dyn core::error::Error>> {
-                use ::gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
-                use ::gadget_macros::ext::keystore::backends::Backend as _;
+                use gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
+                use gadget_macros::ext::keystore::backends::Backend as _;
 
                 let client =
-                    <#env_type as ::gadget_macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
+                    <#env_type as gadget_macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
                         .await
                         .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?;
 
                 // TODO: Key IDs
-                let keystore = <#env_type as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
+                let keystore = <#env_type as gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
                 let public = keystore.first_local::<
-                    ::gadget_macros::ext::crypto::sp_core::SpSr25519
-                >().map_err(|_| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                    gadget_macros::ext::crypto::sp_core::SpSr25519
+                >().map_err(|_| Into::<Box<dyn core::error::Error>>::into(gadget_macros::ext::config::Error::NoSr25519Keypair))?;
                 let pair = keystore.get_secret::<
-                    ::gadget_macros::ext::crypto::sp_core::SpSr25519
+                    gadget_macros::ext::crypto::sp_core::SpSr25519
                 >(&public)?;
                 let signer = gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair.0);
 
@@ -84,7 +84,7 @@ pub(crate) fn generate_tangle_specific_impl(
                     .tangle()
                     .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
                     .service_id
-                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::MissingServiceId))?;
+                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(gadget_macros::ext::config::Error::MissingServiceId))?;
 
                 Ok(Self {
                     #(#constructor_args)*
@@ -93,7 +93,7 @@ pub(crate) fn generate_tangle_specific_impl(
         }
 
         #[automatically_derived]
-        impl ::gadget_macros::ext::event_listeners::core::marker::IsTangle for #struct_name {}
+        impl gadget_macros::ext::event_listeners::core::marker::IsTangle for #struct_name {}
     })
 }
 
@@ -122,7 +122,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let call_id_injector = quote! {
         let mut #injected_context_var_name = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            ::gadget_macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_var_name, call_id);
+            gadget_macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_var_name, call_id);
         }
     };
 
@@ -144,7 +144,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
 
             if tangle_event.args.len() != PARAMETER_COUNT {
                 return Err(
-                    ::gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", tangle_event.args.len()))
+                    gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Parameter count mismatch, got `{}`, expected `{PARAMETER_COUNT}`", tangle_event.args.len()))
                 );
             }
 
@@ -161,7 +161,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
-        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::events::TangleEvent<_, _>| async move {
+        move |tangle_event: gadget_macros::ext::event_listeners::tangle::events::TangleEvent<_, _>| async move {
 
             #job_processor_call
             #job_processor_call_return

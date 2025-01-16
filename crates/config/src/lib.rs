@@ -99,6 +99,70 @@ pub struct GadgetConfiguration {
     pub test_mode: bool,
 }
 
+impl GadgetConfiguration {
+    /// Returns a new `NetworkConfig` for the current environment.
+    #[cfg(feature = "networking")]
+    pub fn libp2p_network_config<T: Into<String>>(
+        &self,
+        network_name: T,
+    ) -> Result<gadget_networking::setup::NetworkConfig, Error> {
+        use gadget_keystore::backends::Backend;
+        let keystore_config = gadget_keystore::KeystoreConfig::new().fs_root(&self.keystore_uri);
+        let keystore = gadget_keystore::Keystore::new(keystore_config)
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        let ed25519_pub_key = keystore
+            .first_local::<gadget_keystore::crypto::sp_core::SpEd25519>()
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        let ed25519_pair = keystore
+            .get_secret::<gadget_keystore::crypto::sp_core::SpEd25519>(&ed25519_pub_key)
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        let network_identity = libp2p::identity::Keypair::ed25519_from_bytes(ed25519_pair.seed())
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+
+        let port = self.get_port()?;
+        let ecdsa_pub_key = keystore
+            .first_local::<gadget_keystore::crypto::sp_core::SpEcdsa>()
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+        let ecdsa_pair = keystore
+            .get_secret::<gadget_keystore::crypto::sp_core::SpEcdsa>(&ecdsa_pub_key)
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+
+        let network_config = gadget_networking::setup::NetworkConfig::new_service_network(
+            network_identity,
+            ecdsa_pair,
+            self.bootnodes.clone(),
+            port,
+            network_name,
+        );
+
+        Ok(network_config)
+    }
+
+    /// Attempt to look at the ws_rpc_endpoint and extract the port. If not found,
+    /// looks at the http_rpc_endpoint and tries to extract the port.
+    ///
+    /// Fails if no port is found
+    fn get_port(&self) -> Result<u16, Error> {
+        let ws_port = self.ws_rpc_endpoint.split(":").last();
+
+        if let Some(port) = ws_port {
+            return port
+                .parse()
+                .map_err(|_err| Error::BadRpcConnection("Bad WS port formatting".to_string()));
+        }
+
+        let http_port = self.http_rpc_endpoint.split(":").last();
+
+        if let Some(port) = http_port {
+            return port
+                .parse()
+                .map_err(|_err| Error::BadRpcConnection("Bad HTTP port formatting".to_string()));
+        }
+
+        Err(Error::BadRpcConnection("No port found".to_string()))
+    }
+}
+
 /// Loads the [`GadgetConfiguration`] from the current environment.
 /// # Errors
 ///
