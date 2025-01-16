@@ -276,10 +276,17 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
-    let ips_to_bind_to = [
-        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
-        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
-    ];
+    let ips_to_bind_to = if std::env::var("IN_CI").is_ok() {
+        [
+            IpAddr::from_str("::1").unwrap(),       // LOOPBACK_V6
+            IpAddr::from_str("127.0.0.1").unwrap(), // LOOPBACK_V4
+        ]
+    } else {
+        [
+            IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+            IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
+        ]
+    };
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
