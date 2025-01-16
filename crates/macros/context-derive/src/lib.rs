@@ -118,8 +118,8 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for generating Context Extensions trait implementation for `P2pContext`.
-#[cfg(feature = "networking")]
 #[proc_macro_derive(P2pContext, attributes(config))]
+#[cfg(feature = "networking")]
 pub fn derive_p2p_context(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result =

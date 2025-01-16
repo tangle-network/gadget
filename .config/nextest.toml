@@ -1,6 +1,7 @@
 [profile.ci]
 failure-output = "immediate-final"
 fail-fast = false
+slow-timeout = { period = "60s" }
 
 [profile.serial]
 test-threads=1
