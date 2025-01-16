@@ -15,6 +15,7 @@ env:
   RUST_BACKTRACE: full
   RUST_LOG: "gadget=trace"
   CARGO_TERM_COLOR: always
+  IN_CI: "true"
 
 jobs:
   formatting:

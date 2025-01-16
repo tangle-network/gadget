@@ -3,7 +3,7 @@
 use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
-use crate::key_types::GossipMsgKeyPair;
+pub use crate::key_types::GossipMsgKeyPair;
 use futures::StreamExt;
 use gadget_std::boxed::Box;
 use gadget_std::collections::BTreeMap;

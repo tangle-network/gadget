@@ -17,6 +17,8 @@ url = { workspace = true, features = ["serde"] }
 
 # Optional dependencies (feature-gated)
 libp2p = { workspace = true, optional = true }
+gadget-networking = { workspace = true, optional = true }
+gadget-keystore = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, features = ["serde"], optional = true }
 
 [dev-dependencies]
@@ -24,6 +26,7 @@ alloy-primitives = { workspace = true, features = ["serde"] }
 gadget-config = { path = ".", features = ["std", "eigenlayer", "symbiotic", "tangle", "networking"] }
 gadget-std = { workspace = true, features = ["std"] }
 libp2p = { workspace = true }
+
 
 [features]
 default = ["std"]
@@ -37,7 +40,7 @@ std = [
 eigenlayer = ["dep:alloy-primitives"]
 symbiotic = ["dep:alloy-primitives"]
 tangle = []
-networking = ["libp2p"]
+networking = ["libp2p", "gadget-networking", "keystore", "gadget-keystore"]
 
 # Core feature groups
 keystore = []

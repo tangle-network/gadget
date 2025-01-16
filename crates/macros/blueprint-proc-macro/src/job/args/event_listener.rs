@@ -264,8 +264,8 @@ impl EventListenerArgs {
                         };
 						quote! {
                             let __arg = args.next().expect("parameter count checked before");
-                            let Ok(#ident) = ::gadget_macros::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
-                                return Err(::gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
+                            let Ok(#ident) = gadget_macros::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
+                                return Err(gadget_macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
                             };
                         }
 					}
