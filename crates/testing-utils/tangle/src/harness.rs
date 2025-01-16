@@ -67,7 +67,7 @@ impl TangleTestHarness {
 
         // Load environment
         let mut env = gadget_macros::ext::config::load(context_config)?;
-        
+
         // Always set test mode, dont require callers to set env vars
         env.test_mode = true;
 
