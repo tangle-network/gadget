@@ -129,9 +129,18 @@ jobs:
         with:
           tool: nextest
 
+      - name: Add extra args
+        run: |
+          # if test == "gadget_context_derive", add --features="networking", else ""
+          if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
+            echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
+          else
+            echo "cargo_nextest_args=" >> $GITHUB_ENV
+          fi
+
       - name: tests
-        run: cargo nextest run --profile ci --package ${{ matrix.package }}
+        run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc ${{ matrix.package == 'gadget-networking' && '-- --test-threads=1' || '' }}
+        run: cargo test --package ${{ matrix.package }} --doc
