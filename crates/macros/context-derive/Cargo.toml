@@ -21,7 +21,7 @@ proc-macro2 = { workspace = true }
 
 [dev-dependencies]
 gadget-std = { workspace = true, features = ["std"] }
-gadget-config.workspace = true
+gadget-config = { workspace = true }
 gadget-networking = { workspace = true, features = ["sp-core-ecdsa"] }
 gadget-contexts = { workspace = true, features = ["std", "evm", "tangle", "networking"] }
 gadget-context-derive = { workspace = true, features = ["std", "tangle", "evm", "networking"] }
