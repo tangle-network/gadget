@@ -4,15 +4,18 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use gadget_crypto::hashing::blake3_256;
+use gadget_std as std;
 use gadget_std::boxed::Box;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
 use gadget_std::fmt::Display;
+use gadget_std::format;
 use gadget_std::ops::{Deref, DerefMut};
 use gadget_std::pin::Pin;
 use gadget_std::string::ToString;
 use gadget_std::sync::Arc;
 use gadget_std::task::{Context, Poll};
+use gadget_std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
@@ -582,6 +585,7 @@ impl Network for SubNetwork {
 
 #[cfg(test)]
 mod tests {
+    use self::std::time::Duration;
     use super::*;
     use crate::gossip::GossipHandle;
     use futures::{stream, StreamExt};
@@ -590,7 +594,6 @@ mod tests {
     use gadget_logging::setup_log;
     use gadget_std::collections::BTreeMap;
     use serde::{Deserialize, Serialize};
-    use std::time::Duration;
     use tokio::time::sleep;
 
     const TOPIC: &str = "/gadget/test/1.0.0";

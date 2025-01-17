@@ -1,4 +1,5 @@
 use crate::gossip::NetworkService;
+use gadget_std::format;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
