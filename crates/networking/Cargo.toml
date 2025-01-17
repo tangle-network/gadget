@@ -60,7 +60,6 @@ features = [
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
-serial_test = { workspace = true, features = ["async"] }
 lazy_static = { workspace = true }
 
 [features]
