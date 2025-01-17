@@ -3,6 +3,7 @@
 use crate::gossip::{MyBehaviourRequest, NetworkService};
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
+use gadget_std as std;
 use itertools::Itertools;
 use libp2p::PeerId;
 
