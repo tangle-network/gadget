@@ -35,7 +35,7 @@ pub mod networking {
     pub use gadget_networking as networking;
 }
 
-pub use gadget_config;
-pub use gadget_keystore;
+pub use gadget_config as config;
+pub use gadget_keystore as keystore;
 pub use sp_core;
 pub use tokio;
