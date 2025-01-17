@@ -16,25 +16,25 @@
 
 // Core dependencies
 /// Event listener infrastructure for handling blueprint events
-pub use gadget_event_listeners;
+pub use gadget_event_listeners as event_listeners;
 
 /// Procedural and derive macros for blueprint development
-pub use gadget_macros;
+pub use gadget_macros as macros;
 
 /// Core cryptographic primitives and utilities
-pub use gadget_crypto;
+pub use gadget_crypto as crypto;
 
 /// Tangle-specific cryptographic signing capabilities
-pub use gadget_crypto_tangle_pair_signer;
+pub use gadget_crypto_tangle_pair_signer as crypto_tangle_pair_signer;
 
 /// Configuration management for blueprints
-pub use gadget_config;
+pub use gadget_config as config;
 
 /// Structured logging facilities
-pub use gadget_logging;
+pub use gadget_logging as logging;
 
 /// Blueprint execution and runtime utilities
-pub use gadget_runners;
+pub use gadget_runners as runners;
 
 /// Local database storage implementations
-pub use gadget_store_local_database;
+pub use gadget_store_local_database as store_local_database;
