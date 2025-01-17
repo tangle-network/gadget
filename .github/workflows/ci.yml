@@ -64,7 +64,7 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
-
+        
   testing:
     timeout-minutes: 30
     name: cargo test
@@ -138,13 +138,49 @@ jobs:
             echo "cargo_nextest_args=" >> $GITHUB_ENV
           fi
 
-          # if test == "gadget-networking", add --features="--test-threads=1", else ""
-          if [[ "${{ matrix.package }}" == "gadget-networking" ]]; then
-            echo "cargo_nextest_args=--test-threads=1" >> $GITHUB_ENV
-          fi
-
       - name: tests
         run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
+
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: doc tests
+        run: cargo test --package ${{ matrix.package }} --doc
+
+  networking_tests:
+    timeout-minutes: 30
+    name: cargo test
+    runs-on: macos-latest
+    env:
+      CARGO_TERM_COLOR: always
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            gadget-networking,
+          ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf and gmp
+        run: |
+          brew install protobuf gmp 
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: tests
+        run: cargo nextest run --profile ci --package ${{ matrix.package }} --test-threads=1
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
