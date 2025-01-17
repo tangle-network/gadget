@@ -142,6 +142,7 @@ impl GadgetConfiguration {
     /// looks at the http_rpc_endpoint and tries to extract the port.
     ///
     /// Fails if no port is found
+    #[cfg(feature = "networking")]
     fn get_port(&self) -> Result<u16, Error> {
         let ws_port = self.ws_rpc_endpoint.split(":").last();
 
