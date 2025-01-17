@@ -279,28 +279,16 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
-    let in_ci = std::env::var("IN_CI").is_ok();
-
-    let ips_to_bind_to = if in_ci {
-        [
-            IpAddr::from_str("::1").unwrap(),       // LOOPBACK_V6
-            IpAddr::from_str("127.0.0.1").unwrap(), // LOOPBACK_V4
-        ]
-    } else {
-        [
-            IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
-            IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
-        ]
-    };
+    let ips_to_bind_to = [
+        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
+    ];
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
         // Bind to both UDP and TCP to increase probability of successful NAT traversal.
         // Use QUIC over UDP to have reliable ordered transport like TCP.
-        if !in_ci {
-            swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
-        }
-
+        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
         swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
     }
 
