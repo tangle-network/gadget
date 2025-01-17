@@ -141,8 +141,6 @@ jobs:
           # if test == "gadget-networking", add --features="--test-threads=1", else ""
           if [[ "${{ matrix.package }}" == "gadget-networking" ]]; then
             echo "cargo_nextest_args=--test-threads=1" >> $GITHUB_ENV
-          else
-            echo "cargo_nextest_args=${{ env.cargo_nextest_args }}" >> $GITHUB_ENV
           fi
 
       - name: tests
