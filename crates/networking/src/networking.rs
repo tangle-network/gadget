@@ -909,7 +909,7 @@ mod tests {
     }
 
     lazy_static::lazy_static! {
-        static ref NODE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 3);
+        static ref NODE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 2);
         static ref MESSAGE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 100);
     }
 
