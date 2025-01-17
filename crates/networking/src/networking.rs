@@ -666,7 +666,6 @@ mod tests {
         }
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_p2p() {
@@ -916,7 +915,6 @@ mod tests {
         static ref MESSAGE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 100);
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_stress_test_multiplexer() {
@@ -961,7 +959,6 @@ mod tests {
         assert_eq!(received.value, payload.value);
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_nested_multiplexer() {
         setup_log();
@@ -1051,7 +1048,6 @@ mod tests {
         .await;
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_closed_channel_handling() {
         setup_log();
@@ -1078,7 +1074,6 @@ mod tests {
         assert!(subnetwork0.send(msg).is_ok()); // Changed to ok() since the message will be sent but not received
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_empty_payload() {
         setup_log();
@@ -1114,7 +1109,6 @@ mod tests {
         assert_eq!(received.value, empty_payload.value);
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_concurrent_messaging() {
@@ -1185,7 +1179,6 @@ mod tests {
         }
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
     async fn test_message_ordering() {
@@ -1232,7 +1225,6 @@ mod tests {
         }
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_network_id_handling() {
         setup_log();
@@ -1288,7 +1280,6 @@ mod tests {
         }
     }
 
-    #[serial_test::serial]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_stream_isolation() {
         setup_log();
