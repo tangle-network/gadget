@@ -51,7 +51,6 @@ async fn test_process_status() {
 
 #[tokio::test]
 async fn test_invalid_command() {
-    gadget_logging::setup_log();
     let mut manager = GadgetProcessManager::new();
     let result = manager
         .run("nonexistent_command".to_string(), "nonexistent command")
