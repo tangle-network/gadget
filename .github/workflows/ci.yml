@@ -105,7 +105,6 @@ jobs:
             gadget-keystore,
             gadget-std,
             gadget-utils-tangle,
-            gadget-networking,
           ]
     steps:
       - name: checkout code
@@ -180,7 +179,7 @@ jobs:
           tool: nextest
 
       - name: tests
-        run: cargo nextest run --profile ci --package ${{ matrix.package }} --test-threads=1
+        run: cargo nextest run --profile serial --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
