@@ -71,6 +71,7 @@ pub enum Error {
     SecretStringError(#[from] sp_core::crypto::SecretStringError),
     /// Serde json error
     #[error(transparent)]
+    #[cfg(feature = "std")]
     SerdeJsonError(#[from] serde_json::Error),
     /// An error occurred during sr25519 module operation
     #[error("sr25519: {0}")]

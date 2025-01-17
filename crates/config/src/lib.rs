@@ -102,29 +102,32 @@ pub struct GadgetConfiguration {
 impl GadgetConfiguration {
     /// Returns a new `NetworkConfig` for the current environment.
     #[cfg(feature = "networking")]
-    pub fn libp2p_network_config<T: Into<String>>(
+    pub fn libp2p_network_config<K: gadget_keystore::crypto::KeyType>(
         &self,
-        network_name: T,
+        network_name: impl Into<String>,
     ) -> Result<gadget_networking::setup::NetworkConfig, Error> {
         use gadget_keystore::backends::Backend;
+        use gadget_keystore::crypto::sp_core::SpEd25519 as LibP2PKeyType;
+        use gadget_networking::key_types::Curve as GossipMsgKeyPair;
+
         let keystore_config = gadget_keystore::KeystoreConfig::new().fs_root(&self.keystore_uri);
         let keystore = gadget_keystore::Keystore::new(keystore_config)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let ed25519_pub_key = keystore
-            .first_local::<gadget_keystore::crypto::sp_core::SpEd25519>()
+            .first_local::<LibP2PKeyType>()
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let ed25519_pair = keystore
-            .get_secret::<gadget_keystore::crypto::sp_core::SpEd25519>(&ed25519_pub_key)
+            .get_secret::<LibP2PKeyType>(&ed25519_pub_key)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let network_identity = libp2p::identity::Keypair::ed25519_from_bytes(ed25519_pair.seed())
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let port = self.get_port()?;
         let ecdsa_pub_key = keystore
-            .first_local::<gadget_keystore::crypto::sp_core::SpEcdsa>()
+            .first_local::<GossipMsgKeyPair>()
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let ecdsa_pair = keystore
-            .get_secret::<gadget_keystore::crypto::sp_core::SpEcdsa>(&ecdsa_pub_key)
+            .get_secret::<GossipMsgKeyPair>(&ecdsa_pub_key)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let network_config = gadget_networking::setup::NetworkConfig::new_service_network(

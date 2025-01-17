@@ -105,6 +105,7 @@ sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
 zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
 bls = ["w3f-bls", "hex", "gadget-crypto/bls"]
 bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
+sp-core = ["gadget-crypto/sp-core"]
 
 # Meant to be used in conjunction with `tangle` feature (for `sp-core`)
 substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]

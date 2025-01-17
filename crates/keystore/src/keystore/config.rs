@@ -135,6 +135,7 @@ impl KeystoreConfig {
         }
     }
 
+    #[allow(unused_mut)]
     fn is_empty(&self) -> bool {
         let mut is_empty = self.in_memory;
         #[cfg(feature = "std")]
