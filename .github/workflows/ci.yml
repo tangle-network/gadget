@@ -103,7 +103,6 @@ jobs:
             gadget-config,
             gadget-keystore,
             gadget-std,
-            gadget-utils-tangle,
           ]
     steps:
       - name: checkout code
@@ -156,6 +155,7 @@ jobs:
           [
             gadget-networking,
             gadget-executor,
+            gadget-utils-tangle,
           ]
     steps:
       - name: checkout code
