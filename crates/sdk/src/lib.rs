@@ -11,9 +11,9 @@ pub mod testing {
     /// Tangle-specific client for testing
     pub use gadget_client_tangle as client_tangle;
     /// Tangle-specific testing utilities
-    pub use gadget_tangle_testing_utils as tangle_testing_utils;
+    pub use gadget_tangle_testing_utils as tangle_utils;
     /// General testing utilities for blueprints
-    pub use gadget_testing_utils as testing_utils;
+    pub use gadget_testing_utils as utils;
     /// Temporary file and directory management for tests
     pub use tempfile;
 }
@@ -32,7 +32,7 @@ pub mod build {
 /// Networking utilities for blueprints
 pub mod networking {
     /// Networking utilities for blueprints
-    pub use gadget_networking as networking;
+    pub use gadget_networking::*;
 }
 
 pub use gadget_config as config;
