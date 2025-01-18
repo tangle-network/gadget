@@ -15,6 +15,7 @@ env:
   RUST_BACKTRACE: full
   RUST_LOG: "gadget=trace"
   CARGO_TERM_COLOR: always
+  IN_CI: "true"
 
 jobs:
   formatting:
@@ -63,7 +64,7 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
-
+        
   testing:
     timeout-minutes: 30
     name: cargo test
@@ -100,11 +101,8 @@ jobs:
 
             gadget-blueprint-serde,
             gadget-config,
-            gadget-executor,
             gadget-keystore,
             gadget-std,
-            gadget-utils-tangle,
-            gadget-networking,
           ]
     steps:
       - name: checkout code
@@ -128,9 +126,61 @@ jobs:
         with:
           tool: nextest
 
+      - name: Add extra args
+        run: |
+          # if test == "gadget_context_derive", add --features="networking", else ""
+          if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
+            echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
+          else
+            echo "cargo_nextest_args=" >> $GITHUB_ENV
+          fi
+
       - name: tests
-        run: cargo nextest run --profile ci --package ${{ matrix.package }}
+        run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc ${{ matrix.package == 'gadget-networking' && '-- --test-threads=1' || '' }}
+        run: cargo test --package ${{ matrix.package }} --doc
+
+  macos_tests:
+    timeout-minutes: 30
+    name: cargo test
+    runs-on: macos-latest
+    env:
+      CARGO_TERM_COLOR: always
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            gadget-networking,
+            gadget-executor,
+            gadget-utils-tangle,
+          ]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf and gmp
+        run: |
+          brew install protobuf gmp 
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: tests
+        run: cargo nextest run --profile serial --package ${{ matrix.package }}
+
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: doc tests
+        run: cargo test --package ${{ matrix.package }} --doc

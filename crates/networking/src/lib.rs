@@ -1,4 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod gossip;
@@ -54,7 +53,7 @@ pub use key_types::*;
     not(feature = "sp-core-sr25519"),
     not(feature = "sp-core-ed25519")
 ))]
-pub(crate) mod key_types {
+pub mod key_types {
     pub use gadget_crypto::sp_core::{
         SpEcdsa as Curve, SpEcdsaPair as GossipMsgKeyPair, SpEcdsaPublic as GossipMsgPublicKey,
         SpEcdsaSignature as GossipSignedMsgSignature,
@@ -66,7 +65,7 @@ pub(crate) mod key_types {
     not(feature = "sp-core-ecdsa"),
     not(feature = "sp-core-ed25519")
 ))]
-pub(crate) mod key_types {
+pub mod key_types {
     pub use gadget_crypto::sp_core::{
         SpSr25519 as Curve, SpSr25519Pair as GossipMsgKeyPair,
         SpSr25519Public as GossipMsgPublicKey, SpSr25519Signature as GossipSignedMsgSignature,
@@ -78,7 +77,7 @@ pub(crate) mod key_types {
     not(feature = "sp-core-ecdsa"),
     not(feature = "sp-core-sr25519")
 ))]
-pub(crate) mod key_types {
+pub mod key_types {
     pub use gadget_crypto::sp_core::{
         SpEd25519 as Curve, SpEd25519Pair as GossipMsgKeyPair,
         SpEd25519Public as GossipMsgPublicKey, SpEd25519Signature as GossipSignedMsgSignature,
@@ -90,7 +89,7 @@ pub(crate) mod key_types {
     not(feature = "sp-core-sr25519"),
     not(feature = "sp-core-ed25519")
 ))]
-pub(crate) mod key_types {
+pub mod key_types {
     // Default to k256 ECDSA implementation
     pub use gadget_crypto::k256::{
         K256Ecdsa as Curve, K256Signature as GossipSignedMsgSignature,

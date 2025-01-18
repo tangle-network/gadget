@@ -16,7 +16,7 @@ gadget-std = { workspace = true }
 auto_impl = { workspace = true }
 dashmap = { workspace = true }
 libp2p = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 bincode = { workspace = true }
@@ -60,7 +60,7 @@ features = [
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
-serial_test = { workspace = true, features = ["async"] }
+lazy_static = { workspace = true }
 
 [features]
 default = ["std"]

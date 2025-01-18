@@ -35,7 +35,7 @@ alloy-signer = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"] }
 
 # Substrate dependencies (optional)
-sp-core = { workspace = true, optional = true }
+sp-core = { workspace = true }
 sp-io = { workspace = true, optional = true }
 subxt = { workspace = true, features = ["substrate-compat"], optional = true }
 subxt-core = { workspace = true, optional = true }
@@ -92,7 +92,7 @@ std = [
 	"rust-bls-bn254?/std",
 	# Conditional std enables for protocols
 	"alloy-primitives?/std",
-	"sp-core?/std",
+	"sp-core/std",
 	"sp-io?/std",
 	"subxt-core?/std",
 	"subxt?/native",
@@ -105,6 +105,7 @@ sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
 zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
 bls = ["w3f-bls", "hex", "gadget-crypto/bls"]
 bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
+sp-core = ["gadget-crypto/sp-core"]
 
 # Meant to be used in conjunction with `tangle` feature (for `sp-core`)
 substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]

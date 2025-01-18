@@ -24,6 +24,9 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::networking::{Network, ParticipantInfo, ProtocolMessage};
+use gadget_std as std;
+use gadget_std::{boxed::Box, format, string::String, vec::Vec};
+use std::vec;
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -274,7 +277,7 @@ impl GossipHandle {
     #[must_use]
     pub fn connected_peers(&self) -> usize {
         self.connected_peers
-            .load(std::sync::atomic::Ordering::Relaxed)
+            .load(gadget_std::sync::atomic::Ordering::Relaxed)
     }
 
     #[must_use]
