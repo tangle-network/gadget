@@ -232,7 +232,7 @@ impl MaybeSender {
         matches!(self, Self::Unknown)
     }
 
-    /// Returns the sender as [`UserID`] if it is knwon.
+    /// Returns the sender as [`UserID`] if it is known.
     #[must_use]
     pub fn as_user_id(&self) -> Option<UserID> {
         match self {
