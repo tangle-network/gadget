@@ -1156,11 +1156,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_block_number() {
-        let (_container, http_endpoint, _ws_endpoint) =
+        let (container, http_endpoint, _ws_endpoint) =
             start_anvil_container(ANVIL_STATE_PATH, false).await;
         let provider = get_provider_http(&http_endpoint);
 
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
+
+        // Stop auto-mining to avoid flaky test results caused by block updating between block number queries
+        let container = container.inner();
+        let _output = container
+            .lock()
+            .unwrap()
+            .exec(testcontainers::core::ExecCommand::new([
+                "cast",
+                "rpc",
+                "evm_setAutomine",
+                "false",
+            ]))
+            .await
+            .expect("Failed to mine anvil blocks");
+        tokio::time::sleep(gadget_std::time::Duration::from_secs(1)).await;
 
         let expected_block_number = provider.clone().get_block_number().await.unwrap();
         let block_number = instrumented_client.block_number().await.unwrap();
@@ -1188,11 +1203,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_fee_history() {
-        let (_container, http_endpoint, _ws_endpoint) =
+        let (container, http_endpoint, _ws_endpoint) =
             start_anvil_container(ANVIL_STATE_PATH, false).await;
         let provider = get_provider_http(&http_endpoint);
 
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
+
+        // Stop auto-mining to avoid flaky test results caused by block updating between queries
+        let container = container.inner();
+        let _output = container
+            .lock()
+            .unwrap()
+            .exec(testcontainers::core::ExecCommand::new([
+                "cast",
+                "rpc",
+                "evm_setAutomine",
+                "false",
+            ]))
+            .await
+            .expect("Failed to mine anvil blocks");
+        tokio::time::sleep(gadget_std::time::Duration::from_secs(1)).await;
+
         let block_count = 4;
         let last_block = BlockNumberOrTag::Latest;
         let reward_percentiles = [0.2, 0.3];
