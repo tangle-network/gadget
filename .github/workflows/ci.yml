@@ -64,7 +64,7 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
-        
+
   testing:
     timeout-minutes: 30
     name: cargo test
