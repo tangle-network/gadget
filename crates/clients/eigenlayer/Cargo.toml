@@ -14,14 +14,14 @@ alloy-provider = { workspace = true }
 alloy-pubsub = { workspace = true }
 alloy-transport = { workspace = true }
 eigensdk = { workspace = true, features = [
-    "client-avsregistry",
-    "client-elcontracts",
-    "logging",
-    "services-blsaggregation",
-    "services-operatorsinfo",
-    "services-avsregistry",
-    "types",
-    "utils"
+	"client-avsregistry",
+	"client-elcontracts",
+	"logging",
+	"services-blsaggregation",
+	"services-operatorsinfo",
+	"services-avsregistry",
+	"types",
+	"utils"
 ] }
 num-bigint = { workspace = true }
 thiserror = { workspace = true }
@@ -38,9 +38,9 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = ["std"]
 std = [
-    "gadget-config/std",
-    "gadget-std/std",
-    "gadget-utils-evm/std",
-    "tokio/full",
-    "url/std",
+	"gadget-config/std",
+	"gadget-std/std",
+	"gadget-utils-evm/std",
+	"tokio/full",
+	# TODO: "url/std",
 ]
