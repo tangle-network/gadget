@@ -1,4 +1,5 @@
 use crate::error::TangleError;
+use futures::future::select_ok;
 use gadget_clients::tangle;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
@@ -8,8 +9,9 @@ use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_std::string::ToString;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
-use subxt::ext::futures::future::select_ok;
-use subxt::PolkadotConfig;
+use subxt_core::config::PolkadotConfig;
+use subxt_core::tx::signer::PairSigner;
+use tangle_subxt::subxt_core;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
@@ -82,8 +84,8 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
         .first_local::<SpSr25519>()
         .map_err(TangleError::from)?;
     let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
-    let signer: subxt::tx::PairSigner<PolkadotConfig, sp_core::sr25519::Pair> =
-        subxt::tx::PairSigner::new(sr25519_pair.0);
+    let signer: PairSigner<PolkadotConfig, sp_core::sr25519::Pair> =
+        PairSigner::new(sr25519_pair.0);
 
     let account_id = signer.account_id();
 
@@ -124,7 +126,7 @@ pub async fn register_impl(
         .first_local::<SpSr25519>()
         .map_err(TangleError::from)?;
     let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
-    let signer = subxt::tx::PairSigner::new(sr25519_pair.0);
+    let signer = PairSigner::new(sr25519_pair.0);
 
     let ecdsa_key = keystore
         .first_local::<SpEcdsa>()
