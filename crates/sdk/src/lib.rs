@@ -1,9 +1,7 @@
 //! Blueprint SDK
 
 #[cfg(feature = "tangle")]
-pub mod tangle {
-    pub use tangle_blueprint_sdk::*;
-}
+pub use tangle_blueprint_sdk as tangle;
 
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
@@ -35,7 +33,21 @@ pub mod networking {
     pub use gadget_networking::*;
 }
 
+/// Event listener infrastructure for handling blueprint events
+pub use gadget_event_listeners as event_listeners;
+
+/// Procedural and derive macros for blueprint development
+pub use gadget_macros as macros;
+
+/// Core cryptographic primitives and utilities
+pub use gadget_crypto as crypto;
+
+/// Structured logging facilities
+pub use gadget_logging as logging;
+
+/// Blueprint execution and runtime utilities
+pub use gadget_runners as runners;
+
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
-pub use sp_core;
 pub use tokio;

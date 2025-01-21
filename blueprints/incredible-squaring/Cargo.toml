@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 # Gadget dependencies
+blueprint-sdk = { workspace = true, features = ["std", "tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-event-listeners = { workspace = true, features = ["std", "tangle"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
