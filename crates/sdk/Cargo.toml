@@ -27,12 +27,11 @@ gadget-client-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true, optional = true }
 gadget-clients = { workspace = true, optional = true }
 
-
 # Optional dependencies for testing
 gadget-client-tangle = { workspace = true, optional = true }
 gadget-tangle-testing-utils = { workspace = true, optional = true }
 gadget-testing-utils = { workspace = true, optional = true }
-tempfile = { version = "3.13.0", optional = true }
+tempfile = { workspace = true, optional = true }
 
 # Optional dependencies for build
 blueprint-metadata = { workspace = true, optional = true }
@@ -41,14 +40,15 @@ blueprint-build-utils = { workspace = true, optional = true }
 [features]
 default = ["std", "build", "networking"]
 std = [
-	"gadget-client-tangle?/std",
-	"gadget-networking?/std",
+	# Core
 	"gadget-keystore/std",
-	"gadget-macros?/std",
+	"gadget-config/std",
 	"gadget-event-listeners/std",
-	"gadget-client-networking?/std",
-	"sp-core/std",
-	"tokio/default",
+	"gadget-crypto/std",
+	"gadget-logging/std",
+	"gadget-runners/std",
+	# Macros
+	"gadget-macros?/std",
 ]
 
 macros = [
@@ -58,9 +58,9 @@ macros = [
 build = ["blueprint-metadata", "blueprint-build-utils"]
 
 tangle = [
-	"gadget-testing-utils?/tangle",
 	"gadget-runners/tangle",
 	"gadget-macros?/tangle",
+	"gadget-testing-utils?/tangle",
 ]
 
 evm = []
