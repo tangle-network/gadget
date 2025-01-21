@@ -67,15 +67,6 @@ pub fn soldeer_update() {
     // Try to find the `forge` executable dynamically
     let forge_executable = find_forge_executable();
 
-    println!("Populating dependencies directory");
-    let status = Command::new(&forge_executable)
-        .current_dir(&root)
-        .args(["soldeer", "install"])
-        .status()
-        .expect("Failed to execute 'forge soldeer update'");
-
-    assert!(status.success(), "'forge soldeer install' failed");
-
     let status = Command::new(&forge_executable)
         .current_dir(&root)
         .args(["soldeer", "update", "-d"])
