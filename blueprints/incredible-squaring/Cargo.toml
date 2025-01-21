@@ -21,8 +21,6 @@ tokio = { workspace = true, features = ["full"] }
 [build-dependencies]
 blueprint-metadata.workspace = true
 
-[features]
-
 [package.metadata.blueprint]
 manager = { Evm = "IncredibleSquaringBlueprint" }
 master_revision = "Latest"
