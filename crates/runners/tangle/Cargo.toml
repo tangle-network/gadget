@@ -16,8 +16,8 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 sp-core = { workspace = true, default-features = false }
 tangle-subxt = { workspace = true }
-subxt = { workspace = true }
 k256 = { workspace = true }
+futures = { workspace = true }
 
 [features]
 default = ["std"]
@@ -32,7 +32,6 @@ std = [
 	"gadget-config/std",
 	"gadget-config/keystore",
 	"sp-core/std",
-	"subxt/native",
 ]
 
 [dev-dependencies]

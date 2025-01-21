@@ -14,7 +14,7 @@ publish = false
 blueprint-sdk = { workspace = true, features = ["std", "macros", "tangle"] }
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["std", "macros", "tangle", "testing"] }
+blueprint-sdk = { workspace = true, features = ["std", "tangle", "testing"] }
 color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
 tokio = { workspace = true, features = ["full"] }
 

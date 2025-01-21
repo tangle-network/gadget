@@ -2707,7 +2707,6 @@ dependencies = [
  "gadget-runners",
  "gadget-tangle-testing-utils",
  "gadget-testing-utils",
- "sp-core",
  "tempfile",
  "tokio",
 ]
@@ -6758,6 +6757,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "sp-core",
+ "sp-runtime-interface",
  "thiserror 2.0.7",
 ]
 
@@ -6786,8 +6786,8 @@ dependencies = [
  "gadget-std",
  "k256",
  "serde",
- "subxt",
- "subxt-core",
+ "sp-runtime",
+ "tangle-subxt",
  "thiserror 2.0.7",
 ]
 
@@ -7123,6 +7123,7 @@ name = "gadget-runner-tangle"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures",
  "gadget-clients",
  "gadget-config",
  "gadget-crypto",
@@ -7133,7 +7134,6 @@ dependencies = [
  "gadget-utils",
  "k256",
  "sp-core",
- "subxt",
  "tangle-subxt",
  "thiserror 2.0.7",
  "tokio",
