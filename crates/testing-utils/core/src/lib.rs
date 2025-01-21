@@ -9,6 +9,7 @@ use std::path::Path;
 mod error;
 pub use error::TestRunnerError as Error;
 
+pub mod harness;
 pub mod runner;
 
 pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest> {

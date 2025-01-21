@@ -2,28 +2,35 @@ use gadget_config::GadgetConfiguration;
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::jobs::JobBuilder;
-use gadget_runners::core::runner::BlueprintRunner;
+use gadget_runners::core::runner::{BackgroundService, BlueprintRunner};
 
 pub struct TestRunner {
     inner: BlueprintRunner,
 }
 
 impl TestRunner {
-    pub fn new<J, T, C>(config: C, env: GadgetConfiguration, jobs: Vec<J>) -> Self
+    pub fn new<C>(config: C, env: GadgetConfiguration) -> Self
     where
-        J: Into<JobBuilder<T>> + 'static,
-        T: InitializableEventHandler + Send + 'static,
         C: BlueprintConfig,
     {
-        let mut runner = BlueprintRunner::new(config, env);
-
-        for job in jobs.into_iter() {
-            let job: JobBuilder<T> = job.into();
-            runner.job(job);
-        }
-
+        let runner = BlueprintRunner::new(config, env);
         TestRunner { inner: runner }
+    }
+
+    pub fn add_job<J>(&mut self, job: J) -> &mut Self
+    where
+        J: InitializableEventHandler + Send + 'static,
+    {
+        self.inner.job(job);
+        self
+    }
+
+    pub fn add_background_service<B>(&mut self, service: B) -> &mut Self
+    where
+        B: BackgroundService + Send + 'static,
+    {
+        self.inner.background_service(Box::new(service));
+        self
     }
 
     pub async fn run(&mut self) -> Result<(), Error> {
@@ -31,42 +38,16 @@ impl TestRunner {
     }
 }
 
-pub trait TestEnv {
+pub trait TestEnv: Sized {
     type Config: BlueprintConfig;
 
-    fn new<J, T>(
-        config: Self::Config,
-        env: GadgetConfiguration,
-        jobs: Vec<J>,
-    ) -> Result<Self, Error>
+    fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error>;
+    fn add_job<J>(&mut self, job: J)
     where
-        J: Into<JobBuilder<T>> + 'static,
-        T: InitializableEventHandler + Send + 'static,
-        Self: Sized;
+        J: InitializableEventHandler + Send + 'static;
+    fn add_background_service<B>(&mut self, service: B)
+    where
+        B: BackgroundService + Send + 'static;
     fn get_gadget_config(self) -> GadgetConfiguration;
     fn run_runner(&mut self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
-}
-
-pub struct GenericTestEnv<E: TestEnv> {
-    env: E,
-}
-
-impl<E: TestEnv> GenericTestEnv<E> {
-    pub fn new<J, EH>(
-        config: E::Config,
-        env: GadgetConfiguration,
-        jobs: Vec<J>,
-    ) -> Result<Self, Error>
-    where
-        J: Into<JobBuilder<EH>> + 'static,
-        EH: InitializableEventHandler + Send + 'static,
-    {
-        Ok(Self {
-            env: E::new(config, env, jobs)?,
-        })
-    }
-
-    pub async fn run_runner(&mut self) -> Result<(), Error> {
-        self.env.run_runner().await
-    }
 }

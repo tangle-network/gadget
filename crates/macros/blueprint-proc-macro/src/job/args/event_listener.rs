@@ -3,7 +3,10 @@ use crate::job::evm::EvmArgs;
 use crate::job::ParameterType;
 #[cfg(feature = "evm")]
 use proc_macro2::Ident;
-use quote::{format_ident, quote, quote_spanned};
+#[cfg(feature = "tangle")]
+use quote::quote_spanned;
+use quote::{format_ident, quote};
+#[cfg(feature = "tangle")]
 use std::str::FromStr;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 #[cfg(any(not(feature = "evm"), not(feature = "tangle")))]
@@ -272,6 +275,7 @@ impl EventListenerArgs {
 
 					#[cfg(feature = "evm")]
 					ListenerType::Evm => {
+                        let _ = param_ty;
 						quote! {
                             let #ident = inputs.#index;
                         }

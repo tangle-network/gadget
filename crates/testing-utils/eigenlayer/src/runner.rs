@@ -4,19 +4,19 @@ use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::error::RunnerError as Error;
 use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::tangle::tangle::TangleConfig;
+use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
 
-pub struct TangleTestEnv {
+pub struct EigenlayerBLSTestEnv {
     runner: TestRunner,
-    config: TangleConfig,
+    config: EigenlayerBLSConfig,
     gadget_config: GadgetConfiguration,
 }
 
-impl TestEnv for TangleTestEnv {
-    type Config = TangleConfig;
+impl TestEnv for EigenlayerBLSTestEnv {
+    type Config = EigenlayerBLSConfig;
 
     fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error> {
-        let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone());
+        let runner = TestRunner::new(config, env.clone());
 
         Ok(Self {
             runner,

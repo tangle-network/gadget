@@ -8,7 +8,11 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-std = { workspace = true }
+gadget-std = { workspace = true, features = ["std"] }
+gadget-logging = { workspace = true }
+gadget-keystore = { workspace = true, features = ["std", "eigenlayer", "evm"] }
+gadget-utils = { workspace = true, features = ["evm"] }
+alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
@@ -17,5 +21,7 @@ alloy-transport = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 testcontainers = { workspace = true }
-tokio = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
+futures = { workspace = true }

@@ -173,7 +173,7 @@ pub async fn register_impl(
     );
 
     // send the tx to the tangle and exit.
-    let result = gadget_utils::gadget_utils_tangle::tx::send(&client, &signer, &xt)
+    let result = gadget_utils::tangle::tx::send(&client, &signer, &xt)
         .await
         .map_err(|e| {
             <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))

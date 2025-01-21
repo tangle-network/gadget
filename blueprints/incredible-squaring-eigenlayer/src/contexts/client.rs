@@ -81,6 +81,4 @@ mod tests {
         let client = AggregatorClient::new("127.0.0.1:8545");
         assert!(client.is_ok());
     }
-
-    // Add more unit tests as needed
 }

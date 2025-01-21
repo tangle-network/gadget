@@ -76,6 +76,10 @@ jobs:
       matrix:
         package:
           [
+            # Blueprints
+            incredible-squaring-blueprint,
+            incredible-squaring-blueprint-eigenlayer,
+
             # Macros
             gadget-blueprint-proc-macro,
             gadget-blueprint-proc-macro-core,
@@ -107,6 +111,12 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Verify Forge installation
+        run: forge --version
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly

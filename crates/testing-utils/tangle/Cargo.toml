@@ -31,7 +31,7 @@ sp-core = { workspace = true }
 subxt = { workspace = true }
 tangle-subxt = { workspace = true }
 
-color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
+async-trait = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
 reqwest = { workspace = true, features = ["json", "default-tls"] }

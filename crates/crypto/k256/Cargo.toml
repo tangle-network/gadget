@@ -11,6 +11,8 @@ serde = { workspace = true }
 serde_bytes = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
+alloy-signer-local = { workspace = true }
+alloy-primitives = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true, features = ["alloc"] }

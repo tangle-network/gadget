@@ -19,6 +19,7 @@ gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle"] }
+
 tracing = { workspace = true }
 tracing-core = { workspace = true }
 

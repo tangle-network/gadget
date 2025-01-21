@@ -3,12 +3,18 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TestRunnerError {
+    #[error(transparent)]
+    Client(#[from] gadget_clients::Error),
     #[error("Runner setup failed: {0}")]
-    SetupError(String),
+    Setup(String),
     #[error("Runner execution failed: {0}")]
-    ExecutionError(String),
+    Execution(String),
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
-    RunnerError(#[from] RunnerError),
+    Keystore(#[from] gadget_keystore::Error),
+    #[error(transparent)]
+    Parse(#[from] url::ParseError),
+    #[error(transparent)]
+    Runner(#[from] RunnerError),
 }

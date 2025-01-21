@@ -4,7 +4,7 @@ use alloy_primitives::B256;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
-use gadget_utils::gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
+use gadget_utils::evm::{get_provider_http, get_wallet_provider_http};
 use symbiotic_rs::OperatorRegistry;
 
 #[derive(Clone, Copy, Default)]
