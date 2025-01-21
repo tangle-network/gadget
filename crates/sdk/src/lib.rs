@@ -1,8 +1,5 @@
 //! Blueprint SDK
 
-#[cfg(feature = "tangle")]
-pub use tangle_blueprint_sdk as tangle;
-
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
@@ -36,7 +33,7 @@ pub mod networking {
 /// Event listener infrastructure for handling blueprint events
 pub use gadget_event_listeners as event_listeners;
 
-/// Procedural and derive macros for blueprint development
+#[cfg(feature = "macros")]
 pub use gadget_macros as macros;
 
 /// Core cryptographic primitives and utilities
