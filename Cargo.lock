@@ -8508,6 +8508,7 @@ dependencies = [
  "alloy-signer-local",
  "async-trait",
  "blueprint-metadata",
+ "blueprint-sdk",
  "cargo-tangle",
  "color-eyre",
  "futures-util",

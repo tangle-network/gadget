@@ -10,12 +10,12 @@ repository.workspace = true
 [features]
 default = ["std", "build", "networking"]
 std = [
-    "tangle-blueprint-sdk?/std",
-    "gadget-client-tangle?/std",
-    "gadget-networking?/std",
-    "gadget-client-networking?/std",
-    "sp-core/std",
-    "tokio/default",
+	"gadget-client-tangle?/std",
+	"gadget-networking?/std",
+	"gadget-keystore/std",
+	"gadget-client-networking?/std",
+	"sp-core/std",
+	"tokio/default",
 ]
 
 macros = [
@@ -25,28 +25,28 @@ macros = [
 build = ["blueprint-metadata", "blueprint-build-utils"]
 
 tangle = [
-    "tangle-blueprint-sdk",
-    "gadget-testing-utils?/tangle"
+	"tangle-blueprint-sdk",
+	"gadget-testing-utils?/tangle"
 ]
 
 eigenlayer = [
-    # TODO: Add eigenlayer SDK
+	# TODO: Add eigenlayer SDK
 ]
 
 testing = [
-    "gadget-client-tangle",
-    "gadget-tangle-testing-utils",
-    "gadget-testing-utils",
-    "tempfile"
+	"gadget-client-tangle",
+	"gadget-tangle-testing-utils",
+	"gadget-testing-utils",
+	"tempfile"
 ]
 
 networking = [
-    "gadget-networking",
-    "gadget-client-networking",
-    "gadget-contexts/networking",
-    "gadget-clients/networking",
-    "gadget-keystore/std",
-    "gadget-config/networking",
+	"gadget-networking",
+	"gadget-client-networking",
+	"gadget-contexts/networking",
+	"gadget-clients/networking",
+	"gadget-keystore/std",
+	"gadget-config/networking",
 ]
 
 round-based-compat = ["gadget-networking/round-based-compat"]
