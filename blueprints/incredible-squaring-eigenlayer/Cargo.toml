@@ -10,17 +10,29 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-eigensdk = { workspace = true }
+# Gadget Dependencies
+gadget-std = { workspace = true, features = ["std"] }
+gadget-event-listeners = { workspace = true, features = ["std", "evm"] }
+gadget-macros = { workspace = true, features = ["evm", "std"] }
+gadget-contexts = { workspace = true, features = ["std", "eigenlayer", "keystore", "evm"] }
+gadget-crypto = { workspace = true, features = ["default"] }
+gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
+gadget-config = { workspace = true, features = ["std"] }
+gadget-logging = { workspace = true, features = ["std"] }
+gadget-runners = { workspace = true, features = ["eigenlayer"] }
+gadget-utils = { workspace = true, features = ["evm"] }
+gadget-keystore = { workspace = true, features = ["std", "evm", "eigenlayer"] }
+
+
+eigensdk = { workspace = true, features = ["crypto-bls"] }
 tracing = { workspace = true }
 async-trait = { workspace = true }
-gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
 lazy_static = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
 tokio-util = { workspace = true }
 sp-core = { workspace = true }
-subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
 alloy-contract = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-json-abi = { workspace = true, features = ["serde_json"] }
@@ -56,8 +68,7 @@ jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]
-blueprint-test-utils = { workspace = true }
-gadget-io = { workspace = true }
+gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
 tempfile = { workspace = true }
 
 [build-dependencies]

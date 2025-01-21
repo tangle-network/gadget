@@ -1,23 +1,21 @@
 use alloy_network::EthereumWallet;
 use alloy_primitives::Address;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::Result;
-use gadget_sdk::utils::evm::get_wallet_provider_http;
-use gadget_sdk::{
-    info,
-    runners::{eigenlayer::EigenlayerBLSConfig, BlueprintRunner},
+use gadget_logging::info;
+use gadget_runners::core::runner::BlueprintRunner;
+use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
+use gadget_utils::evm::get_wallet_provider_http;
+use incredible_squaring_blueprint_eigenlayer::constants::{
+    AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS,
 };
+use incredible_squaring_blueprint_eigenlayer::contexts::aggregator::AggregatorContext;
+use incredible_squaring_blueprint_eigenlayer::contexts::client::AggregatorClient;
 use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
-use incredible_squaring_blueprint_eigenlayer::{
-    constants::{AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS},
-    contexts::{aggregator::AggregatorContext, client::AggregatorClient},
-    jobs::{
-        compute_x_square::XsquareEigenEventHandler, initialize_task::InitializeBlsTaskEventHandler,
-    },
-    IncredibleSquaringTaskManager,
-};
+use incredible_squaring_blueprint_eigenlayer::jobs::compute_x_square::XsquareEigenEventHandler;
+use incredible_squaring_blueprint_eigenlayer::jobs::initialize_task::InitializeBlsTaskEventHandler;
+use incredible_squaring_blueprint_eigenlayer::IncredibleSquaringTaskManager;
 
-#[gadget_sdk::main(env)]
+#[gadget_macros::main(env)]
 async fn main() {
     let signer: PrivateKeySigner = AGGREGATOR_PRIVATE_KEY
         .parse()
@@ -25,7 +23,7 @@ async fn main() {
     let wallet = EthereumWallet::from(signer);
     let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet.clone());
 
-    let server_address = format!("{}:{}", env.target_addr, 8081);
+    let server_address = format!("{}:{}", "127.0.0.1", 8081);
     let eigen_client_context = EigenSquareContext {
         client: AggregatorClient::new(&server_address)?,
         std_config: env.clone(),

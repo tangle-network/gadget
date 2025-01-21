@@ -1,11 +1,12 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
+    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager, ProcessorError,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
-use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::{info, job};
-use std::{convert::Infallible, ops::Deref};
+use gadget_event_listeners::evm::EvmContractEventListener;
+use gadget_logging::info;
+use gadget_macros::job;
+use gadget_std::{convert::Infallible, ops::Deref};
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;
@@ -61,7 +62,7 @@ pub async fn convert_event_to_inputs(
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),
-) -> Result<(Task, u32), gadget_sdk::Error> {
+) -> Result<Option<(Task, u32)>, ProcessorError> {
     let task_index = event.0.taskIndex;
-    Ok((event.0.task, task_index))
+    Ok(Some((event.0.task, task_index)))
 }

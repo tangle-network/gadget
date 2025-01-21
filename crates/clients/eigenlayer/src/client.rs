@@ -10,11 +10,22 @@ use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
 /// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
+#[derive(Clone)]
 pub struct EigenlayerClient {
     pub config: GadgetConfiguration,
 }
 
 impl EigenlayerClient {
+    /// Creates a new instance of the [`EigenlayerClient`] given a [`GadgetConfiguration`].
+    pub fn new(config: GadgetConfiguration) -> Self {
+        Self { config }
+    }
+
+    /// Get the [`GadgetConfiguration`] for this client
+    pub fn config(&self) -> &GadgetConfiguration {
+        &self.config
+    }
+
     /// Get the provider for this client's http endpoint
     ///
     /// # Returns

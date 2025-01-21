@@ -5,6 +5,9 @@ pub enum RunnerError {
     #[error("Protocol error: {0}")]
     InvalidProtocol(String),
 
+    #[error("Keystore error: {0}")]
+    Keystore(String),
+
     #[error("Signature error: {0}")]
     SignatureError(String),
 

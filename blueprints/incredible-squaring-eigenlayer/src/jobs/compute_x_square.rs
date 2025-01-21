@@ -2,17 +2,21 @@
 use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
-use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
-use alloy_primitives::keccak256;
-use alloy_primitives::{Bytes, U256};
+use crate::{
+    IncredibleSquaringTaskManager, ProcessorError, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+};
+use alloy_primitives::{keccak256, Bytes, U256};
 use alloy_sol_types::SolType;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
-use gadget_sdk::contexts::KeystoreContext;
-use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::keystore::BackendExt;
-use gadget_sdk::{error, info, job};
+use gadget_contexts::keystore::KeystoreContext;
+use gadget_crypto::bn254::ArkBlsBn254;
+use gadget_event_listeners::evm::EvmContractEventListener;
+use gadget_keystore::backends::Backend;
+use gadget_logging::{error, info};
+use gadget_macros::ext::keystore::backends::bn254::Bn254Backend;
+use gadget_macros::job;
 use std::{convert::Infallible, ops::Deref};
 
 /// Sends a signed task response to the BLS Aggregator.
@@ -47,14 +51,19 @@ pub async fn xsquare_eigen(
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    let bls_key_pair = match ctx.keystore().map(|ks| ks.bls_bn254_key()) {
-        Ok(kp) => match kp {
-            Ok(k) => k,
-            Err(e) => return Ok(0),
+    let bn254_public = ctx.keystore().first_local::<ArkBlsBn254>().unwrap();
+    let bn254_secret = match ctx.keystore().expose_bls_bn254_secret(&bn254_public) {
+        Ok(s) => match s {
+            Some(s) => s,
+            None => return Ok(0),
         },
+        Err(_) => return Ok(0),
+    };
+    let bls_key_pair = match BlsKeyPair::new(bn254_secret.0.to_string()) {
+        Ok(pair) => pair,
         Err(e) => return Ok(0),
     };
-    let operator_id: OperatorId = operator_id_from_key(bls_key_pair.clone());
+    let operator_id = operator_id_from_key(bls_key_pair.clone());
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let msg_hash = keccak256(<TaskResponse as SolType>::abi_encode(&task_response));
@@ -100,17 +109,17 @@ pub async fn convert_event_to_inputs(
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),
-) -> Result<(U256, u32, Bytes, u8, u32), gadget_sdk::Error> {
+) -> Result<Option<(U256, u32, Bytes, u8, u32)>, ProcessorError> {
     let task_index = event.taskIndex;
     let number_to_be_squared = event.task.numberToBeSquared;
     let task_created_block = event.task.taskCreatedBlock;
     let quorum_numbers = event.task.quorumNumbers;
     let quorum_threshold_percentage = event.task.quorumThresholdPercentage.try_into().unwrap();
-    Ok((
+    Ok(Some((
         number_to_be_squared,
         task_created_block,
         quorum_numbers,
         quorum_threshold_percentage,
         task_index,
-    ))
+    )))
 }

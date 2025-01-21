@@ -11,11 +11,13 @@ repository.workspace = true
 gadget-core-testing-utils = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true, optional = true }
 gadget-tangle-testing-utils = { workspace = true, optional = true }
+gadget-eigenlayer-testing-utils = { workspace = true, optional = true }
 
 [features]
-default = ["tangle"]
+default = ["tangle", "eigenlayer"]
 anvil = ["gadget-anvil-testing-utils"]
 tangle = ["gadget-tangle-testing-utils"]
+eigenlayer = ["gadget-eigenlayer-testing-utils"]
 
 [lints]
 workspace = true
