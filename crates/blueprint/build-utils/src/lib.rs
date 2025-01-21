@@ -15,7 +15,7 @@ use gadget_std::process::Command;
 pub fn build_contracts(contract_dirs: Vec<&str>) {
     for dir in contract_dirs.clone() {
         let dir = format!("{}/src", dir);
-        println!("cargo::rerun-if-changed={dir}");
+        println!("cargo:rerun-if-changed={dir}");
     }
 
     // Get the project root directory
