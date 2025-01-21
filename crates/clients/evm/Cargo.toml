@@ -35,6 +35,7 @@ gadget-rpc-calls = { workspace = true }
 gadget-utils-evm = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true }
 alloy-signer-local = { workspace = true }
+testcontainers = { workspace = true }
 
 [features]
 default = ["std"]
