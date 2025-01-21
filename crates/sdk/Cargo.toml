@@ -38,7 +38,7 @@ blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
 [features]
-default = ["std", "build", "networking"]
+default = ["std"]
 std = [
 	# Core
 	"gadget-keystore/std",
