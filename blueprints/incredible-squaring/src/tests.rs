@@ -1,12 +1,13 @@
 use crate::{MyContext, XsquareEventHandler};
+use blueprint_sdk::logging::setup_log;
+use blueprint_sdk::testing::utils::harness::TestHarness;
+use blueprint_sdk::testing::utils::runner::TestEnv;
+use blueprint_sdk::testing::utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 use color_eyre::Result;
-use gadget_testing_utils::harness::TestHarness;
-use gadget_testing_utils::runner::TestEnv;
-use gadget_testing_utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<()> {
-    gadget_logging::setup_log();
+    setup_log();
 
     // Initialize test harness (node, keys, deployment)
     let temp_dir = tempfile::TempDir::new()?;

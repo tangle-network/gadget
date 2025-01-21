@@ -1,10 +1,11 @@
-use gadget_logging::info;
-use gadget_macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
-use gadget_runners::core::runner::BlueprintRunner;
-use gadget_runners::tangle::tangle::TangleConfig;
+use blueprint_sdk::logging::info;
+use blueprint_sdk::macros as gadget_macros;
+use blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::runners::tangle::tangle::TangleConfig;
 use incredible_squaring_blueprint as blueprint;
 
-#[gadget_macros::main(env)]
+#[blueprint_sdk::main(env)]
 async fn main() {
     let context = blueprint::MyContext {
         env: env.clone(),

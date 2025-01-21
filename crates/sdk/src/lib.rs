@@ -35,6 +35,8 @@ pub use gadget_event_listeners as event_listeners;
 
 #[cfg(feature = "macros")]
 pub use gadget_macros as macros;
+#[cfg(feature = "macros")]
+pub use gadget_macros::main;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;
