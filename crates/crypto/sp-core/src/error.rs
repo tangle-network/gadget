@@ -16,7 +16,10 @@ pub struct SecretStringErrorWrapper(pub SecretStringError);
 impl gadget_std::fmt::Display for SecretStringErrorWrapper {
     fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         match &self.0 {
+            #[cfg(feature = "std")]
             SecretStringError::InvalidFormat(err) => write!(f, "Invalid format: {err}"),
+            #[cfg(not(feature = "std"))] // TODO: need to fix upstream in sp-core
+            SecretStringError::InvalidFormat(_err) => write!(f, "Invalid format"),
             SecretStringError::InvalidPhrase => write!(f, "Invalid phrase"),
             SecretStringError::InvalidPassword => write!(f, "Invalid password"),
             SecretStringError::InvalidSeed => write!(f, "Invalid seed"),
