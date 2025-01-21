@@ -2698,12 +2698,16 @@ dependencies = [
  "gadget-clients",
  "gadget-config",
  "gadget-contexts",
+ "gadget-crypto",
+ "gadget-event-listeners",
  "gadget-keystore",
+ "gadget-logging",
+ "gadget-macros",
  "gadget-networking",
+ "gadget-runners",
  "gadget-tangle-testing-utils",
  "gadget-testing-utils",
  "sp-core",
- "tangle-blueprint-sdk",
  "tempfile",
  "tokio",
 ]
@@ -17754,20 +17758,6 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "tangle-blueprint-sdk"
-version = "0.1.0"
-dependencies = [
- "gadget-config",
- "gadget-crypto",
- "gadget-crypto-tangle-pair-signer",
- "gadget-event-listeners",
- "gadget-logging",
- "gadget-macros",
- "gadget-runners",
- "gadget-store-local-database",
 ]
 
 [[package]]
