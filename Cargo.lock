@@ -2707,6 +2707,7 @@ dependencies = [
  "gadget-runners",
  "gadget-tangle-testing-utils",
  "gadget-testing-utils",
+ "tangle-subxt",
  "tempfile",
  "tokio",
 ]
