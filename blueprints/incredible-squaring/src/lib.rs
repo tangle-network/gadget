@@ -7,7 +7,6 @@ use blueprint_sdk::macros::job;
 use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::macros as gadget_macros;
 
-// TODO: Uncomment once tests are working
 #[cfg(test)]
 mod tests;
 
