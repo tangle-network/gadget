@@ -44,6 +44,8 @@ std = [
 	"gadget-client-tangle?/std",
 	"gadget-networking?/std",
 	"gadget-keystore/std",
+	"gadget-macros?/std",
+	"gadget-event-listeners/std",
 	"gadget-client-networking?/std",
 	"sp-core/std",
 	"tokio/default",
@@ -56,14 +58,19 @@ macros = [
 build = ["blueprint-metadata", "blueprint-build-utils"]
 
 tangle = [
-	"gadget-testing-utils?/tangle"
+	"gadget-testing-utils?/tangle",
+	"gadget-runners/tangle",
+	"gadget-macros?/tangle",
 ]
+
+evm = []
 
 eigenlayer = [
 	# TODO: Add eigenlayer SDK
 ]
 
 testing = [
+	"std",
 	"gadget-client-tangle",
 	"gadget-tangle-testing-utils",
 	"gadget-testing-utils",
