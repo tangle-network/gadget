@@ -32,7 +32,6 @@ broken_intra_doc_links = "deny"
 [workspace.dependencies]
 # SDKs (overarching crates that include all other crates)
 blueprint-sdk = { version = "0.1.0", path = "./crates/sdk", default-features = false }
-tangle-blueprint-sdk = { version = "0.1.0", path = "./crates/sdk/tangle", default-features = false }
 
 # Blueprint Examples
 incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
