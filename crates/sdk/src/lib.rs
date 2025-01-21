@@ -1,5 +1,8 @@
 //! Blueprint SDK
 
+#[cfg(feature = "tangle")]
+pub use tangle_subxt;
+
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
