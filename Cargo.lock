@@ -8510,20 +8510,10 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
- "alloy-signer-local",
- "async-trait",
  "blueprint-metadata",
  "blueprint-sdk",
- "cargo-tangle",
  "color-eyre",
- "futures-util",
- "gadget-client-tangle",
- "gadget-testing-utils",
- "tempfile",
  "tokio",
- "tracing",
- "tracing-core",
- "url",
 ]
 
 [[package]]

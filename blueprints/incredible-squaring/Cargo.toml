@@ -12,24 +12,11 @@ publish = false
 [dependencies]
 # Gadget dependencies
 blueprint-sdk = { workspace = true, features = ["std", "macros", "tangle"] }
-tracing = { workspace = true }
-tracing-core = { workspace = true }
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["std", "macros", "tangle", "testing"] }
-
-# TODO: Move into testing crate
-alloy-signer-local = { workspace = true }
 color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
-cargo-tangle = { workspace = true, features = ["tangle"] }
-futures-util = { workspace = true }
-
 tokio = { workspace = true, features = ["full"] }
-tempfile = { workspace = true }
-gadget-client-tangle = { workspace = true }
-gadget-testing-utils = { workspace = true, features = ["tangle"] }
-async-trait = { workspace = true }
-url = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata.workspace = true
