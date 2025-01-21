@@ -2690,6 +2690,27 @@ dependencies = [
 [[package]]
 name = "blueprint-sdk"
 version = "0.1.0"
+dependencies = [
+ "blueprint-build-utils",
+ "blueprint-metadata",
+ "gadget-client-networking",
+ "gadget-client-tangle",
+ "gadget-clients",
+ "gadget-config",
+ "gadget-contexts",
+ "gadget-crypto",
+ "gadget-event-listeners",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-macros",
+ "gadget-networking",
+ "gadget-runners",
+ "gadget-tangle-testing-utils",
+ "gadget-testing-utils",
+ "sp-core",
+ "tempfile",
+ "tokio",
+]
 
 [[package]]
 name = "blueprint-util-meta"
@@ -6546,6 +6567,8 @@ dependencies = [
  "alloy-primitives 0.8.15",
  "clap",
  "gadget-config",
+ "gadget-keystore",
+ "gadget-networking",
  "gadget-std",
  "libp2p",
  "serde",
@@ -7017,6 +7040,7 @@ dependencies = [
  "hex",
  "itertools 0.13.0",
  "k256",
+ "lazy_static",
  "libp2p",
  "lru-mem",
  "parking_lot 0.12.3",
