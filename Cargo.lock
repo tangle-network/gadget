@@ -6502,6 +6502,7 @@ dependencies = [
  "hex",
  "serde",
  "serde_json",
+ "testcontainers",
  "thiserror 2.0.7",
  "tokio",
  "url",
