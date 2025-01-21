@@ -40,9 +40,13 @@ pub mod networking {
 pub use gadget_event_listeners as event_listeners;
 
 #[cfg(feature = "macros")]
-pub use gadget_macros as macros;
+mod macros_feat {
+    pub use gadget_macros as macros;
+    pub use gadget_macros::job;
+    pub use gadget_macros::main;
+}
 #[cfg(feature = "macros")]
-pub use gadget_macros::main;
+pub use macros_feat::*;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;

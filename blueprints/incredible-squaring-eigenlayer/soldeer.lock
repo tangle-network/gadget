@@ -2,7 +2,7 @@
 name = "eigenlayer-middleware"
 version = "0.4.3"
 source = "https://github.com/Layr-Labs/eigenlayer-middleware"
-checksum = "512ce7326f35e8060b9d46e23f9c159c0000b546"
+checksum = "530e98155fbb92cf1d26a5f7dee914a26f27f048"
 
 [[dependencies]]
 name = "forge-std"
