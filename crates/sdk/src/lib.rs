@@ -3,10 +3,13 @@
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
-    /// Tangle-specific client for testing
-    pub use gadget_client_tangle as client_tangle;
     /// Tangle-specific testing utilities
-    pub use gadget_tangle_testing_utils as tangle_utils;
+    #[cfg(feature = "tangle")]
+    pub mod tangle {
+        pub use gadget_client_tangle as client;
+        pub use gadget_tangle_testing_utils::*;
+    }
+
     /// General testing utilities for blueprints
     pub use gadget_testing_utils as utils;
     /// Temporary file and directory management for tests
