@@ -1,4 +1,4 @@
-error: No field with #[config] attribute found, please add #[config] to the field that holds the `gadget_sdk::config::GadgetConfiguration`
+error: No field with #[config] attribute found, please add #[config] to the field that holds the `gadget_config::GadgetConfiguration`
  --> tests/ui/missing_config_attr.rs:5:8
   |
 5 | struct MyContext {

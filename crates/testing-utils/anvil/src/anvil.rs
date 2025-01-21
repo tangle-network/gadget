@@ -1,16 +1,42 @@
+use crate::error::Error;
+use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_provider::network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types_eth::TransactionReceipt;
+use alloy_transport::Transport;
+use gadget_logging::{error, info};
 use gadget_std::path::{Path, PathBuf};
+use gadget_std::sync::{Arc, Mutex};
+use gadget_std::time::Duration;
 use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
-    ContainerAsync, GenericImage, ImageExt,
+    ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
 
-pub type Container = ContainerAsync<GenericImage>;
+pub type ContainerInner = ContainerAsync<GenericImage>;
+pub struct Container {
+    inner: Arc<Mutex<ContainerInner>>,
+}
+
+impl Container {
+    pub fn new(container: ContainerInner) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(container)),
+        }
+    }
+
+    pub fn inner(&self) -> Arc<Mutex<ContainerInner>> {
+        self.inner.clone()
+    }
+}
 
 pub const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 pub const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
 pub const ANVIL_STATE_PATH: &str = "./crates/testing-utils/anvil/data"; // relative path from the project root
+
+const DEFAULT_ANVIL_STATE_PATH: &str = "./crates/testing-utils/anvil/data/state.json"; // relative path from the project root
 
 fn workspace_dir() -> PathBuf {
     let output = gadget_std::process::Command::new(env!("CARGO"))
@@ -71,6 +97,8 @@ pub async fn start_anvil_container(
         });
     }
 
+    mine_anvil_blocks(&container, 200).await;
+
     let port = container
         .ports()
         .await
@@ -83,14 +111,14 @@ pub async fn start_anvil_container(
     let ws_endpoint = format!("ws://localhost:{}", port);
     println!("Anvil WS endpoint: {}", ws_endpoint);
 
-    mine_anvil_blocks(&container, 200).await;
+    let container = Container::new(container);
 
     (container, http_endpoint, ws_endpoint)
 }
 
 /// Mine Anvil blocks.
-pub async fn mine_anvil_blocks(container: &Container, n: u32) {
-    let mut output = container
+pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
+    let _output = container
         .exec(ExecCommand::new([
             "cast",
             "rpc",
@@ -99,21 +127,93 @@ pub async fn mine_anvil_blocks(container: &Container, n: u32) {
         ]))
         .await
         .expect("Failed to mine anvil blocks");
-
-    // blocking operation until the mining execution finishes
-    output.stdout_to_vec().await.unwrap();
-    assert_eq!(output.exit_code().await.unwrap().unwrap(), 0);
 }
 
-pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
-    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-    "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
-    "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
-    "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
-    "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e",
-    "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356",
-    "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97",
-    "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
-];
+use testcontainers::{ContainerAsync, GenericImage};
+
+/// Starts an Anvil container for testing from the given state file in JSON format.
+///
+/// # Arguments
+/// * `path` - The path to the save-state file.
+/// * `include_logs` - If true, testnet output will be printed to the console.
+///
+/// # Returns
+/// `(container, http_endpoint, ws_endpoint)`
+///    - `container` as a [`ContainerAsync`] - The Anvil container.
+///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
+///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
+pub async fn start_anvil_testnet(path: &str, include_logs: bool) -> (Container, String, String) {
+    let (container, http_endpoint, ws_endpoint) = start_anvil_container(path, include_logs).await;
+    std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
+    std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
+
+    // Sleep to give the testnet time to spin up
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    (container, http_endpoint, ws_endpoint)
+}
+
+/// Starts an Anvil container for testing from this library's default state file.
+///
+/// # Arguments
+/// * `include_logs` - If true, testnet output will be printed to the console.
+///
+/// # Returns
+/// `(container, http_endpoint, ws_endpoint)`
+///    - `container` as a [`ContainerAsync`] - The Anvil container.
+///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
+///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
+pub async fn start_default_anvil_testnet(include_logs: bool) -> (Container, String, String) {
+    info!("Starting Anvil testnet from default state file");
+    start_anvil_container(DEFAULT_ANVIL_STATE_PATH, include_logs).await
+}
+
+pub async fn get_receipt<T, P, D>(
+    call: CallBuilder<T, P, D, Ethereum>,
+) -> Result<TransactionReceipt, Error>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum>,
+    D: CallDecoder,
+{
+    let pending_tx = match call.send().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            error!("Failed to send transaction: {:?}", e);
+            return Err(e.into());
+        }
+    };
+
+    let receipt = match pending_tx.get_receipt().await {
+        Ok(receipt) => receipt,
+        Err(e) => {
+            error!("Failed to get transaction receipt: {:?}", e);
+            return Err(e.into());
+        }
+    };
+
+    Ok(receipt)
+}
+
+/// Waits for the given `successful_responses` Mutex to be greater than or equal to `task_response_count`.
+pub async fn wait_for_responses(
+    successful_responses: Arc<Mutex<usize>>,
+    task_response_count: usize,
+    timeout_duration: Duration,
+) -> Result<Result<(), Error>, tokio::time::error::Elapsed> {
+    tokio::time::timeout(timeout_duration, async move {
+        loop {
+            let count = match successful_responses.lock() {
+                Ok(guard) => *guard,
+                Err(e) => {
+                    return Err(Error::WaitResponse(e.to_string()));
+                }
+            };
+            if count >= task_response_count {
+                info!("Successfully received {} task responses", count);
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await
+}

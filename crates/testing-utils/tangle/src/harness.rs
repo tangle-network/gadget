@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::{
     keys::inject_tangle_key,
     node::{
@@ -8,29 +9,35 @@ use crate::{
     runner::TangleTestEnv,
     InputValue, OutputValue,
 };
-use color_eyre::Result;
 use gadget_client_tangle::client::TangleClient;
 use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
-use gadget_core_testing_utils::runner::TestEnv;
+use gadget_core_testing_utils::{
+    harness::{BaseTestHarness, TestHarness},
+    runner::TestEnv,
+};
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
-use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use gadget_runners::{
-    core::jobs::JobBuilder,
-    tangle::tangle::{PriceTargets, TangleConfig},
-};
+use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
     events::JobResultSubmitted,
 };
+use tempfile::TempDir;
 use url::Url;
+
+/// Configuration for the Tangle test harness
+#[derive(Default)]
+pub struct TangleTestConfig {
+    pub http_endpoint: Option<Url>,
+    pub ws_endpoint: Option<Url>,
+}
 
 /// Test harness for Tangle network tests
 pub struct TangleTestHarness {
-    pub env: GadgetConfiguration,
+    base: BaseTestHarness<TangleTestConfig>,
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
     client: TangleClient,
@@ -41,24 +48,28 @@ pub struct TangleTestHarness {
     _node: crate::node::testnet::SubstrateNode,
 }
 
-impl TangleTestHarness {
-    /// Creates a new test harness with a running local node and deploys MBSM if needed
-    pub async fn setup() -> Result<Self> {
+#[async_trait::async_trait]
+impl TestHarness for TangleTestHarness {
+    type Config = TangleTestConfig;
+    type Error = Error;
+
+    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false)).await?;
+        let node = run(NodeConfig::new(false))
+            .await
+            .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
         // Setup testing directory
-        let temp_dir = tempfile::TempDir::new()?;
-        let temp_dir_path = temp_dir.path().to_string_lossy().into_owned();
-        inject_tangle_key(&temp_dir_path, "//Alice")?;
+        let test_dir_path = test_dir.path().to_string_lossy().into_owned();
+        inject_tangle_key(&test_dir_path, "//Alice")?;
 
         // Create context config
         let context_config = ContextConfig::create_tangle_config(
             http_endpoint.clone(),
             ws_endpoint.clone(),
-            temp_dir_path,
+            test_dir_path,
             None,
             SupportedChains::LocalTestnet,
             0,
@@ -66,10 +77,19 @@ impl TangleTestHarness {
         );
 
         // Load environment
-        let mut env = gadget_macros::ext::config::load(context_config)?;
+        let mut env = gadget_macros::ext::config::load(context_config)
+            .map_err(|e| Error::Setup(e.to_string()))?;
 
         // Always set test mode, dont require callers to set env vars
         env.test_mode = true;
+
+        // Create config
+        let config = TangleTestConfig {
+            http_endpoint: Some(http_endpoint.clone()),
+            ws_endpoint: Some(ws_endpoint.clone()),
+        };
+
+        let base = BaseTestHarness::new(env.clone(), config);
 
         // Setup signers
         let keystore = env.keystore();
@@ -80,40 +100,52 @@ impl TangleTestHarness {
         let ecdsa_public = keystore.first_local::<SpEcdsa>()?;
         let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_public)?;
         let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
-        let alloy_key = ecdsa_signer.alloy_key()?;
+        let alloy_key = ecdsa_signer
+            .alloy_key()
+            .map_err(|e| Error::Setup(e.to_string()))?;
 
         let client = env.tangle_client().await?;
-        let context = Self {
-            env,
+        let harness = Self {
+            base,
             http_endpoint,
             ws_endpoint,
             client,
             sr25519_signer,
             ecdsa_signer,
             alloy_key,
-            _temp_dir: temp_dir,
+            _temp_dir: test_dir,
             _node: node,
         };
 
         // Deploy MBSM if needed
-        context
+        harness
             .deploy_mbsm_if_needed()
             .await
-            .map_err(|e| color_eyre::eyre::eyre!("Failed to deploy MBSM: {}", e))?;
+            .map_err(|_| Error::Setup("Failed to deploy MBSM".to_string()))?;
 
-        Ok(context)
+        Ok(harness)
     }
 
+    fn env(&self) -> &GadgetConfiguration {
+        &self.base.env
+    }
+
+    fn config(&self) -> &Self::Config {
+        &self.base.config
+    }
+}
+
+impl TangleTestHarness {
     /// Gets a reference to the Tangle client
     pub fn client(&self) -> &TangleClient {
         &self.client
     }
 
     /// Deploys MBSM if not already deployed
-    async fn deploy_mbsm_if_needed(&self) -> Result<()> {
+    async fn deploy_mbsm_if_needed(&self) -> Result<(), Error> {
         let latest_revision = transactions::get_latest_mbsm_revision(&self.client)
             .await
-            .map_err(|e| color_eyre::eyre::eyre!("Failed to get latest MBSM revision: {}", e))?;
+            .map_err(|e| Error::Setup(e.to_string()))?;
 
         if let Some((rev, addr)) = latest_revision {
             tracing::debug!("MBSM is deployed at revision #{rev} at address {addr}");
@@ -128,7 +160,8 @@ impl TangleTestHarness {
             self.alloy_key.clone(),
             bytecode,
         )
-        .await?;
+        .await
+        .map_err(|e| Error::Setup(e.to_string()))?;
 
         Ok(())
     }
@@ -165,18 +198,17 @@ impl TangleTestHarness {
     }
 
     /// Deploys a blueprint from the current directory and returns its ID
-    pub async fn deploy_blueprint(&self) -> Result<u64> {
+    pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
         let opts = self.create_deploy_opts(manifest_path);
-        let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts).await?;
+        let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts)
+            .await
+            .map_err(|e| Error::Setup(e.to_string()))?;
         Ok(blueprint_id)
     }
 
     /// Sets up a complete service environment with initialized event handlers
-    pub async fn setup_service<E>(&self, event_handlers: Vec<E>) -> Result<(u64, u64)>
-    where
-        E: InitializableEventHandler + Send + 'static,
-    {
+    pub async fn setup_services(&self) -> Result<(TangleTestEnv, u64), Error> {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
 
@@ -189,23 +221,12 @@ impl TangleTestHarness {
             preferences,
         )
         .await
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup operator and service: {}", e))?;
+        .map_err(|e| Error::Setup(e.to_string()))?;
 
         // Create and spawn test environment
-        let mut test_env = TangleTestEnv::new(
-            TangleConfig::default(),
-            self.env.clone(),
-            event_handlers.into_iter().map(JobBuilder::new).collect(),
-        )?;
+        let test_env = TangleTestEnv::new(TangleConfig::default(), self.env().clone())?;
 
-        tokio::spawn(async move {
-            test_env.run_runner().await.unwrap();
-        });
-
-        // Wait for environment to initialize
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-        Ok((blueprint_id, service_id))
+        Ok((test_env, service_id))
     }
 
     /// Executes a job and verifies its output matches the expected result
@@ -224,7 +245,7 @@ impl TangleTestHarness {
         job_id: u8,
         inputs: Vec<InputValue>,
         expected: Vec<OutputValue>,
-    ) -> Result<JobResultSubmitted> {
+    ) -> Result<JobResultSubmitted, Error> {
         let results = submit_and_verify_job(
             &self.client,
             &self.sr25519_signer,
@@ -234,7 +255,7 @@ impl TangleTestHarness {
             expected,
         )
         .await
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to execute job: {}", e))?;
+        .map_err(|e| Error::Setup(e.to_string()))?;
 
         Ok(results)
     }

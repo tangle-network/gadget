@@ -28,7 +28,7 @@ mod p2p;
 mod tangle;
 
 const CONFIG_TAG_NAME: &str = "config";
-const CONFIG_TAG_TYPE: &str = "gadget_sdk::config::GadgetConfiguration";
+const CONFIG_TAG_TYPE: &str = "gadget_config::GadgetConfiguration";
 
 /// Derive macro for generating Context Extensions trait implementation for `KeystoreContext`.
 #[proc_macro_derive(KeystoreContext, attributes(config))]

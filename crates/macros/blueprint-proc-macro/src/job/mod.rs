@@ -218,7 +218,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
     let (mut event_handler_args, _event_handler_arg_types) =
         get_event_handler_args(param_types, params)?;
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
+    #[cfg(feature = "tangle")]
     let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
+    #[cfg(not(feature = "tangle"))]
+    let (fn_name_string, _job_def_name, _job_id_name) = get_job_id_field_name(input);
 
     // Generate Event Listener
     let mut event_listener_gen = vec![];
@@ -244,7 +247,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
         // Then, pass that into the EventFlowWrapper
         let fn_name_ident = &input.sig.ident;
         let static_ctx_get_override = quote! { CTX.get().unwrap() };
+        #[cfg(feature = "tangle")]
         let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
+            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
+        #[cfg(not(feature = "tangle"))]
+        let (_ctx_pos_in_ordered_inputs, mut ordered_inputs) =
             get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
 
         let asyncness = get_asyncness(input);
@@ -513,7 +520,7 @@ pub fn generate_autogen_struct(
 
         required_fields.push(quote! {
             pub contract: #instance_name,
-            pub contract_instance: std::sync::OnceLock<gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance>,
+            pub contract_instance: std::sync::OnceLock<gadget_macros::ext::event_listeners::evm::AlloyContractInstance>,
         });
     }
 
@@ -656,6 +663,7 @@ pub fn generate_specialized_logic(
 #[derive(Debug, Clone)]
 pub struct ParameterType {
     pub ty: FieldType,
+    #[allow(dead_code)]
     pub span: Option<Span>,
 }
 

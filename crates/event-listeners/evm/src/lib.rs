@@ -3,12 +3,12 @@ use error::Error;
 
 use alloy_contract::ContractInstance;
 use alloy_contract::Event;
-use alloy_network::Ethereum;
+pub use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_provider::RootProvider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
-use alloy_transport::BoxTransport;
+pub use alloy_transport::BoxTransport;
 use gadget_event_listeners_core::{Error as CoreError, EventListener};
 use gadget_std::collections::VecDeque;
 use gadget_std::time::Duration;

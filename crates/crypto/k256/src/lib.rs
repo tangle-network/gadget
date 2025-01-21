@@ -6,12 +6,13 @@ pub mod error;
 mod tests;
 
 use crate::error::{K256Error, Result};
+use alloy_signer_local::LocalSigner;
 use gadget_crypto_core::KeyEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
-use k256::ecdsa::VerifyingKey;
+use k256::ecdsa::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
@@ -203,5 +204,18 @@ impl K256SigningKey {
     /// Alias for `verifying_key` for consistency
     pub fn public(&self) -> K256VerifyingKey {
         self.verifying_key()
+    }
+
+    /// Returns the alloy-compatible key for the ECDSA key pair.
+    pub fn alloy_key(&self) -> Result<LocalSigner<SigningKey>> {
+        let k256_ecdsa_secret_key = self.clone().to_bytes();
+        let res = LocalSigner::from_slice(&k256_ecdsa_secret_key)
+            .map_err(|err| K256Error::InvalidSigner(err.to_string()))?;
+        Ok(res)
+    }
+
+    /// Returns the Alloy Address for the ECDSA key pair.
+    pub fn alloy_address(&self) -> Result<alloy_primitives::Address> {
+        Ok(self.alloy_key()?.address())
     }
 }

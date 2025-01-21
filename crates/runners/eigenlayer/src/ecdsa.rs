@@ -14,9 +14,13 @@ use eigensdk::utils::ecdsastakeregistry::{ECDSAStakeRegistry, ISignatureUtils};
 
 use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
+use gadget_contexts::keystore::KeystoreContext;
+use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::crypto::k256::K256Ecdsa;
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::RunnerError as Error;
-use gadget_utils::gadget_utils_evm::get_provider_http;
+use gadget_utils::evm::get_provider_http;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerECDSAConfig {
@@ -60,8 +64,19 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
     };
     let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
-    let operator = env.keystore()?.ecdsa_key()?;
-    let operator_address = operator.alloy_key()?.address();
+
+    let ecdsa_public = env
+        .keystore()
+        .first_local::<K256Ecdsa>()
+        .map_err(|e| Error::Keystore(e.to_string()))?;
+    let ecdsa_secret = env
+        .keystore()
+        .expose_ecdsa_secret(&ecdsa_public)
+        .map_err(|e| Error::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
+        .ok_or_else(|| Error::Keystore("No ECDSA secret found".into()))?;
+    let operator_address = ecdsa_secret
+        .alloy_address()
+        .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
     let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
         get_test_logger(),
@@ -70,7 +85,7 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
         env.http_rpc_endpoint.clone(),
     )
     .await
-    .map_err(|e| EigenlayerError::AvsRegistry(e).into())?;
+    .map_err(EigenlayerError::AvsRegistry)?;
 
     // Check if the operator has already registered for the service
     match avs_registry_reader
@@ -102,18 +117,21 @@ async fn register_ecdsa_impl(
     let stake_registry_address = contract_addresses.stake_registry_address;
     let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
 
-    let operator = env
+    let ecdsa_public = env
         .keystore()
-        .map_err(|e| EigenlayerError::Keystore(e.to_string()))?
-        .ecdsa_key()
-        .map_err(|e| EigenlayerError::Keystore(e.to_string()))?;
+        .first_local::<K256Ecdsa>()
+        .map_err(|e| Error::Keystore(e.to_string()))?;
+    let ecdsa_secret = env
+        .keystore()
+        .expose_ecdsa_secret(&ecdsa_public)
+        .map_err(|e| Error::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
+        .ok_or_else(|| Error::Keystore("No ECDSA secret found".into()))?;
+    let operator_address = ecdsa_secret
+        .alloy_address()
+        .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
-    let operator_private_key = hex::encode(operator.signer().seed());
+    let operator_private_key = hex::encode(ecdsa_secret.0.to_bytes());
     let wallet = PrivateKeySigner::from_str(&operator_private_key)
-        .map_err(|_| EigenlayerError::Keystore("Invalid private key".into()))?;
-
-    let operator_address = operator
-        .address()
         .map_err(|_| EigenlayerError::Keystore("Invalid private key".into()))?;
 
     let provider = get_provider_http(&env.http_rpc_endpoint);
@@ -128,7 +146,7 @@ async fn register_ecdsa_impl(
         .call()
         .await
         .map(|a| a._0)
-        .map_err(|e| EigenlayerError::Contract(e).into())?;
+        .map_err(EigenlayerError::Contract)?;
 
     let logger = get_test_logger();
     let el_chain_reader = ELChainReader::new(
@@ -160,7 +178,7 @@ async fn register_ecdsa_impl(
     let tx_hash = el_writer
         .register_as_operator(operator_details)
         .await
-        .map_err(|e| EigenlayerError::ElContracts(e).into())?;
+        .map_err(EigenlayerError::ElContracts)?;
 
     gadget_logging::info!("Registered as operator for Eigenlayer {:?}", tx_hash);
 
