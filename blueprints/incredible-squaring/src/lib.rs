@@ -4,7 +4,6 @@ use blueprint_sdk::event_listeners::tangle::services::{services_post_processor, 
 use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
 use blueprint_sdk::macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use blueprint_sdk::config::GadgetConfiguration;
-use blueprint_sdk::macros as gadget_macros;
 
 #[cfg(test)]
 mod tests;

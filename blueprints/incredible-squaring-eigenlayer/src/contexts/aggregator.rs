@@ -15,6 +15,12 @@ use tokio::task::JoinHandle;
 use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
+use blueprint_sdk::logging::{debug, error, info};
+use blueprint_sdk::macros::contexts::{EigenlayerContext, KeystoreContext};
+use blueprint_sdk::runners::core::error::RunnerError;
+use blueprint_sdk::runners::core::runner::BackgroundService;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::common::get_provider;
 use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
@@ -24,12 +30,6 @@ use eigensdk::services_blsaggregation::{
 };
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
-use gadget_config::GadgetConfiguration;
-use gadget_contexts::eigenlayer::EigenlayerContext;
-use gadget_logging::{debug, error, info};
-use gadget_macros::contexts::{EigenlayerContext, KeystoreContext};
-use gadget_runners::core::error::RunnerError;
-use gadget_runners::core::runner::BackgroundService;
 use std::collections::HashMap;
 
 pub type BlsAggServiceInMemory = BlsAggregatorService<

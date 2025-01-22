@@ -1,5 +1,4 @@
 use blueprint_sdk::logging::info;
-use blueprint_sdk::macros as gadget_macros;
 use blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
 use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::tangle::tangle::TangleConfig;
