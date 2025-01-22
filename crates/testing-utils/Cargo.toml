@@ -14,7 +14,7 @@ gadget-tangle-testing-utils = { workspace = true, optional = true }
 gadget-eigenlayer-testing-utils = { workspace = true, optional = true }
 
 [features]
-default = ["tangle", "eigenlayer"]
+default = []
 anvil = ["gadget-anvil-testing-utils"]
 tangle = ["gadget-tangle-testing-utils"]
 eigenlayer = ["gadget-eigenlayer-testing-utils"]
