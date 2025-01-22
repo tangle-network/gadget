@@ -3,6 +3,9 @@
 #[cfg(feature = "tangle")]
 pub use tangle_subxt;
 
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+pub use alloy;
+
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
@@ -47,6 +50,9 @@ mod macros_feat {
 }
 #[cfg(feature = "macros")]
 pub use macros_feat::*;
+
+#[cfg(feature = "utils")]
+pub use gadget_utils as utils;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;
