@@ -1,21 +1,21 @@
 use async_trait::async_trait;
-use gadget_config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
+use blueprint_sdk::contexts::keystore::KeystoreContext as _;
+use blueprint_sdk::contexts::p2p::P2pContext as _;
+use blueprint_sdk::contexts::services::ServicesContext as _;
+use blueprint_sdk::contexts::tangle::TangleClientContext as _;
+use blueprint_sdk::macros::ext::clients::GadgetServicesClient as _;
+use blueprint_sdk::macros::ext::crypto::sp_core::SpEcdsa;
+use blueprint_sdk::macros::ext::keystore::backends::Backend;
+use blueprint_sdk::networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
+use blueprint_sdk::networking::{GossipMsgKeyPair, GossipMsgPublicKey};
+use blueprint_sdk::std::collections::BTreeMap;
+use blueprint_sdk::std::sync::Arc;
+use blueprint_sdk::stores::local_database::LocalDatabase;
 use gadget_context_derive::{
     EVMProviderContext, KeystoreContext, P2pContext, ServicesContext, TangleClientContext,
 };
-use gadget_contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
-use gadget_contexts::keystore::KeystoreContext as _;
-use gadget_contexts::p2p::P2pContext as _;
-use gadget_contexts::services::ServicesContext as _;
-use gadget_contexts::tangle::TangleClientContext as _;
-use gadget_macros::ext::clients::GadgetServicesClient as _;
-use gadget_macros::ext::crypto::sp_core::SpEcdsa;
-use gadget_macros::ext::keystore::backends::Backend;
-use gadget_networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
-use gadget_networking::{GossipMsgKeyPair, GossipMsgPublicKey};
-use gadget_std::collections::BTreeMap;
-use gadget_std::sync::Arc;
-use gadget_stores::local_database::LocalDatabase;
 use round_based::ProtocolMessage as RoundBasedProtocolMessage;
 use serde::{Deserialize, Serialize};
 
@@ -109,7 +109,10 @@ impl Network for StubNetwork {
         None
     }
 
-    async fn send_message(&self, message: ProtocolMessage) -> Result<(), gadget_networking::Error> {
+    async fn send_message(
+        &self,
+        message: ProtocolMessage,
+    ) -> Result<(), blueprint_sdk::networking::Error> {
         drop(message);
         Ok(())
     }

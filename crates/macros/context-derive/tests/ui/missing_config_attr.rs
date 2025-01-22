@@ -1,4 +1,4 @@
-use gadget_config::GadgetConfiguration;
+use blueprint_sdk::config::GadgetConfiguration;
 use gadget_context_derive::KeystoreContext;
 
 #[derive(KeystoreContext)]
