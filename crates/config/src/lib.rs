@@ -102,7 +102,7 @@ pub struct GadgetConfiguration {
 impl GadgetConfiguration {
     /// Returns a new `NetworkConfig` for the current environment.
     #[cfg(feature = "networking")]
-    pub fn libp2p_network_config<K: gadget_keystore::crypto::KeyType>(
+    pub fn libp2p_network_config(
         &self,
         network_name: impl Into<String>,
     ) -> Result<gadget_networking::setup::NetworkConfig, Error> {
