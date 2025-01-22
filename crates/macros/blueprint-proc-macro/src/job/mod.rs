@@ -386,7 +386,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
             #[cfg(feature = "evm")]
             ListenerType::Evm => {
-                quote! { let context = ctx.deref().clone(); }
+                quote! {
+                    let context = ::blueprint_sdk::macros::ext::std::ops::Deref::deref(&ctx).clone();
+                }
             }
 
             ListenerType::Custom => {
