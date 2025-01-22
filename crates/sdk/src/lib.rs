@@ -66,6 +66,10 @@ pub use gadget_logging as logging;
 /// Blueprint execution and runtime utilities
 pub use gadget_runners as runners;
 
+pub use gadget_contexts as contexts;
+
+pub use gadget_utils as utils;
+
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;

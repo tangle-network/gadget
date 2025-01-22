@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use alloy_sol_types::sol;
-use gadget_macros::load_abi;
+use blueprint_sdk::macros::load_abi;
 use serde::{Deserialize, Serialize};
 use std::net::AddrParseError;
 use thiserror::Error;
@@ -31,14 +31,16 @@ pub enum Error {
 }
 
 type ProcessorError =
-    gadget_event_listeners::core::Error<gadget_event_listeners::evm::error::Error>;
+    blueprint_sdk::event_listeners::core::Error<blueprint_sdk::event_listeners::evm::error::Error>;
 
 impl From<Error>
-    for gadget_event_listeners::core::Error<gadget_event_listeners::evm::error::Error>
+    for blueprint_sdk::event_listeners::core::Error<
+        blueprint_sdk::event_listeners::evm::error::Error,
+    >
 {
     fn from(value: Error) -> Self {
-        gadget_event_listeners::core::Error::ProcessorError(
-            gadget_event_listeners::evm::error::Error::Client(value.to_string()),
+        blueprint_sdk::event_listeners::core::Error::ProcessorError(
+            blueprint_sdk::event_listeners::evm::error::Error::Client(value.to_string()),
         )
     }
 }

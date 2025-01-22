@@ -10,19 +10,19 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
-use gadget_logging::{error, info, setup_log};
-use gadget_macros::ext::futures::StreamExt;
-use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
-use gadget_std::{
+use blueprint_sdk::logging::{error, info, setup_log};
+use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
+use blueprint_sdk::testing::utils::anvil::anvil::*;
+use blueprint_sdk::testing::utils::eigenlayer::runner::EigenlayerBLSTestEnv;
+use blueprint_sdk::testing::utils::eigenlayer::EigenlayerTestHarness;
+use blueprint_sdk::testing::utils::harness::TestHarness;
+use blueprint_sdk::testing::utils::runner::TestEnv;
+use blueprint_sdk::utils::evm::{get_provider_http, get_provider_ws, get_wallet_provider_http};
+use futures::StreamExt;
+use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use gadget_testing_utils::anvil::anvil::*;
-use gadget_testing_utils::eigenlayer::runner::EigenlayerBLSTestEnv;
-use gadget_testing_utils::eigenlayer::EigenlayerTestHarness;
-use gadget_testing_utils::harness::TestHarness;
-use gadget_testing_utils::runner::TestEnv;
-use gadget_utils::evm::{get_provider_http, get_provider_ws, get_wallet_provider_http};
 
 sol!(
     #[allow(missing_docs, clippy::too_many_arguments)]
@@ -119,7 +119,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     aggregator_context_clone.shutdown().await;
 
     // Clean up the ./db directory
-    let _ = gadget_std::fs::remove_dir_all("./db");
+    let _ = std::fs::remove_dir_all("./db");
 
     match result {
         Ok(Ok(())) => {

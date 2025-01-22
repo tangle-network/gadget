@@ -10,19 +10,8 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-# Gadget Dependencies
-gadget-std = { workspace = true, features = ["std"] }
-gadget-event-listeners = { workspace = true, features = ["std", "evm"] }
-gadget-macros = { workspace = true, features = ["evm", "std"] }
-gadget-contexts = { workspace = true, features = ["std", "eigenlayer", "keystore", "evm"] }
-gadget-crypto = { workspace = true, features = ["default"] }
-gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
-gadget-config = { workspace = true, features = ["std"] }
-gadget-logging = { workspace = true, features = ["std"] }
-gadget-runners = { workspace = true, features = ["eigenlayer"] }
-gadget-utils = { workspace = true, features = ["evm"] }
-gadget-keystore = { workspace = true, features = ["std", "evm", "eigenlayer"] }
-
+blueprint-sdk = { workspace = true, features = ["eigenlayer", "evm", "macros", "std"] }
+futures = { workspace = true }
 
 eigensdk = { workspace = true, features = ["crypto-bls", "services-blsaggregation"] }
 tracing = { workspace = true }
@@ -68,7 +57,7 @@ jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]
-gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
+blueprint-sdk = { workspace = true, features = ["testing", "eigenlayer", "evm"] }
 tempfile = { workspace = true }
 
 [build-dependencies]

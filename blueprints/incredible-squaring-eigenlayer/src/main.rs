@@ -1,10 +1,10 @@
 use alloy_network::EthereumWallet;
 use alloy_primitives::Address;
 use alloy_signer_local::PrivateKeySigner;
-use gadget_logging::info;
-use gadget_runners::core::runner::BlueprintRunner;
-use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
-use gadget_utils::evm::get_wallet_provider_http;
+use blueprint_sdk::logging::info;
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
+use blueprint_sdk::utils::evm::get_wallet_provider_http;
 use incredible_squaring_blueprint_eigenlayer::constants::{
     AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS,
 };
@@ -15,7 +15,7 @@ use incredible_squaring_blueprint_eigenlayer::jobs::compute_x_square::XsquareEig
 use incredible_squaring_blueprint_eigenlayer::jobs::initialize_task::InitializeBlsTaskEventHandler;
 use incredible_squaring_blueprint_eigenlayer::IncredibleSquaringTaskManager;
 
-#[gadget_macros::main(env)]
+#[blueprint_sdk::main(env)]
 async fn main() {
     let signer: PrivateKeySigner = AGGREGATOR_PRIVATE_KEY
         .parse()

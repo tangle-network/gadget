@@ -15,6 +15,7 @@ gadget-event-listeners = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-runners = { workspace = true }
+gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 
 # K, V Stores
@@ -37,7 +38,7 @@ tokio = { workspace = true, default-features = false }
 # Networking-related dependencies
 gadget-networking = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
-gadget-contexts = { workspace = true, optional = true }
+gadget-contexts = { workspace = true }
 gadget-context-derive = { workspace = true, optional = true }
 gadget-clients = { workspace = true, optional = true }
 
@@ -88,22 +89,27 @@ tangle = [
 	"gadget-runners/tangle",
 	"gadget-macros?/tangle",
 	"gadget-testing-utils?/tangle",
+	"gadget-utils/tangle",
 ]
 
-evm = ["alloy", "gadget-macros?/evm"]
+evm = [
+	"gadget-utils/evm",
+	"gadget-testing-utils?/anvil",
+	"alloy",
+	"gadget-macros?/evm",
+]
 
 eigenlayer = [
 	"gadget-runners/eigenlayer",
 	"gadget-testing-utils?/eigenlayer",
+	"gadget-utils/eigenlayer",
 	"alloy",
-	"eigensdk"
+	"eigensdk",
 ]
 
 testing = [
 	"std",
-	"gadget-client-tangle",
-	"gadget-tangle-testing-utils",
-	"gadget-testing-utils",
+	"dep:gadget-testing-utils",
 	"tempfile"
 ]
 

@@ -68,8 +68,7 @@ impl TestHarness for EigenlayerTestHarness {
         );
 
         // Load environment
-        let env = gadget_macros::ext::config::load(context_config)
-            .map_err(|e| Error::Setup(e.to_string()))?;
+        let env = gadget_config::load(context_config).map_err(|e| Error::Setup(e.to_string()))?;
 
         // Create config
         let config = EigenlayerTestConfig {

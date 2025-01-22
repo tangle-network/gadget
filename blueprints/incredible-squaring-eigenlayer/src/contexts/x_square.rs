@@ -1,6 +1,6 @@
 use crate::contexts::client::AggregatorClient;
-use gadget_config::GadgetConfiguration;
-use gadget_macros::contexts::KeystoreContext;
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::macros::contexts::KeystoreContext;
 
 #[derive(Clone, KeystoreContext)]
 pub struct EigenSquareContext {
