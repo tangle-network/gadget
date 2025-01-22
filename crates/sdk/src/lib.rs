@@ -60,3 +60,6 @@ pub use gadget_runners as runners;
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
 pub use tokio;
+
+#[cfg(feature = "local-store")]
+pub use gadget_stores as stores;
