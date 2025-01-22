@@ -52,9 +52,6 @@ tempfile = { workspace = true, optional = true }
 blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
-# Optional Utility
-gadget-utils = { workspace = true, optional = true }
-
 [features]
 default = ["std"]
 std = [
@@ -79,8 +76,6 @@ web = [
 macros = [
 	"dep:gadget-macros"
 ]
-
-utils = ["dep:gadget-utils"]
 
 build = ["blueprint-metadata", "blueprint-build-utils"]
 
