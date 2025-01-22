@@ -5,7 +5,7 @@ use crate::{
 };
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::logging::info;
-use std::{convert::Infallible, ops::Deref};
+use std::convert::Infallible;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;

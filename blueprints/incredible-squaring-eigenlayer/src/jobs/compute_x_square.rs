@@ -17,7 +17,7 @@ use blueprint_sdk::macros::job;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
-use std::{convert::Infallible, ops::Deref};
+use std::convert::Infallible;
 
 /// Sends a signed task response to the BLS Aggregator.
 ///
