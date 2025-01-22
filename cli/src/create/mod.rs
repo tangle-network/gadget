@@ -69,10 +69,6 @@ pub fn new_blueprint(
     .map_err(Error::GenerationFailed)?;
 
     println!("Blueprint generated at: {}", path.display());
-    let contracts = path.join("contracts");
-    if !contracts.exists() {
-        return Ok(());
-    }
 
     let foundry = FoundryToolchain::new();
     if !foundry.forge.is_installed() {
@@ -82,7 +78,7 @@ pub fn new_blueprint(
         return Ok(());
     }
 
-    std::env::set_current_dir(contracts)?;
+    std::env::set_current_dir(path)?;
     if let Err(e) = foundry.forge.install_dependencies() {
         gadget_logging::error!("{e}");
     }
