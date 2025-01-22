@@ -12,13 +12,6 @@ pub use eigensdk;
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
-    /// Tangle-specific testing utilities
-    #[cfg(feature = "tangle")]
-    pub mod tangle {
-        pub use gadget_client_tangle as client;
-        pub use gadget_tangle_testing_utils::*;
-    }
-
     /// General testing utilities for blueprints
     pub use gadget_testing_utils as utils;
     /// Temporary file and directory management for tests
