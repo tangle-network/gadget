@@ -99,9 +99,7 @@ jobs:
 
             # Event listeners
             gadget-event-listeners-core,
-            gadget-event-listeners-evm,
             gadget-event-listeners-cronjob,
-            gadget-event-listeners-tangle,
 
             gadget-blueprint-serde,
             gadget-config,
