@@ -27,6 +27,7 @@ tokio = { workspace = true, default-features = false }
 gadget-networking = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true, optional = true }
+gadget-context-derive = { workspace = true, optional = true }
 gadget-clients = { workspace = true, optional = true }
 
 # Optional dependencies for testing
@@ -96,5 +97,7 @@ networking = [
 	"gadget-keystore/std",
 	"gadget-config/networking",
 ]
+
+p2p = ["gadget-context-derive/networking"]
 
 round-based-compat = ["gadget-networking/round-based-compat"]
