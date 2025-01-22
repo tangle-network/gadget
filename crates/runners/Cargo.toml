@@ -10,7 +10,7 @@ repository.workspace = true
 [dependencies]
 gadget-runner-core = { workspace = true }
 gadget-runner-eigenlayer = { workspace = true, optional = true }
-gadget-runner-symbiotic = { workspace = true, optional = true }
+#gadget-runner-symbiotic = { workspace = true, optional = true }
 gadget-runner-tangle = { workspace = true, optional = true }
 
 
@@ -20,12 +20,12 @@ default = ["std"]
 std = [
     "gadget-runner-core/std",
     "gadget-runner-eigenlayer?/std",
-    "gadget-runner-symbiotic?/std",
+#    "gadget-runner-symbiotic?/std",
     "gadget-runner-tangle?/std"
 ]
 
 eigenlayer = ["gadget-runner-eigenlayer"]
-symbiotic = ["gadget-runner-symbiotic"]
+#symbiotic = ["gadget-runner-symbiotic"]
 tangle = ["gadget-runner-tangle"]
 
 [lints]

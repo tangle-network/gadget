@@ -128,7 +128,7 @@ async fn register_bls_impl(
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
     let delegation_manager =
-        eigensdk::utils::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+        eigensdk::utils::middleware::delegationmanager::DelegationManager::DelegationManagerInstance::new(
             delegation_manager_address,
             provider.clone(),
         );

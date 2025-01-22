@@ -41,18 +41,14 @@ pub enum TransactionError {
     ServiceNotFound,
     #[error("Created service does not match blueprint ID")]
     ServiceIdMismatch,
-
-    #[error("{0}")]
-    Other(String),
-
-    #[error(transparent)]
-    JsonRpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
     #[error(transparent)]
     Rpc(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
     #[error(transparent)]
     PendingTransaction(#[from] PendingTransactionError),
     #[error(transparent)]
     Subxt(#[from] subxt::Error),
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Deploy a new MBSM revision and returns the result.

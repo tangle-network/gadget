@@ -76,7 +76,8 @@ tangle = [
 evm = []
 
 eigenlayer = [
-	# TODO: Add eigenlayer SDK
+	"gadget-runners/eigenlayer",
+	"gadget-testing-utils?/eigenlayer",
 ]
 
 testing = [

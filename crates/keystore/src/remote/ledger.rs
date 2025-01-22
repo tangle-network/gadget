@@ -223,11 +223,7 @@ impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
             .await
             .map_err(|e| Error::SignatureFailed(e.to_string()))?;
 
-        Ok(PrimitiveSignature::new(
-            sig.r(),
-            sig.s(),
-            sig.v().y_parity(),
-        ))
+        Ok(sig.with_parity(sig.v()))
     }
 }
 
