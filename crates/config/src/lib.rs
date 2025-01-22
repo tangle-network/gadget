@@ -150,17 +150,17 @@ impl GadgetConfiguration {
         let ws_port = self.ws_rpc_endpoint.split(":").last();
 
         if let Some(port) = ws_port {
-            return port
-                .parse()
-                .map_err(|_err| Error::BadRpcConnection("Bad WS port formatting".to_string()));
+            return port.parse().map_err(|_err| {
+                Error::BadRpcConnection(format!("Bad WS port formatting from: {ws_port:?}"))
+            });
         }
 
         let http_port = self.http_rpc_endpoint.split(":").last();
 
         if let Some(port) = http_port {
-            return port
-                .parse()
-                .map_err(|_err| Error::BadRpcConnection("Bad HTTP port formatting".to_string()));
+            return port.parse().map_err(|_err| {
+                Error::BadRpcConnection(format!("Bad HTTP port formatting from: {http_port:?}"))
+            });
         }
 
         Err(Error::BadRpcConnection("No port found".to_string()))
