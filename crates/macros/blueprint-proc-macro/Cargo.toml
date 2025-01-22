@@ -23,8 +23,8 @@ serde_json = { workspace = true, features = ["alloc"] }
 indexmap = { workspace = true }
 
 [dev-dependencies]
+blueprint-sdk = { workspace = true, features = ["std", "macros", "evm", "tangle", "eigenlayer", "testing"] }
 gadget-event-listeners = { workspace = true, features = ["testing"] }
-gadget-macros = { workspace = true, features = ["std", "tangle", "evm"] }
 
 trybuild = { workspace = true }
 

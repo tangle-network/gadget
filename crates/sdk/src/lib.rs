@@ -63,8 +63,8 @@ pub use gadget_utils as utils;
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;
-pub use serde;
 pub use tokio;
+pub use serde;
 
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;

@@ -6471,9 +6471,9 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.5.1"
 dependencies = [
+ "blueprint-sdk",
  "gadget-blueprint-proc-macro-core",
  "gadget-event-listeners",
- "gadget-macros",
  "gadget-std",
  "indexmap 2.7.1",
  "itertools 0.13.0",

@@ -1,4 +1,4 @@
-use gadget_blueprint_proc_macro::job;
+use blueprint_sdk::macros::job;
 
 #[job(params(n), result(Vec<u8>))]
 fn keygen(n: u16) -> Vec<u8> {
