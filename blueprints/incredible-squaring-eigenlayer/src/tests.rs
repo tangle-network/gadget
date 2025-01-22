@@ -118,6 +118,9 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     // // Start the shutdown/cleanup process
     aggregator_context_clone.shutdown().await;
 
+    // Clean up the ./db directory
+    let _ = gadget_std::fs::remove_dir_all("./db");
+
     match result {
         Ok(Ok(())) => {
             info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");

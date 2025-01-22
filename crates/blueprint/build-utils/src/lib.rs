@@ -1,6 +1,8 @@
-use gadget_std::env;
-use gadget_std::path::PathBuf;
-use gadget_std::process::Command;
+use gadget_std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 /// Build the Smart contracts at the specified directories.
 ///
@@ -51,6 +53,40 @@ pub fn build_contracts(contract_dirs: Vec<&str>) {
                 full_path.display()
             );
         }
+    }
+}
+
+fn is_directory_empty(path: &Path) -> bool {
+    fs::read_dir(path)
+        .map(|mut i| i.next().is_none())
+        .unwrap_or(true)
+}
+
+/// Run soldeer's 'install' command if the dependencies directory exists and is not empty.
+///
+/// # Panics
+/// - If the Cargo Manifest directory is not found.
+/// - If the `forge` executable is not found.
+/// - If forge's `soldeer` is not installed.
+pub fn soldeer_install() {
+    // Get the project root directory
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+
+    // Check if the dependencies directory exists and is not empty
+    let dependencies_dir = root.join("dependencies");
+    if !dependencies_dir.exists() || is_directory_empty(&dependencies_dir) {
+        let forge_executable = find_forge_executable();
+
+        println!("Populating dependencies directory");
+        let status = Command::new(&forge_executable)
+            .current_dir(&root)
+            .args(["soldeer", "install"])
+            .status()
+            .expect("Failed to execute 'forge soldeer install'");
+
+        assert!(status.success(), "'forge soldeer install' failed");
+    } else {
+        println!("Dependencies directory exists or is not empty. Skipping soldeer install.");
     }
 }
 
