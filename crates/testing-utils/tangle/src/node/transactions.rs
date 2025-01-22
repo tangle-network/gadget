@@ -1,9 +1,9 @@
 use crate::{InputValue, OutputValue};
+use alloy_provider::network::AnyNetwork;
 use alloy_provider::{
     network::{ReceiptResponse, TransactionBuilder},
     PendingTransactionError, Provider, WsConnect,
 };
-use alloy_provider::network::AnyNetwork;
 use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_signer_local::PrivateKeySigner;
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
