@@ -16,6 +16,9 @@ gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-runners = { workspace = true }
 
+# K, V Stores
+gadget-stores = { workspace = true, optional = true }
+
 # Tangle
 tangle-subxt = { workspace = true, optional = true }
 
@@ -99,5 +102,7 @@ networking = [
 ]
 
 p2p = ["gadget-context-derive/networking"]
+
+local-store = ["gadget-stores/local"]
 
 round-based-compat = ["gadget-networking/round-based-compat"]

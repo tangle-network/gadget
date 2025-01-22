@@ -2545,6 +2545,7 @@ dependencies = [
  "gadget-macros",
  "gadget-networking",
  "gadget-runners",
+ "gadget-stores",
  "gadget-tangle-testing-utils",
  "gadget-testing-utils",
  "tangle-subxt",
