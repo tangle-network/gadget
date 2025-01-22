@@ -2597,6 +2597,7 @@ name = "blueprint-sdk"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "alloy-json-abi",
  "blueprint-build-utils",
  "blueprint-metadata",
  "eigensdk",

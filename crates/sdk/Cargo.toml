@@ -26,6 +26,7 @@ tangle-subxt = { workspace = true, optional = true }
 
 # EigenLayer and EVM
 alloy = { workspace = true, optional = true }
+alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
 
 # Serialization
@@ -91,6 +92,7 @@ evm = [
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
 	"alloy",
+	"alloy-json-abi",
 	"gadget-macros?/evm",
 ]
 
@@ -99,6 +101,7 @@ eigenlayer = [
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
 	"alloy",
+	"alloy-json-abi",
 	"eigensdk",
 ]
 
