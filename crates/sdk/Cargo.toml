@@ -15,6 +15,7 @@ gadget-event-listeners = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-runners = { workspace = true }
+gadget-std = { workspace = true }
 
 # K, V Stores
 gadget-stores = { workspace = true, optional = true }
@@ -24,6 +25,10 @@ tangle-subxt = { workspace = true, optional = true }
 
 # EigenLayer and EVM
 alloy = { workspace = true, optional = true }
+eigensdk = { workspace = true, optional = true, features = ["full"] }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
 
 # Required Features for macro resolution
 gadget-macros = { workspace = true, optional = true }
@@ -90,7 +95,8 @@ evm = ["alloy", "gadget-macros?/evm"]
 eigenlayer = [
 	"gadget-runners/eigenlayer",
 	"gadget-testing-utils?/eigenlayer",
-	"alloy"
+	"alloy",
+	"eigensdk"
 ]
 
 testing = [
