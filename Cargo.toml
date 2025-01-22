@@ -131,7 +131,7 @@ round-based = { version = "0.3.0", default-features = false }
 sp-core = { version = "34.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
-sp-runtime-interface = { version = "28.0.0", default-features = true }
+sp-runtime-interface = { version = "28.0.0", default-features = false }
 
 # Async & Runtime
 async-trait = { version = "0.1.82", default-features = false }

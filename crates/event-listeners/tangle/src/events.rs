@@ -1,7 +1,7 @@
 use crate::error::TangleEventListenerError;
 use async_trait::async_trait;
 use gadget_clients::tangle::client::{OnlineClient, TangleConfig};
-use gadget_crypto_tangle_pair_signer::TanglePairSigner;
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners_core::marker::IsTangle;
 use gadget_event_listeners_core::{Error, EventListener};
 use gadget_std::collections::VecDeque;
@@ -9,6 +9,8 @@ use gadget_std::sync::atomic::{AtomicBool, Ordering};
 use gadget_std::sync::Arc;
 use subxt::backend::StreamOfResults;
 use subxt_core::events::{EventDetails, StaticEvent};
+use tangle_subxt::subxt;
+use tangle_subxt::subxt_core;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Job, ServiceId};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called::CallId;

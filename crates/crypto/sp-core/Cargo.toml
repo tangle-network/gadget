@@ -6,15 +6,12 @@ edition = "2021"
 [dependencies]
 gadget-std = { workspace = true }
 gadget-crypto-core = { workspace = true, features = ["tangle"] }
-sp-core = { workspace = true, features = ["serde"] }
+sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
-
-# TODO: remove whenever possible: https://github.com/paritytech/polkadot-sdk/pull/1983#discussion_r1368625867
-sp-runtime-interface = { workspace = true, features = ["disable_target_static_assertions"] }
 
 [dev-dependencies]
 gadget-crypto-sp-core = { path = ".", features = ["std", "bls"] }
