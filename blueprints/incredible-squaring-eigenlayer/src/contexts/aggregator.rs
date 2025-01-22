@@ -16,14 +16,14 @@ use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
+use eigensdk::common::get_provider;
 use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
-use eigensdk::services_blsaggregation::bls_agg::{
-    BlsAggregationServiceResponse, BlsAggregatorService,
+use eigensdk::services_blsaggregation::{
+    bls_agg::BlsAggregatorService, bls_aggregation_service_response::BlsAggregationServiceResponse,
 };
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
-use eigensdk::utils::get_provider;
 use gadget_config::GadgetConfiguration;
 use gadget_contexts::eigenlayer::EigenlayerContext;
 use gadget_logging::{debug, error, info};

@@ -30,7 +30,7 @@ pub fn generate_context_impl(
         type #provider_ty_ident = gadget_macros::ext::evm::alloy_provider::fillers::FillProvider<
             gadget_macros::ext::evm::alloy_provider::fillers::JoinFill<
                 gadget_macros::ext::evm::alloy_provider::Identity,
-                <#network_ty_ident as ::gadget_macros::ext::evm::alloy_provider::fillers::RecommendedFillers>::RecomendedFillers,
+                <#network_ty_ident as ::gadget_macros::ext::evm::alloy_provider::fillers::RecommendedFillers>::RecommendedFillers,
             >,
             gadget_macros::ext::evm::alloy_provider::RootProvider<#transport_ty_ident>,
             #transport_ty_ident,

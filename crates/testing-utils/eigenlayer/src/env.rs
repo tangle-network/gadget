@@ -1,10 +1,10 @@
 use alloy_primitives::Uint;
 use alloy_primitives::{address, Address};
 use alloy_provider::Provider;
-use eigensdk::utils::pauserregistry::PauserRegistry;
-use eigensdk::utils::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
-use eigensdk::utils::registrycoordinator::IStakeRegistry::StrategyParams;
-use eigensdk::utils::registrycoordinator::RegistryCoordinator;
+use eigensdk::utils::middleware::pauserregistry::PauserRegistry;
+use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
+use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
+use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_anvil_testing_utils::get_receipt;
 use gadget_config::protocol::EigenlayerContractAddresses;
 use gadget_logging::info;

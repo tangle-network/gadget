@@ -14,6 +14,7 @@ alloy-provider = { workspace = true }
 alloy-pubsub = { workspace = true }
 alloy-transport = { workspace = true }
 eigensdk = { workspace = true, features = [
+	"common",
 	"client-avsregistry",
 	"client-elcontracts",
 	"logging",
