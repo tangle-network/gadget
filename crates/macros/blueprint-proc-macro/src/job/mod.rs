@@ -342,8 +342,8 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     quote! {
                         |(mut client_context, job_result)| async move {
                             let ctx = CTX.get().unwrap();
-                            let call_id = gadget_macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                            let tangle_job_result = gadget_macros::ext::event_listeners::tangle::events::TangleResult::<_> {
+                            let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
+                            let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
                                 results: job_result,
                                 service_id: ctx.service_id,
                                 call_id,
@@ -374,7 +374,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             #[cfg(feature = "tangle")]
             ListenerType::Tangle => {
                 quote! {
-                    let context = gadget_macros::ext::event_listeners::tangle::events::TangleListenerInput {
+                    let context = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
                         client: ctx.client.subxt_client().clone(),
                         signer: ctx.signer.clone(),
                         job_id: #job_id_name,
@@ -395,22 +395,22 @@ pub(crate) fn generate_event_workflow_tokenstream(
         };
 
         let next_listener = quote! {
-            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
+            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    let (tx, rx) = gadget_macros::ext::tokio::sync::oneshot::channel();
+                    let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
 
-                    static CTX: gadget_macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = gadget_macros::ext::tokio::sync::OnceCell::const_new();
+                    static CTX: ::blueprint_sdk::macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = ::blueprint_sdk::macros::ext::tokio::sync::OnceCell::const_new();
                     #context_declaration
 
                     if let Err(_err) = CTX.set(ctx.clone()) {
-                        gadget_macros::ext::logging::error!("Failed to set the context");
+                        ::blueprint_sdk::macros::ext::logging::error!("Failed to set the context");
                         return None;
                     }
                     let job_processor = #job_processor_wrapper;
 
-                    let listener = <#listener as gadget_macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
-                    let mut event_workflow = gadget_macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
+                    let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
+                    let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
                         listener,
                         #pre_processor_function,
                         job_processor,
@@ -418,10 +418,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     );
 
                     let task = async move {
-                        let res = gadget_macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
+                        let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
                         let _ = tx.send(res);
                     };
-                    gadget_macros::ext::tokio::task::spawn(task);
+                    ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
                     return Some(rx)
                 }
 
@@ -508,8 +508,8 @@ pub fn generate_autogen_struct(
     if event_listener_args.has_tangle() {
         required_fields.push(quote! {
             pub service_id: u64,
-            pub signer: gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner<gadget_macros::ext::crypto::tangle_pair_signer::sp_core::sr25519::Pair>,
-            pub client: gadget_macros::ext::clients::tangle::client::TangleClient,
+            pub signer: ::blueprint_sdk::macros::ext::crypto::tangle_pair_signer::TanglePairSigner<::blueprint_sdk::macros::ext::crypto::tangle_pair_signer::sp_core::sr25519::Pair>,
+            pub client: ::blueprint_sdk::macros::ext::clients::tangle::client::TangleClient,
         })
     }
 
@@ -520,7 +520,7 @@ pub fn generate_autogen_struct(
 
         required_fields.push(quote! {
             pub contract: #instance_name,
-            pub contract_instance: std::sync::OnceLock<gadget_macros::ext::event_listeners::evm::AlloyContractInstance>,
+            pub contract_instance: std::sync::OnceLock<::blueprint_sdk::macros::ext::event_listeners::evm::AlloyContractInstance>,
         });
     }
 
@@ -537,12 +537,12 @@ pub fn generate_autogen_struct(
             #(#additional_params)*
         }
 
-        #[gadget_macros::ext::async_trait::async_trait]
-        impl gadget_macros::ext::event_listeners::core::InitializableEventHandler for #struct_name {
+        #[::blueprint_sdk::macros::ext::async_trait::async_trait]
+        impl ::blueprint_sdk::macros::ext::event_listeners::core::InitializableEventHandler for #struct_name {
             async fn init_event_handler(
                 &self,
             ) -> Option<
-                gadget_macros::ext::tokio::sync::oneshot::Receiver<
+                ::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<
                     Result<(), Box<dyn ::core::error::Error + Send>>
                 >
             > {
@@ -739,21 +739,21 @@ impl Parse for Results {
 
 pub(crate) fn generate_combined_event_listener_selector(struct_name: &Ident) -> TokenStream {
     quote! {
-        let (tx, rx) = gadget_macros::ext::tokio::sync::oneshot::channel();
+        let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
         let task = async move {
-            let mut futures = gadget_macros::ext::futures::stream::FuturesUnordered::new();
+            let mut futures = ::blueprint_sdk::macros::ext::futures::stream::FuturesUnordered::new();
             for listener in listeners {
                 futures.push(listener);
             }
-            if let Some(res) = gadget_macros::ext::futures::stream::StreamExt::next(&mut futures).await {
-                gadget_macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+            if let Some(res) = ::blueprint_sdk::macros::ext::futures::stream::StreamExt::next(&mut futures).await {
+                ::blueprint_sdk::macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
                 let res = match res {
                     Ok(res) => {
                         res
                     },
                     Err(e) => {
-                        Err(Box::new(gadget_macros::ext::event_listeners::core::Error::<
-                                gadget_macros::ext::event_listeners::core::error::Unit
+                        Err(Box::new(::blueprint_sdk::macros::ext::event_listeners::core::Error::<
+                                ::blueprint_sdk::macros::ext::event_listeners::core::error::Unit
                             >::Other(format!("Error in Event Handler for {}: {e:?}", stringify!(#struct_name)))) as Box<dyn ::core::error::Error + Send>)
                     }
                 };
@@ -761,7 +761,7 @@ pub(crate) fn generate_combined_event_listener_selector(struct_name: &Ident) -> 
                 tx.send(res).unwrap();
             }
         };
-        let _ = gadget_macros::ext::tokio::spawn(task);
+        let _ = ::blueprint_sdk::macros::ext::tokio::spawn(task);
         Some(rx)
     }
 }

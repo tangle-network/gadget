@@ -21,15 +21,15 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
-        #[gadget_macros::ext::async_trait::async_trait]
-        impl #impl_generics gadget_macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
+        #[::blueprint_sdk::macros::ext::async_trait::async_trait]
+        impl #impl_generics ::blueprint_sdk::macros::ext::contexts::p2p::P2pContext for #name #ty_generics #where_clause {
             fn p2p_client(
                 &self,
-                name: gadget_macros::ext::std::string::String,
+                name: ::blueprint_sdk::macros::ext::std::string::String,
                 target_port: u16,
-                my_ecdsa_key: gadget_macros::ext::contexts::p2p::GossipMsgKeyPair,
-            ) -> gadget_macros::ext::contexts::p2p::P2PClient {
-                gadget_macros::ext::contexts::p2p::P2PClient::new(
+                my_ecdsa_key: ::blueprint_sdk::macros::ext::contexts::p2p::GossipMsgKeyPair,
+            ) -> ::blueprint_sdk::macros::ext::contexts::p2p::P2PClient {
+                ::blueprint_sdk::macros::ext::contexts::p2p::P2PClient::new(
                     name,
                     #field_access.clone(),
                     target_port,
