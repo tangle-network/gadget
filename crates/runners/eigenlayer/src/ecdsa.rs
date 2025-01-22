@@ -1,5 +1,6 @@
 use gadget_std::str::FromStr;
 
+use alloy_network::primitives::BlockTransactionsKind;
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, Address, FixedBytes, U256};
 use alloy_provider::Provider;
@@ -10,7 +11,7 @@ use alloy_signer_local::PrivateKeySigner;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use eigensdk::utils::ecdsastakeregistry::{ECDSAStakeRegistry, ISignatureUtils};
+use eigensdk::utils::middleware::ecdsastakeregistry::{ECDSAStakeRegistry, ISignatureUtils};
 
 use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
@@ -136,7 +137,7 @@ async fn register_ecdsa_impl(
 
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
-    let delegation_manager = eigensdk::utils::delegationmanager::DelegationManager::new(
+    let delegation_manager = eigensdk::utils::middleware::delegationmanager::DelegationManager::new(
         delegation_manager_address,
         provider.clone(),
     );
@@ -228,7 +229,10 @@ async fn register_ecdsa_impl(
 
     // Get the latest block to estimate gas price
     let latest_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(latest_block_number), false)
+        .get_block_by_number(
+            BlockNumberOrTag::Number(latest_block_number),
+            BlockTransactionsKind::Full,
+        )
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?
         .ok_or(Error::TransactionError("Failed to get latest block".into()))?;
@@ -254,8 +258,8 @@ async fn register_ecdsa_impl(
     // Build the transaction request
     let tx = alloy_rpc_types::TransactionRequest::default()
         .with_call(&ECDSAStakeRegistry::registerOperatorWithSignatureCall {
+            _operator: operator_address,
             _operatorSignature: operator_signature_with_salt_and_expiry,
-            _signingKey: operator_address,
         })
         .with_from(operator_address)
         .with_to(stake_registry_address)

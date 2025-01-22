@@ -413,7 +413,6 @@ fn get_fetcher_candidates(
 
             _ => {
                 warn!("Blueprint does not contain a supported fetcher");
-                continue;
             }
         }
     }

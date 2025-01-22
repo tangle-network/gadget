@@ -24,7 +24,7 @@ gadget-utils = { workspace = true, features = ["evm"] }
 gadget-keystore = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 
 
-eigensdk = { workspace = true, features = ["crypto-bls"] }
+eigensdk = { workspace = true, features = ["crypto-bls", "services-blsaggregation"] }
 tracing = { workspace = true }
 async-trait = { workspace = true }
 color-eyre = { workspace = true }

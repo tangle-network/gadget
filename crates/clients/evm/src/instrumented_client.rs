@@ -950,7 +950,7 @@ mod tests {
         let block_number = 1;
 
         let expected_block = provider
-            .get_block_by_number(block_number.into(), BlockTransactionsKind::Full.into())
+            .get_block_by_number(block_number.into(), BlockTransactionsKind::Full)
             .await
             .unwrap();
         let block = instrumented_client
@@ -1163,10 +1163,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
 
         // Stop auto-mining to avoid flaky test results caused by block updating between block number queries
-        let container = container.inner();
         let _output = container
-            .lock()
-            .unwrap()
             .exec(testcontainers::core::ExecCommand::new([
                 "cast",
                 "rpc",
@@ -1210,10 +1207,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
 
         // Stop auto-mining to avoid flaky test results caused by block updating between queries
-        let container = container.inner();
         let _output = container
-            .lock()
-            .unwrap()
             .exec(testcontainers::core::ExecCommand::new([
                 "cast",
                 "rpc",
@@ -1280,7 +1274,7 @@ mod tests {
             .unwrap();
 
         let expected_header = provider
-            .get_block_by_number(block_number, BlockTransactionsKind::Hashes.into())
+            .get_block_by_number(block_number, BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap()
@@ -1388,10 +1382,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
 
         let expected_transaction_count: u64 = provider
-            .get_block_by_number(
-                BlockNumberOrTag::Pending,
-                BlockTransactionsKind::Hashes.into(),
-            )
+            .get_block_by_number(BlockNumberOrTag::Pending, BlockTransactionsKind::Hashes)
             .await
             .unwrap()
             .unwrap()

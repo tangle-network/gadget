@@ -11,26 +11,11 @@ use gadget_std::time::Duration;
 use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
-    ImageExt,
+    ContainerAsync, GenericImage, ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
 
-pub type ContainerInner = ContainerAsync<GenericImage>;
-pub struct Container {
-    inner: Arc<Mutex<ContainerInner>>,
-}
-
-impl Container {
-    pub fn new(container: ContainerInner) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(container)),
-        }
-    }
-
-    pub fn inner(&self) -> Arc<Mutex<ContainerInner>> {
-        self.inner.clone()
-    }
-}
+pub type Container = ContainerAsync<GenericImage>;
 
 pub const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 pub const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
@@ -111,13 +96,11 @@ pub async fn start_anvil_container(
     let ws_endpoint = format!("ws://localhost:{}", port);
     println!("Anvil WS endpoint: {}", ws_endpoint);
 
-    let container = Container::new(container);
-
     (container, http_endpoint, ws_endpoint)
 }
 
 /// Mine Anvil blocks.
-pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
+pub async fn mine_anvil_blocks(container: &Container, n: u32) {
     let _output = container
         .exec(ExecCommand::new([
             "cast",
@@ -128,8 +111,6 @@ pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
         .await
         .expect("Failed to mine anvil blocks");
 }
-
-use testcontainers::{ContainerAsync, GenericImage};
 
 /// Starts an Anvil container for testing from the given state file in JSON format.
 ///

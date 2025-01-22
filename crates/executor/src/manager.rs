@@ -77,7 +77,7 @@ impl GadgetProcessManager {
                 Status::Dead | Status::Stopped => {
                     to_restart.push((name.clone(), process.command.clone()));
                 }
-                _ => continue,
+                _ => {}
             }
         }
 
@@ -150,15 +150,12 @@ impl GadgetProcessManager {
             match process.read_until_default_timeout().await {
                 Ok(ProcessOutput::Output(output)) => {
                     output_stream.push_str(&format!("{output:?}\n"));
-                    continue;
                 }
                 Ok(ProcessOutput::Exhausted(output)) => {
                     output_stream.push_str(&format!("{output:?}\n"));
                     break;
                 }
-                Ok(ProcessOutput::Waiting) => {
-                    continue;
-                }
+                Ok(ProcessOutput::Waiting) => {}
                 Err(e) => {
                     return Err(e);
                 }
