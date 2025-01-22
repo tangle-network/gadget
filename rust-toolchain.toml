@@ -1,5 +1,7 @@
 [toolchain]
-channel = "nightly-2024-10-13"
+# Currently we are using this specific nightly version since we rely on the
+# rustdoc API which is not yet stabilized. We will keep updating this version
+# as we go along.
+channel = "nightly-2025-01-22"
 components = ["rustfmt", "clippy", "rust-src"]
-targets = ["wasm32-unknown-unknown"]
 profile = "minimal"
