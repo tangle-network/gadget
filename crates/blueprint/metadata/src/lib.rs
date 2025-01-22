@@ -253,6 +253,7 @@ impl LockFile {
 }
 
 impl Drop for LockFile {
+    #[allow(unstable_name_collisions)]
     fn drop(&mut self) {
         // Unlock the file
         use fs2::FileExt;
