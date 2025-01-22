@@ -251,7 +251,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { git = "https://github.com/Layr-Labs/eigensdk-rs.git", branch = "dev", default-features = false }
+eigensdk = { git = "https://github.com/Layr-Labs/eigensdk-rs.git", rev = "6ab2674cf19e2f2c78218de706975af1244dad9c", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 
