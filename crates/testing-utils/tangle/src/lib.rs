@@ -17,6 +17,8 @@ pub mod runner;
 // Re-export commonly used types
 pub use harness::TangleTestHarness;
 
+pub use gadget_blueprint_serde as blueprint_serde;
+
 pub type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 

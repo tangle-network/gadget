@@ -7192,6 +7192,7 @@ dependencies = [
  "async-trait",
  "cargo-tangle",
  "dirs",
+ "gadget-blueprint-serde",
  "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
