@@ -36,13 +36,13 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     }
 
     let tokio_args = if let Some(args) = &args.tokio_args {
-        quote! { ( crate = "gadget_macros::ext::tokio", #(#args),* ) }
+        quote! { ( crate = "::blueprint_sdk::macros::ext::tokio", #(#args),* ) }
     } else {
-        quote! { ( crate = "gadget_macros::ext::tokio" ) }
+        quote! { ( crate = "::blueprint_sdk::macros::ext::tokio" ) }
     };
 
     let env_function_signature = if args.env {
-        quote! { env: gadget_macros::ext::config::GadgetConfiguration }
+        quote! { env: ::blueprint_sdk::macros::ext::config::GadgetConfiguration }
     } else {
         quote! {}
     };
@@ -56,8 +56,8 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     let standard_setup = if args.env {
         quote! {
             // Load the environment and create the gadget runner
-            let config: gadget_macros::ext::config::ContextConfig = gadget_macros::ext::clap::Parser::parse();
-            let env = gadget_macros::ext::config::load(config.clone()).expect("Failed to load environment");
+            let config: ::blueprint_sdk::macros::ext::config::ContextConfig = ::blueprint_sdk::macros::ext::clap::Parser::parse();
+            let env = ::blueprint_sdk::macros::ext::config::load(config.clone()).expect("Failed to load environment");
         }
     } else {
         proc_macro2::TokenStream::default()
@@ -67,7 +67,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
         quote! {}
     } else {
         quote! {
-            gadget_macros::ext::logging::setup_log();
+            ::blueprint_sdk::macros::ext::logging::setup_log();
         }
     };
 
@@ -81,7 +81,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     let input = input.block.clone();
 
     let tokens = quote! {
-        #[gadget_macros::ext::tokio::main #tokio_args]
+        #[::blueprint_sdk::macros::ext::tokio::main #tokio_args]
         async fn main() -> Result<(), Box<dyn core::error::Error>> {
             #logger
             #standard_setup

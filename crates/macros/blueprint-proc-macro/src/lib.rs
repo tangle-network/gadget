@@ -121,7 +121,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 /// A procedural macro that annotates a function as a main function for the blueprint.
 ///
 /// ```ignore
-/// #[gadget_macros::main(env)]
+/// #[blueprint_sdk::main(env)]
 /// pub async fn main() {
 ///    // Your main function code here
 /// }

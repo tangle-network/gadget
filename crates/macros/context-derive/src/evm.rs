@@ -25,23 +25,23 @@ pub fn generate_context_impl(
     let provider_ty_ident = Ident::new(&format!("__{}Provider", name), name.span());
 
     quote! {
-        type #network_ty_ident = gadget_macros::ext::evm::alloy_network::Ethereum;
-        type #transport_ty_ident = gadget_macros::ext::evm::alloy_transport::BoxTransport;
-        type #provider_ty_ident = gadget_macros::ext::evm::alloy_provider::fillers::FillProvider<
-            gadget_macros::ext::evm::alloy_provider::fillers::JoinFill<
-                gadget_macros::ext::evm::alloy_provider::Identity,
-                <#network_ty_ident as ::gadget_macros::ext::evm::alloy_provider::fillers::RecommendedFillers>::RecommendedFillers,
+        type #network_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_network::Ethereum;
+        type #transport_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_transport::BoxTransport;
+        type #provider_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::FillProvider<
+            ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::JoinFill<
+                ::blueprint_sdk::macros::ext::evm::alloy_provider::Identity,
+                <#network_ty_ident as ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::RecommendedFillers>::RecommendedFillers,
             >,
-            gadget_macros::ext::evm::alloy_provider::RootProvider<#transport_ty_ident>,
+            ::blueprint_sdk::macros::ext::evm::alloy_provider::RootProvider<#transport_ty_ident>,
             #transport_ty_ident,
             #network_ty_ident,
         >;
 
         #[automatically_derived]
-        #[gadget_macros::ext::async_trait::async_trait]
-        impl #impl_generics gadget_macros::ext::contexts::instrumented_evm_client::EvmInstrumentedClientContext for #name #ty_generics #where_clause {
-            async fn evm_client(&self) -> gadget_macros::ext::contexts::instrumented_evm_client::InstrumentedClient {
-                gadget_macros::ext::contexts::instrumented_evm_client::InstrumentedClient::new(
+        #[::blueprint_sdk::macros::ext::async_trait::async_trait]
+        impl #impl_generics ::blueprint_sdk::macros::ext::contexts::instrumented_evm_client::EvmInstrumentedClientContext for #name #ty_generics #where_clause {
+            async fn evm_client(&self) -> ::blueprint_sdk::macros::ext::contexts::instrumented_evm_client::InstrumentedClient {
+                ::blueprint_sdk::macros::ext::contexts::instrumented_evm_client::InstrumentedClient::new(
                     &#field_access.http_rpc_endpoint,
                 ).await.expect("Failed to create EVM client")
             }
