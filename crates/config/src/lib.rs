@@ -150,7 +150,7 @@ impl GadgetConfiguration {
         let ws_port = self.ws_rpc_endpoint.split(":").last();
 
         if let Some(port) = ws_port {
-            return port.parse().map_err(|_err| {
+            return get_port_sanitized(port).ok_or_else(|| {
                 Error::BadRpcConnection(format!("Bad WS port formatting from: {ws_port:?}"))
             });
         }
@@ -158,13 +158,28 @@ impl GadgetConfiguration {
         let http_port = self.http_rpc_endpoint.split(":").last();
 
         if let Some(port) = http_port {
-            return port.parse().map_err(|_err| {
+            return get_port_sanitized(port).ok_or_else(|| {
                 Error::BadRpcConnection(format!("Bad HTTP port formatting from: {http_port:?}"))
             });
         }
 
         Err(Error::BadRpcConnection("No port found".to_string()))
     }
+}
+
+#[cfg(feature = "networking")]
+/// Sanitizes the string
+fn get_port_sanitized<T: AsRef<str>>(port: T) -> Option<u16> {
+    let port = port.as_ref();
+    // Only get the numberic values
+    let mut port_sanitized = String::new();
+    for c in port.chars() {
+        if c.is_numeric() {
+            port_sanitized.push(c);
+        }
+    }
+
+    port_sanitized.parse().ok()
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
