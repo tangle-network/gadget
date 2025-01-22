@@ -20,6 +20,7 @@ gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["std"] }
 gadget-keystore = { workspace = true }
+gadget-blueprint-serde = { workspace = true, features = ["std"] }
 tnt-core-bytecode = { workspace = true }
 
 alloy-provider = { workspace = true, features = ["ws"] }
