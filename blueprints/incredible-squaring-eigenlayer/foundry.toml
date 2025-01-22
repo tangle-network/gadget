@@ -7,6 +7,12 @@ script = "contracts/script"
 cache_path = "contracts/cache"
 broadcast = "contracts/broadcast"
 libs = ["dependencies"]
+remappings = [
+    "@eigenlayer/=dependencies/eigenlayer-middleware-0.4.3/lib/eigenlayer-contracts/src/",
+    "@eigenlayer-middleware/=dependencies/eigenlayer-middleware-0.4.3/",
+    "forge-std-1.9.5/=dependencies/forge-std-1.9.5/",
+    "incredible-squaring/=contracts/src/",
+]
 
 [soldeer]
 recursive_deps = true
