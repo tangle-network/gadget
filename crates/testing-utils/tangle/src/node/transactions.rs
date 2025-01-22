@@ -3,6 +3,8 @@ use alloy_provider::{
     network::{ReceiptResponse, TransactionBuilder},
     PendingTransactionError, Provider, WsConnect,
 };
+use alloy_provider::network::AnyNetwork;
+use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_signer_local::PrivateKeySigner;
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
@@ -64,12 +66,13 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     let wallet = alloy_provider::network::EthereumWallet::from(signer_evm);
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
+        .network::<AnyNetwork>()
         .wallet(wallet)
         .on_ws(WsConnect::new(evm_rpc_endpoint))
         .await?;
 
     let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode.to_vec());
-    let send_result = provider.send_transaction(tx).await;
+    let send_result = provider.send_transaction(WithOtherFields::new(tx)).await;
     let tx = match send_result {
         Ok(tx) => tx,
         Err(err) => {

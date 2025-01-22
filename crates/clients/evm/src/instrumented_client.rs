@@ -1172,7 +1172,7 @@ mod tests {
             ]))
             .await
             .expect("Failed to mine anvil blocks");
-        tokio::time::sleep(gadget_std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(gadget_std::time::Duration::from_secs(5)).await;
 
         let expected_block_number = provider.clone().get_block_number().await.unwrap();
         let block_number = instrumented_client.block_number().await.unwrap();
@@ -1216,7 +1216,7 @@ mod tests {
             ]))
             .await
             .expect("Failed to mine anvil blocks");
-        tokio::time::sleep(gadget_std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(gadget_std::time::Duration::from_secs(5)).await;
 
         let block_count = 4;
         let last_block = BlockNumberOrTag::Latest;
