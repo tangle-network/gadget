@@ -6,6 +6,9 @@ pub use tangle_subxt;
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 pub use alloy;
 
+#[cfg(feature = "eigenlayer")]
+pub use eigensdk;
+
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
 pub mod testing {
@@ -65,7 +68,9 @@ pub use gadget_runners as runners;
 
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
+pub use gadget_std as std;
 pub use tokio;
+pub use serde;
 
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;
