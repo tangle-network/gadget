@@ -77,8 +77,8 @@ impl TestHarness for TangleTestHarness {
         );
 
         // Load environment
-        let mut env = gadget_macros::ext::config::load(context_config)
-            .map_err(|e| Error::Setup(e.to_string()))?;
+        let mut env =
+            gadget_config::load(context_config).map_err(|e| Error::Setup(e.to_string()))?;
 
         // Always set test mode, dont require callers to set env vars
         env.test_mode = true;

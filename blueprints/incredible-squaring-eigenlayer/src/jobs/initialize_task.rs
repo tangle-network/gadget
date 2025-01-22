@@ -3,16 +3,15 @@ use crate::{
     contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager, ProcessorError,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
-use gadget_event_listeners::evm::EvmContractEventListener;
-use gadget_logging::info;
-use gadget_macros::job;
-use gadget_std::{convert::Infallible, ops::Deref};
+use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
+use blueprint_sdk::logging::info;
+use std::{convert::Infallible, ops::Deref};
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;
 
 /// Initializes the task for the aggregator server
-#[job(
+#[blueprint_sdk::job(
     id = 1,
     params(task, task_index),
     event_listener(
