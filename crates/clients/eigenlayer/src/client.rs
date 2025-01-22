@@ -5,7 +5,7 @@ use alloy_pubsub::PubSubFrontend;
 use alloy_transport::BoxTransport;
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use eigensdk::common::get_ws_provider;
-use eigensdk::logging::tracing_logger::TracingLogger;
+use eigensdk::logging::get_test_logger;
 use gadget_config::GadgetConfiguration;
 use gadget_std::collections::HashMap;
 use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
@@ -181,12 +181,7 @@ impl EigenlayerClient {
         Ok(
             eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService::new(
                 avs_registry_service,
-                TracingLogger::new_text_logger(
-                    false,
-                    Default::default(),
-                    eigensdk::logging::log_level::LogLevel::Info,
-                    false,
-                ),
+                get_test_logger(),
             ),
         )
     }
