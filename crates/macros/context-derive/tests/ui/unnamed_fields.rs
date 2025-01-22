@@ -1,11 +1,11 @@
-use gadget_config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
+use blueprint_sdk::contexts::keystore::KeystoreContext as _;
+use blueprint_sdk::contexts::services::ServicesContext as _;
+use blueprint_sdk::contexts::tangle::TangleClientContext as _;
 use gadget_context_derive::{
     EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext,
 };
-use gadget_contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
-use gadget_contexts::keystore::KeystoreContext as _;
-use gadget_contexts::services::ServicesContext as _;
-use gadget_contexts::tangle::TangleClientContext as _;
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]
