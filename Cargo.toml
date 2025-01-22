@@ -212,6 +212,7 @@ dirs = { version = "5.0.1", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
 
 # Alloy (EVM)
+alloy = { version = "0.9.2", default-features = false }
 alloy-primitives = { version = "0.8.12", default-features = false }
 alloy-json-abi = { version = "0.8.12", default-features = false }
 alloy-json-rpc = { version = "0.9.2", default-features = false }

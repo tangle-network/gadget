@@ -2530,6 +2530,7 @@ dependencies = [
 name = "blueprint-sdk"
 version = "0.1.0"
 dependencies = [
+ "alloy",
  "blueprint-build-utils",
  "blueprint-metadata",
  "gadget-client-networking",
@@ -2548,6 +2549,7 @@ dependencies = [
  "gadget-stores",
  "gadget-tangle-testing-utils",
  "gadget-testing-utils",
+ "gadget-utils",
  "tangle-subxt",
  "tempfile",
  "tokio",
