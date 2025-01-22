@@ -132,13 +132,13 @@ pub(crate) fn generate_evm_specific_impl(
         }
 
         #[automatically_derived]
-        impl Deref for #struct_name
+        impl ::blueprint_sdk::macros::ext::std::ops::Deref for #struct_name
         {
             type Target = ::blueprint_sdk::macros::ext::event_listeners::evm::AlloyContractInstance;
             fn deref(&self) -> &Self::Target {
                 self.contract_instance.get_or_init(|| {
-                    let abi_location = alloy_contract::Interface::new(alloy_json_abi::JsonAbi::from_json_str(&#abi_string).unwrap());
-                    alloy_contract::ContractInstance::new(self.contract.address().clone(), self.contract.provider().clone(), abi_location )
+                    let abi_location = ::blueprint_sdk::alloy::contract::Interface::new(::blueprint_sdk::alloy::json_abi::JsonAbi::from_json_str(#abi_string).unwrap());
+                    ::blueprint_sdk::alloy::contract::ContractInstance::new(self.contract.address().clone(), self.contract.provider().clone(), abi_location )
                 })
             }
         }
