@@ -7149,7 +7149,6 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "sp-core",
- "sp-runtime-interface",
  "thiserror 2.0.11",
 ]
 
@@ -7178,8 +7177,8 @@ dependencies = [
  "gadget-std",
  "k256",
  "serde",
- "sp-runtime",
- "tangle-subxt",
+ "subxt",
+ "subxt-core",
  "thiserror 2.0.11",
 ]
 
@@ -7298,17 +7297,14 @@ dependencies = [
  "gadget-blueprint-serde",
  "gadget-clients",
  "gadget-contexts",
- "gadget-crypto-tangle-pair-signer",
+ "gadget-crypto",
  "gadget-event-listeners-core",
- "gadget-keystore",
  "gadget-logging",
  "gadget-std",
  "gadget-utils-tangle",
  "parking_lot 0.12.3",
  "serde",
  "sp-core",
- "subxt",
- "subxt-core",
  "tangle-subxt",
  "thiserror 2.0.11",
  "tokio",

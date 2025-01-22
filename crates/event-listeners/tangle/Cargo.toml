@@ -7,18 +7,16 @@ edition = "2021"
 gadget-blueprint-serde = { workspace = true }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-contexts = { workspace = true, features = ["keystore", "tangle"] }
-gadget-crypto-tangle-pair-signer = { workspace = true }
+gadget-crypto = { workspace = true, features = ["tangle-pair-signer"] }
 gadget-event-listeners-core = { workspace = true }
-gadget-keystore = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 gadget-utils-tangle = { workspace = true }
+
 async-trait = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 sp-core = { workspace = true }
-subxt = { workspace = true, optional = true }
-subxt-core = { workspace = true }
 tangle-subxt = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -26,24 +24,20 @@ tokio = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "dep:subxt",
-    "gadget-blueprint-serde/std",
-    "gadget-clients/std",
-    "gadget-contexts/std",
-    "gadget-crypto-tangle-pair-signer/std",
-    "gadget-event-listeners-core/std",
-    "gadget-logging/std",
-    "gadget-std/std",
-    "gadget-utils-tangle/std",
-    "serde/std",
-    "sp-core/std",
-    "subxt/native",
-    "subxt-core/std",
-    "tangle-subxt/std",
-    "tokio/full",
+	"gadget-blueprint-serde/std",
+	"gadget-clients/std",
+	"gadget-contexts/std",
+	"gadget-crypto/std",
+	"gadget-event-listeners-core/std",
+	"gadget-logging/std",
+	"gadget-std/std",
+	"gadget-utils-tangle/std",
+	"serde/std",
+	"sp-core/std",
+	"tangle-subxt/std",
+	"tokio/full",
 ]
 web = [
-    "dep:subxt",
-    "gadget-utils-tangle/web",
-    "subxt/web",
+	"gadget-utils-tangle/web",
+	"tangle-subxt/web",
 ]
