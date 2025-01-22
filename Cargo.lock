@@ -2536,6 +2536,7 @@ dependencies = [
  "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
+ "gadget-context-derive",
  "gadget-contexts",
  "gadget-crypto",
  "gadget-event-listeners",
