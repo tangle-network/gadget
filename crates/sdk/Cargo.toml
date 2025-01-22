@@ -118,6 +118,7 @@ networking = [
 	"gadget-clients/networking",
 	"gadget-keystore/std",
 	"gadget-config/networking",
+	"gadget-macros?/networking",
 ]
 
 p2p = ["gadget-context-derive/networking"]
