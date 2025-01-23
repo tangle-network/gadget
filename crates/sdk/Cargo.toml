@@ -72,6 +72,8 @@ std = [
 web = [
 	# Tangle
 	"tangle-subxt?/web",
+	# Macros
+	"gadget-macros?/web",
 ]
 
 macros = [
@@ -101,6 +103,7 @@ eigenlayer = [
 	"gadget-runners/eigenlayer",
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
+	"gadget-macros?/eigenlayer",
 	"alloy",
 	"alloy-json-abi",
 	"eigensdk",

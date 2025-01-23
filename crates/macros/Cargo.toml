@@ -45,6 +45,7 @@ std = [
 	"gadget-blueprint-serde?/std",
 	"gadget-clients?/std",
 	"gadget-context-derive/std",
+	"gadget-contexts/std",
 	"gadget-crypto?/std",
 	"gadget-event-listeners?/std",
 	"gadget-logging?/std",
@@ -68,6 +69,7 @@ tangle = [
 	"dep:tokio",
 	"gadget-clients?/tangle",
 	"gadget-context-derive/tangle",
+	"gadget-contexts/tangle",
 	"gadget-crypto/tangle-pair-signer",
 	"gadget-keystore/tangle",
 	"gadget-event-listeners/tangle",
@@ -84,11 +86,16 @@ evm = [
 	"dep:tokio",
 	"gadget-clients?/evm",
 	"gadget-context-derive/evm",
+	"gadget-contexts/evm",
 	"gadget-event-listeners/evm",
 	"gadget-blueprint-proc-macro/evm",
 ]
 
-networking = ["gadget-context-derive/networking"]
+eigenlayer = [
+	"gadget-contexts/eigenlayer",
+]
+
+networking = ["gadget-context-derive/networking", "gadget-contexts/networking"]
 
 [lints]
 workspace = true
