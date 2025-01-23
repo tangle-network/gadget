@@ -14,7 +14,7 @@ pub enum Error {
     // Specific to Tangle
     #[cfg(feature = "tangle")]
     #[error("Event listener error: {0}")]
-    TangleEventListener(
+    TangleEvent(
         #[from]
         event_listeners::core::Error<event_listeners::tangle::error::TangleEventListenerError>,
     ),
@@ -25,12 +25,12 @@ pub enum Error {
     // EVM and EigenLayer
     #[cfg(any(feature = "evm", feature = "eigenlayer"))]
     #[error("Event listener error: {0}")]
-    EvmEventListener(#[from] event_listeners::core::Error<event_listeners::evm::error::Error>),
+    EvmEvent(#[from] event_listeners::core::Error<event_listeners::evm::error::Error>),
     #[cfg(any(feature = "evm", feature = "eigenlayer"))]
     #[error("EVM error: {0}")]
     Alloy(#[from] AlloyError),
     #[cfg(feature = "eigenlayer")]
-    #[error("Eigenlayer AVS error: {0}")]
+    #[error("Eigenlayer error: {0}")]
     Eigenlayer(#[from] eigensdk::types::avs::SignatureVerificationError),
 
     // Specific to Networking
@@ -41,7 +41,7 @@ pub enum Error {
 
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 #[derive(thiserror::Error, Debug)]
-enum AlloyError {
+pub enum AlloyError {
     #[error("Alloy signer error: {0}")]
     Signer(#[from] alloy::signers::Error),
     #[error("Alloy contract error: {0}")]
@@ -51,3 +51,24 @@ enum AlloyError {
     #[error("Alloy local signer error: {0}")]
     LocalSigner(#[from] alloy::signers::local::LocalSignerError),
 }
+
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+macro_rules! implement_from_alloy_error {
+    ($($path:ident)::+, $variant:ident) => {
+        impl From<alloy::$($path)::+> for Error {
+            fn from(value: alloy::$($path)::+) -> Self {
+                Error::Alloy(AlloyError::$variant(value))
+            }
+        }
+    };
+}
+
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+implement_from_alloy_error!(signers::Error, Signer);
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+implement_from_alloy_error!(contract::Error, Contract);
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+implement_from_alloy_error!(rpc::types::transaction::ConversionError, Conversion);
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+implement_from_alloy_error!(signers::local::LocalSignerError, LocalSigner);
+
