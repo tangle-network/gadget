@@ -1,0 +1,6 @@
+[profile.default]
+src = "contracts/src"
+out = "contracts/out"
+libs = ["dependencies"]
+solc_version = "0.8.20"
+viaIR = true
