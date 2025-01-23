@@ -1,6 +1,0 @@
-@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable/
-@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/
-@eigenlayer/=lib/eigenlayer-middleware/lib/eigenlayer-contracts/src
-@eigenlayer-middleware/=lib/eigenlayer-middleware/
-forge-std/=lib/forge-std/src/
-incredible-squaring/=src/
