@@ -1,0 +1,7 @@
+# This file is used to install the Foundry toolchain and verify the installation.
+
+- name: Install Foundry
+  uses: foundry-rs/foundry-toolchain@v1
+
+- name: Verify Forge installation
+  run: forge --version
