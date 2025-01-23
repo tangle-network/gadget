@@ -65,7 +65,6 @@ pub use gadget_keystore as keystore;
 pub use gadget_std as std;
 pub use serde;
 pub use tokio;
-pub mod error;
 
 /// Error
 pub mod error;
