@@ -5,12 +5,11 @@
 
 version: 2
 updates:
-  - package-ecosystem: "gitsubmodule"
+  - package-ecosystem: "cargo"
     directory: "/"
-    allow:
-      - dependency-name: "*/forge-std"
-      - dependency-name: "*/tnt-core"
-      - dependency-name: "*/eigenlayer-middleware"
-      - dependency-name: "blueprints/incredible-squaring-symbiotic/contracts/lib/core"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
