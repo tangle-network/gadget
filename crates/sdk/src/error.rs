@@ -73,4 +73,3 @@ implement_from_alloy_error!(contract::Error, Contract);
 implement_from_alloy_error!(rpc::types::transaction::ConversionError, Conversion);
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 implement_from_alloy_error!(signers::local::LocalSignerError, LocalSigner);
-
