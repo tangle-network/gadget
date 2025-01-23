@@ -1,0 +1,26 @@
+[package]
+name = "gadget-blueprint-proc-macro-core"
+version = "0.3.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Core proc-macro for generating gadget code"
+
+[dependencies]
+gadget-std.workspace = true
+
+serde = { workspace = true, features = ["derive"] }
+ethereum-types = { workspace = true, features = ["serialize"] }
+cid = { workspace = true, features = ["alloc", "serde"] }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["alloc"] }
+
+[features]
+default = ["std"]
+std = ["serde/std", "cid/std", "gadget-std/std"]
+
+[lints]
+workspace = true

@@ -1,0 +1,56 @@
+[package]
+name = "gadget-crypto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-crypto-core = { path = "core" }
+gadget-crypto-k256 = { path = "k256", optional = true }
+gadget-crypto-sr25519 = { path = "sr25519", optional = true }
+gadget-crypto-ed25519 = { path = "ed25519", optional = true }
+gadget-crypto-hashing = { path = "hashing", optional = true }
+gadget-crypto-bls = { path = "bls", optional = true }
+gadget-crypto-bn254 = { path = "bn254", optional = true }
+gadget-crypto-sp-core = { path = "sp-core", optional = true }
+gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+sha3 = { workspace = true, optional = true }
+blake3 = { workspace = true, optional = true }
+thiserror = { workspace = true }
+
+[features]
+default = [
+	"std",
+	"k256",
+	"sr25519-schnorrkel",
+	"ed25519",
+	"bls",
+	"bn254",
+	"sp-core",
+	"tangle-pair-signer",
+	"hashing"
+]
+std = [
+	"gadget-crypto-core/std",
+	"gadget-crypto-k256?/std",
+	"gadget-crypto-sr25519?/std",
+	"gadget-crypto-ed25519?/std",
+	"gadget-crypto-bls?/std",
+	"gadget-crypto-bn254?/std",
+	"gadget-crypto-sp-core?/std",
+	"gadget-crypto-tangle-pair-signer?/std",
+]
+k256 = ["dep:gadget-crypto-k256", "gadget-crypto-core/k256"]
+sr25519-schnorrkel = ["dep:gadget-crypto-sr25519", "gadget-crypto-core/sr25519-schnorrkel"]
+ed25519 = ["dep:gadget-crypto-ed25519", "gadget-crypto-core/zebra"]
+bls = ["dep:gadget-crypto-bls", "gadget-crypto-core/bls"]
+bn254 = ["dep:gadget-crypto-bn254", "gadget-crypto-core/bn254"]
+sp-core = ["dep:gadget-crypto-sp-core", "gadget-crypto-core/tangle"]
+sp-core-bls = ["gadget-crypto-sp-core/bls", "gadget-crypto-core/tangle"]
+tangle-pair-signer = ["dep:gadget-crypto-tangle-pair-signer"]
+
+hashing = [
+	"gadget-crypto-hashing/sha2-hasher",
+	"gadget-crypto-hashing/sha3-hasher",
+	"gadget-crypto-hashing/blake3-hasher"
+]

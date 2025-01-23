@@ -1,0 +1,28 @@
+[package]
+name = "gadget-utils-evm"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-std = { workspace = true }
+alloy-network = { workspace = true, default-features = false }
+alloy-primitives = { workspace = true, default-features = false }
+alloy-provider = { workspace = true, default-features = false }
+alloy-signer = { workspace = true, default-features = false }
+alloy-signer-local = { workspace = true, default-features = false }
+alloy-transport = { workspace = true, default-features = false }
+url = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "alloy-primitives/std",
+    "gadget-std/std",
+]
+
+[lints]
+workspace = true

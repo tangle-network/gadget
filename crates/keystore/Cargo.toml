@@ -1,0 +1,167 @@
+[package]
+name = "gadget-keystore"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core dependencies (always included)
+gadget-crypto.workspace = true
+gadget-std.workspace = true
+async-trait.workspace = true
+lock_api.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+serde = { workspace = true, features = ["derive"] }
+blake3.workspace = true
+serde_json = { workspace = true, features = ["alloc", "std"], optional = true }
+serde_bytes.workspace = true
+
+# Crypto primitives (optional)
+k256 = { workspace = true, optional = true }
+schnorrkel = { workspace = true, optional = true }
+ed25519-zebra = { workspace = true, optional = true }
+w3f-bls = { workspace = true, optional = true }
+rust-bls-bn254 = { workspace = true, optional = true }
+
+# EVM dependencies (optional)
+alloy-network = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, optional = true }
+alloy-signer = { workspace = true, optional = true }
+alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"] }
+
+# Substrate dependencies (optional)
+sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+subxt = { workspace = true, features = ["substrate-compat"], optional = true }
+subxt-core = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
+
+# Eigenlayer dependencies (optional)
+eigensdk = { workspace = true, features = ["signer", "crypto-bls", "crypto-bn254"], optional = true }
+ark-serialize = { workspace = true, optional = true }
+ark-bn254 = { workspace = true, optional = true }
+ark-ec = { workspace = true, optional = true }
+ark-ff = { workspace = true, optional = true }
+
+# Optional dependencies
+hex = { workspace = true, optional = true }
+paste = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["full"], optional = true }
+
+# Hardware/Cloud wallet support (optional)
+alloy-signer-aws = { workspace = true, optional = true }
+alloy-signer-gcp = { workspace = true, optional = true }
+alloy-signer-ledger = { workspace = true, features = ["eip712"], optional = true }
+aws-config = { workspace = true, optional = true }
+aws-sdk-kms = { workspace = true, optional = true }
+gcloud-sdk = { workspace = true, optional = true }
+ripemd = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[features]
+default = ["std", "tangle-full", "eigenlayer-full", "all-remote-signers"]
+
+# Core features
+std = [
+	# Basic std dependencies
+	"dep:serde_json",
+	"serde/std",
+	"serde_bytes/std",
+	"hex/std",
+	"zeroize/std",
+	"gadget-crypto/std",
+	"gadget-std/std",
+	"thiserror/std",
+	"tokio",
+	# Conditional std enables for misc
+	"hex?/std",
+	# Condition std enables for alloy
+	"alloy-primitives?/std",
+	# Conditional std enables for crypto
+	"k256?/std",
+	"schnorrkel?/std",
+	"ed25519-zebra?/std",
+	"w3f-bls?/std",
+	"rust-bls-bn254?/std",
+	# Conditional std enables for protocols
+	"alloy-primitives?/std",
+	"sp-core?/std",
+	"sp-io?/std",
+	"subxt-core?/std",
+	"subxt?/native",
+	"ark-serialize?/std",
+]
+
+# Crypto primitive features
+ecdsa = ["k256", "ripemd", "hex", "gadget-crypto/k256"]
+sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
+zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
+bls = ["w3f-bls", "hex", "gadget-crypto/bls"]
+bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
+sp-core = ["dep:sp-core", "gadget-crypto/sp-core"]
+
+# Meant to be used in conjunction with `tangle` feature (for `sp-core`)
+substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]
+
+# Protocol features
+evm = [
+	"ecdsa",
+	"alloy-primitives",
+	"alloy-signer",
+	"alloy-signer-local",
+	"alloy-network",
+]
+
+tangle = [
+	"substrate",
+	"ecdsa",
+	"sr25519-schnorrkel",
+	"zebra",
+	"gadget-crypto/tangle-pair-signer",
+]
+
+tangle-bls = [
+	"tangle",
+	"sp-core/bls-experimental",
+	"gadget-crypto/sp-core-bls",
+]
+
+eigenlayer = [
+	"evm",
+	"eigensdk",
+	"rust-bls-bn254",
+	"bn254",
+]
+
+symbiotic = [
+	"evm",
+]
+
+remote = []
+
+# Optional protocol crypto features
+tangle-full = ["tangle", "tangle-bls", "bn254", "evm"]
+eigenlayer-full = ["eigenlayer", "sr25519-schnorrkel", "zebra", "bls"]
+symbiotic-full = ["symbiotic", "sr25519-schnorrkel", "zebra", "bls", "bn254"]
+
+# Hardware/Cloud wallet support
+aws-signer = ["remote", "alloy-signer-aws", "aws-config", "aws-sdk-kms", "evm", "std"]
+gcp-signer = ["remote", "alloy-signer-gcp", "gcloud-sdk", "evm", "std"]
+ledger-browser = ["remote", "evm", "alloy-signer-ledger/browser"]
+ledger-node = ["remote", "evm", "alloy-signer-ledger/node", "std"]
+all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "ledger-node", "std"]
+
+web = [
+	"subxt/web",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

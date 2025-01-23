@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use crate::deploy::TanglePairSigner;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::Context, Result, Section};
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::ext::sp_core::Pair;
 use tangle_subxt::subxt_signer::bip39;
@@ -43,7 +43,7 @@ generally be equivalent to no password at all.
 "#;
 
 /// Loads the Substrate Signer from the environment.
-pub fn load_signer_from_env() -> Result<TanglePairSigner> {
+pub fn load_signer_from_env() -> Result<TanglePairSigner<sp_core::sr25519::Pair>> {
     let s = std::env::var(SIGNER_ENV)
         .with_suggestion(|| {
             format!(
@@ -72,7 +72,7 @@ pub fn load_evm_signer_from_env() -> Result<PrivateKeySigner> {
         PrivateKeySigner::from_str(hex_str)
             .context("Parsing the hex string into a PrivateKeySigner")?
     } else {
-        let phrase = bip39::Mnemonic::from_str(uri.phrase.expose_secret().as_str())?;
+        let phrase = bip39::Mnemonic::from_str(uri.phrase.expose_secret())?;
         let secret_bytes = phrase.to_entropy();
         PrivateKeySigner::from_slice(secret_bytes.as_slice())
             .context("Creating a PrivateKeySigner from the mnemonic phrase")?

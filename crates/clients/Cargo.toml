@@ -1,0 +1,31 @@
+[package]
+name = "gadget-clients"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-client-eigenlayer = { workspace = true, optional = true }
+gadget-client-evm = { workspace = true, optional = true }
+gadget-client-tangle = { workspace = true, optional = true }
+gadget-client-networking = { workspace = true, optional = true }
+gadget-client-core = { workspace = true }
+gadget-std.workspace = true
+
+thiserror.workspace = true
+
+[features]
+default = ["std"]
+std = [
+	"gadget-client-eigenlayer?/std",
+	"gadget-client-evm?/std",
+	"gadget-client-networking?/std",
+	"gadget-client-tangle?/std",
+	"gadget-std/std",
+	"thiserror/std"
+]
+web = ["gadget-client-tangle?/web"]
+
+eigenlayer = ["dep:gadget-client-eigenlayer"]
+evm = ["dep:gadget-client-evm"]
+networking = ["dep:gadget-client-networking"]
+tangle = ["dep:gadget-client-tangle"]

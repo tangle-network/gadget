@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
+use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use cargo_tangle::create::BlueprintType;
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
-use keys::KeyType;
+use gadget_crypto::KeyTypeId;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -75,7 +76,7 @@ pub enum GadgetCommands {
     Keygen {
         /// The type of key to generate
         #[arg(short, long, value_enum)]
-        key_type: KeyType,
+        key_type: KeyTypeId,
 
         /// The path to save the key to, if not provided, the key will be printed
         /// to the console instead
@@ -131,7 +132,7 @@ async fn main() -> color_eyre::Result<()> {
                     .manifest
                     .manifest_path
                     .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                let _ = deploy::deploy_to_tangle(deploy::Opts {
+                let _ = deploy_to_tangle(Opts {
                     http_rpc_url,
                     ws_rpc_url,
                     manifest_path,
@@ -148,7 +149,14 @@ async fn main() -> color_eyre::Result<()> {
                 show_secret,
             } => {
                 let seed = seed.map(hex::decode).transpose()?;
-                keys::generate_key(key_type, path, seed.as_deref(), show_secret)?;
+                let (public, secret) =
+                    keys::generate_key(key_type, path.as_ref(), seed.as_deref(), show_secret)?;
+
+                eprintln!("Generated {} key:", key_type.name());
+                eprintln!("Public key: {}", public);
+                if show_secret || path.is_none() {
+                    eprintln!("Private key: {}", secret.expect("Should exist"));
+                }
             }
         },
     }

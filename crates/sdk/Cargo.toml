@@ -1,0 +1,140 @@
+[package]
+name = "blueprint-sdk"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Required dependencies
+gadget-keystore = { workspace = true }
+gadget-config = { workspace = true }
+gadget-event-listeners = { workspace = true }
+gadget-crypto = { workspace = true }
+gadget-logging = { workspace = true }
+gadget-runners = { workspace = true }
+gadget-utils = { workspace = true }
+gadget-std = { workspace = true }
+
+# K, V Stores
+gadget-stores = { workspace = true, optional = true }
+
+# Tangle
+tangle-subxt = { workspace = true, optional = true }
+
+# EigenLayer and EVM
+alloy = { workspace = true, optional = true }
+alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
+eigensdk = { workspace = true, optional = true, features = ["full"] }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+
+# Required Features for macro resolution
+gadget-macros = { workspace = true, optional = true }
+tokio = { workspace = true, default-features = false }
+
+# Networking-related dependencies
+gadget-networking = { workspace = true, optional = true }
+gadget-client-networking = { workspace = true, optional = true }
+gadget-contexts = { workspace = true }
+gadget-context-derive = { workspace = true, optional = true }
+gadget-clients = { workspace = true, optional = true }
+
+# Optional dependencies for testing
+gadget-client-tangle = { workspace = true, optional = true }
+gadget-tangle-testing-utils = { workspace = true, optional = true }
+gadget-testing-utils = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+
+# Optional dependencies for build
+blueprint-metadata = { workspace = true, optional = true }
+blueprint-build-utils = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = [
+	# Core
+	"gadget-keystore/std",
+	"gadget-config/std",
+	"gadget-event-listeners/std",
+	"gadget-crypto/std",
+	"gadget-logging/std",
+	"gadget-runners/std",
+	# Tangle
+	"tangle-subxt?/std",
+	# Macros
+	"gadget-macros?/std",
+]
+
+web = [
+	# Tangle
+	"tangle-subxt?/web",
+]
+
+macros = [
+	"dep:gadget-macros",
+	"dep:gadget-context-derive",
+]
+
+build = ["blueprint-metadata", "blueprint-build-utils"]
+
+tangle = [
+	"dep:tangle-subxt",
+	"gadget-runners/tangle",
+	"gadget-macros?/tangle",
+	"gadget-testing-utils?/tangle",
+	"gadget-utils/tangle",
+]
+
+evm = [
+	"gadget-utils/evm",
+	"gadget-testing-utils?/anvil",
+	"alloy",
+	"alloy-json-abi",
+	"gadget-macros?/evm",
+]
+
+eigenlayer = [
+	"gadget-runners/eigenlayer",
+	"gadget-testing-utils?/eigenlayer",
+	"gadget-utils/eigenlayer",
+	"alloy",
+	"alloy-json-abi",
+	"eigensdk",
+]
+
+testing = [
+	"std",
+	"dep:gadget-testing-utils",
+	"tempfile"
+]
+
+networking = [
+	"gadget-networking",
+	"gadget-client-networking",
+	"gadget-contexts/networking",
+	"gadget-clients/networking",
+	"gadget-keystore/std",
+	"gadget-config/networking",
+	"gadget-macros?/networking",
+	"gadget-context-derive?/networking",
+]
+
+networking-sp-core-ecdsa = [
+	"gadget-networking/sp-core-ecdsa"
+]
+
+networking-sr25519 = [
+	"gadget-networking/sp-core-sr25519"
+]
+
+networking-ed25519 = [
+	"gadget-networking/sp-core-ed25519"
+]
+
+local-store = ["gadget-stores/local"]
+
+round-based-compat = ["gadget-networking/round-based-compat"]

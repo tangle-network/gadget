@@ -1,19 +1,7 @@
 use super::CommandInstalled;
-use color_eyre::Result;
-use gadget_sdk::tracing;
 use std::process::Command;
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("Failed to build contracts")]
-    BuildContracts,
-    #[error("Failed to install dependencies")]
-    InstallDependencies,
-}
-
-pub struct Forge {
-    cmd: Command,
-}
+pub struct Forge;
 
 impl Default for Forge {
     fn default() -> Self {
@@ -24,47 +12,47 @@ impl Default for Forge {
 impl Forge {
     /// Creates a new Forge instance.
     pub fn new() -> Forge {
-        let cmd = Command::new("forge");
-        Self { cmd }
+        Forge
     }
 
     /// Returns the version of Forge.
-    pub fn version(&mut self) -> Result<String> {
-        let out = self.cmd.arg("--version").output()?.stdout;
-        Ok(String::from_utf8(out)?.trim().replace("forge", ""))
+    pub fn version(&self) -> color_eyre::Result<String> {
+        let output = Command::new("forge").arg("--version").output()?;
+
+        Ok(String::from_utf8(output.stdout)?
+            .trim()
+            .replace("forge", ""))
     }
 
     /// Returns true if Forge is installed.
     pub fn is_installed(&self) -> bool {
-        self.cmd.is_installed()
+        Command::new("forge").is_installed()
     }
 
-    /// Builds the contracts.
-    pub fn build(mut self) -> Result<()> {
-        eprintln!("Building contracts...");
-        let status = self
-            .cmd
-            .arg("build")
-            .stderr(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .spawn()?
-            .wait()?;
-        if !status.success() {
-            return Err(Error::BuildContracts.into());
+    pub fn install_dependencies(&self) -> color_eyre::Result<()> {
+        println!("Installing dependencies...");
+        let output = Command::new("forge")
+            .args(["soldeer", "update", "-d"])
+            .output()?;
+
+        if !output.status.success() {
+            return Err(color_eyre::eyre::eyre!(
+                "Failed to install dependencies: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
         Ok(())
     }
 
-    pub fn install_dependencies(mut self) -> Result<()> {
-        tracing::info!("Installing dependencies...");
-        let output = self
-            .cmd
-            .args(["soldeer", "update", "-d"])
-            .stderr(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .output()?;
+    pub fn build(&self) -> color_eyre::Result<()> {
+        println!("Building contracts...");
+        let output = Command::new("forge").arg("build").output()?;
+
         if !output.status.success() {
-            return Err(Error::InstallDependencies.into());
+            return Err(color_eyre::eyre::eyre!(
+                "Failed to build contracts: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
         Ok(())
     }

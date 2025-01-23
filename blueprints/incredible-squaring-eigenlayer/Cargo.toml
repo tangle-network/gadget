@@ -10,17 +10,18 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-eigensdk = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["eigenlayer", "evm", "macros", "std"] }
+futures = { workspace = true }
+
+eigensdk = { workspace = true, features = ["crypto-bls", "services-blsaggregation"] }
 tracing = { workspace = true }
 async-trait = { workspace = true }
-gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
 lazy_static = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
 tokio-util = { workspace = true }
 sp-core = { workspace = true }
-subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
 alloy-contract = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-json-abi = { workspace = true, features = ["serde_json"] }
@@ -56,8 +57,7 @@ jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]
-blueprint-test-utils = { workspace = true }
-gadget-io = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["testing", "eigenlayer", "evm"] }
 tempfile = { workspace = true }
 
 [build-dependencies]

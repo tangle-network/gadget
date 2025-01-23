@@ -4,12 +4,21 @@ Create and Deploy blueprints on Tangle Network.
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Installation](#installation)
-3. [Creating a New Blueprint/Gadget](#creating-a-new-blueprintgadget)
-4. [Deploying the Blueprint to a Local Tangle Node](#deploying-the-blueprint-to-a-local-tangle-node)
-5. [Required Environment Variables for Deployment](#required-environment-variables-for-deployment)
-6. [Examples](#example)
+- [Tangle CLI](#tangle-cli)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Installation](#installation)
+    - [Feature flags](#feature-flags)
+  - [Creating a New Blueprint/Gadget](#creating-a-new-blueprintgadget)
+    - [Example](#example)
+  - [Build The Blueprint and the Gadget](#build-the-blueprint-and-the-gadget)
+  - [Unit Testing](#unit-testing)
+  - [Deploying the Blueprint to a Local Tangle Node](#deploying-the-blueprint-to-a-local-tangle-node)
+    - [Example](#example-1)
+  - [Required Environment Variables for Deployment](#required-environment-variables-for-deployment)
+    - [Example of ENV Variables](#example-of-env-variables)
+  - [Generating Keys from the Command Line](#generating-keys-from-the-command-line)
+    - [Flags](#flags)
 
 ## Overview
 
@@ -31,6 +40,27 @@ Or, if you prefer to install the CLI from source:
 
 ```bash
 cargo install cargo-tangle --git https://github.com/tangle-network/gadget --force
+```
+
+### Feature flags
+
+The CLI supports installation that targets specific environments if reducing dependencies is desired. The following feature flags are available:
+
+```bash
+# Just Tangle support (includes EVM) - default
+cargo install cargo-tangle
+
+# Just EVM support without Tangle/EigenLayer
+cargo install cargo-tangle --features evm
+
+# EigenLayer support (includes EVM)
+cargo install cargo-tangle --features eigenlayer
+
+# Key generation tools
+cargo install cargo-tangle --features keys
+
+# Full installation
+cargo install cargo-tangle --features "tangle,eigenlayer,keys"
 ```
 
 ## Creating a New Blueprint/Gadget
@@ -113,7 +143,6 @@ cargo tangle blueprint generate-keys -k <KEY_TYPE> -p <PATH> -s <SURI/SEED> --sh
 ```
 
 where it is optional to include the path, seed, or the show-secret flags.
-
 
 ### Flags
 

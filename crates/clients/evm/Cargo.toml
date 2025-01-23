@@ -1,0 +1,52 @@
+[package]
+name = "gadget-client-evm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+url = { workspace = true }
+
+# Alloy dependencies
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport = { workspace = true }
+alloy-network = { workspace = true }
+alloy-json-rpc = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-rlp = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true, features = ["eth"] }
+alloy-rpc-types-eth = { workspace = true }
+alloy-pubsub = { workspace = true }
+alloy-transport-http = { workspace = true }
+tokio = { workspace = true }
+
+# Metrics
+gadget-logging = { workspace = true }
+gadget-rpc-calls = { workspace = true }
+
+[dev-dependencies]
+gadget-utils-evm = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true }
+alloy-signer-local = { workspace = true }
+testcontainers = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-logging/std",
+    "gadget-rpc-calls/std",
+    "gadget-std/std",
+    "hex/std",
+    "serde/std",
+    "serde_json/std",
+
+    # Alloy features
+    "alloy-primitives/std",
+] 

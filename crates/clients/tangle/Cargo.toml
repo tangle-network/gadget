@@ -1,0 +1,49 @@
+[package]
+name = "gadget-client-tangle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-config = { workspace = true, features = ["tangle", "keystore"] }
+gadget-client-core = { workspace = true }
+gadget-logging = { workspace = true }
+gadget-keystore = { workspace = true }
+gadget-crypto-sp-core = { workspace = true }
+
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+sp-core = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee"], optional = true }
+subxt-core = { workspace = true }
+tangle-subxt = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+gadget-tangle-testing-utils = { workspace = true }
+color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
+
+[features]
+default = ["std"]
+std = [
+	"dep:subxt",
+	"gadget-client-core/std",
+	"gadget-keystore/std",
+	"gadget-logging/std",
+	"gadget-config/std",
+	"gadget-std/std",
+	"gadget-std/tokio",
+	"serde/std",
+	"serde_json/std",
+	"sp-core/std",
+	"subxt/native",
+	"subxt-core/std",
+	"tangle-subxt/std",
+]
+web = [
+	"dep:subxt",
+	"subxt/web"
+]

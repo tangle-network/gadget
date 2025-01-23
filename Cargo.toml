@@ -1,27 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "blueprint-build-utils",
-    "blueprint-metadata",
-    "blueprints/incredible-squaring",
-    "blueprints/incredible-squaring-eigenlayer",
-    "blueprints/incredible-squaring-symbiotic",
-    "blueprints/examples",
-    "cli",
-    "gadget-io",
-    "blueprint-test-utils",
-    "blueprint-manager",
-    "blueprint-serde",
-    "sdk",
-    "macros/blueprint-proc-macro",
-    "macros/blueprint-proc-macro-core",
-    "macros/playground",
-    "macros/context-derive",
+	"cli",
+	"blueprints/*",
+	"crates/*",
 ]
-exclude = ["tangle-test-utils", "example"]
 
 [workspace.package]
-authors = ["Webb Technologies Inc."]
+authors = ["Tangle Network"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://tangle.tools"
@@ -44,163 +30,239 @@ needless_late_init = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-io = { version = "0.0.5", path = "./gadget-io", default-features = false }
-blueprint-manager = { version = "0.2.2", path = "./blueprint-manager" }
-blueprint-serde = { version = "0.3.1", path = "./blueprint-serde", package = "gadget-blueprint-serde" }
-blueprint-test-utils = { path = "./blueprint-test-utils" }
-gadget-sdk = { path = "./sdk", default-features = false, version = "0.6.2" }
+# SDKs (overarching crates that include all other crates)
+blueprint-sdk = { version = "0.1.0", path = "./crates/sdk", default-features = false }
 
-incredible-squaring-blueprint = { path = "./blueprints/incredible-squaring", default-features = false, version = "0.1.1" }
-incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
-incredible-squaring-blueprint-symbiotic = { path = "./blueprints/incredible-squaring-symbiotic", default-features = false, version = "0.1.1" }
-blueprint-examples = { path = "./blueprints/examples", default-features = false, version = "0.1.1" }
-gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.5.1" }
-gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.3.1" }
-gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.3.1" }
-blueprint-build-utils = { path = "./blueprint-build-utils", default-features = false, version = "0.1.0" }
-blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.2.1" }
-cargo-tangle = { path = "./cli", version = "0.3.3" }
+# Blueprint Examples
+incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
+incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./blueprints/incredible-squaring-eigenlayer", default-features = false }
+
+# Blueprint utils
+blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
+blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
+blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
+blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
+gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
+
+# Crypto
+gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
+gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
+gadget-crypto-sr25519 = { version = "0.1.0", path = "./crates/crypto/sr25519", default-features = false }
+gadget-crypto-ed25519 = { version = "0.1.0", path = "./crates/crypto/ed25519", default-features = false }
+gadget-crypto-hashing = { version = "0.1.0", path = "./crates/crypto/hashing", default-features = false }
+gadget-crypto-bls = { version = "0.1.0", path = "./crates/crypto/bls", default-features = false }
+gadget-crypto-bn254 = { version = "0.1.0", path = "./crates/crypto/bn254", default-features = false }
+gadget-crypto-sp-core = { version = "0.1.0", path = "./crates/crypto/sp-core", default-features = false }
+gadget-crypto = { version = "0.1.0", path = "./crates/crypto", default-features = false }
+gadget-crypto-tangle-pair-signer = { version = "0.1.0", path = "./crates/crypto/tangle-pair-signer", default-features = false }
+
+# Clients
+gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
+gadget-client-core = { version = "0.1.0", path = "./crates/clients/core", default-features = false }
+gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenlayer", default-features = false }
+gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
+gadget-client-networking = { version = "0.1.0", path = "./crates/clients/networking", default-features = false }
+gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
+gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
+
+# Event listeners
+gadget-event-listeners = { version = "0.1.0", path = "./crates/event-listeners", default-features = false }
+gadget-event-listeners-core = { version = "0.1.0", path = "./crates/event-listeners/core", default-features = false }
+gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listeners/evm", default-features = false }
+gadget-event-listeners-cronjob = { version = "0.1.0", path = "./crates/event-listeners/cronjob", default-features = false }
+gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
+
+# Executor
+gadget-executor = { version = "0.1.0", path = "./crates/executor", default-features = false }
+
+# Macros
+gadget-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
+gadget-blueprint-proc-macro-core = { version = "0.3.1", path = "./crates/macros/core", default-features = false }
+gadget-blueprint-proc-macro = { version = "0.5.1", path = "./crates/macros/blueprint-proc-macro", default-features = false }
+gadget-blueprint-proc-macro-playground = { version = "0.1.1", path = "./crates/macros/playground", default-features = false }
+gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
+
+# Stores
+gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
+gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
+
+# Runners
+gadget-runners = { version = "0.1.0", path = "./crates/runners", default-features = false }
+gadget-runner-core = { version = "0.1.0", path = "./crates/runners/core", default-features = false }
+gadget-runner-eigenlayer = { version = "0.1.0", path = "./crates/runners/eigenlayer", default-features = false }
+gadget-runner-tangle = { version = "0.1.0", path = "./crates/runners/tangle", default-features = false }
+gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbiotic", default-features = false }
+
+# SDK
+gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
+gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
+gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
+gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
+gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
+
+# Utilities
+gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
+gadget-utils-evm = { version = "0.1.0", path = "./crates/utils/evm", default-features = false }
+gadget-utils-eigenlayer = { version = "0.1.0", path = "./crates/utils/eigenlayer", default-features = false }
+gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", default-features = false }
+
+# Testing utilities
+gadget-testing-utils = { version = "0.1.0", path = "./crates/testing-utils", default-features = false }
+gadget-core-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/core", default-features = false }
+gadget-anvil-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/anvil", default-features = false }
+gadget-tangle-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/tangle", default-features = false }
+gadget-eigenlayer-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/eigenlayer", default-features = false }
+
+# Metrics
+gadget-metrics = { version = "0.1.0", path = "./crates/metrics", default-features = false }
+gadget-rpc-calls = { version = "0.1.0", path = "./crates/metrics/rpc-calls", default-features = false }
+
+cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo_metadata = { version = "0.18.1" }
-
-# Tangle-related dependencies
-tangle-subxt = { version = "0.7.1", default-features = false }
-subxt-signer = { version = "0.37.0", default-features = false }
-subxt = { version = "0.37.0", default-features = false }
-subxt-core = { version = "0.37.0", default-features = false }
-round-based = "0.3.0"
 tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
 
-sp-core = { version = "31.0.0", default-features = false }
-sp-io = { version = "33.0.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
+# Tangle-related dependencies
+tangle-subxt = { version = "0.9.0", default-features = false }
+subxt = { version = "0.38.0", default-features = false }
+subxt-core = { version = "0.38.0", default-features = false }
+round-based = { version = "0.3.0", default-features = false }
+
+# Substrate dependencies
+sp-core = { version = "34.0.0", default-features = false }
+sp-io = { version = "38.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
-sc-utils = { version = "17.0.0", default-features = false }
-sp-api = { version = "34.0.0", default-features = false }
-sp-application-crypto = { version = "33.0.0", default-features = false }
-sp-keystore = { version = "0.37.0", default-features = false }
-sp-externalities = { version = "0.27.0", default-features = false }
+sp-runtime-interface = { version = "28.0.0", default-features = false }
 
-sc-client-api = { version = "37.0.0", default-features = false }
-sc-keystore = { version = "28.0.0", default-features = false }
-parity-scale-codec = { version = "3.6.12", default-features = false }
+# Async & Runtime
+async-trait = { version = "0.1.82", default-features = false }
+futures = { version = "0.3.30", default-features = false }
+futures-util = { version = "0.3.31", default-features = false }
+tokio = { version = "1.40", default-features = false }
+tokio-util = { version = "0.7.12", default-features = false }
+tokio-cron-scheduler = "0.13.0"
 
-scale-info = { version = "2.11.3", default-features = false }
+# CLI & Configuration
+cargo-generate = { version = "0.22.1", default-features = false }
+clap = { version = "4.5.16" }
+clap-cargo = { version = "0.14", default-features = false }
+toml = { version = "0.8.19", default-features = false }
 
-tokio-retry = "0.3.0"
-anyhow = "1.0.93"
-async-trait = "0.1.82"
-auto_impl = "1.2.0"
-backon = { version = "1.2.0", default-features = false }
-bincode = "1.3.3"
-bip39 = "2.1.0"
-bollard = "0.17"
-cargo-generate = { version = "0.21.3", default-features = false }
-cfg-if = "1.0.0"
-clap = "4.5.16"
-clap-cargo = "0.14"
-dirs = "5.0.1"
-eyre = { version = "0.6.12" }
-color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace"] }
-ed25519-zebra = { version = "4" }
-elliptic-curve = { version = "0.13.8" }
-escargot = "0.5.12"
+# Cryptography & Blockchain
+bip39 = { version = "2.1.0", default-features = false }
+ed25519-zebra = { version = "4", default-features = false }
 ethereum-types = { version = "0.14.1", default-features = false }
-failure = "0.1.8"
-fs2 = "0.4"
-futures = "0.3.30"
-futures-util = "0.3.31"
-getrandom = { version = "0.2.15", default-features = false }
 hex = { version = "0.4.3", default-features = false }
-http-body-util = "0.1.2"
-hyper = { version = "1.4.1", default-features = false }
-hyper-util = "0.1.7"
-itertools = "0.13.0"
 k256 = { version = "0.13.3", default-features = false }
-libp2p = { version = "0.54", default-features = false }
-lock_api = "0.4.12"
-log = "0.4.22"
-multiaddr = { version = "0.18.1", default-features = false }
-nix = { version = "0.29.0", features = ["process", "signal"] }
-num-bigint = "0.4.6"
-parking_lot = "0.12.3"
-paste = "1.0.15"
-proc-macro2 = "1.0"
-prometheus = { version = "0.13.4", default-features = false }
-quote = "1.0"
 rand = { version = "0.8.5", default-features = false }
-reqwest = "0.12.9"
-rustdoc-types = "0.31.0"
-schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
+schnorrkel = { version = "0.11.4", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+w3f-bls = { git = "https://github.com/drewstone/bls.git", branch = "drew/bump-ark-versions", default-features = false }
+
+# Data Structures & Serialization
+bincode = { version = "1.3.3", default-features = false }
+cid = { version = "0.11.1", default-features = false }
+indexmap = { version = "2.5.0", default-features = false }
+lazy_static = { version = "1.5.0", default-features = false }
 serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
-serde_json = "1.0"
-serde_test = "1.0.177"
-sha2 = "0.10.8"
-sqlx = "=0.7.3"
-syn = "2.0.75"
-sysinfo = "0.31.2"
-thiserror = { version = "1.0.64", default-features = false }
-tokio = { version = "1.40", default-features = false }
-tokio-stream = { version = "0.1.16", default-features = false }
-tokio-util = { version = "0.7.12", default-features = false }
-toml = "0.8.19"
+serde_json = { version = "1.0", default-features = false }
+serde_test = { version = "1.0.177", default-features = false }
+
+# Error Handling & Logging
+anyhow = { version = "1.0.93", default-features = false }
+color-eyre = { version = "0.6", default-features = false }
+colored = { version = "3.0.0", default-features = false }
+log = { version = "0.4.22", default-features = false }
+thiserror = { version = "2.0.6", default-features = false }
 tracing = { version = "0.1", default-features = false }
+tracing-core = { version = "0.1.33", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
-uuid = "1.10.0"
-derive_more = { version = "1.0.0", features = ["display"] }
-trybuild = "1.0"
-tsify = "0.4.5"
-typed-builder = "0.19"
+
+# Networking & HTTP
+jsonrpc-core = { version = "18.0.0", default-features = false }
+jsonrpc-http-server = { version = "18.0.0", default-features = false }
+libp2p = { version = "0.54", default-features = false }
+reqwest = { version = "0.12.7", default-features = false }
 url = { version = "2.5.2", default-features = false }
-w3f-bls = { version = "0.1.4", default-features = false }
-cid = { version = "0.11.1" }
-indexmap = "2.5.0"
-lazy_static = "1.5.0"
-jsonrpc-core = "18.0.0"
-jsonrpc-http-server = "18.0.0"
-tempfile = "3.10.1"
-cargo_toml = { version = "0.20.5" }
 
-alloy-primitives = "0.8.12"
-alloy-json-abi = "0.8.12"
-alloy-sol-types = "0.8.12"
-alloy-rpc-client = "0.5"
-alloy-rpc-types = { version = "0.5" }
-alloy-rpc-types-eth = { version = "0.5" }
-alloy-provider = { version = "0.5", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.5" }
-alloy-signer = { version = "0.5" }
-alloy-signer-local = { version = "0.5" }
-alloy-network = { version = "0.5" }
-alloy-node-bindings = "0.5"
-alloy-contract = { version = "0.5" }
-alloy-consensus = { version = "0.5" }
-alloy-transport = { version = "0.5" }
-alloy-transport-http = { version = "0.5" }
+# System & OS
+fs2 = { version = "0.4", default-features = false }
+lock_api = { version = "0.4.12", default-features = false }
+nix = { version = "0.29.0", default-features = false }
+parking_lot = { version = "0.12.3", default-features = false }
+sysinfo = { version = "0.31.2", default-features = false }
+tempfile = { version = "3.13.0", default-features = false }
+uuid = { version = "1.10.0", default-features = false }
+blake3 = { version = "1.5.5", default-features = false }
 
-ark-bn254 = "0.4.0"
-ark-ec = "0.4.0"
-ark-ff = "0.5.0"
-ark-std = "0.4.0"
-ark-serialize = "0.5.0"
+# Development & Testing
+auto_impl = { version = "1.2.0", default-features = false }
+cargo_toml = { version = "0.21.0", default-features = false }
+escargot = { version = "0.5.12", default-features = false }
+itertools = { version = "0.13.0", default-features = false }
+paste = { version = "1.0.15", default-features = false }
+proc-macro2 = { version = "1.0", default-features = false }
+quote = { version = "1.0", default-features = false }
+rustdoc-types = { version = "0.33.0", default-features = false }
+syn = { version = "2.0.75", default-features = false }
+trybuild = { version = "1.0", default-features = false }
+typed-builder = { version = "0.19", default-features = false }
+dirs = { version = "5.0.1", default-features = false }
+serial_test = { version = "3.2.0", default-features = false }
 
-# WebAssembly
-js-sys = "0.3.70"
-serde-wasm-bindgen = "0.6.5"
-wasm-bindgen = "0.2.93"
-wasm-bindgen-futures = "0.4.43"
-wasmtime = { version = "23.0.2", default-features = false }
-wasmtimer = "0.2"
-secp256k1 = "0.29.1"
+# Alloy (EVM)
+alloy = { version = "0.9", default-features = false }
+alloy-primitives = { version = "0.8", default-features = false }
+alloy-json-abi = { version = "0.8", default-features = false }
+alloy-json-rpc = { version = "0.9", default-features = false }
+alloy-sol-types = { version = "0.8", default-features = false }
+alloy-rlp = { version = "0.3", default-features = false }
+alloy-rpc-client = { version = "0.9", default-features = false }
+alloy-rpc-types = { version = "0.9", default-features = false }
+alloy-rpc-types-eth = { version = "0.9", default-features = false }
+alloy-provider = { version = "0.9", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.9", default-features = false }
+alloy-signer = { version = "0.9", default-features = false }
+alloy-signer-local = { version = "0.9", default-features = false }
+alloy-network = { version = "0.9", default-features = false }
+alloy-node-bindings = { version = "0.9", default-features = false }
+alloy-contract = { version = "0.9", default-features = false }
+alloy-consensus = { version = "0.9", default-features = false }
+alloy-transport = { version = "0.9", default-features = false }
+alloy-transport-http = { version = "0.9", default-features = false }
+ripemd = { version = "0.1.3", default-features = false }
+
+# Remote signing
+alloy-signer-aws = { version = "0.9", default-features = false }
+alloy-signer-gcp = { version = "0.9", default-features = false }
+alloy-signer-ledger = { version = "0.9", default-features = false, features = ["eip712"] }
+aws-config = { version = "1", default-features = false }
+aws-sdk-kms = { version = "1", default-features = false }
+gcloud-sdk = { version = "0.25", default-features = false }
+
+# Arkworks
+ark-bn254 = { version = "0.5.0", default-features = false }
+ark-ec = { version = "0.5.0", default-features = false }
+ark-ff = { version = "0.5.0", default-features = false }
+ark-serialize = { version = "0.5.0", default-features = false, features = ["derive"] }
+num-bigint = { version = "0.4.6", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
+rayon = { version = "1", default-features = false }
+zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { version = "0.1.1", default-features = false }
-testcontainers = { version = "0.23.1" }
+eigensdk = { git = "https://github.com/Layr-Labs/eigensdk-rs.git", rev = "6ab2674cf19e2f2c78218de706975af1244dad9c", default-features = false }
+rust-bls-bn254 = { version = "0.2.1", default-features = false }
+testcontainers = { version = "0.23.1", default-features = false }
 
 # Symbiotic
 symbiotic-rs = { version = "0.1.1" }
-dashmap = "6.1.0"
-lru-mem = "0.3.0"
+dashmap = { version = "6.1.0", default-features = false }
+lru-mem = { version = "0.3.0", default-features = false }
+
+# Metrics
+metrics = { version = "0.24.1", default-features = false }
 
 [profile.dev.package.backtrace]
 opt-level = 3

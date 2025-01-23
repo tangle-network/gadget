@@ -1,0 +1,27 @@
+[package]
+name = "gadget-crypto-sr25519"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-crypto-core = { workspace = true, features = ["sr25519-schnorrkel"] }
+gadget-std = { workspace = true }
+schnorrkel = { workspace = true }
+serde = { workspace = true }
+serde_bytes = { workspace = true, features = ["alloc"] }
+hex = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["alloc"] }
+
+[features]
+default = ["std"]
+std = [
+	"gadget-crypto-core/std",
+	"gadget-std/std",
+	"serde/std",
+	"serde_json/std",
+	"serde_bytes/std",
+	"schnorrkel/std",
+] 

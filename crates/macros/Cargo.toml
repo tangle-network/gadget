@@ -1,0 +1,94 @@
+[package]
+name = "gadget-macros"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-blueprint-proc-macro-core = { workspace = true }
+gadget-blueprint-proc-macro = { workspace = true }
+gadget-context-derive = { workspace = true }
+
+gadget-std = { workspace = true }
+gadget-config = { workspace = true }
+gadget-contexts = { workspace = true }
+gadget-keystore = { workspace = true }
+gadget-clients = { workspace = true, optional = true }
+gadget-event-listeners = { workspace = true, optional = true }
+gadget-logging = { workspace = true, optional = true }
+gadget-crypto = { workspace = true, optional = true }
+
+# Misc. re-exports
+async-trait.workspace = true
+clap = { workspace = true, optional = true }
+futures.workspace = true
+tokio = { workspace = true, optional = true }
+
+# Tangle re-exports
+gadget-blueprint-serde = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
+
+# EVM re-exports
+alloy-network = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
+alloy-provider = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = [
+	"dep:clap",
+	"gadget-blueprint-proc-macro-core/std",
+	"gadget-blueprint-proc-macro/std",
+	"gadget-blueprint-serde?/std",
+	"gadget-clients?/std",
+	"gadget-context-derive/std",
+	"gadget-crypto?/std",
+	"gadget-event-listeners?/std",
+	"gadget-logging?/std",
+	"gadget-std/std",
+	"tangle-subxt?/std",
+]
+
+web = [
+	"gadget-clients?/web",
+	"gadget-event-listeners?/web",
+	"tangle-subxt?/web",
+]
+
+tangle = [
+	"dep:gadget-blueprint-serde",
+	"dep:gadget-clients",
+	"dep:gadget-crypto",
+	"dep:gadget-event-listeners",
+	"dep:gadget-logging",
+	"dep:tangle-subxt",
+	"dep:tokio",
+	"gadget-clients?/tangle",
+	"gadget-context-derive/tangle",
+	"gadget-crypto/tangle-pair-signer",
+	"gadget-keystore/tangle",
+	"gadget-event-listeners/tangle",
+	"gadget-blueprint-proc-macro/tangle",
+]
+
+evm = [
+	"dep:alloy-network",
+	"dep:alloy-transport",
+	"dep:alloy-provider",
+	"dep:gadget-clients",
+	"dep:gadget-event-listeners",
+	"dep:gadget-logging",
+	"dep:tokio",
+	"gadget-clients?/evm",
+	"gadget-context-derive/evm",
+	"gadget-event-listeners/evm",
+	"gadget-blueprint-proc-macro/evm",
+]
+
+networking = ["gadget-context-derive/networking"]
+
+[lints]
+workspace = true

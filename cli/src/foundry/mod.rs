@@ -37,7 +37,6 @@ impl Default for FoundryToolchain {
 }
 
 impl FoundryToolchain {
-    /// Creates a new FoundryToolchain instance.
     pub fn new() -> Self {
         Self {
             forge: forge::Forge::new(),
@@ -51,6 +50,5 @@ impl FoundryToolchain {
             eprintln!("Forge is not installed.");
             foundry_installation_instructions();
         }
-        // Add more tools here.
     }
 }

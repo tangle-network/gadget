@@ -15,6 +15,7 @@ env:
   RUST_BACKTRACE: full
   RUST_LOG: "gadget=trace"
   CARGO_TERM_COLOR: always
+  IN_CI: "true"
 
 jobs:
   formatting:
@@ -36,19 +37,13 @@ jobs:
   linting:
     timeout-minutes: 120
     name: cargo clippy
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
 
       - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          source /Users/runner/.bashrc
-          foundryup
-
-      - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Verify Forge installation
         run: forge --version
@@ -62,40 +57,61 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf
-
-      - name: Forge build
-        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts
+      - name: install protobuf and gmp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
 
   testing:
-    timeout-minutes: 90
+    timeout-minutes: 30
     name: cargo test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
     strategy:
+      fail-fast: false
       matrix:
         package:
           [
-            gadget-sdk,
-            gadget-context-derive,
+            # Blueprints
+            incredible-squaring-blueprint,
+            incredible-squaring-blueprint-eigenlayer,
+
+            # Macros
             gadget-blueprint-proc-macro,
-            gadget-blueprint-proc-macro-playground,
+            gadget-blueprint-proc-macro-core,
+            gadget-context-derive,
+
+            # Clients
+            gadget-client-eigenlayer,
+            gadget-client-evm,
+            gadget-client-tangle,
+
+            # Crypto
+            gadget-crypto-sp-core,
+            gadget-crypto-ed25519,
+            gadget-crypto-bls,
+            gadget-crypto-k256,
+            gadget-crypto-sr25519,
+
+            # Event listeners
+            gadget-event-listeners-core,
+            gadget-event-listeners-cronjob,
+
+            gadget-blueprint-serde,
+            gadget-config,
+            gadget-keystore,
+            gadget-std,
           ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
 
       - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          source /Users/runner/.bashrc
-          foundryup
-
-      - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Verify Forge installation
         run: forge --version
@@ -109,47 +125,49 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf
-        run: brew install protobuf gmp
-
-      - name: Set Relevant M1 env vars
+      - name: install protobuf and gmp
         run: |
-          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
 
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: Add extra args
+        run: |
+          # if test == "gadget_context_derive", add --features="networking", else ""
+          if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
+            echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
+          else
+            echo "cargo_nextest_args=" >> $GITHUB_ENV
+          fi
 
       - name: tests
-        run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}
+        run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
         run: cargo test --package ${{ matrix.package }} --doc
 
-  incredible-squaring:
-    timeout-minutes: 90
-    runs-on: ubuntu-latest
+  macos_tests:
+    timeout-minutes: 30
+    name: cargo test
+    runs-on: macos-latest
+    env:
+      CARGO_TERM_COLOR: always
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            gadget-networking,
+            gadget-executor,
+            gadget-utils-tangle,
+          ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
-        with:
-          path: gadget
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
-        env:
-          FOUNDRY_DIR: ${{ runner.temp }}/foundry
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
-
-      - name: Forge build
-        working-directory: gadget/blueprints/incredible-squaring/contracts
-        run: forge update && forge build
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly
@@ -162,65 +180,15 @@ jobs:
 
       - name: install protobuf and gmp
         run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
+          brew install protobuf gmp 
 
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
 
       - name: tests
-        working-directory: gadget
-        run: cargo nextest run --nocapture --package incredible-squaring-blueprint test_blueprint --retries 0
+        run: cargo nextest run --profile serial --package ${{ matrix.package }}
 
-  eigenlayer-tests:
-    timeout-minutes: 90
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v2
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          ${FOUNDRY_DIR:-"$HOME/.foundry"}/bin/foundryup
-        env:
-          FOUNDRY_DIR: ${{ runner.temp }}/foundry
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "${{ runner.temp }}/foundry/bin" >> $GITHUB_PATH
-
-      - name: Forge build
-        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
-
-      - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@v3
-
-      - name: Run anvil in background
-        run: anvil --version && anvil &
-
-      - name: install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: install protobuf and gmp
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
-
-      - name: install cargo-nextest
-        run: cargo install cargo-nextest --locked
-
-      - name: Build (release) integration test
-        run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
-
-      - name: eigenlayer incredible squaring blueprint test
-        run: RUST_LOG=gadget=trace cargo test --package incredible-squaring-blueprint-eigenlayer test_eigenlayer_incredible_squaring_blueprint -- --nocapture
-
-      - name: eigenlayer context test
-        run: RUST_LOG=gadget=trace cargo test --package blueprint-examples test_eigenlayer_context -- --nocapture
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: doc tests
+        run: cargo test --package ${{ matrix.package }} --doc
