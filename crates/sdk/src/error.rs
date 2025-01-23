@@ -10,6 +10,8 @@ pub enum Error {
     Config(#[from] config::Error),
     #[error("Keystore error: {0}")]
     Keystore(#[from] keystore::Error),
+    #[error("Other Error: {0}")]
+    Other(String),
 
     // Specific to Tangle
     #[cfg(feature = "tangle")]
