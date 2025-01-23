@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.3.1...gadget-context-derive-v0.3.2) - 2025-01-23
+
+### Added
+
+- eigenlayer incredible squaring blueprint ([#43](https://github.com/tangle-network/gadget/pull/43))
+- Add more networking tests, add CI potential fix
+- tangle SDK
+- integrate clients into macros
+- use new contexts in macros
+- macro migration
+
+### Fixed
+
+- *(context-derive)* get tests building
+- use sdk in macros
+- eigensdk-rs git dep
+- add extra args for networking
+- change bind addr for IN_CI tests, add timeout
+- remove old sdk paths from tests
+- remove target addr from p2p client
+- get tests compiling
+- get macro tests compiling
+- get job macro building
+- *(macros)* get TangleClientContext derive building
+- *(runners)* get runners building
+- use `gadget_std` more
+- get macro tests closer to building
+- rename services client method
+
+### Other
+
+- *(keystore)* cleanup Tangle{Bls}Backend traits
+- *(crypto)* remove crypto suffix from exports
+- cleanup job macro impl
+- clippy fixes, renaming
+
 ## [0.3.1](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.3.0...gadget-context-derive-v0.3.1) - 2024-12-11
 
 ### Other

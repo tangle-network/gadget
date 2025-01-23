@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.3.1...gadget-blueprint-proc-macro-core-v0.3.2) - 2025-01-23
+
+### Added
+
+- add cli to workspace ([#19](https://github.com/tangle-network/gadget/pull/19))
+- use new contexts in macros
+- macro migration
+
+### Fixed
+
+- *(keystore)* re-export gadget_crypto
+- *(incredible-squaring)* uncomment metadata
+- change incredible-squaring path in test
+- add cargo build to macro test
+- get crates building again
+- use `gadget_std` more
+
 ## [0.3.1](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.3.0...gadget-blueprint-proc-macro-core-v0.3.1) - 2024-12-11
 
 ### Fixed
