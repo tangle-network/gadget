@@ -136,6 +136,18 @@ impl Keystore {
     }
 }
 
+// Occurs when no features are enabled
+#[cfg_attr(
+    not(any(
+        feature = "ecdsa",
+        feature = "sr25519-schnorrkel",
+        feature = "zebra",
+        feature = "bls",
+        feature = "bn254",
+        feature = "sp-core"
+    )),
+    allow(unreachable_code, unused_variables, unused_mut)
+)]
 impl Backend for Keystore {
     /// Generate a new key pair from random seed
     fn generate<T: KeyType>(&self, seed: Option<&[u8]>) -> Result<T::Public>
