@@ -35,6 +35,18 @@ pub struct TypedStorage<S: RawStorage> {
     storage: S,
 }
 
+// Occurs when no features are enabled
+#[cfg_attr(
+    not(any(
+        feature = "ecdsa",
+        feature = "sr25519-schnorrkel",
+        feature = "zebra",
+        feature = "bls",
+        feature = "bn254",
+        feature = "sp-core"
+    )),
+    allow(unreachable_code, unused_variables, unused_mut)
+)]
 impl<S: RawStorage> TypedStorage<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
