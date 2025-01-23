@@ -277,28 +277,29 @@ fn build_contracts_if_needed(
         .collect();
 
     let needs_build = abs_pathes_to_check.iter().any(|path| !path.exists());
+    if !needs_build {
+        return Ok(());
+    }
 
-    if needs_build {
-        // Get the contracts directory path
-        let contracts_dir = package.manifest_path.parent().unwrap().join("contracts");
+    // Get the contracts directory path
+    let root = package.manifest_path.parent().unwrap();
+    let contracts_dir = root.join("contracts");
+    if !contracts_dir.exists() {
+        return Err(Error::ContractNotFound(contracts_dir.as_std_path().into()).into());
+    }
 
-        if !contracts_dir.exists() {
-            return Err(Error::ContractNotFound(contracts_dir.as_std_path().into()).into());
-        }
+    let foundry = crate::foundry::FoundryToolchain::new();
+    foundry.check_installed_or_exit();
 
-        let foundry = crate::foundry::FoundryToolchain::new();
-        foundry.check_installed_or_exit();
+    // Change to contracts directory before building
+    std::env::set_current_dir(&root)?;
+    foundry.forge.install_dependencies()?;
+    foundry.forge.build()?;
 
-        // Change to contracts directory before building
-        std::env::set_current_dir(&contracts_dir)?;
-        foundry.forge.install_dependencies()?;
-        foundry.forge.build()?;
-
-        // Verify the build succeeded
-        for path in &abs_pathes_to_check {
-            if !path.exists() {
-                return Err(Error::ContractNotFound(path.clone()).into());
-            }
+    // Verify the build succeeded
+    for path in &abs_pathes_to_check {
+        if !path.exists() {
+            return Err(Error::ContractNotFound(path.clone()).into());
         }
     }
 
