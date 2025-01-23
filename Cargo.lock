@@ -2659,6 +2659,7 @@ dependencies = [
  "serde",
  "tangle-subxt",
  "tempfile",
+ "thiserror 2.0.11",
  "tokio",
 ]
 

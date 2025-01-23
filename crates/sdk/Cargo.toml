@@ -29,6 +29,9 @@ alloy = { workspace = true, optional = true }
 alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
 
+# Error Handling
+thiserror = { workspace = true }
+
 # Serialization
 serde = { workspace = true, features = ["derive"] }
 
