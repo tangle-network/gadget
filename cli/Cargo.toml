@@ -33,14 +33,14 @@ gadget-utils-tangle = { workspace = true, default-features = true }
 # Optional client dependencies
 gadget-clients = { workspace = true, optional = true }
 gadget-crypto = { workspace = true, features = [
-	"k256",
-	"sr25519-schnorrkel",
-	"ed25519",
-	"bls",
-	"bn254",
-	"sp-core",
-	"sp-core-bls",
-	"tangle-pair-signer",
+    "k256",
+    "sr25519-schnorrkel",
+    "ed25519",
+    "bls",
+    "bn254",
+    "sp-core",
+    "sp-core-bls",
+    "tangle-pair-signer",
 ] }
 gadget-crypto-core = { workspace = true, features = ["clap"] }
 gadget-keystore = { workspace = true }
@@ -66,38 +66,35 @@ tempfile = "3.10.1"
 [features]
 default = ["std", "tangle"]
 std = [
-	"gadget-blueprint-proc-macro-core/std",
-	"gadget-clients/std",
-	"gadget-keystore?/std",
-	"gadget-logging/std",
-	"gadget-std/std",
-	"gadget-utils-tangle/std",
+    "gadget-blueprint-proc-macro-core/std",
+    "gadget-clients/std",
+    "gadget-keystore/std",
+    "gadget-logging/std",
+    "gadget-std/std",
+    "gadget-utils-tangle/std",
 ]
 
 # Main features
 tangle = [
-	"dep:gadget-keystore",
-	"tangle-subxt/std",
-	"subxt/native",
-	"gadget-clients/tangle",
-	"gadget-keystore/tangle-full",
-	"evm",
+    "tangle-subxt/std",
+    "subxt/native",
+    "gadget-clients/tangle",
+    "gadget-keystore/tangle-full",
+    "evm",
 ]
 
 # Protocol features
 eigenlayer = [
-	"dep:gadget-keystore",
-	"gadget-clients/eigenlayer",
-	"gadget-keystore/eigenlayer-full",
-	"evm",
+    "gadget-clients/eigenlayer",
+    "gadget-keystore/eigenlayer-full",
+    "evm",
 ]
 
 # Core functionality features
 evm = [
-	"dep:gadget-keystore",
-	"alloy-json-abi",
-	"alloy-provider",
-	"alloy-network",
-	"alloy-rpc-types-eth",
-	"alloy-signer-local",
+    "alloy-json-abi",
+    "alloy-provider",
+    "alloy-network",
+    "alloy-rpc-types-eth",
+    "alloy-signer-local",
 ]
