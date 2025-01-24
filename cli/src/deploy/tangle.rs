@@ -292,7 +292,7 @@ fn build_contracts_if_needed(
     foundry.check_installed_or_exit();
 
     // Change to contracts directory before building
-    std::env::set_current_dir(&root)?;
+    std::env::set_current_dir(root)?;
     foundry.forge.install_dependencies()?;
     foundry.forge.build()?;
 
