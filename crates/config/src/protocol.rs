@@ -169,26 +169,26 @@ impl ProtocolSettings {
     }
 
     #[cfg(feature = "tangle")]
-    pub fn tangle(&self) -> Result<&TangleInstanceSettings, &'static str> {
+    pub fn tangle(&self) -> Result<&TangleInstanceSettings, Error> {
         match self {
             Self::Tangle(settings) => Ok(settings),
-            _ => Err("Not a Tangle instance"),
+            _ => Err(Error::UnexpectedProtocol("Tangle")),
         }
     }
 
     #[cfg(feature = "eigenlayer")]
-    pub fn eigenlayer(&self) -> Result<&EigenlayerContractAddresses, &'static str> {
+    pub fn eigenlayer(&self) -> Result<&EigenlayerContractAddresses, Error> {
         match self {
             Self::Eigenlayer(settings) => Ok(settings),
-            _ => Err("Not an Eigenlayer instance"),
+            _ => Err(Error::UnexpectedProtocol("Eigenlayer")),
         }
     }
 
     #[cfg(feature = "symbiotic")]
-    pub fn symbiotic(&self) -> Result<&SymbioticContractAddresses, &'static str> {
+    pub fn symbiotic(&self) -> Result<&SymbioticContractAddresses, Error> {
         match self {
             Self::Symbiotic(settings) => Ok(settings),
-            _ => Err("Not a Symbiotic instance"),
+            _ => Err(Error::UnexpectedProtocol("Symbiotic")),
         }
     }
 
