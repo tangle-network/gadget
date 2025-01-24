@@ -11,6 +11,7 @@ repository.workspace = true
 # Required dependencies
 gadget-keystore = { workspace = true }
 gadget-config = { workspace = true }
+gadget-clients = { workspace = true }
 gadget-event-listeners = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
@@ -45,11 +46,8 @@ gadget-networking = { workspace = true, optional = true }
 gadget-client-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
 gadget-context-derive = { workspace = true, optional = true }
-gadget-clients = { workspace = true, optional = true }
 
 # Optional dependencies for testing
-gadget-client-tangle = { workspace = true, optional = true }
-gadget-tangle-testing-utils = { workspace = true, optional = true }
 gadget-testing-utils = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 
@@ -63,6 +61,7 @@ std = [
 	# Core
 	"gadget-keystore/std",
 	"gadget-config/std",
+	"gadget-clients/std",
 	"gadget-event-listeners/std",
 	"gadget-crypto/std",
 	"gadget-logging/std",
@@ -74,6 +73,8 @@ std = [
 ]
 
 web = [
+	# Core
+	"gadget-clients/web",
 	# Tangle
 	"tangle-subxt?/web",
 	# Macros
@@ -90,6 +91,7 @@ build = ["blueprint-metadata", "blueprint-build-utils"]
 tangle = [
 	"dep:tangle-subxt",
 	"dep:gadget-crypto-tangle-pair-signer",
+	"gadget-clients/tangle",
 	"gadget-runners/tangle",
 	"gadget-macros?/tangle",
 	"gadget-testing-utils?/tangle",
@@ -98,6 +100,7 @@ tangle = [
 ]
 
 evm = [
+	"gadget-clients/evm",
 	"gadget-crypto-tangle-pair-signer?/evm",
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
@@ -108,6 +111,7 @@ evm = [
 ]
 
 eigenlayer = [
+	"gadget-clients/eigenlayer",
 	"gadget-runners/eigenlayer",
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
