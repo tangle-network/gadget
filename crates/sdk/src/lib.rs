@@ -66,5 +66,9 @@ pub use gadget_std as std;
 pub use serde;
 pub use tokio;
 
+/// Error
+pub mod error;
+pub use error::Error;
+
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;

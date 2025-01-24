@@ -25,9 +25,12 @@ gadget-stores = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 
 # EigenLayer and EVM
-alloy = { workspace = true, optional = true }
+alloy = { workspace = true, optional = true, features = ["full"] }
 alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
+
+# Error Handling
+thiserror = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }
@@ -89,6 +92,7 @@ tangle = [
 	"gadget-macros?/tangle",
 	"gadget-testing-utils?/tangle",
 	"gadget-utils/tangle",
+	"gadget-event-listeners/tangle"
 ]
 
 evm = [
@@ -97,6 +101,7 @@ evm = [
 	"alloy",
 	"alloy-json-abi",
 	"gadget-macros?/evm",
+	"gadget-event-listeners/evm"
 ]
 
 eigenlayer = [
@@ -107,6 +112,7 @@ eigenlayer = [
 	"alloy",
 	"alloy-json-abi",
 	"eigensdk",
+	"gadget-event-listeners/evm"
 ]
 
 testing = [
