@@ -42,6 +42,11 @@ pub enum Error {
     /// Error parsing the protocol, from the `PROTOCOL` environment variable.
     #[error("Unsupported protocol: {0}")]
     UnsupportedProtocol(String),
+    /// Attempting to load the [`ProtocolSettings`] of a protocol differing from the target
+    ///
+    /// [`ProtocolSettings`]: crate::ProtocolSettings
+    #[error("Unexpect protocol, expected {0}")]
+    UnexpectedProtocol(&'static str),
     /// No Sr25519 keypair found in the keystore.
     #[error("No Sr25519 keypair found in the keystore")]
     NoSr25519Keypair,

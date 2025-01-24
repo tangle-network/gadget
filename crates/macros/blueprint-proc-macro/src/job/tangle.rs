@@ -49,7 +49,6 @@ pub(crate) fn generate_tangle_specific_impl(
     let struct_name_as_literal = struct_name.to_string();
 
     Ok(quote! {
-        // TODO: No Box<dyn Error>
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -61,30 +60,28 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The client fails to connect
             /// - The signer is not found
             /// - The service ID is not found.
-            pub async fn new(#(#new_function_signature)*) -> Result<Self, Box<dyn core::error::Error>> {
+            pub async fn new(#(#new_function_signature)*) -> Result<Self, ::blueprint_sdk::error::Error> {
                 use ::blueprint_sdk::macros::ext::keystore::backends::tangle::TangleBackend as _;
                 use ::blueprint_sdk::macros::ext::keystore::backends::Backend as _;
 
                 let client =
                     <#env_type as ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
-                        .await
-                        .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?;
+                        .await?;
 
                 // TODO: Key IDs
                 let keystore = <#env_type as ::blueprint_sdk::macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
                 let public = keystore.first_local::<
                     ::blueprint_sdk::macros::ext::crypto::sp_core::SpSr25519
-                >().map_err(|_| Into::<Box<dyn core::error::Error>>::into(::blueprint_sdk::macros::ext::config::Error::NoSr25519Keypair))?;
+                >().map_err(|_| ::blueprint_sdk::macros::ext::config::Error::NoSr25519Keypair)?;
                 let pair = keystore.get_secret::<
                     ::blueprint_sdk::macros::ext::crypto::sp_core::SpSr25519
                 >(&public)?;
                 let signer = ::blueprint_sdk::macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair.0);
 
                 let service_id = env.protocol_settings
-                    .tangle()
-                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
+                    .tangle()?
                     .service_id
-                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::blueprint_sdk::macros::ext::config::Error::MissingServiceId))?;
+                    .ok_or_else(|| ::blueprint_sdk::macros::ext::config::Error::MissingServiceId)?;
 
                 Ok(Self {
                     #(#constructor_args)*
