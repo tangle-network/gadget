@@ -23,6 +23,7 @@ gadget-stores = { workspace = true, optional = true }
 
 # Tangle
 tangle-subxt = { workspace = true, optional = true }
+gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
 
 # EigenLayer and EVM
 alloy = { workspace = true, optional = true }
@@ -85,6 +86,7 @@ build = ["blueprint-metadata", "blueprint-build-utils"]
 
 tangle = [
 	"dep:tangle-subxt",
+	"dep:gadget-crypto-tangle-pair-signer",
 	"gadget-runners/tangle",
 	"gadget-macros?/tangle",
 	"gadget-testing-utils?/tangle",
@@ -92,6 +94,7 @@ tangle = [
 ]
 
 evm = [
+	"gadget-crypto-tangle-pair-signer?/evm",
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
 	"alloy",

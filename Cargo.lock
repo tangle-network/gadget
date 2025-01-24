@@ -2645,6 +2645,7 @@ dependencies = [
  "gadget-context-derive",
  "gadget-contexts",
  "gadget-crypto",
+ "gadget-crypto-tangle-pair-signer",
  "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
