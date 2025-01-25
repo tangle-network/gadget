@@ -2586,7 +2586,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-manager"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -2617,7 +2617,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "cargo_metadata 0.18.1",
  "fs2",
@@ -6500,7 +6500,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "blueprint-sdk",
  "gadget-blueprint-proc-macro-core",
@@ -6517,7 +6517,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -6528,7 +6528,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-serde"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "paste",
  "serde",
@@ -6674,7 +6674,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-context-derive"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "alloy-network",
  "alloy-provider",

@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-metadata"
-version = "0.2.1"
+version = "0.2.2"
 description = "A build dependency for generating metadata for Blueprint at compile time."
 authors.workspace = true
 edition.workspace = true

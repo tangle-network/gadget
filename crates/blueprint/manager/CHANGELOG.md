@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.2.2...blueprint-manager-v0.2.3) - 2025-01-25
+
+### Added
+
+- migrate blueprint-manager
+
+### Fixed
+
+- eigensdk-rs git dep
+- get crates building again
+
+### Other
+
+- *(keystore)* cleanup Tangle{Bls}Backend traits
+- spelling fix
+- clippy fixes, renaming
+- *(blueprint-manager)* lots of cleanup
+- *(blueprint-manager)* remove dead code
+
 ## [0.2.2](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.2.1...blueprint-manager-v0.2.2) - 2024-12-11
 
 ### Other
