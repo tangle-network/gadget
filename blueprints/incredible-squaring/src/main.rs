@@ -1,29 +1,17 @@
-use color_eyre::Result;
-use gadget_sdk::info;
-use gadget_sdk::runners::tangle::TangleConfig;
-use gadget_sdk::runners::BlueprintRunner;
-use gadget_sdk::tangle_subxt::subxt::tx::Signer;
+use blueprint_sdk::logging::info;
+use blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::runners::tangle::tangle::TangleConfig;
 use incredible_squaring_blueprint as blueprint;
 
-#[gadget_sdk::main(env)]
+#[blueprint_sdk::main(env)]
 async fn main() {
-    let x_square = blueprint::XsquareEventHandler::new(
-        &env,
-        blueprint::MyContext {
-            config: env.clone(),
-            call_id: None,
-        },
-    )
-    .await?;
+    let context = blueprint::MyContext {
+        env: env.clone(),
+        call_id: None,
+    };
 
-    let test_call_id = blueprint::TestCallIdEventHandler::new(
-        &env,
-        blueprint::MyContext {
-            config: env.clone(),
-            call_id: None,
-        },
-    )
-    .await?;
+    let x_square = blueprint::XsquareEventHandler::new(&env, context).await?;
 
     info!(
         "Starting the event watcher for {} ...",
@@ -34,7 +22,6 @@ async fn main() {
     let tangle_config = TangleConfig::default();
     BlueprintRunner::new(tangle_config, env)
         .job(x_square)
-        .job(test_call_id)
         .run()
         .await?;
 

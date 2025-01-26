@@ -1,0 +1,23 @@
+[package]
+name = "gadget-testing-utils"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-core-testing-utils = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true, optional = true }
+gadget-tangle-testing-utils = { workspace = true, optional = true }
+gadget-eigenlayer-testing-utils = { workspace = true, optional = true }
+
+[features]
+default = []
+anvil = ["gadget-anvil-testing-utils"]
+tangle = ["gadget-tangle-testing-utils"]
+eigenlayer = ["gadget-eigenlayer-testing-utils"]
+
+[lints]
+workspace = true

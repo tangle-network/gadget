@@ -1,17 +1,17 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
+    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager, ProcessorError,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
-use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::{info, job};
-use std::{convert::Infallible, ops::Deref};
+use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
+use blueprint_sdk::logging::info;
+use std::convert::Infallible;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;
 
 /// Initializes the task for the aggregator server
-#[job(
+#[blueprint_sdk::job(
     id = 1,
     params(task, task_index),
     event_listener(
@@ -61,7 +61,7 @@ pub async fn convert_event_to_inputs(
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),
-) -> Result<(Task, u32), gadget_sdk::Error> {
+) -> Result<Option<(Task, u32)>, ProcessorError> {
     let task_index = event.0.taskIndex;
-    Ok((event.0.task, task_index))
+    Ok(Some((event.0.task, task_index)))
 }

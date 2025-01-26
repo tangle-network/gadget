@@ -6,7 +6,7 @@ publish_timeout = "10m"    # set a timeout for `cargo publish`
 [changelog]
 commit_preprocessors = [
     # Allow shortened crate names
-    { pattern = '^(\w+!?)\(sdk\):', replace = "$1(gadget-sdk):" },
+    { pattern = '^(\w+!?)\(sdk\):', replace = "$1(blueprint-sdk):" },
     { pattern = '^(\w+!?)\(cli\):', replace = "$1(cargo-tangle):" },
 ]
 

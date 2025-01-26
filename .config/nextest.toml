@@ -1,3 +1,10 @@
-[profile.default]
+[profile.ci]
+failure-output = "immediate-final"
+fail-fast = false
+slow-timeout = { period = "240s", terminate-after = 4 }
+
+[profile.serial]
 test-threads = 1
-retries = 2
+failure-output = "immediate-final"
+fail-fast = false
+slow-timeout = { period = "60s", terminate-after = 4 }

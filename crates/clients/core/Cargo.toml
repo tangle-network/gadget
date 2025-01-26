@@ -1,0 +1,16 @@
+[package]
+name = "gadget-client-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-std = { workspace = true }
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-std/std",
+]

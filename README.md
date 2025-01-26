@@ -1,110 +1,279 @@
-<p align="center">
-  <img src="https://github.com/tangle-network/tangle/blob/main/assets/Tangle%20%20Banner.png" alt="Gadget Logo">
-</p>
+# Tangle Network: Gadget SDK
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Rust Version](https://img.shields.io/badge/rust-1.74.0%2B-blue.svg)](https://www.rust-lang.org)
+A comprehensive toolkit for building, deploying, and managing blueprints to run on gadgets on the Tangle Network. This workspace provides a collection of Rust crates that enable developers to create and interact with blockchain-based applications.
 
-# Gadget: A Powerful distributed AVS Framework
+## Table of Contents
 
-[Gadget SDK](./sdk)
-| [CLI](./cli)
-| [Tangle Operator Docs](https://docs.tangle.tools/operators/validator/introduction)
-| [Tangle Developer Docs](https://docs.tangle.tools/developers)
+- [Overview](#overview)
+- [Features](#-features)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+  - [Installation](#installation)
+  - [Creating Your First Blueprint](#creating-your-first-blueprint)
+  - [Building and Testing](#building-and-testing)
+  - [Deployment](#deployment)
+- [Key Management](#-key-management)
+  - [Key Generation](#key-generation)
+  - [Supported Key Types](#supported-key-types)
+- [Configuration](#-configuration)
+  - [Feature Flags](#feature-flags)
+  - [Environment Variables](#environment-variables)
+- [Core Components](#-core-components)
+  - [Blueprint System](#blueprint-system)
+  - [Network Clients](#network-clients)
+  - [Cryptography](#cryptography)
+  - [Event System](#event-system)
+  - [Storage](#storage)
+- [Development](#-development)
+  - [Testing](#testing)
+- [Contributing](#-contributing)
+- [Support](#-support)
 
-Gadget is a comprehensive framework for building AVS services on Tangle and Eigenlayer.
-It provides a standardized framework for building task based systems and enables developers
-to clearly specify jobs, slashing reports, benchmarks, and tests for offchain and onchain
-service interactions. We plan to integrate with other restaking infrastructures over time,
-if you are a project that is interested please reach out!
+## Overview
 
-## Features
+Tangle Network's Gadget SDK is a modular framework designed to simplify the development and deployment of blockchain applications (blueprints) on the Tangle Network. It provides a comprehensive set of tools and libraries for blockchain interaction, cryptographic operations, and network communication.
 
-- Modular and extensible architecture
-- Integration with [Tangle](https://twitter.com/tangle_network) and [Eigenlayer](https://www.eigenlayer.xyz/)
-- Standardized job execution and submission mechanisms
-- Protocol-specific blockchain connections, networking layers, and application logic
-- Comprehensive testing framework
+## 🌟 Features
 
-## Getting Started
+- **Blueprint System**
+  - Template-based blueprint creation
+  - Automated deployment workflows
+  - Metadata Management
 
-Deploying a Blueprint to Tangle is made easy with commands provided by our CLI crate [cargo-tangle](./cli).
-Let's get started!
+- **Multi-Chain Support**
+  - Native Tangle Network integration
+  - EigenLayer compatibility
+  - EVM chain support
+  - Cross-chain communication
 
-### Installing the CLI
+- **Advanced Cryptography**
+  - Multiple signature schemes (BLS, Ed25519, SR25519)
+  - Secure key management
 
-To install the Tangle CLI, run the following command:
+- **Networking**
+  - P2P communication via libp2p
+  - Custom protocol implementations
+  - NAT traversal
+  - Peer discovery and management
 
-> Supported on Linux, MacOS, and Windows (WSL2)
+- **Development Tools**
+  - CLI for common operations
+  - Comprehensive testing framework
+  - Performance benchmarking
+  - Debugging utilities
+
+## 🛠 Project Structure
+
+```
+tangle-network-gadget-workspace/
+├── cli/                    # Command-line interface tools
+│   ├── src/               # CLI implementation
+│   └── README.md          # CLI documentation
+├── crates/                # Core functionality crates
+│   ├── benchmarking/      # Performance testing tools
+│   ├── blueprint/         # Blueprint core system
+│   │   ├── manager/       # Blueprint lifecycle management
+│   │   ├── metadata/      # Blueprint metadata handling
+│   │   └── serde/         # Serialization utilities
+│   ├── clients/           # Network clients
+│   │   ├── core/          # Shared client functionality
+│   │   ├── eigenlayer/    # EigenLayer integration
+│   │   ├── evm/          # Ethereum Virtual Machine client
+│   │   └── tangle/       # Tangle Network client
+│   ├── crypto/           # Cryptographic implementations
+│   ├── event-listeners/  # Event handling system
+│   ├── keystore/         # Key management
+│   ├── networking/       # P2P networking
+│   ├── runners/         # Execution environments
+│   └── utils/           # Shared utilities
+└── .config/             # Configuration files
+```
+
+## 📋 Prerequisites
+
+- Rust (nightly-2024-10-13)
+- Cargo
+- OpenSSL development packages
+- CMake (for certain dependencies)
+
+For Ubuntu/Debian:
+```bash
+apt install build-essential cmake libssl-dev pkg-config
+```
+
+For macOS:
+```bash
+brew install openssl cmake
+```
+
+## 🚀 Getting Started
+
+### Installation
+
+1. Install the Tangle CLI:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tangle-network/gadget/releases/download/cargo-tangle/v0.1.1-beta.7/cargo-tangle-installer.sh | sh
 ```
 
-Or, if you prefer to install the CLI from source:
+Or install from source:
 
 ```bash
 cargo install cargo-tangle --git https://github.com/tangle-network/gadget --force
 ```
 
-### Creating a Blueprint
+### Creating Your First Blueprint
 
-To create a new blueprint/gadget using the Tangle CLI:
-
-```bash
-cargo tangle blueprint create --name <blueprint_name>
-```
-
-### Deploying a Blueprint
-
-Finally, the blueprint can be deployed to a local Tangle node using the following command:
+1. Create a new blueprint:
 
 ```bash
-export SIGNER="//Alice" # Substrate Signer account
-export EVM_SIGNER="0xcb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854" # EVM signer account
-cargo tangle blueprint deploy --rpc-url <rpc_url> --package <package_name>
+cargo tangle blueprint create --name my_blueprint
 ```
 
-More information on this process can be found in the [CLI documentation](./cli/README.md)
-
-### Testing a blueprint (beta)
-
-In order to test a blueprint, you must first have a local Tangle node running. When setting up a local testnet for
-integration testing, we recommend running this script for
-testing: [run-standalone-local.sh](https://github.com/tangle-network/tangle/blob/main/scripts/run-standalone-local.sh),
-passing `--clean` as an argument to reset the chain and any keys.
-
-Then, you can run:
+2. Build your blueprint:
 
 ```bash
-cargo test --package blueprint-test-utils test_incredible_squaring -- --nocapture
+cargo build
 ```
 
-Since testing is in beta stage, each time the blueprint is run, you
-must cancel the testnet and restart it to ensure storage is reset.
-All these nuances and manual requirement of setting up a testnet will be resolved in the near future and will be
-testable via `cargo tangle blueprint test`
+3. Deploy to Tangle Network:
 
-## License
+```bash
+cargo tangle blueprint deploy --rpc-url wss://rpc.tangle.tools --package my_blueprint
+```
 
-Gadget is licensed under either of
+## 🔑 Key Management
 
-* Apache License, Version 2.0
-  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* MIT license
-  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+### Key Generation
 
-at your discretion.
+Generate cryptographic keys using the CLI:
 
-## Contributing
+```bash
+cargo tangle blueprint generate-keys -k <KEY_TYPE> -p <PATH> -s <SURI/SEED> --show-secret
+```
 
-We welcome contributions to Gadget! If you have any ideas, suggestions, or bug reports, please open an issue or submit a
-pull request.
+### Supported Key Types
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+| Key Type | Description | Use Case |
+|----------|-------------|----------|
+| sr25519 | Schnorrkel/Ristretto x25519 | Tangle Network account keys |
+| ecdsa | Elliptic Curve Digital Signature Algorithm | EVM compatible chains |
+| bls_bn254 | BLS signatures on BN254 curve | EigenLayer validators |
+| ed25519 | Edwards-curve Digital Signature Algorithm | General purpose signatures |
+| bls381 | BLS signatures on BLS12-381 curve | Advanced cryptographic operations |
 
-## Contact
+## 🔧 Configuration
 
-If you have any questions or need further information, please contact the developers [here](https://webb.tools/)
+### Feature Flags
+
+The CLI and core libraries support various feature flags for customizing functionality when building blueprints:
+
+| Feature Flag | Description | Components Included |
+|--------------|-------------|-------------------|
+| default | Standard installation | Tangle + EVM support with standard library features |
+| std | Standard library features | Core functionality with std support |
+| tangle | Tangle Network support | Tangle Network client, keystore, and EVM integration |
+| eigenlayer | EigenLayer integration | EigenLayer clients, keystore, and EVM support |
+| evm | EVM chain support | Ethereum JSON ABI, provider, network, and signer support |
+
+The crypto system supports multiple signature schemes:
+- k256 (ECDSA)
+- sr25519 (Schnorrkel)
+- ed25519
+- BLS (including BN254)
+- Tangle pair signer
+- Substrate crypto (sp-core)
+
+Installation examples:
+
+```bash
+# Default installation (includes Tangle + EVM)
+cargo install cargo-tangle
+
+# EVM support only
+cargo install cargo-tangle --features evm
+
+# Full installation with EigenLayer support
+cargo install cargo-tangle --features "tangle,eigenlayer"
+```
+
+### Environment Variables
+
+Required environment variables for different operations:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| SIGNER | Substrate signer account SURI | `export SIGNER="//Alice"` |
+| EVM_SIGNER | EVM signer private key | `export EVM_SIGNER="0xcb6df..."` |
+| RPC_URL | Tangle Network RPC endpoint | `export RPC_URL="wss://rpc.tangle.tools"` |
+| HTTP_RPC_URL | HTTP RPC endpoint | `export HTTP_RPC_URL="https://rpc.tangle.tools"` |
+
+## 🔨 Core Components
+
+### Blueprint System
+
+The Blueprint system is the core of the Tangle Network Gadget framework:
+
+- **Template Engine**: Standardized blueprint creation
+- **Metadata Management**: Blueprint information and configuration
+
+### Network Clients
+
+Specialized clients for different blockchain networks:
+
+- **Tangle Client**: Native integration with Tangle Network
+- **EigenLayer Client**: AVS (Actively Validated Service) integration
+- **EVM Client**: Ethereum and EVM-compatible chain support
+
+### Cryptography
+
+Comprehensive cryptographic implementations:
+
+- **Multiple Schemes**: Support for various signature algorithms
+- **Key Management**: Secure key storage and handling
+
+### Event System
+
+Robust event handling system:
+
+- **Event Listeners**: Custom event monitoring
+- **Async Processing**: Non-blocking event handling
+- **Filtering**: Configurable event filtering
+- **Error Handling**: Robust error recovery
+
+### Storage
+
+Flexible storage solutions:
+
+- **Local Database**: Efficient local storage
+- **Key-Value Store**: Fast key-value operations
+- **File System**: Secure file storage
+- **Remote Storage**: Cloud storage integration (e.g., AWS, GCP, Ledger)
+
+## 🧪 Development
+
+### Testing
+
+The framework includes comprehensive testing tools:
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test suite
+cargo test --package my_blueprint
+
+# Run with logging
+RUST_LOG=gadget=debug cargo test
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
+
+## 📮 Support
+
+- **Issues**: Use GitHub Issues for bug reports and feature requests
+- **Discussions**: Join our community discussions on GitHub
+- **Discord**: Join our [Discord server](https://discord.com/invite/cv8EfJu3Tn)

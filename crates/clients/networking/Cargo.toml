@@ -1,0 +1,28 @@
+[package]
+name = "gadget-client-networking"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gadget-config = { workspace = true, features = ["networking"] }
+gadget-crypto = { workspace = true, features = ["k256"] }
+gadget-logging = { workspace = true }
+gadget-networking = { workspace = true, features = ["round-based-compat"] }
+gadget-std = { workspace = true }
+libp2p = { workspace = true }
+proc-macro2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "gadget-config/std",
+    "gadget-crypto/std",
+    "gadget-logging/std",
+    "gadget-networking/std",
+    "gadget-std/std",
+    "serde/std",
+    "serde_json/std",
+] 
