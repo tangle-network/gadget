@@ -1,7 +1,12 @@
 [package]
 name = "gadget-event-listeners-core"
 version = "0.1.0"
-edition = "2021"
+description = "Core event listener primitives for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 futures = { workspace = true, optional = true }

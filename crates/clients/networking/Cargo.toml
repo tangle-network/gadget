@@ -1,7 +1,12 @@
 [package]
 name = "gadget-client-networking"
 version = "0.1.0"
-edition = "2021"
+description = "Networking client for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-config = { workspace = true, features = ["networking"] }

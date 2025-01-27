@@ -1,7 +1,12 @@
 [package]
 name = "gadget-runner-core"
 version = "0.1.0"
-edition = "2021"
+description = "Runner core primitives for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 # Core

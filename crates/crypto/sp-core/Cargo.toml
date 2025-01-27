@@ -1,7 +1,12 @@
 [package]
 name = "gadget-crypto-sp-core"
 version = "0.1.0"
-edition = "2021"
+description = "sp-core crypto primitives for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-std = { workspace = true }
