@@ -26,7 +26,7 @@ pub struct LocalDatabase<T> {
 
 impl<T> LocalDatabase<T>
 where
-    T: Serialize + DeserializeOwned + Clone + Default,
+    T: Serialize + DeserializeOwned + Clone,
 {
     /// Reads a `LocalDatabase` from the given path.
     ///
