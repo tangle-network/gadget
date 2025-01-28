@@ -1,9 +1,12 @@
 [package]
 name = "gadget-config"
 version = "0.1.0"
+description = "Configuration types for Tangle Blueprint environments"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 # Core dependencies (always included)

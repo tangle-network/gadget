@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Core proc-macro for generating gadget code"
+description = "Core proc-macro primitives for generating Tangle Blueprint code"
 
 [dependencies]
 gadget-std.workspace = true

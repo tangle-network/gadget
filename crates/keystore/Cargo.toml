@@ -1,6 +1,7 @@
 [package]
 name = "gadget-keystore"
 version = "0.1.0"
+description = "Keystore for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

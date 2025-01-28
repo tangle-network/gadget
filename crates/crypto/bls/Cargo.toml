@@ -1,7 +1,12 @@
 [package]
 name = "gadget-crypto-bls"
 version = "0.1.0"
-edition = "2021"
+description = "w3f-bls crypto primitives for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-crypto-core = { workspace = true, features = ["bls"] }

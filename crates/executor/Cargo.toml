@@ -1,6 +1,7 @@
 [package]
 name = "gadget-executor"
 version = "0.1.0"
+description = "Command executor for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

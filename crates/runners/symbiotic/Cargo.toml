@@ -1,7 +1,12 @@
 [package]
 name = "gadget-runner-symbiotic"
 version = "0.1.0"
-edition = "2021"
+description = "Symbiotic-specific runner for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 async-trait = { workspace = true, default-features = false }
