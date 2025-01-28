@@ -12,9 +12,22 @@ use gadget_blueprint_proc_macro_core::{
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Blueprint metadata not found in the Cargo.toml")]
+    MissingBlueprintMetadata,
+    #[error("Failed to deserialize gadget: {0}")]
+    DeserializeGadget(serde_json::Error),
+    #[error("Unsupported blueprint manager")]
+    UnsupportedBlueprintManager,
+}
+
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    Config::builder().build().generate_json();
+    if let Err(e) = Config::builder().build().generate_json() {
+        println!("cargo:warning=Failed to generate blueprint metadata: {e}");
+        std::process::exit(1);
+    }
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
@@ -25,22 +38,22 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn generate_json(self) {
+    pub fn generate_json(self) -> Result<(), Error> {
         let output_file = self.output_file.unwrap_or_else(|| {
             std::env::current_dir()
                 .expect("Failed to get current directory")
                 .join("blueprint.json")
         });
-        let krate = generate_rustdoc();
+        let krate = generate_rustdoc()?;
         // Extract the job definitions from the rustdoc output
-        let jobs = extract_jobs(&krate);
-        eprintln!("Extracted {} job definitions", jobs.len());
-        let hooks = extract_hooks(&krate);
-        let metadata = extract_metadata();
+        let jobs = extract_jobs(&krate)?;
+        eprintln!("[INFO] Extracted {} job definitions", jobs.len());
+        let hooks = extract_hooks(&krate)?;
+        let metadata = extract_metadata()?;
         let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
         let package = find_package(&metadata, &crate_name);
-        let gadget = generate_gadget(package);
-        let metadata = extract_blueprint_metadata(package);
+        let gadget = generate_gadget(package)?;
+        let metadata = extract_blueprint_metadata(package)?;
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -77,6 +90,8 @@ impl Config {
 
         let json = serde_json::to_string_pretty(&blueprint).expect("Failed to serialize blueprint");
         std::fs::write(&output_file, json).expect("Failed to write blueprint.json");
+
+        Ok(())
     }
 }
 
@@ -86,7 +101,7 @@ enum Hook {
 }
 
 /// Extract hooks from a rustdoc module.
-fn extract_hooks(krate: &Crate) -> Vec<Hook> {
+fn extract_hooks(krate: &Crate) -> Result<Vec<Hook>, Error> {
     let root_module = krate
         .index
         .get(&krate.root)
@@ -98,7 +113,7 @@ fn extract_hooks(krate: &Crate) -> Vec<Hook> {
 }
 
 /// Extract job definitions from the rustdoc output.
-fn extract_jobs(krate: &Crate) -> Vec<JobDefinition<'_>> {
+fn extract_jobs(krate: &Crate) -> Result<Vec<JobDefinition<'_>>, Error> {
     let root_module = krate
         .index
         .get(&krate.root)
@@ -114,7 +129,7 @@ fn extract_jobs_from_module<'a>(
     _root: &'a Id,
     index: &'a HashMap<Id, Item>,
     module: &'a Module,
-) -> Vec<JobDefinition<'a>> {
+) -> Result<Vec<JobDefinition<'a>>, Error> {
     let mut jobs = vec![];
     let automatically_derived: String = String::from("#[automatically_derived]");
     const JOB_DEF: &str = "JOB_DEF";
@@ -122,7 +137,7 @@ fn extract_jobs_from_module<'a>(
         let item = index.get(item_id).expect("Failed to get item");
         match &item.inner {
             ItemEnum::Module(m) => {
-                jobs.extend(extract_jobs_from_module(_root, index, m));
+                jobs.extend(extract_jobs_from_module(_root, index, m)?);
             }
             // Handle only the constant items that are automatically derived and have the JOB_DEF in their name
             ItemEnum::Constant { const_: c, .. }
@@ -154,11 +169,15 @@ fn extract_jobs_from_module<'a>(
     // Sort jobs by job_id field
     jobs.sort_by(|a, b| a.job_id.cmp(&b.job_id));
 
-    jobs
+    Ok(jobs)
 }
 
 /// Extracts hooks from a module.
-fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Module) -> Vec<Hook> {
+fn extract_hooks_from_module(
+    _root: &Id,
+    index: &HashMap<Id, Item>,
+    module: &Module,
+) -> Result<Vec<Hook>, Error> {
     let mut hooks = vec![];
     let automatically_derived: String = String::from("#[automatically_derived]");
     const REGISTRATION_HOOK_PARAMS: &str = "REGISTRATION_HOOK_PARAMS";
@@ -168,7 +187,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
         let item = index.get(item_id).expect("Failed to get item");
         match &item.inner {
             ItemEnum::Module(m) => {
-                hooks.extend(extract_hooks_from_module(_root, index, m));
+                hooks.extend(extract_hooks_from_module(_root, index, m)?);
             }
             ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
@@ -198,7 +217,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
             _ => continue,
         }
     }
-    hooks
+    Ok(hooks)
 }
 
 /// Resolves the path to the EVM contract JSON file by its name.
@@ -216,9 +235,11 @@ fn find_package<'m>(
     metadata: &'m cargo_metadata::Metadata,
     pkg_name: &str,
 ) -> &'m cargo_metadata::Package {
-    if metadata.workspace_members.is_empty() {
-        unreachable!("There should be at least one package in the workspace");
-    }
+    assert!(
+        !metadata.workspace_members.is_empty(),
+        "There should be at least one package in the workspace"
+    );
+
     metadata
         .packages
         .iter()
@@ -233,7 +254,7 @@ struct LockFile {
 }
 
 impl LockFile {
-    fn new(base_path: &Path) -> Self {
+    fn new(base_path: &Path) -> Result<Self, Error> {
         std::fs::create_dir_all(base_path).expect("Failed to create lock file directory");
         let path = base_path.join("blueprint.lock");
         let file = std::fs::OpenOptions::new()
@@ -243,7 +264,7 @@ impl LockFile {
             .truncate(false)
             .open(&path)
             .expect("Failed to create lock file");
-        Self { file }
+        Ok(Self { file })
     }
 
     fn try_lock(&self) -> Result<(), Locked> {
@@ -261,13 +282,13 @@ impl Drop for LockFile {
     }
 }
 
-fn extract_metadata() -> Metadata {
+fn extract_metadata() -> Result<Metadata, Error> {
     let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
     let root = Path::new(&root)
         .canonicalize()
         .expect("Failed to canonicalize root dir");
 
-    let lock = LockFile::new(&root);
+    let lock = LockFile::new(&root)?;
     if lock.try_lock().is_err() {
         eprintln!("Already locked; skipping rustdoc generation",);
         // Exit early if the lock file exists
@@ -279,7 +300,7 @@ fn extract_metadata() -> Metadata {
         .no_deps()
         .exec()
         .expect("Failed to get metadata");
-    metadata
+    Ok(metadata)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -289,32 +310,28 @@ struct BlueprintMetadata {
     master_blueprint_service_manager_revision: MasterBlueprintServiceManagerRevision,
 }
 
-fn extract_blueprint_metadata(package: &Package) -> BlueprintMetadata {
+fn extract_blueprint_metadata(package: &Package) -> Result<BlueprintMetadata, Error> {
     let Some(blueprint) = package.metadata.get("blueprint") else {
-        eprintln!("No blueprint metadata found in the Cargo.toml.");
-        eprintln!("For more information, see:");
-        eprintln!("<TODO>");
-        // TODO(@shekohex): make this hard error
-        return BlueprintMetadata {
-            manager: BlueprintManager::Evm("".into()),
-            master_blueprint_service_manager_revision:
-                MasterBlueprintServiceManagerRevision::Latest,
-        };
+        eprintln!("[ERROR]: No blueprint metadata found in the Cargo.toml.");
+        eprintln!("[ERROR]: For more information, see: <TODO>");
+        return Err(Error::MissingBlueprintMetadata);
     };
+
     let mut metadata: BlueprintMetadata =
-        serde_json::from_value(blueprint.clone()).expect("Failed to deserialize gadget.");
+        serde_json::from_value(blueprint.clone()).map_err(Error::DeserializeGadget)?;
     match &mut metadata.manager {
         BlueprintManager::Evm(manager) => {
             let path = resolve_evm_contract_path_by_name(manager);
             *manager = path.display().to_string();
         }
-        _ => unreachable!("Unsupported blueprint manager"),
+        _ => return Err(Error::UnsupportedBlueprintManager),
     };
-    metadata
+
+    Ok(metadata)
 }
 
 /// Generates the metadata for the gadget.
-fn generate_gadget(package: &Package) -> Gadget<'static> {
+fn generate_gadget(package: &Package) -> Result<Gadget<'static>, Error> {
     let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
     let root = Path::new(&root)
         .canonicalize()
@@ -329,9 +346,8 @@ fn generate_gadget(package: &Package) -> Gadget<'static> {
             panic!("Currently unsupported gadget type has been parsed")
         }
     } else {
-        eprintln!("No gadget metadata found in the Cargo.toml.");
-        eprintln!("For more information, see:");
-        eprintln!("<TODO>");
+        eprintln!("[WARN] No gadget metadata found in the Cargo.toml.");
+        eprintln!("[WARN] For more information, see: <TODO>");
     };
 
     let has_test_fetcher = sources.iter().any(|fetcher| {
@@ -356,17 +372,17 @@ fn generate_gadget(package: &Package) -> Gadget<'static> {
 
     assert_ne!(sources.len(), 0, "No sources found for the gadget");
 
-    Gadget::Native(NativeGadget { sources })
+    Ok(Gadget::Native(NativeGadget { sources }))
 }
 
-fn generate_rustdoc() -> Crate {
+fn generate_rustdoc() -> Result<Crate, Error> {
     let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
     let root = std::path::Path::new(&root);
     let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
     let target_dir = std::env::current_dir()
         .expect("Failed to get current directory")
         .join("target");
-    let lock = LockFile::new(root);
+    let lock = LockFile::new(root)?;
     if lock.try_lock().is_err() {
         eprintln!("Already locked; skipping rustdoc generation",);
         // Exit early if the lock file exists
@@ -374,17 +390,19 @@ fn generate_rustdoc() -> Crate {
     }
     let custom_target_dir = format!("{}/blueprint", target_dir.display());
     let mut cmd = Command::new("cargo");
-    cmd.arg("rustdoc");
-    cmd.args(["-Z", "unstable-options"]);
-    cmd.args(["--output-format", "json"]);
-    cmd.args(["--package", &crate_name]);
-    cmd.arg("--lib");
-    cmd.args(["--target-dir", &custom_target_dir]);
-    cmd.arg("--locked");
-    cmd.args(["--", "--document-hidden-items"]);
-    cmd.env("RUSTC_BOOTSTRAP", "1");
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
+
+    cmd.arg("--quiet")
+        .arg("rustdoc")
+        .args(["-Z", "unstable-options"])
+        .args(["--output-format", "json"])
+        .args(["--package", &crate_name])
+        .arg("--lib")
+        .args(["--target-dir", &custom_target_dir])
+        .arg("--locked")
+        .args(["--", "--document-hidden-items"])
+        .env("RUSTC_BOOTSTRAP", "1")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     let final_cmd = format!("{cmd:?}");
     let mut child = cmd
         .spawn()
@@ -446,7 +464,8 @@ fn generate_rustdoc() -> Crate {
         krate.format_version >= 33,
         "This tool expects JSON format version >= 33",
     );
-    krate
+
+    Ok(krate)
 }
 
 fn kabab_case_to_snake_case(s: &str) -> String {
