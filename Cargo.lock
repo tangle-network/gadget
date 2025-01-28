@@ -2626,6 +2626,7 @@ dependencies = [
  "rustdoc-types",
  "serde",
  "serde_json",
+ "thiserror 2.0.11",
  "typed-builder",
 ]
 
