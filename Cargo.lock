@@ -2548,43 +2548,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blueprint-examples"
-version = "0.1.1"
-dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-json-abi",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives 0.8.19",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types 0.8.19",
- "alloy-transport",
- "alloy-transport-http",
- "async-trait",
- "blueprint-build-utils",
- "blueprint-metadata",
- "blueprint-sdk",
- "color-eyre",
- "eigensdk",
- "gadget-testing-utils",
- "reqwest 0.12.12",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-util 0.7.13",
- "tracing",
- "uuid 1.12.1",
-]
-
-[[package]]
 name = "blueprint-manager"
 version = "0.2.2"
 dependencies = [
@@ -4865,8 +4828,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-client-avsregistry"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f67542c5c401ef27cc69e69fef5e9538ecdbfdbcbb735e6b58f323e1c38878e"
 dependencies = [
  "alloy",
  "alloy-primitives 0.8.19",
@@ -4887,8 +4851,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-client-elcontracts"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9903d81154190fcd38105543ad87601aa5626a7a3ebaac1e95a727ba555dd67c"
 dependencies = [
  "alloy",
  "alloy-primitives 0.8.19",
@@ -4902,8 +4867,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-client-eth"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e4170be6d0de06ea9d32f560157f913d61ebcb1d6b82591232c836b5d367107"
 dependencies = [
  "alloy",
  "alloy-json-rpc",
@@ -4919,8 +4885,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-client-fireblocks"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08c16fb523a85dd465d863e1d8246f99e1c81c3e787e3736118d0499aa5544b0"
 dependencies = [
  "alloy",
  "alloy-primitives 0.8.19",
@@ -4940,8 +4907,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-common"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef203772753614e2c3815fcbba7c321c505107fbc21ce5209371dbc1747ee866"
 dependencies = [
  "alloy-provider",
  "alloy-pubsub",
@@ -4953,8 +4921,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-crypto-bls"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2011781d0aa1db7a3335f150cb35d24733f0261073484bc61dcb428eaec3ba84"
 dependencies = [
  "alloy-primitives 0.8.19",
  "ark-bn254",
@@ -4970,8 +4939,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-crypto-bn254"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c7b0517eba91bcd109062b271fa579ba9f8a159c445bab9a8df496d25ad1a7e"
 dependencies = [
  "ark-bn254",
  "ark-ec 0.5.0",
@@ -4981,8 +4951,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-logging"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35fa2e89b477296b087b42a1e01ef03580c2c8d85943f23e7e5bc9c75eafdb0e"
 dependencies = [
  "ctor",
  "once_cell",
@@ -4992,8 +4963,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-metrics"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ac64ca5d7299b6636feea59cbeca5aebad20737da6c9613e12c045ae61824cf"
 dependencies = [
  "eigen-logging",
  "metrics",
@@ -5003,8 +4975,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-metrics-collectors-rpc-calls"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f58bf7e4c734822b0f2440cd7faa17f1f8533ada3aa8d4d1925ea0eed6d9fd77"
 dependencies = [
  "eigen-logging",
  "metrics",
@@ -5012,8 +4985,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-nodeapi"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d50f93ff1aece39adacd955dc42f624431d21d3529c763f89a597ec124d986b0"
 dependencies = [
  "ntex",
  "serde",
@@ -5024,8 +4998,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-services-avsregistry"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5513ed6db2680c18359efb008a2bf53263165d2969367ec8cb10ec7626e27fb9"
 dependencies = [
  "alloy-primitives 0.8.19",
  "ark-bn254",
@@ -5040,8 +5015,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-services-blsaggregation"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f5a7c5528bd573052795c23ee810b1f6915c5fb576f0bc535972a9d87e26445"
 dependencies = [
  "alloy",
  "alloy-primitives 0.8.19",
@@ -5063,8 +5039,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-services-operatorsinfo"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e551346d71e6c98981f36ce78d7cc9117b0bb3668412ca4a4702ad3ec8ad8e95"
 dependencies = [
  "alloy",
  "alloy-primitives 0.8.19",
@@ -5085,8 +5062,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-signer"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d48c56f0117eab8021be84fed0743ec1d782561a9527d4f7bbf22401931e44d4"
 dependencies = [
  "alloy",
  "alloy-network",
@@ -5105,8 +5083,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-testing-utils"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e33d76c2d3adbcec6747766b18e8651a56e43b4c8f65423e298a6d3986eace58"
 dependencies = [
  "alloy-primitives 0.8.19",
  "alloy-provider",
@@ -5122,8 +5101,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-types"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df667930a14a41851503eb90837d606f436348b5a9bee7ce814f78c696dd56a"
 dependencies = [
  "alloy-primitives 0.8.19",
  "eigen-crypto-bls",
@@ -5135,8 +5115,9 @@ dependencies = [
 
 [[package]]
 name = "eigen-utils"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "640db3098ff0d359ce9292e7a3a8ae7ef3d72817e0d5c4f0cc759ed0879661b3"
 dependencies = [
  "alloy",
  "reqwest 0.12.12",
@@ -5144,8 +5125,9 @@ dependencies = [
 
 [[package]]
 name = "eigensdk"
-version = "0.1.2"
-source = "git+https://github.com/Layr-Labs/eigensdk-rs.git?rev=6ab2674cf19e2f2c78218de706975af1244dad9c#6ab2674cf19e2f2c78218de706975af1244dad9c"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38a7f451f46558878115fb83198ccd1826378a8f4e1779a5fb45e3a8a178bc35"
 dependencies = [
  "eigen-client-avsregistry",
  "eigen-client-elcontracts",
@@ -6915,6 +6897,7 @@ dependencies = [
  "gadget-anvil-testing-utils",
  "gadget-config",
  "gadget-core-testing-utils",
+ "gadget-eigenlayer-bindings",
  "gadget-event-listeners",
  "gadget-logging",
  "gadget-macros",
@@ -8646,15 +8629,6 @@ dependencies = [
  "tokio-util 0.7.13",
  "tracing",
  "uuid 1.12.1",
-]
-
-[[package]]
-name = "incredible-squaring-blueprint-symbiotic"
-version = "0.1.1"
-dependencies = [
- "blueprint-build-utils",
- "blueprint-metadata",
- "blueprint-sdk",
 ]
 
 [[package]]

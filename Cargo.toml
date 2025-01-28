@@ -5,6 +5,10 @@ members = [
 	"blueprints/*",
 	"crates/*",
 ]
+exclude = [
+	"blueprints/incredible-squaring-symbiotic",
+	"blueprints/examples"
+]
 
 [workspace.package]
 authors = ["Tangle Network"]
@@ -43,6 +47,9 @@ blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", de
 blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
+
+# Bindings
+gadget-eigenlayer-bindings = { version = "0.1.0", path = "./crates/eigenlayer-bindings", default-features = false }
 
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
@@ -252,7 +259,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { git = "https://github.com/Layr-Labs/eigensdk-rs.git", rev = "6ab2674cf19e2f2c78218de706975af1244dad9c", default-features = false }
+eigensdk = { version = "0.1.3", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 
