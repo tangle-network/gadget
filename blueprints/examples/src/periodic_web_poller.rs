@@ -1,8 +1,8 @@
-use gadget_sdk::async_trait::async_trait;
-use gadget_sdk::event_listener::periodic::PeriodicEventListener;
-use gadget_sdk::event_listener::EventListener;
-use gadget_sdk::event_utils::InitializableEventHandler;
-use gadget_sdk::job;
+use async_trait::async_trait;
+use blueprint_sdk::event_listeners::core::{EventListener, InitializableEventHandler};
+use blueprint_sdk::event_listeners::cronjob::{CronJob, CronJobDefinition};
+use blueprint_sdk::logging::info;
+use blueprint_sdk::{job, Error};
 use std::convert::Infallible;
 
 pub fn constructor() -> impl InitializableEventHandler {
@@ -15,35 +15,41 @@ pub fn constructor() -> impl InitializableEventHandler {
     id = 0,
     params(value),
     event_listener(
-        listener = PeriodicEventListener<
-            2000, WebPoller, serde_json::Value, reqwest::Client
-        >,
+        listener = CronJob<WebPollerContext>,
         pre_processor = pre_process,
         post_processor = post_process,
     ),
 )]
 // Maps a boolean value obtained from pre-processing to a u8 value
 pub async fn web_poller(value: bool, client: reqwest::Client) -> Result<u8, Infallible> {
-    gadget_sdk::info!("Running web_poller on value: {value}");
+    info!("Running web_poller on value: {value}");
     Ok(value as u8)
 }
 
 // Maps a JSON response to a boolean value
-pub async fn pre_process(event: serde_json::Value) -> Result<bool, gadget_sdk::Error> {
-    gadget_sdk::info!("Running web_poller pre-processor on value: {event}");
+pub async fn pre_process(event: serde_json::Value) -> Result<bool, Error> {
+    info!("Running web_poller pre-processor on value: {event}");
     let completed = event["completed"].as_bool().unwrap_or(false);
     Ok(completed)
 }
 
 // Received the u8 value output from the job and performs any last post-processing
-pub async fn post_process(job_output: u8) -> Result<(), gadget_sdk::Error> {
-    gadget_sdk::info!("Running web_poller post-processor on value: {job_output}");
+pub async fn post_process(job_output: u8) -> Result<(), Error> {
+    info!("Running web_poller post-processor on value: {job_output}");
     if job_output == 1 {
         Ok(())
     } else {
-        Err(gadget_sdk::Error::Other(
+        Err(Error::Other(
             "Job failed since query returned with a false status".to_string(),
         ))
+    }
+}
+
+struct WebPollerContext(&'static str);
+
+impl CronJobDefinition for WebPollerContext {
+    fn cron(&self) -> impl Into<String> {
+        self.0
     }
 }
 
@@ -54,7 +60,9 @@ pub struct WebPoller {
 
 #[async_trait]
 impl EventListener<serde_json::Value, reqwest::Client> for WebPoller {
-    async fn new(context: &reqwest::Client) -> Result<Self, gadget_sdk::Error>
+    type ProcessorError = Error;
+
+    async fn new(context: &reqwest::Client) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -81,5 +89,27 @@ impl EventListener<serde_json::Value, reqwest::Client> for WebPoller {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestContext(&'static str);
+
+    impl CronJobDefinition for TestContext {
+        fn cron(&self) -> impl Into<String> {
+            self.0
+        }
+    }
+
+    #[tokio::test]
+    async fn cronjob_event_listener() {
+        // Run every second
+        let cron_job = TestContext("1/2 * * * * *");
+        let mut cronjob = CronJob::new(&cron_job).await.unwrap();
+        let next_event = cronjob.next_event().await;
+        assert!(next_event.is_some());
     }
 }

@@ -1,31 +1,39 @@
-use gadget_sdk::config::StdGadgetConfiguration;
-use gadget_sdk::contexts::{ServicesContext, TangleClientContext};
-use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
-use gadget_sdk::event_listener::tangle::TangleEventListener;
-use gadget_sdk::event_utils::InitializableEventHandler;
-use gadget_sdk::job;
-use gadget_sdk::subxt_core::utils::AccountId32;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::contexts::keystore::KeystoreContext;
+use blueprint_sdk::contexts::services::ServicesContext;
+use blueprint_sdk::contexts::tangle::TangleClientContext;
+use blueprint_sdk::crypto::sp_core::SpSr25519;
+use blueprint_sdk::event_listeners::core::InitializableEventHandler;
+use blueprint_sdk::event_listeners::tangle::events::TangleEventListener;
+use blueprint_sdk::event_listeners::tangle::services::{
+    services_post_processor, services_pre_processor,
+};
+use blueprint_sdk::job;
+use blueprint_sdk::keystore::backends::Backend;
+use blueprint_sdk::logging::info;
+use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
+use blueprint_sdk::macros::ext::clients::GadgetServicesClient;
+use blueprint_sdk::tangle_subxt::subxt::utils::AccountId32;
+use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
 #[derive(Clone, ServicesContext, TangleClientContext)]
 pub struct ExampleServiceContext {
     #[config]
-    sdk_config: StdGadgetConfiguration,
+    sdk_config: GadgetConfiguration,
     #[call_id]
     call_id: Option<u64>,
 }
 
 pub async fn constructor(
-    env: StdGadgetConfiguration,
+    env: GadgetConfiguration,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
-    use gadget_sdk::subxt_core::tx::signer::Signer;
-
     let signer = env
         .clone()
-        .first_sr25519_signer()
+        .keystore()
+        .first_local::<SpSr25519>()
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
-    gadget_sdk::info!("Starting the event watcher for {} ...", signer.account_id());
+    info!("Starting the event watcher for {:?} ...", signer.0);
     HandleJobEventHandler::new(
         &env.clone(),
         ExampleServiceContext {
@@ -49,23 +57,23 @@ pub async fn constructor(
 pub async fn handle_job(
     context: ExampleServiceContext,
     job_details: Vec<u8>,
-) -> Result<u64, gadget_sdk::Error> {
+) -> Result<u64, blueprint_sdk::Error> {
     let client = context.tangle_client().await.unwrap();
-    let blueprint_owner = context.current_blueprint_owner(&client).await.unwrap();
-    let blueprint = context.current_blueprint(&client).await.unwrap();
-    let operators_and_percents = context.current_service_operators(&client).await.unwrap();
+    let blueprint_id = client.blueprint_id().await.unwrap();
+    let block = client.now().await.unwrap();
+    let blueprint_owner = client
+        .current_blueprint_owner(block, blueprint_id)
+        .await
+        .unwrap();
+    let blueprint = client.current_blueprint(block, blueprint_id).await.unwrap();
+    let operators_and_percents = client
+        .current_service_operators(block, blueprint_id)
+        .await
+        .unwrap();
     let operators = operators_and_percents
         .iter()
         .map(|(op, per)| op)
         .cloned()
         .collect::<Vec<AccountId32>>();
-    let restaking_delegations = context
-        .operator_delegations(&client, operators.clone())
-        .await
-        .unwrap();
-    let operators_metadata = context
-        .operators_metadata(&client, operators)
-        .await
-        .unwrap();
     Ok(0)
 }

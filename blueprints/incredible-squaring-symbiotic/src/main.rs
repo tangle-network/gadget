@@ -1,13 +1,9 @@
-use alloy_network::EthereumWallet;
-use color_eyre::Result;
-use gadget_sdk::runners::symbiotic::SymbioticConfig;
-use gadget_sdk::runners::BlueprintRunner;
-use gadget_sdk::{info, keystore::BackendExt};
+use blueprint_sdk::alloy::network::EthereumWallet;
+use blueprint_sdk::logging::info;
+use blueprint_sdk::main;
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::utils::evm::get_wallet_provider_http;
 use incredible_squaring_blueprint_symbiotic::{self as blueprint, IncredibleSquaringTaskManager};
-
-use alloy_primitives::{address, Address};
-use gadget_sdk::utils::evm::get_wallet_provider_http;
-use lazy_static::lazy_static;
 use std::env;
 
 // Environment variables with default values
@@ -17,7 +13,7 @@ lazy_static! {
         .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
 }
 
-#[gadget_sdk::main(env)]
+#[main(env)]
 async fn main() {
     let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
     let wallet = EthereumWallet::new(operator_signer);

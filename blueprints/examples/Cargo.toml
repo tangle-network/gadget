@@ -41,11 +41,11 @@ alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true }
 
 [dev-dependencies]
-gadget-testing-utils = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["testing", "evm", "tangle", "eigenlayer"] }
 
 [build-dependencies]
-blueprint-metadata = { workspace = true }
-blueprint-build-utils = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["build"] }
+
 
 [features]
 default = ["std"]

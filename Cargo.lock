@@ -2568,12 +2568,9 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
- "blueprint-build-utils",
- "blueprint-metadata",
  "blueprint-sdk",
  "color-eyre",
  "eigensdk",
- "gadget-testing-utils",
  "reqwest 0.12.12",
  "serde",
  "serde_json",
@@ -8652,9 +8649,10 @@ dependencies = [
 name = "incredible-squaring-blueprint-symbiotic"
 version = "0.1.1"
 dependencies = [
- "blueprint-build-utils",
- "blueprint-metadata",
+ "alloy-rpc-types",
+ "alloy-sol-types 0.8.19",
  "blueprint-sdk",
+ "lazy_static",
 ]
 
 [[package]]

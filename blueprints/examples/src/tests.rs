@@ -2,17 +2,15 @@ use crate::eigen_context;
 use crate::eigen_context::ExampleTaskManager;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use blueprint_test_utils::eigenlayer_test_env::start_default_anvil_testnet;
-use blueprint_test_utils::helpers::get_receipt;
-use blueprint_test_utils::{inject_test_keys, KeyGenType};
-use gadget_io::SupportedChains;
-use gadget_sdk::config::protocol::EigenlayerContractAddresses;
-use gadget_sdk::config::ContextConfig;
-use gadget_sdk::info;
-use gadget_sdk::logging::setup_log;
-use gadget_sdk::runners::eigenlayer::EigenlayerBLSConfig;
-use gadget_sdk::runners::BlueprintRunner;
-use gadget_sdk::utils::evm::get_provider_http;
+use blueprint_sdk::config::protocol::EigenlayerContractAddresses;
+use blueprint_sdk::config::supported_chains::SupportedChains;
+use blueprint_sdk::config::ContextConfig;
+use blueprint_sdk::logging::{info, setup_log};
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
+use blueprint_sdk::testing::utils::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
+use blueprint_sdk::testing::utils::anvil::{get_receipt, start_default_anvil_testnet};
+use blueprint_sdk::utils::evm::get_provider_http;
 use reqwest::Url;
 use std::path::Path;
 use std::time::Duration;
@@ -74,9 +72,9 @@ async fn test_eigenlayer_context() {
     let keystore_path = &format!("{}", tmp_dir.path().display());
     let keystore_path = Path::new(keystore_path);
     let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
-    inject_test_keys(&keystore_uri, KeyGenType::Anvil(1))
+    inject_anvil_key(&keystore_uri, ANVIL_PRIVATE_KEYS[1])
         .await
-        .expect("Failed to inject testing keys for Blueprint Examples Test");
+        .unwrap();
     let keystore_uri_normalized =
         std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
@@ -85,10 +83,11 @@ async fn test_eigenlayer_context() {
         url,
         Url::parse(&ws_endpoint).unwrap(),
         keystore_uri_str,
+        None,
         SupportedChains::LocalTestnet,
         EigenlayerContractAddresses::default(),
     );
-    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
+    let env = blueprint_sdk::config::load(config).expect("Failed to load environment");
 
     let mut blueprint = BlueprintRunner::new(
         EigenlayerBLSConfig::new(Address::default(), Address::default()),

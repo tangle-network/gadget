@@ -10,11 +10,13 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["std"] }
+blueprint-sdk = { workspace = true, features = ["std", "evm", "macros"] }
+alloy-rpc-types = { workspace = true }
+alloy-sol-types = { workspace = true }
+lazy_static = { workspace = true }
 
 [build-dependencies]
-blueprint-metadata = { workspace = true }
-blueprint-build-utils = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["std", "build"] }
 
 [features]
 default = ["std"]
