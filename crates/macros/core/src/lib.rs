@@ -99,7 +99,7 @@ impl FieldType {
             FieldType::Optional(ty) => Cow::Owned(format!("Option<{}>", ty.as_rust_type())),
             FieldType::Array(size, ty) => Cow::Owned(format!("[{}; {size}]", ty.as_rust_type())),
             FieldType::List(ty) => Cow::Owned(format!("Vec<{}>", ty.as_rust_type())),
-            FieldType::Struct(..) => unimplemented!("FieldType::Struct encoding"),
+            FieldType::Struct(name, _) => Cow::Owned(name.clone()),
             FieldType::Tuple(tys) => {
                 let mut s = String::from("(");
                 for ty in tys {
