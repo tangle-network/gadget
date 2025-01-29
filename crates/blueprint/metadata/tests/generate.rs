@@ -159,3 +159,60 @@ fn generate_job_with_primitive_struct_param() {
         )
     );
 }
+
+#[test]
+fn generate_job_with_primitive_nested_struct_param() {
+    let blueprint = do_test("job_primitive_nested_struct_param");
+    assert_eq!(blueprint.jobs.len(), 1);
+
+    let job = &blueprint.jobs[0];
+    assert_eq!(job.job_id, 0);
+    assert_eq!(job.metadata.name, "xsquare");
+
+    assert_eq!(job.params.len(), 1);
+    assert_eq!(job.params[0].as_rust_type(), "SomeParam");
+
+    let nested_struct = FieldType::Struct(
+        String::from("SomeNestedParam"),
+        vec![
+            (String::from("b"), Box::new(FieldType::Uint16)),
+            (String::from("c"), Box::new(FieldType::Uint32)),
+            (String::from("d"), Box::new(FieldType::Uint64)),
+            (String::from("e"), Box::new(FieldType::Uint128)),
+            (String::from("f"), Box::new(FieldType::Int8)),
+            (String::from("g"), Box::new(FieldType::Int16)),
+            (String::from("h"), Box::new(FieldType::Int32)),
+            (String::from("i"), Box::new(FieldType::Int64)),
+            (String::from("j"), Box::new(FieldType::Int128)),
+            (String::from("k"), Box::new(FieldType::Float64)),
+            (String::from("l"), Box::new(FieldType::Float64)),
+            (String::from("m"), Box::new(FieldType::Bool)),
+        ],
+    );
+
+    assert_eq!(
+        job.params[0],
+        FieldType::Struct(
+            "SomeParam".to_string(),
+            vec![
+                (String::from("a"), Box::new(FieldType::Uint8),),
+                (String::from("nested"), Box::new(nested_struct))
+            ]
+        )
+    );
+}
+
+#[test]
+fn generate_job_with_enum_param() {
+    let blueprint = do_test("job_enum_param");
+    assert_eq!(blueprint.jobs.len(), 1);
+
+    let job = &blueprint.jobs[0];
+    assert_eq!(job.job_id, 0);
+    assert_eq!(job.metadata.name, "check_status");
+
+    assert_eq!(job.params.len(), 1);
+
+    // Enums are represented as strings, since we only support unit variants
+    assert_eq!(job.params[0].as_rust_type(), "String");
+}
