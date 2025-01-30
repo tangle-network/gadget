@@ -16,9 +16,6 @@ pub trait TestHarness {
 
     /// Gets the gadget configuration
     fn env(&self) -> &GadgetConfiguration;
-
-    /// Gets the configuration
-    fn config(&self) -> &Self::Config;
 }
 
 /// Base implementation of a test harness that can be used by specific implementations
