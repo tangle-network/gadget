@@ -12,22 +12,16 @@ use crate::{
 use gadget_client_tangle::client::TangleClient;
 use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
-use gadget_core_testing_utils::{
-    harness::{BaseTestHarness, TestHarness},
-    runner::TestEnv,
-};
+use gadget_core_testing_utils::{harness::TestHarness, runner::TestEnv};
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use gadget_macros::ext::futures::stream::FuturesUnordered;
-use gadget_macros::ext::futures::TryStreamExt;
 use gadget_runners::core::error::RunnerError;
 use gadget_logging::debug;
 use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::Arc;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
@@ -35,7 +29,6 @@ use tangle_subxt::tangle_testnet_runtime::api::services::{
 };
 use tempfile::TempDir;
 use tokio::sync::Mutex;
-use tokio::task::JoinError;
 use url::Url;
 
 /// Configuration for the Tangle test harness
@@ -69,22 +62,32 @@ pub struct MultiNodeTangleTestEnv {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     command_tx: tokio::sync::mpsc::UnboundedSender<NodeExecutorCommand>,
     dead_rx: Option<tokio::sync::oneshot::Receiver<RunnerError>>,
+    running_test_nodes: Arc<Mutex<HashMap<usize, TangleTestEnv>>>,
 }
 
 enum NodeExecutorCommand {
     StartJob(usize, Box<dyn JobCreator>),
-    Stop(usize),
+    StopJob(usize),
 }
 
-trait JobCreator: Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler> {}
-impl<T: Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler>> JobCreator for T {}
+trait JobCreator:
+    Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler + Send + 'static> + Send + 'static
+{
+}
+impl<
+        T: Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler + Send + 'static>
+            + Send
+            + 'static,
+    > JobCreator for T
+{
+}
 
 impl MultiNodeTangleTestEnv {
     /// Creates a new `MultiNodeTangleTestEnv` that can execute jobs in parallel across multiple chains.
     ///
-    /// The `test_envs` parameter should be a `HashMap` where the key is the job ID and the value is the
-    /// `TangleTestEnv` to use for that job. The `envs` parameter should be a vector of
-    /// `GadgetConfiguration`s that will be used to create the event handlers for each job.
+    /// The `test_envs` parameter should be a `HashMap` where the key is the node ID and the value is the
+    /// `TangleTestEnv` to use for that node. The `envs` parameter should be a vector of
+    /// `GadgetConfiguration`s that will be used to create the event handlers for each node.
     ///
     /// The `MultiNodeTangleTestEnv` will not execute any jobs until the `execute` method is called.
     /// When `execute` is called, the `MultiNodeTangleTestEnv` will start a background task that will
@@ -99,8 +102,8 @@ impl MultiNodeTangleTestEnv {
     ///
     /// The `MultiNodeTangleTestEnv` also provides a method for getting the `GadgetConfiguration` for
     /// a given job ID. This can be used to get the configuration for a job without starting the job.
-    pub async fn new(
-        mut test_envs: HashMap<usize, TangleTestEnv>,
+    pub fn new(
+        initial_node_envs: HashMap<usize, TangleTestEnv>,
         envs: Vec<GadgetConfiguration>,
     ) -> Self {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -121,16 +124,16 @@ impl MultiNodeTangleTestEnv {
                 match command {
                     NodeExecutorCommand::StartJob(job_id, creator) => {
                         let job = creator(envs_clone[job_id].clone());
+                        // TODO: Job should run inside node test env
                         if let Some(stopper_rx) = job.init_event_handler().await {
-                            let (control_tx, mut control_rx) =
-                                tokio::sync::oneshot::channel::<()>();
+                            let (control_tx, control_rx) = tokio::sync::oneshot::channel::<()>();
                             let task = async move {
                                 tokio::select! {
                                     _ = control_rx => {
                                         gadget_logging::info!("[SHUTDOWN] Job {job_id} manually shutdown");
                                     },
-                                    res = stopper_rx.recv() => {
-                                        gadget_logging::info!("[SHUTDOWN] Job {job_id} completed with result {res}");
+                                    res = stopper_rx => {
+                                        gadget_logging::info!("[SHUTDOWN] Job {job_id} completed with result {res:?}");
                                     }
                                 };
                             };
@@ -143,9 +146,9 @@ impl MultiNodeTangleTestEnv {
                         }
                     }
 
-                    NodeExecutorCommand::Stop(job_id) => {
+                    NodeExecutorCommand::StopJob(job_id) => {
                         gadget_logging::info!("[SHUTDOWN] Job {job_id} shutdown signal received");
-                        if let Some(control_tx) = handles.remove(job_id) {
+                        if let Some(control_tx) = handles.remove(&job_id) {
                             let _ = control_tx.send(());
                         } else {
                             gadget_logging::warn!("Failed to stop job {job_id}");
@@ -162,6 +165,7 @@ impl MultiNodeTangleTestEnv {
             command_tx,
             start_tx: Some(start_tx),
             dead_rx: Some(dead_rx),
+            running_test_nodes: Arc::new(Mutex::new(initial_node_envs)),
         }
     }
 
@@ -177,14 +181,17 @@ impl MultiNodeTangleTestEnv {
     /// # Errors
     ///
     /// If the job cannot be added to the test harness, an error is returned.
-    pub fn add_job<T: Fn(GadgetConfiguration) -> K, K: InitializableEventHandler>(
+    pub fn add_job<
+        T: Fn(GadgetConfiguration) -> K + Send + 'static,
+        K: InitializableEventHandler + Send + 'static,
+    >(
         &mut self,
         job_creator: T,
     ) -> Result<&mut Self, RunnerError> {
         self.command_tx
             .send(NodeExecutorCommand::StartJob(
                 self.envs.len(),
-                Box::new(job_creator),
+                Box::new(move |env| Box::new(job_creator(env)) as Box<_>),
             ))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
         Ok(self)
@@ -194,7 +201,7 @@ impl MultiNodeTangleTestEnv {
     /// the job is not running.
     pub fn stop_job(&mut self, job_id: usize) -> Result<&mut Self, RunnerError> {
         self.command_tx
-            .send(NodeExecutorCommand::Stop(job_id))
+            .send(NodeExecutorCommand::StopJob(job_id))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
         Ok(self)
     }
@@ -222,19 +229,14 @@ impl MultiNodeTangleTestEnv {
         Ok(())
     }
 
-    /// Returns `true` if the test harness has errored, `false` otherwise.
-    ///
-    /// If the test harness has errored, the `dead_rx` oneshot receiver is taken and
-    /// awaited. If the receiver is `None`, `true` is returned immediately.
-    ///
-    /// The return value of this function is `true` if the test harness has errored,
-    /// regardless of whether the `dead_rx` was taken and awaited or not.
-    pub async fn has_errored(&mut self) -> bool {
-        if let Some(mut rx) = self.dead_rx.take() {
+    pub async fn is_empty(&self) -> bool {
+        self.running_test_nodes.lock().await.is_empty()
+    }
+
+    pub async fn wait_for_error(&mut self) {
+        if let Some(rx) = self.dead_rx.take() {
             let _ = rx.await;
         }
-
-        true
     }
 }
 
@@ -258,9 +260,8 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
 
         let mut client_envs = vec![];
 
-        for idx in 0..N {
+        for name in ENDOWED_TEST_NAMES.iter().take(N) {
             // Setup testing directory
-            let name = ENDOWED_TEST_NAMES[idx];
             let test_dir_path = test_dir
                 .path()
                 .join(format!("./{}", name.to_ascii_lowercase()))
@@ -422,7 +423,7 @@ impl<const N: usize> TangleTestHarness<N> {
     pub async fn setup_services(
         &self,
         exit_after_registration: bool,
-    ) -> Result<(Vec<TangleTestEnv>, u64, u64), Error> {
+    ) -> Result<(MultiNodeTangleTestEnv, u64, u64), Error> {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
 
@@ -451,14 +452,16 @@ impl<const N: usize> TangleTestHarness<N> {
             .with_exit_after_register(exit_after_registration);
 
         // Create and spawn test environment
-        let mut test_envs = vec![];
-        for env in &self.client_envs {
+        let mut test_envs = HashMap::new();
+        for (id, env) in self.client_envs.iter().enumerate() {
             // Create and spawn test environment
             let test_env = TangleTestEnv::new(config.clone(), env.clone())?;
-            test_envs.push(test_env);
+            test_envs.insert(id, test_env);
         }
 
-        Ok((test_envs, service_id, blueprint_id))
+        let executor = MultiNodeTangleTestEnv::new(test_envs, self.client_envs.clone());
+
+        Ok((executor, service_id, blueprint_id))
     }
 
     /// Requests a service with the given blueprint and returns the newly created service ID
@@ -515,7 +518,6 @@ impl<const N: usize> TangleTestHarness<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gadget_core::test_utils::assert_ok;
     use std::path::PathBuf;
 
     #[tokio::test]
@@ -525,7 +527,10 @@ mod tests {
         assert!(harness.is_ok(), "Harness setup should succeed");
 
         let harness = harness.unwrap();
-        assert!(harness.client().is_connected().await, "Client should be connected");
+        assert!(
+            harness.client().now().await.is_some(),
+            "Client should be connected to live chain"
+        );
         assert_eq!(harness.client_envs.len(), 1, "Should have 1 client env");
     }
 
@@ -545,7 +550,10 @@ mod tests {
             .map(|env| env.keystore().first_local::<SpSr25519>().unwrap())
             .collect();
         assert_eq!(keys.len(), 3, "Should have 3 unique keys");
-        assert!(keys[0] != keys[1] && keys[1] != keys[2], "Keys should be unique");
+        assert!(
+            keys[0] != keys[1] && keys[1] != keys[2],
+            "Keys should be unique"
+        );
     }
 
     #[tokio::test]
@@ -567,14 +575,14 @@ mod tests {
 
         // First set up a service
         let (test_envs, service_id) = harness.setup_services().await.unwrap();
-        assert!(!test_envs.is_empty(), "Should have test environments");
-        assert!(service_id > 0, "Should have valid service ID");
+        assert!(!test_envs.is_empty().await, "Should have test environments");
+        assert_eq!(service_id, 0, "Should have valid service ID = 0");
 
         // Execute a simple job
-        let inputs = vec![InputValue::U64(42)];
-        let expected = vec![OutputValue::U64(42)];
+        let inputs = vec![InputValue::Uint64(42)];
+        let expected = vec![OutputValue::Uint64(42)];
         let result = harness.execute_job(service_id, 0, inputs, expected).await;
-        assert_ok!(result, "Job execution should succeed");
+        assert!(result.is_ok(), "Job execution should succeed");
     }
 
     #[tokio::test]
@@ -588,8 +596,14 @@ mod tests {
         assert_eq!(opts.manifest_path, manifest_path);
         assert!(opts.signer.is_some(), "Should have SR25519 signer");
         assert!(opts.signer_evm.is_some(), "Should have EVM signer");
-        assert!(opts.http_rpc_url.starts_with("http://"), "Should have HTTP URL");
-        assert!(opts.ws_rpc_url.starts_with("ws://"), "Should have WebSocket URL");
+        assert!(
+            opts.http_rpc_url.starts_with("http://"),
+            "Should have HTTP URL"
+        );
+        assert!(
+            opts.ws_rpc_url.starts_with("ws://"),
+            "Should have WebSocket URL"
+        );
     }
 
     #[tokio::test]
