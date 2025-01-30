@@ -224,8 +224,11 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
     Err(TransactionError::NoJobCalled)
 }
 
-/// Requests a service with a given blueprint. This is meant for testing, and will allow any node
-/// to make a call to run a service, and will have all nodes running the service.
+/// Requests a service with a given blueprint.
+///
+/// This is meant for testing.
+///
+/// `user` will be the only permitted caller, and all `test_nodes` will be selected as operators.
 pub async fn request_service<T: Signer<TangleConfig>>(
     client: &TestClient,
     user: &T,
@@ -233,10 +236,11 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     test_nodes: Vec<AccountId32>,
     value: u128,
 ) -> Result<(), TransactionError> {
+    info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
     let call = api::tx().services().request(
-        None, // TODO: Ensure this is okay for testing
+        None,
         blueprint_id,
-        test_nodes.clone(),
+        Vec::new(),
         test_nodes,
         Default::default(),
         Assets::from([0]),
@@ -403,18 +407,44 @@ pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Transaction
 /// 5. Returns the newly created service ID from events
 pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     client: &TestClient,
-    sr25519_signer: &T,
+    sr25519_signer: T,
     blueprint_id: u64,
     preferences: Preferences,
     exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
-    if exit_after_registration {
+    setup_operator_and_service_multiple(
+        &[client.clone()],
+        &[sr25519_signer],
+        blueprint_id,
+        preferences,
+        exit_after_registration,
+    )
+    .await
+}
+
+pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
+    clients: &[TestClient],
+    sr25519_signers: &[T],
+    blueprint_id: u64,
+    preferences: Preferences,
+    _exit_after_registration: bool,
+) -> Result<u64, TransactionError> {
+    let alice_signer = sr25519_signers
+        .first()
+        .ok_or(TransactionError::Other("No signers".to_string()))?;
+
+    let alice_client = clients
+        .first()
+        .ok_or(TransactionError::Other("No client".to_string()))?;
+
+    for (operator, client) in sr25519_signers.iter().zip(clients) {
+        join_operators(client, operator).await?;
         // Register for blueprint
         register_blueprint(
             client,
-            sr25519_signer,
+            operator,
             blueprint_id,
-            preferences,
+            preferences.clone(),
             RegistrationArgs::new(),
             0,
         )
@@ -422,29 +452,27 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     }
 
     // Get the current service ID before requesting new service
-    let prev_service_id = get_next_service_id(client).await?;
+    let prev_service_id = get_next_service_id(alice_client).await?;
 
-    // Request service
-    let account_id = sr25519_signer.account_id();
-    request_service(
-        client,
-        sr25519_signer,
-        blueprint_id,
-        vec![account_id.clone()],
-        0,
-    )
-    .await?;
+    let accounts = sr25519_signers
+        .iter()
+        .map(|s| s.account_id())
+        .collect::<Vec<_>>();
+    request_service(alice_client, alice_signer, blueprint_id, accounts, 0).await?;
 
     // Approve the service request and wait for completion
-    let request_id = get_next_request_id(client).await?.saturating_sub(1);
-    approve_service(client, sr25519_signer, request_id, 20).await?;
+    let request_id = get_next_request_id(alice_client).await?.saturating_sub(1);
+
+    for (signer, client) in sr25519_signers.iter().zip(clients) {
+        approve_service(client, signer, request_id, 20).await?;
+    }
 
     // Get the new service ID from events
-    let new_service_id = get_next_service_id(client).await?;
+    let new_service_id = get_next_service_id(alice_client).await?;
     assert!(new_service_id > prev_service_id);
 
     // Verify the service belongs to our blueprint
-    let service = client
+    let service = alice_client
         .subxt_client()
         .storage()
         .at_latest()
@@ -463,6 +491,22 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     Ok(new_service_id.saturating_sub(1))
 }
 
+/// Submits a job to a service and verifies the outputs match the expected values.
+///
+/// # Warning
+/// This method should only be used in a single node context. For multi-node testing,
+/// use the multi-node test harness methods instead.
+///
+/// # Arguments
+/// * `client` - The test client to use for submitting the job
+/// * `signer` - The signer to use for submitting the job
+/// * `service_id` - The ID of the service to submit the job to
+/// * `job` - The job to submit
+/// * `inputs` - The inputs to provide to the job
+/// * `expected_outputs` - The expected outputs from the job
+///
+/// # Returns
+/// The job results if successful
 pub async fn submit_and_verify_job<T: Signer<TangleConfig>>(
     client: &TestClient,
     signer: &T,

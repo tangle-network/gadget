@@ -139,6 +139,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
 
     use gadget_std::collections::BTreeMap;
+    gadget_logging::trace!("Building P2P Network with config: {config:?}");
     let NetworkConfig {
         identity,
         bootnodes,
@@ -248,6 +249,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 
+    gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 1 ~~~");
+
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
@@ -276,6 +279,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         );
     }
 
+    gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 2 ~~~");
+
     let ips_to_bind_to = [
         IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
         IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
@@ -289,6 +294,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
     }
 
+    gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 3 ~~~");
     // Dial all bootnodes
     for bootnode in &bootnodes {
         swarm.dial(

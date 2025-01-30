@@ -1,4 +1,5 @@
 #![allow(unused_variables, unreachable_code)]
+
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
 
@@ -75,7 +76,14 @@ pub enum Error {
 }
 
 #[cfg(feature = "networking")]
-use libp2p::Multiaddr;
+pub use networking_imports::*;
+#[cfg(feature = "networking")]
+mod networking_imports {
+    pub use gadget_networking::networking::NetworkMultiplexer;
+    pub use gadget_networking::setup::start_p2p_network;
+    pub use libp2p::Multiaddr;
+    pub use std::sync::Arc;
+}
 
 /// Gadget environment.
 #[non_exhaustive]
@@ -94,6 +102,9 @@ pub struct GadgetConfiguration {
     /// The list of bootnodes to connect to
     #[cfg(feature = "networking")]
     pub bootnodes: Vec<Multiaddr>,
+    /// The port to bind the network to
+    #[cfg(feature = "networking")]
+    pub network_bind_port: u16,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
     /// Protocol-specific settings
@@ -103,6 +114,22 @@ pub struct GadgetConfiguration {
 }
 
 impl GadgetConfiguration {
+    #[cfg(feature = "networking")]
+    pub fn libp2p_start_network(
+        &self,
+        network_name: impl Into<String>,
+    ) -> Result<Arc<NetworkMultiplexer>, Error> {
+        tracing::info!(target: "gadget", "AB0");
+        let network_config = self
+            .libp2p_network_config(network_name)
+            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+
+        tracing::info!(target: "gadget", "AB1");
+        start_p2p_network(network_config)
+            .map_err(|err| Error::ConfigurationError(err.to_string()))
+            .map(|net| Arc::new(NetworkMultiplexer::new(net)))
+    }
+
     /// Returns a new `NetworkConfig` for the current environment.
     #[cfg(feature = "networking")]
     pub fn libp2p_network_config(
@@ -125,7 +152,6 @@ impl GadgetConfiguration {
         let network_identity = libp2p::identity::Keypair::ed25519_from_bytes(ed25519_pair.seed())
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
-        let port = self.get_port()?;
         let ecdsa_pub_key = keystore
             .first_local::<GossipMsgKeyPair>()
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
@@ -137,52 +163,12 @@ impl GadgetConfiguration {
             network_identity,
             ecdsa_pair,
             self.bootnodes.clone(),
-            port,
+            self.network_bind_port,
             network_name,
         );
 
         Ok(network_config)
     }
-
-    /// Attempt to look at the ws_rpc_endpoint and extract the port. If not found,
-    /// looks at the http_rpc_endpoint and tries to extract the port.
-    ///
-    /// Fails if no port is found
-    #[cfg(feature = "networking")]
-    fn get_port(&self) -> Result<u16, Error> {
-        let ws_port = self.ws_rpc_endpoint.split(":").last();
-
-        if let Some(port) = ws_port {
-            return get_port_sanitized(port).ok_or_else(|| {
-                Error::BadRpcConnection(format!("Bad WS port formatting from: {ws_port:?}"))
-            });
-        }
-
-        let http_port = self.http_rpc_endpoint.split(":").last();
-
-        if let Some(port) = http_port {
-            return get_port_sanitized(port).ok_or_else(|| {
-                Error::BadRpcConnection(format!("Bad HTTP port formatting from: {http_port:?}"))
-            });
-        }
-
-        Err(Error::BadRpcConnection("No port found".to_string()))
-    }
-}
-
-#[cfg(feature = "networking")]
-/// Sanitizes the string
-fn get_port_sanitized<T: AsRef<str>>(port: T) -> Option<u16> {
-    let port = port.as_ref();
-    // Only get the numberic values
-    let mut port_sanitized = String::new();
-    for c in port.chars() {
-        if c.is_numeric() {
-            port_sanitized.push(c);
-        }
-    }
-
-    port_sanitized.parse().ok()
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
@@ -203,6 +189,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 ws_rpc_url,
                 #[cfg(feature = "networking")]
                 bootnodes,
+                #[cfg(feature = "networking")]
+                network_bind_port,
                 keystore_uri,
                 protocol,
                 #[cfg(feature = "tangle")]
@@ -320,6 +308,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         data_dir: None,
         #[cfg(feature = "networking")]
         bootnodes: bootnodes.unwrap_or_default(),
+        #[cfg(feature = "networking")]
+        network_bind_port: network_bind_port.unwrap_or_default(),
         protocol,
         protocol_settings,
     })

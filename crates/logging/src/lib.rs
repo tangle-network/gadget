@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use tracing;
+use tracing::level_filters::LevelFilter;
 pub use tracing_subscriber;
 
 /// A [`trace`] log with the target `"gadget"`
@@ -75,7 +76,11 @@ pub fn setup_log() {
     let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
         .without_time()
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
         .finish()
         .try_init();
 }
