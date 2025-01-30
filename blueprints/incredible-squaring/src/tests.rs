@@ -1,4 +1,6 @@
 use crate::{MyContext, XsquareEventHandler};
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::logging::setup_log;
 use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::harness::TestHarness;
@@ -24,9 +26,7 @@ async fn test_incredible_squaring() -> Result<()> {
     };
 
     // Initialize event handler
-    let handler = XsquareEventHandler::new(&env.clone(), blueprint_ctx)
-        .await
-        .unwrap();
+    let handler = XsquareEventHandler::new(&env.clone(), blueprint_ctx).await?;
 
     // Setup service
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
