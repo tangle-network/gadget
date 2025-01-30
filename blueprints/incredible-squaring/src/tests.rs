@@ -16,21 +16,23 @@ async fn test_incredible_squaring() -> Result<()> {
 
     // Initialize test harness (node, keys, deployment)
     let temp_dir = tempfile::TempDir::new()?;
-    let harness = TangleTestHarness::setup(temp_dir).await?;
-    let env = harness.env().clone();
+    let harness = TangleTestHarness::<1>::setup(temp_dir).await?;
 
-    // Create blueprint-specific context
-    let blueprint_ctx = MyContext {
-        env: env.clone(),
-        call_id: None,
+    let xsquare_creator = |env| async move {
+        // Create blueprint-specific context
+        let blueprint_ctx = MyContext {
+            env: env.clone(),
+            call_id: None,
+        };
+
+        // Initialize event handler
+        XsquareEventHandler::new(&env, blueprint_ctx).await?
     };
-
-    // Initialize event handler
-    let handler = XsquareEventHandler::new(&env.clone(), blueprint_ctx).await?;
 
     // Setup service
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
-    test_env.add_job(handler);
+    test_env.add_job(xsquare_creator)?;
+    test_env.start()?;
 
     test_env.run_runner().await.unwrap();
 
