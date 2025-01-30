@@ -11,16 +11,15 @@ mod tangle;
 #[cfg(feature = "tangle")]
 use tangle::{generate_tangle_specific_impl, get_tangle_job_processor_wrapper};
 
-use crate::shared::{self, get_return_type_wrapper, pascal_case, type_to_field_type, MacroExt};
-
+use crate::shared::{self, pascal_case, type_to_field_type, MacroExt};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use gadget_std::str::FromStr;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use itertools::Itertools;
-use proc_macro2::Span;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
+use syn::spanned::Spanned;
 use syn::{Ident, ItemFn, LitInt, Token, Type};
 
 /// Defines custom keywords for defining Job arguments
@@ -62,7 +61,24 @@ impl JobDef {
         let params_type = declared_params_to_field_types(&self.args.params, &param_map)?;
 
         let result = get_return_type(&self.input);
-        let result_type = self.args.result_to_field_types(&result)?;
+        let result_type = if let Type::Array(arr) = &result {
+            let elem_type = &*arr.elem;
+            let len = arr
+                .len
+                .to_token_stream()
+                .to_string()
+                .parse::<u64>()
+                .map_err(|_| {
+                    syn::Error::new_spanned(&arr.len, "array length must be a constant")
+                })?;
+            let field_type = type_to_field_type(elem_type)?;
+            vec![ParameterType {
+                ty: FieldType::Array(len, Box::new(field_type.ty)),
+                span: Some(result.span()),
+            }]
+        } else {
+            self.args.result_to_field_types(&result)?
+        };
 
         let job_id = &self.args.id;
         let job_const_block =
@@ -123,9 +139,32 @@ impl JobDef {
 
 /// Job Macro implementation
 pub(crate) fn job_impl(args: JobArgs, input: ItemFn) -> syn::Result<TokenStream> {
-    let def = JobDef { args, input };
+    // Get the return type before generating
+    let return_type = get_return_type(&input);
 
-    def.generate()
+    // Handle type inference for both results and event listeners
+    let mut args = args;
+
+    // Handle result type inference
+    let mut ret_type: Type = return_type.clone();
+    if let Type::Infer(_) = ret_type {
+        ret_type = syn::parse_quote! { () };
+    }
+    if let ResultsKind::Infered = args.result {
+        args.result = ResultsKind::Types(vec![ret_type.clone()]);
+    } else if let ResultsKind::Types(types) = &args.result {
+        if types.iter().any(|ty| matches!(ty, Type::Infer(_))) {
+            args.result = ResultsKind::Types(vec![ret_type.clone()]);
+        }
+    }
+
+    // Infer event listener generic types based on the function signature
+    args.event_listener.infer_types(&input.sig)?;
+
+    let def = JobDef { args, input };
+    let expanded = def.generate()?;
+    // eprintln!("Expanded job macro:\n{}", expanded.to_string());
+    Ok(expanded)
 }
 
 pub fn get_return_type(input: &ItemFn) -> Type {
@@ -215,7 +254,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 ) -> syn::Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let return_type = get_return_type(input);
 
-    let (mut event_handler_args, _event_handler_arg_types) =
+    let (mut event_handler_args, event_handler_arg_types) =
         get_event_handler_args(param_types, params)?;
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     #[cfg(feature = "tangle")]
@@ -235,8 +274,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             suffix.to_lowercase()
         );
 
-        // convert the listener var, which is just a struct name, to an ident
-        let listener = listener_meta.listener.to_token_stream();
+        let listener_ty = listener_meta.listener.clone();
 
         // Raw events have no pre-processor, therefore their inputs are passed directly into the job function
         // and NOT as job params
@@ -246,13 +284,24 @@ pub(crate) fn generate_event_workflow_tokenstream(
         // We assume the first supplied event handler arg is the context we are injecting into the event listener
         // Then, pass that into the EventFlowWrapper
         let fn_name_ident = &input.sig.ident;
-        let static_ctx_get_override = quote! { CTX.get().unwrap() };
-        #[cfg(feature = "tangle")]
-        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
-        #[cfg(not(feature = "tangle"))]
-        let (_ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
+
+        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => get_fn_call_ordered(param_types, params, is_raw)?,
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => get_fn_call_ordered(param_types, params, is_raw)?,
+            ListenerType::Custom => {
+                let (ctx_pos, mut ordered_inputs) =
+                    get_fn_call_ordered(param_types, params, is_raw)?;
+
+                // Replace the first parameter with param0
+                if !ordered_inputs.is_empty() {
+                    ordered_inputs[0] = quote! { param0 };
+                }
+
+                (ctx_pos, ordered_inputs)
+            }
+        };
 
         let asyncness = get_asyncness(input);
 
@@ -262,11 +311,14 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let _ = event_handler_args.remove(0);
         }
 
-        let field_in_self_getter = event_handler_args
+        let (context_field, context_ty) = event_handler_args
             .first()
             .map(|field_in_self| {
                 // If is_raw, assume the actual context is the second param
-                quote! { ctx. #field_in_self .clone() }
+                (
+                    quote! { handler. #field_in_self .clone() },
+                    event_handler_arg_types[0],
+                )
             })
             .ok_or_else(|| {
                 syn::Error::new(
@@ -287,19 +339,65 @@ pub(crate) fn generate_event_workflow_tokenstream(
             listeners.push(#listener_function_name(&self).await.expect("Event listener already initialized"));
         });
 
-        let pre_processor_function = if let Some(preprocessor) = &listener_meta.pre_processor {
-            quote! { #preprocessor }
-        } else {
-            // identity transformation
-            quote! {
-                |evt| async move {
-                    Ok(Some(evt))
+        let context_declaration = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => {
+                quote! {
+                    let context: ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<#context_ty> = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
+                        client: handler.client.subxt_client().clone(),
+                        signer: handler.signer.clone(),
+                        job_id: #job_id_name,
+                        service_id: handler.service_id,
+                        context: #context_field,
+                    };
+
+                    let client = context.client.clone();
+                    let signer = context.signer.clone();
+                    let service_id = context.service_id;
                 }
+            }
+
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => {
+                quote! {
+                    let context = #context_field;
+                }
+            }
+
+            ListenerType::Custom => {
+                quote! { let context = #context_field; }
             }
         };
 
-        // The job_processor is just the job function. Since it may contain multiple params, we need a new function to call it.
-        let job_processor_wrapper = match listener_meta.listener_type {
+        let context_to_listener = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { &context },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { &handler },
+            ListenerType::Custom => quote! { &context },
+        };
+
+        let event_listener_creator_param = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { _ },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { #autogen_struct_name },
+            ListenerType::Custom => quote! { _ },
+        };
+
+        let wrapper_type_params = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { ::<_, _, #autogen_struct_name> },
+            _ => quote! {},
+        };
+
+        let pre_processor_function = if let Some(preprocessor) = &listener_meta.pre_processor {
+            quote! { #preprocessor }
+        } else {
+            quote! { |evt| async move { Ok(Some(evt)) } }
+        };
+
+        let job_processor_tokens = match listener_meta.listener_type {
             #[cfg(feature = "tangle")]
             ListenerType::Tangle => get_tangle_job_processor_wrapper(
                 params,
@@ -309,9 +407,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                context_ty,
                 ctx_pos_in_ordered_inputs,
             )?,
-
             #[cfg(feature = "evm")]
             ListenerType::Evm => get_evm_job_processor_wrapper(
                 params,
@@ -321,15 +419,29 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                ctx_pos_in_ordered_inputs,
             )?,
-
             ListenerType::Custom => {
-                let job_processor_call_return = get_return_type_wrapper(&return_type, None);
-
+                let job_processor_call = quote! {
+                    let res = #fn_name_ident(context, param0) #asyncness;
+                };
+                let is_result = return_type.is_result_type();
+                let process_result = if is_result {
+                    quote! {
+                        match res {
+                            Ok(val) => Ok(val),
+                            Err(e) => Err(::blueprint_sdk::macros::ext::event_listeners::core::Error::Other(e.to_string())),
+                        }
+                    }
+                } else {
+                    quote! { Ok(res) }
+                };
                 quote! {
-                    move |param0| async move {
-                        let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
-                        #job_processor_call_return
+                    move |(param0, context): (_, _)| {
+                        async move {
+                            #job_processor_call
+                            #process_result
+                        }
                     }
                 }
             }
@@ -340,94 +452,58 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 #[cfg(feature = "tangle")]
                 ListenerType::Tangle => {
                     quote! {
-                        |(mut client_context, job_result)| async move {
-                            let ctx = CTX.get().unwrap();
-                            let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                            let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
-                                results: job_result,
-                                service_id: ctx.service_id,
-                                call_id,
-                                client: ctx.client.subxt_client().clone(),
-                                signer: ctx.signer.clone(),
-                            };
-
-                            #postprocessor(tangle_job_result).await
+                        move |(mut context, job_result)| {
+                            let client = client.clone();
+                            let signer = signer.clone();
+                            async move {
+                                let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut context).expect("Tangle call ID was not injected into context");
+                                let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
+                                    results: job_result,
+                                    service_id,
+                                    call_id,
+                                    client,
+                                    signer,
+                                };
+                                #postprocessor(tangle_job_result).await
+                            }
                         }
                     }
                 }
-
                 #[cfg(feature = "evm")]
                 ListenerType::Evm => {
                     quote! { #postprocessor }
                 }
-
                 ListenerType::Custom => {
                     quote! { #postprocessor }
                 }
             }
         } else {
-            // no-op default
             quote! { |_evt| async move { Ok(()) } }
         };
 
-        let context_declaration = match listener_meta.listener_type {
-            #[cfg(feature = "tangle")]
-            ListenerType::Tangle => {
-                quote! {
-                    let context = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
-                        client: ctx.client.subxt_client().clone(),
-                        signer: ctx.signer.clone(),
-                        job_id: #job_id_name,
-                        service_id: ctx.service_id,
-                        context: #field_in_self_getter,
-                    };
-                }
-            }
-
-            #[cfg(feature = "evm")]
-            ListenerType::Evm => {
-                quote! {
-                    let context = ::blueprint_sdk::macros::ext::std::ops::Deref::deref(&ctx).clone();
-                }
-            }
-
-            ListenerType::Custom => {
-                quote! { let context = #field_in_self_getter; }
-            }
-        };
-
         let next_listener = quote! {
-            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
-                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
+            async fn #listener_function_name (handler: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
+                let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
 
-                    static CTX: ::blueprint_sdk::macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = ::blueprint_sdk::macros::ext::tokio::sync::OnceCell::const_new();
-                    #context_declaration
+                #context_declaration
+                let job_processor = #job_processor_tokens;
+                let listener = <#listener_ty as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _, #event_listener_creator_param>>::new(#context_to_listener)
+                    .await
+                    .expect("Failed to create event listener");
+                let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
+                    context,
+                    listener,
+                    #pre_processor_function,
+                    job_processor,
+                    #post_processor_function,
+                );
 
-                    if let Err(_err) = CTX.set(ctx.clone()) {
-                        ::blueprint_sdk::macros::ext::logging::error!("Failed to set the context");
-                        return None;
-                    }
-                    let job_processor = #job_processor_wrapper;
-
-                    let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
-                    let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
-                        listener,
-                        #pre_processor_function,
-                        job_processor,
-                        #post_processor_function,
-                    );
-
-                    let task = async move {
-                        let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
-                        let _ = tx.send(res);
-                    };
-                    ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
-                    return Some(rx)
-                }
-
-                None
+                let task = async move {
+                    let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor #wrapper_type_params::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
+                    let _ = tx.send(res);
+                };
+                ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
+                Some(rx)
             }
         };
 
@@ -443,18 +519,14 @@ pub(crate) fn get_event_handler_args<'a>(
     param_types: &'a IndexMap<Ident, Type>,
     params: &'a [Ident],
 ) -> syn::Result<(Vec<&'a Ident>, Vec<&'a Type>)> {
-    let x = param_types.keys().collect::<IndexSet<_>>();
-    let y = params.iter().collect::<IndexSet<_>>();
-    let event_handler_args = x.difference(&y).copied().collect::<Vec<_>>();
-    let event_handler_types = Itertools::try_collect(event_handler_args.iter().map(|r| {
-        param_types.get(*r).ok_or_else(|| {
-            syn::Error::new_spanned(
-                r,
-                "Could not find the type of the parameter in the function signature",
-            )
-        })
-    }))?;
-
+    let mut event_handler_args = Vec::new();
+    let mut event_handler_types = Vec::new();
+    for (ident, ty) in param_types {
+        if !params.contains(ident) {
+            event_handler_args.push(ident);
+            event_handler_types.push(ty);
+        }
+    }
     Ok((event_handler_args, event_handler_types))
 }
 
@@ -558,7 +630,6 @@ pub fn generate_autogen_struct(
 pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
-    replacement_for_self: Option<TokenStream>,
     is_raw: bool,
 ) -> syn::Result<(usize, Vec<TokenStream>)> {
     let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
@@ -577,7 +648,7 @@ pub fn get_fn_call_ordered(
     let mut job_var_idx = 0;
     let mut non_job_var_count = 0;
     let mut ctx_pos = None;
-    let this = replacement_for_self.unwrap_or_else(|| quote! { self });
+    let this = quote! { handler };
     let ret = param_types
         .iter()
         .enumerate()
@@ -717,18 +788,15 @@ pub(crate) struct Results(pub(crate) ResultsKind);
 
 impl Parse for Results {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::result>();
+        let _ = input.parse::<kw::result>()?;
         let content;
         let _ = syn::parenthesized!(content in input);
         let names = content.parse_terminated(Type::parse, Token![,])?;
         if names.is_empty() {
-            return Err(syn::Error::new_spanned(
-                names,
-                "Expected at least one parameter",
-            ));
+            return Ok(Self(ResultsKind::Infered));
         }
         if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
-            // Infer the types from the retun type
+            // If any type is _, treat it as inference
             return Ok(Self(ResultsKind::Infered));
         }
         let mut items = Vec::new();

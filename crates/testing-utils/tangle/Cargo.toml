@@ -11,8 +11,9 @@ repository.workspace = true
 [dependencies]
 cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
+gadget-networking = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["tangle", "std"] }
-gadget-config = { workspace = true, features = ["tangle", "std"] }
+gadget-config = { workspace = true, features = ["tangle", "std", "networking"] }
 gadget-contexts = { workspace = true, features = ["tangle", "std"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
@@ -35,6 +36,7 @@ sp-core = { workspace = true }
 tangle-subxt = { workspace = true }
 
 async-trait = { workspace = true }
+futures = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
 reqwest = { workspace = true, features = ["json", "default-tls"] }
