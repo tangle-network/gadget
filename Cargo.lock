@@ -7233,9 +7233,11 @@ name = "gadget-tangle-testing-utils"
 version = "0.1.0"
 dependencies = [
  "alloy-json-rpc",
+ "alloy-primitives 0.8.19",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-signer-local",
+ "alloy-sol-types 0.8.19",
  "alloy-transport",
  "async-trait",
  "cargo-tangle",

@@ -66,28 +66,32 @@ Tangle Network's Gadget SDK is a modular framework designed to simplify the deve
 ## 🛠 Project Structure
 
 ```
-tangle-network-gadget-workspace/
-├── cli/                    # Command-line interface tools
-│   ├── src/               # CLI implementation
-│   └── README.md          # CLI documentation
-├── crates/                # Core functionality crates
-│   ├── benchmarking/      # Performance testing tools
-│   ├── blueprint/         # Blueprint core system
-│   │   ├── manager/       # Blueprint lifecycle management
-│   │   ├── metadata/      # Blueprint metadata handling
-│   │   └── serde/         # Serialization utilities
-│   ├── clients/           # Network clients
-│   │   ├── core/          # Shared client functionality
-│   │   ├── eigenlayer/    # EigenLayer integration
-│   │   ├── evm/          # Ethereum Virtual Machine client
-│   │   └── tangle/       # Tangle Network client
-│   ├── crypto/           # Cryptographic implementations
-│   ├── event-listeners/  # Event handling system
-│   ├── keystore/         # Key management
-│   ├── networking/       # P2P networking
-│   ├── runners/         # Execution environments
-│   └── utils/           # Shared utilities
-└── .config/             # Configuration files
+tangle-network-gadget-workspace
+├── blueprints               # Blueprint examples and templates
+├── cli                      # Cargo-tangle Command-line interface tool
+├── crates                   # Core functionality crates
+│   ├── benchmarking         # Performance testing tools
+│   ├── blueprint            # Blueprint core system and utilities
+│   ├── clients              # Network clients (Tangle, EVM, EigenLayer)
+│   ├── config               # Configuration management
+│   ├── contexts             # Execution contexts
+│   ├── crypto               # Cryptographic implementations
+│   ├── eigenlayer-bindings  # EigenLayer smart contract bindings
+│   ├── event-listeners      # Event handling system
+│   ├── executor             # Task execution system
+│   ├── keystore             # Key management and storage
+│   ├── logging              # Logging infrastructure
+│   ├── macros               # Procedural and derive macros
+│   ├── metrics              # Performance and monitoring metrics
+│   ├── networking           # P2P networking and communication
+│   ├── runners              # Execution environments
+│   ├── sdk                  # Software Development Kit
+│   ├── std                  # Standard library extensions
+│   ├── stores               # Storage implementations
+│   ├── testing-utils        # Testing utilities and helpers
+│   └── utils                # Common utilities and helpers
+├── .config                  # Configuration files
+└── rust-toolchain.toml      # Rust version and components
 ```
 
 ## 📋 Prerequisites

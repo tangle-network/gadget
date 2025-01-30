@@ -1,4 +1,5 @@
 use crate::{InputValue, OutputValue};
+use alloy_primitives::Address;
 use alloy_provider::network::AnyNetwork;
 use alloy_provider::{
     network::{ReceiptResponse, TransactionBuilder},
@@ -6,6 +7,7 @@ use alloy_provider::{
 };
 use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::{sol, SolConstructor};
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
 use sp_core::H160;
@@ -53,6 +55,10 @@ pub enum TransactionError {
     Other(String),
 }
 
+sol! {
+    constructor(address payable _protocolFeesReceiver);
+}
+
 /// Deploy a new MBSM revision and returns the result.
 pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     evm_rpc_endpoint: &str,
@@ -60,6 +66,7 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     account_id: &T,
     signer_evm: PrivateKeySigner,
     bytecode: &[u8],
+    protocol_fees_receiver: Address,
 ) -> Result<MasterBlueprintServiceManagerRevised, TransactionError> {
     info!("Deploying new MBSM revision ...");
 
@@ -71,7 +78,18 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         .on_ws(WsConnect::new(evm_rpc_endpoint))
         .await?;
 
-    let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode.to_vec());
+    let constructor_call = constructorCall {
+        _protocolFeesReceiver: protocol_fees_receiver,
+    };
+    let encoded_constructor = constructor_call.abi_encode();
+    info!("Encoded constructor: {encoded_constructor:?}");
+
+    let deploy_code = [bytecode, encoded_constructor.as_ref()].concat();
+    info!("Deploy code length: {:?}", deploy_code.len());
+
+    let tx = alloy_rpc_types::TransactionRequest::default()
+        .with_deploy_code(deploy_code)
+        .with_gas_limit(5_000_000);
     let send_result = provider.send_transaction(WithOtherFields::new(tx)).await;
     let tx = match send_result {
         Ok(tx) => tx,

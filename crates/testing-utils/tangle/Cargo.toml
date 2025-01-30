@@ -29,6 +29,8 @@ alloy-signer-local = { workspace = true }
 alloy-rpc-types = { workspace = true, features = ["eth"] }
 alloy-json-rpc = { workspace = true }
 alloy-transport = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-primitives = { workspace = true }
 sp-core = { workspace = true }
 subxt = { workspace = true }
 tangle-subxt = { workspace = true }
