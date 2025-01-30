@@ -243,8 +243,11 @@ impl TangleTestHarness {
             0
         };
 
+        let config =
+            TangleConfig::new(PriceTargets::default()).with_pre_register(!automatic_registration);
+
         // Create and spawn test environment
-        let test_env = TangleTestEnv::new(TangleConfig::default(), self.env().clone())?;
+        let test_env = TangleTestEnv::new(config, self.env().clone())?;
 
         Ok((test_env, service_id, blueprint_id))
     }

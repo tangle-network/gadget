@@ -20,14 +20,25 @@ use gadget_utils::evm::get_provider_http;
 pub struct EigenlayerBLSConfig {
     earnings_receiver_address: Address,
     delegation_approver_address: Address,
+    pre_register: bool,
 }
 
 impl EigenlayerBLSConfig {
+    /// Creates a new [`EigenlayerBLSConfig`] with the given earnings receiver and delegation approver addresses.
+    ///
+    /// By default, a Runner created with this config will exit after registration (Pre-Registration). To change
+    /// this, use [`EigenlayerBLSConfig::with_pre_registration`] passing false.
     pub fn new(earnings_receiver_address: Address, delegation_approver_address: Address) -> Self {
         Self {
             earnings_receiver_address,
             delegation_approver_address,
+            pre_register: true,
         }
+    }
+
+    pub fn with_pre_registration(mut self, pre_register: bool) -> Self {
+        self.pre_register = pre_register;
+        self
     }
 }
 
@@ -44,6 +55,10 @@ impl BlueprintConfig for EigenlayerBLSConfig {
 
     async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
         requires_registration_bls_impl(env).await
+    }
+
+    fn should_pre_register(&self) -> bool {
+        self.pre_register
     }
 }
 

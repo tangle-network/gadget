@@ -33,8 +33,16 @@ sol!(
 );
 
 #[tokio::test(flavor = "multi_thread")]
-#[allow(clippy::needless_return)]
 async fn test_eigenlayer_incredible_squaring_blueprint() {
+    run_eigenlayer_incredible_squaring_test(false, 1).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_eigenlayer_pre_register_incredible_squaring_blueprint() {
+    run_eigenlayer_incredible_squaring_test(true, 1).await;
+}
+
+async fn run_eigenlayer_incredible_squaring_test(pre_register: bool, expected_responses: usize) {
     setup_log();
 
     // Initialize test harness
@@ -48,7 +56,6 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let task_manager_address = deploy_task_manager(&harness).await;
 
     // Spawn Task Spawner and Task Response Listener
-    let num_successful_responses_required = 3;
     let successful_responses = Arc::new(Mutex::new(0));
     let successful_responses_clone = successful_responses.clone();
     let response_listener_address =
@@ -91,13 +98,19 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let x_square_eigen = XsquareEigenEventHandler::new(contract.clone(), eigen_client_context);
 
     let mut test_env = EigenlayerBLSTestEnv::new(
-        EigenlayerBLSConfig::new(Default::default(), Default::default()),
+        EigenlayerBLSConfig::new(Default::default(), Default::default())
+            .with_pre_registration(pre_register),
         env.clone(),
     )
     .unwrap();
     test_env.add_job(initialize_task);
     test_env.add_job(x_square_eigen);
     test_env.add_background_service(aggregator_context);
+
+    if pre_register {
+        // Run the runner once to register, since pre-registration is enabled
+        test_env.run_runner().await.unwrap();
+    }
 
     tokio::spawn(async move {
         test_env.run_runner().await.unwrap();
@@ -110,7 +123,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let timeout_duration = Duration::from_secs(300);
     let result = wait_for_responses(
         successful_responses.clone(),
-        num_successful_responses_required,
+        expected_responses,
         timeout_duration,
     )
     .await;
@@ -123,13 +136,13 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
 
     match result {
         Ok(Ok(())) => {
-            info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
+            info!("Test completed successfully with {expected_responses} tasks responded to.");
         }
         _ => {
             panic!(
                 "Test failed with {} successful responses out of {} required",
                 successful_responses_clone.lock().unwrap(),
-                num_successful_responses_required
+                expected_responses
             );
         }
     }
