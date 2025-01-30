@@ -2,6 +2,7 @@
 src = "contracts/src"
 out = "contracts/out"
 libs = ["dependencies"]
+remappings = ["incredible-squaring/=contracts/src/"]
 auto_detect_remappings = true
 solc_version = "0.8.20"
 

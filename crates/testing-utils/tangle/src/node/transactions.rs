@@ -388,20 +388,20 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     sr25519_signer: &T,
     blueprint_id: u64,
     preferences: Preferences,
+    automatic_registration: bool,
 ) -> Result<u64, TransactionError> {
-    // Join operators
-    join_operators(client, sr25519_signer).await?;
-
-    // Register for blueprint
-    register_blueprint(
-        client,
-        sr25519_signer,
-        blueprint_id,
-        preferences,
-        RegistrationArgs::new(),
-        0,
-    )
-    .await?;
+    if automatic_registration {
+        // Register for blueprint
+        register_blueprint(
+            client,
+            sr25519_signer,
+            blueprint_id,
+            preferences,
+            RegistrationArgs::new(),
+            0,
+        )
+        .await?;
+    }
 
     // Get the current service ID before requesting new service
     let prev_service_id = get_next_service_id(client).await?;
@@ -442,7 +442,6 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     if service.blueprint != blueprint_id {
         return Err(TransactionError::ServiceIdMismatch);
     }
-
     Ok(new_service_id.saturating_sub(1))
 }
 

@@ -1,3 +1,4 @@
+use crate::node::transactions::join_operators;
 use crate::Error;
 use crate::{
     keys::inject_tangle_key,
@@ -208,25 +209,63 @@ impl TangleTestHarness {
     }
 
     /// Sets up a complete service environment with initialized event handlers
-    pub async fn setup_services(&self) -> Result<(TangleTestEnv, u64), Error> {
+    ///
+    /// # Returns
+    /// A tuple of the test environment, the service ID, and the blueprint ID i.e., (test_env, service_id, blueprint_id)
+    ///
+    /// # Note
+    /// The Service ID will always be 0 if automatic registration is disabled, as there is not yet a service to have an ID
+    pub async fn setup_services(
+        &self,
+        automatic_registration: bool,
+    ) -> Result<(TangleTestEnv, u64, u64), Error> {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
 
+        // Join operators
+        join_operators(&self.client, &self.sr25519_signer)
+            .await
+            .map_err(|e| Error::Setup(e.to_string()))?;
+
         // Setup operator and get service
+        let preferences = self.get_default_operator_preferences();
+        let service_id = if automatic_registration {
+            setup_operator_and_service(
+                &self.client,
+                &self.sr25519_signer,
+                blueprint_id,
+                preferences,
+                automatic_registration,
+            )
+            .await
+            .map_err(|e| Error::Setup(e.to_string()))?
+        } else {
+            0
+        };
+
+        // Create and spawn test environment
+        let test_env = TangleTestEnv::new(TangleConfig::default(), self.env().clone())?;
+
+        Ok((test_env, service_id, blueprint_id))
+    }
+
+    /// Requests a service with the given blueprint and returns the newly created service ID
+    ///
+    /// This function does not register for a service, it only requests service for a blueprint
+    /// that has already been registered to.
+    pub async fn request_service(&self, blueprint_id: u64) -> Result<u64, Error> {
         let preferences = self.get_default_operator_preferences();
         let service_id = setup_operator_and_service(
             &self.client,
             &self.sr25519_signer,
             blueprint_id,
             preferences,
+            false,
         )
         .await
         .map_err(|e| Error::Setup(e.to_string()))?;
 
-        // Create and spawn test environment
-        let test_env = TangleTestEnv::new(TangleConfig::default(), self.env().clone())?;
-
-        Ok((test_env, service_id))
+        Ok(service_id)
     }
 
     /// Executes a job and verifies its output matches the expected result
