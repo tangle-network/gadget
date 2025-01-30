@@ -16,9 +16,10 @@ fn do_test(asset_name: &str) -> ServiceBlueprint {
     const PACKAGE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
     let temp = tempfile::tempdir().unwrap();
-    let metadata_output = temp.path().join("blueprint.json");
+    let temp_path = temp.path().to_path_buf();
+    let metadata_output = temp_path.join("blueprint.json");
 
-    set_current_dir(temp.path()).unwrap();
+    set_current_dir(&temp_path).unwrap();
 
     let out = Command::new("cargo")
         .args(["init", "--lib", "--name", asset_name])
@@ -39,7 +40,7 @@ fn do_test(asset_name: &str) -> ServiceBlueprint {
             .parent()
             .unwrap()
             .join("Cargo.lock"),
-        temp.path().join("Cargo.lock"),
+        temp_path.join("Cargo.lock"),
     )
     .unwrap();
 
@@ -73,7 +74,7 @@ fn do_test(asset_name: &str) -> ServiceBlueprint {
     }
     //////////
 
-    let src_file_path = temp.path().join("src").join("lib.rs");
+    let src_file_path = temp_path.join("src").join("lib.rs");
     let mut src_file = OpenOptions::new()
         .truncate(true)
         .write(true)
@@ -94,14 +95,13 @@ fn do_test(asset_name: &str) -> ServiceBlueprint {
     // Add metadata to the manifest
     let mut manifest = OpenOptions::new()
         .append(true)
-        .write(true)
         .open(temp.path().join("Cargo.toml"))
         .unwrap();
     manifest.write_all(MANIFEST_META.as_bytes()).unwrap();
 
     if let Err(e) = Config::builder()
-        .manifest_dir(temp.path().to_path_buf())
-        .target_dir(temp.path().join("target"))
+        .manifest_dir(temp_path.clone())
+        .target_dir(temp_path.join("target"))
         .crate_name(asset_name.to_string())
         .output_file(metadata_output.clone())
         .build()
@@ -210,6 +210,51 @@ fn generate_job_with_enum_param() {
     let job = &blueprint.jobs[0];
     assert_eq!(job.job_id, 0);
     assert_eq!(job.metadata.name, "check_status");
+
+    assert_eq!(job.params.len(), 1);
+
+    // Enums are represented as strings, since we only support unit variants
+    assert_eq!(job.params[0].as_rust_type(), "String");
+}
+
+#[test]
+fn generate_job_with_external_type_param() {
+    let blueprint = do_test("job_external_type_param");
+    assert_eq!(blueprint.jobs.len(), 1);
+
+    let job = &blueprint.jobs[0];
+    assert_eq!(job.job_id, 0);
+    assert_eq!(job.metadata.name, "address_size");
+
+    assert_eq!(job.params.len(), 1);
+
+    assert_eq!(job.params[0].as_rust_type(), "Address");
+    assert_eq!(
+        job.params[0],
+        FieldType::Struct(
+            "Address".to_string(),
+            vec![(
+                String::from("0"),
+                Box::new(FieldType::Struct(
+                    "FixedBytes".to_string(),
+                    vec![(
+                        String::from("0"),
+                        Box::new(FieldType::Array(0, Box::new(FieldType::Uint8)))
+                    )]
+                )),
+            ),]
+        )
+    );
+}
+
+#[test]
+fn generate_job_with_external_type_nested_param() {
+    let blueprint = do_test("job_external_type_nested_param");
+    assert_eq!(blueprint.jobs.len(), 1);
+
+    let job = &blueprint.jobs[0];
+    assert_eq!(job.job_id, 0);
+    assert_eq!(job.metadata.name, "address_size");
 
     assert_eq!(job.params.len(), 1);
 
