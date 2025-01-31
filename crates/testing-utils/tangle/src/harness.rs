@@ -83,11 +83,10 @@ trait JobCreator:
         Box<
             dyn Future<
                     Output = Result<
-                        Box<dyn InitializableEventHandler + Send + Sync + 'static>,
+                        Box<dyn InitializableEventHandler + Send + 'static>,
                         RunnerError,
                     >,
                 > + Send
-                + Sync
                 + 'static,
         >,
     > + Send
@@ -102,11 +101,10 @@ impl<
                 Box<
                     dyn Future<
                             Output = Result<
-                                Box<dyn InitializableEventHandler + Send + Sync + 'static>,
+                                Box<dyn InitializableEventHandler + Send + 'static>,
                                 RunnerError,
                             >,
                         > + Send
-                        + Sync
                         + 'static,
                 >,
             > + Send
@@ -161,6 +159,7 @@ impl MultiNodeTangleTestEnv {
             while let Some(command) = command_rx.recv().await {
                 match command {
                     MultiNodeExecutorCommand::AddNode(node_id) => {
+                        gadget_logging::info!("Spawning node {node_id}");
                         let env = generate_env_from_node_id(
                             node_id,
                             tangle_config.http_endpoint.clone().expect("Should exist"),
@@ -171,26 +170,28 @@ impl MultiNodeTangleTestEnv {
 
                         let mut node = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
                         // Add all jobs to the node
-                        for (_job_id, creator) in jobs.clone() {
+                        for (job_id, creator) in jobs.clone() {
                             let job = creator(env.clone()).await?;
                             node.add_job(job);
+                            gadget_logging::trace!("Added job {job_id} to node {node_id}");
                         }
 
                         let (node_control_tx, node_control_rx) =
                             tokio::sync::oneshot::channel::<()>();
-                        running_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                        let running_count_on_drop = running_count.clone();
+                        let running_count_for_job = running_count.clone();
                         drop(tokio::spawn(async move {
+                            running_count_for_job.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
                             tokio::select! {
                                 _ = node_control_rx => {
                                     gadget_logging::info!("Node {node_id} shutting down by request");
                                 },
                                 res = node.run_runner() => {
-                                    gadget_logging::warn!("Node {node_id} shutting down: {res:?}");
+                                    gadget_logging::warn!("Node {node_id} shutting down due to job ending: {res:?}");
                                 }
                             }
 
-                            running_count_on_drop.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                            running_count_for_job.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                         }));
 
                         handles.insert(node_id, node_control_tx);
@@ -239,8 +240,9 @@ impl MultiNodeTangleTestEnv {
     /// If the job cannot be added to the test harness, an error is returned.
     pub fn add_job<
         T: Fn(GadgetConfiguration) -> F + Copy + Send + Sync + 'static,
-        F: Future<Output = Result<K, RunnerError>> + Send + Sync + 'static,
-        K: InitializableEventHandler + Send + Sync + 'static,
+        F: Future<Output = Result<K, E>> + Send + 'static,
+        K: InitializableEventHandler + Send + 'static,
+        E: std::fmt::Debug + Send + 'static,
     >(
         &mut self,
         job_creator: T,
@@ -250,7 +252,9 @@ impl MultiNodeTangleTestEnv {
                 self.jobs_added_count,
                 Arc::new(move |env| {
                     Box::pin(async move {
-                        let job = job_creator(env).await?;
+                        let job = job_creator(env)
+                            .await
+                            .map_err(|err| RunnerError::Other(format!("{err:?}")))?;
                         Ok(Box::new(job) as Box<_>)
                     })
                 }),
@@ -298,7 +302,13 @@ impl MultiNodeTangleTestEnv {
     pub fn start(&mut self) -> Result<(), RunnerError> {
         self.start_tx
             .take()
-            .ok_or_else(|| RunnerError::Other("Test harness already started".to_string()))?;
+            .ok_or_else(|| RunnerError::Other("Test harness already started".to_string()))?
+            .send(())
+            .map_err(|_| {
+                RunnerError::Other(
+                    "Failed to start test harness (background task died?)".to_string(),
+                )
+            })?;
         Ok(())
     }
 
