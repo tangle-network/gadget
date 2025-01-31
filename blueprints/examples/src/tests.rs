@@ -11,11 +11,16 @@ use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
 use blueprint_sdk::std::path::Path;
 use blueprint_sdk::std::time::Duration;
+use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use blueprint_sdk::testing::utils::anvil::{get_receipt, start_default_anvil_testnet};
+use blueprint_sdk::testing::utils::harness::TestHarness;
+use blueprint_sdk::testing::utils::runner::TestEnv;
+use blueprint_sdk::testing::utils::tangle::{OutputValue, TangleTestHarness};
 use blueprint_sdk::tokio;
 use blueprint_sdk::tokio::time::timeout;
 use blueprint_sdk::utils::evm::get_provider_http;
+use color_eyre::Result;
 
 #[tokio::test]
 async fn test_eigenlayer_context() {
@@ -124,4 +129,67 @@ async fn test_eigenlayer_context() {
         Ok(_) => info!("Success! Exiting..."),
         Err(_) => panic!("Test timed out"),
     }
+}
+
+#[tokio::test]
+async fn test_periodic_web_poller() -> Result<()> {
+    setup_log();
+
+    // Initialize test harness
+    let temp_dir = tempfile::TempDir::new()?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
+
+    // Setup service
+    let (mut test_env, service_id) = harness.setup_services().await?;
+
+    // Add the web poller job
+    test_env.add_job(crate::periodic_web_poller::constructor("*/5 * * * * *"));
+
+    // Run the test environment
+    let _test_handle = tokio::spawn(async move {
+        test_env.run_runner().await.unwrap();
+    });
+
+    // Wait for a few seconds to allow the job to execute
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    // Execute job and verify result
+    let results = harness
+        .execute_job(service_id, 0, vec![], vec![OutputValue::Uint64(1)])
+        .await?;
+
+    assert_eq!(results.service_id, service_id);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_raw_tangle_events() -> Result<()> {
+    setup_log();
+
+    // Initialize test harness
+    let temp_dir = tempfile::TempDir::new()?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
+    let env = harness.env().clone();
+
+    // Setup service
+    let (mut test_env, service_id) = harness.setup_services().await?;
+
+    // Add the raw tangle events job
+    test_env.add_job(crate::raw_tangle_events::constructor(env.clone()).await?);
+
+    // Run the test environment
+    let _test_handle = tokio::spawn(async move {
+        test_env.run_runner().await.unwrap();
+    });
+
+    // Wait for a few seconds to allow the job to execute
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    // Execute job and verify result
+    let results = harness
+        .execute_job(service_id, 0, vec![], vec![OutputValue::Uint64(0)])
+        .await?;
+
+    assert_eq!(results.service_id, service_id);
+    Ok(())
 }
