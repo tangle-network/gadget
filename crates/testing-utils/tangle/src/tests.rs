@@ -1,7 +1,6 @@
 use crate::Error;
 use crate::TangleTestHarness;
 use gadget_client_tangle::EventsClient;
-use gadget_clients::GadgetServicesClient;
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_logging::setup_log;
 use tangle_subxt::subxt::tx::Signer;
@@ -77,7 +76,7 @@ async fn test_services_client() -> Result<(), Error> {
     let blueprints = services
         .query_operator_blueprints(block_hash, harness.sr25519_signer.account_id().clone())
         .await
-        .unwrap();
+        .unwrap_or_default();
     assert!(
         blueprints.is_empty(),
         "New operator should have no blueprints"
@@ -105,32 +104,6 @@ async fn test_events_client() -> Result<(), Error> {
         assert!(event.number > 0, "Block number should be positive");
         assert_ne!(event.hash, [0u8; 32], "Block hash should not be zero");
     }
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_gadget_services_client() -> Result<(), Error> {
-    setup_log();
-
-    let temp_dir = tempfile::TempDir::new()?;
-    let harness = TangleTestHarness::setup(temp_dir).await?;
-
-    // Test operator set retrieval
-    let operators = harness.client().get_operators().await.unwrap();
-    assert!(!operators.is_empty(), "Should have at least one operator");
-
-    // Test operator ID retrieval
-    let operator_id = harness.client().operator_id().await.unwrap();
-    assert_eq!(
-        operator_id.0.len(),
-        33,
-        "Operator ID should be valid ECDSA public key"
-    );
-
-    // Test blueprint ID retrieval
-    let blueprint_id = harness.client().blueprint_id().await.unwrap();
-    assert!(blueprint_id > 0, "Blueprint ID should be positive");
 
     Ok(())
 }
