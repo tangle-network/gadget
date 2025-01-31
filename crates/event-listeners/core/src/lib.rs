@@ -8,6 +8,7 @@ pub mod executor;
 pub mod testing;
 
 use async_trait::async_trait;
+use auto_impl::auto_impl;
 use exponential_backoff::ExponentialBackoff;
 use gadget_std::iter::Take;
 
@@ -29,6 +30,8 @@ pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
 }
 
 #[async_trait]
+#[auto_impl(Arc, Box)]
+pub trait InitializableEventHandler {
 pub trait CloneableEventHandler: Send {
     fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send>;
 }

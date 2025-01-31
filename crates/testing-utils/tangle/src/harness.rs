@@ -22,17 +22,19 @@ use gadget_logging::debug;
 use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
     events::JobResultSubmitted,
 };
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 use url::Url;
 
 /// Configuration for the Tangle test harness
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TangleTestConfig {
     pub http_endpoint: Option<Url>,
     pub ws_endpoint: Option<Url>,
@@ -47,6 +49,7 @@ pub struct TangleTestHarness<const N: usize> {
     pub ecdsa_signer: TanglePairSigner<sp_core::ecdsa::Pair>,
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
     pub client_envs: Vec<GadgetConfiguration>,
+    config: TangleTestConfig,
     _temp_dir: tempfile::TempDir,
     _node: crate::node::testnet::SubstrateNode,
 }
@@ -58,25 +61,55 @@ pub struct TangleTestHarness<const N: usize> {
 /// of the system as a whole (either all jobs are running successfully, or a specific job has failed which it interpreted
 /// as a global failure in the testing context.
 pub struct MultiNodeTangleTestEnv {
-    envs: Vec<GadgetConfiguration>,
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
-    command_tx: tokio::sync::mpsc::UnboundedSender<NodeExecutorCommand>,
+    command_tx: tokio::sync::mpsc::UnboundedSender<MultiNodeExecutorCommand>,
     dead_rx: Option<tokio::sync::oneshot::Receiver<RunnerError>>,
-    running_test_nodes: Arc<Mutex<HashMap<usize, TangleTestEnv>>>,
+    running_test_nodes: Arc<AtomicUsize>,
+    jobs_added_count: usize,
 }
 
-enum NodeExecutorCommand {
-    StartJob(usize, Box<dyn JobCreator>),
-    StopJob(usize),
+enum MultiNodeExecutorCommand {
+    AddJob(usize, Arc<dyn JobCreator>),
+    AddNode(usize),
+    RemoveNode(usize),
+    Shutdown,
 }
 
 trait JobCreator:
-    Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler + Send + 'static> + Send + 'static
+    Fn(
+        GadgetConfiguration,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        Box<dyn InitializableEventHandler + Send + Sync + 'static>,
+                        RunnerError,
+                    >,
+                > + Send
+                + Sync
+                + 'static,
+        >,
+    > + Send
+    + Sync
+    + 'static
 {
 }
 impl<
-        T: Fn(GadgetConfiguration) -> Box<dyn InitializableEventHandler + Send + 'static>
-            + Send
+        T: Fn(
+                GadgetConfiguration,
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<
+                                Box<dyn InitializableEventHandler + Send + Sync + 'static>,
+                                RunnerError,
+                            >,
+                        > + Send
+                        + Sync
+                        + 'static,
+                >,
+            > + Send
+            + Sync
             + 'static,
     > JobCreator for T
 {
@@ -102,15 +135,19 @@ impl MultiNodeTangleTestEnv {
     ///
     /// The `MultiNodeTangleTestEnv` also provides a method for getting the `GadgetConfiguration` for
     /// a given job ID. This can be used to get the configuration for a job without starting the job.
-    pub fn new(
-        initial_node_envs: HashMap<usize, TangleTestEnv>,
-        envs: Vec<GadgetConfiguration>,
-    ) -> Self {
+    pub fn new(count: usize, tangle_config: TangleTestConfig) -> Self {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel();
         let (dead_tx, dead_rx) = tokio::sync::oneshot::channel();
-        let envs_clone = envs.clone();
+        let running_test_nodes = Arc::new(AtomicUsize::new(0));
+        // Ensure that adding nodes is the first operation handled once started
+        for idx in 0..count {
+            command_tx
+                .send(MultiNodeExecutorCommand::AddNode(idx))
+                .expect("Failed to add node");
+        }
 
+        let running_count = running_test_nodes.clone();
         // This task will not run until the user has triggered it to begin
         let background_task = async move {
             if start_rx.await.is_err() {
@@ -119,53 +156,71 @@ impl MultiNodeTangleTestEnv {
 
             // Allows stopping a running job
             let mut handles = HashMap::new();
-
+            let mut jobs: Vec<(usize, Arc<dyn JobCreator>)> = vec![];
             while let Some(command) = command_rx.recv().await {
                 match command {
-                    NodeExecutorCommand::StartJob(job_id, creator) => {
-                        let job = creator(envs_clone[job_id].clone());
-                        // TODO: Job should run inside node test env
-                        if let Some(stopper_rx) = job.init_event_handler().await {
-                            let (control_tx, control_rx) = tokio::sync::oneshot::channel::<()>();
-                            let task = async move {
-                                tokio::select! {
-                                    _ = control_rx => {
-                                        gadget_logging::info!("[SHUTDOWN] Job {job_id} manually shutdown");
-                                    },
-                                    res = stopper_rx => {
-                                        gadget_logging::info!("[SHUTDOWN] Job {job_id} completed with result {res:?}");
-                                    }
-                                };
-                            };
+                    MultiNodeExecutorCommand::AddNode(node_id) => {
+                        let env = generate_env_from_node_id(
+                            node_id,
+                            tangle_config.http_endpoint.clone().expect("Should exist"),
+                            tangle_config.ws_endpoint.clone().expect("Should exist"),
+                        )
+                        .await
+                        .unwrap();
 
-                            handles.insert(job_id, control_tx);
-                        } else {
-                            gadget_logging::warn!(
-                                "Failed to initialize event handler for job {job_id}"
-                            );
+                        let mut node = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
+                        // Add all jobs to the node
+                        for (_job_id, creator) in jobs.clone() {
+                            let job = creator(env.clone()).await;
+                            node.add_job(job);
                         }
+
+                        let (node_control_tx, node_control_rx) =
+                            tokio::sync::oneshot::channel::<()>();
+                        running_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        let running_count_on_drop = running_count.clone();
+                        drop(tokio::spawn(async move {
+                            tokio::select! {
+                                _ = node_control_rx => {
+                                    gadget_logging::info!("Node {node_id} shutting down by request");
+                                },
+                                res = node.run_runner() => {
+                                    gadget_logging::warn!("Node {node_id} shutting down: {res:?}");
+                                }
+                            }
+
+                            running_count_on_drop.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                        }));
+
+                        handles.insert(node_id, node_control_tx);
                     }
 
-                    NodeExecutorCommand::StopJob(job_id) => {
-                        gadget_logging::info!("[SHUTDOWN] Job {job_id} shutdown signal received");
-                        if let Some(control_tx) = handles.remove(&job_id) {
-                            let _ = control_tx.send(());
-                        } else {
-                            gadget_logging::warn!("Failed to stop job {job_id}");
-                        }
+                    MultiNodeExecutorCommand::RemoveNode(node_id) => {
+                        handles.remove(&node_id);
+                    }
+
+                    MultiNodeExecutorCommand::AddJob(job_id, creator) => {
+                        jobs.push((job_id, creator));
+                    }
+
+                    MultiNodeExecutorCommand::Shutdown => {
+                        let _ = dead_tx.send(RunnerError::Other("Shutting down".to_string()));
+                        break;
                     }
                 }
             }
+
+            Ok::<_, RunnerError>(())
         };
 
         drop(tokio::spawn(background_task));
 
         Self {
-            envs,
             command_tx,
             start_tx: Some(start_tx),
             dead_rx: Some(dead_rx),
-            running_test_nodes: Arc::new(Mutex::new(initial_node_envs)),
+            running_test_nodes,
+            jobs_added_count: 0,
         }
     }
 
@@ -182,26 +237,52 @@ impl MultiNodeTangleTestEnv {
     ///
     /// If the job cannot be added to the test harness, an error is returned.
     pub fn add_job<
-        T: Fn(GadgetConfiguration) -> K + Send + 'static,
-        K: InitializableEventHandler + Send + 'static,
+        T: Fn(GadgetConfiguration) -> F + Send + Sync + 'static,
+        F: Future<Output = Result<K, RunnerError>> + Send + Sync + 'static,
+        K: InitializableEventHandler + Send + Sync + 'static,
     >(
         &mut self,
         job_creator: T,
     ) -> Result<&mut Self, RunnerError> {
         self.command_tx
-            .send(NodeExecutorCommand::StartJob(
-                self.envs.len(),
-                Box::new(move |env| Box::new(job_creator(env)) as Box<_>),
+            .send(MultiNodeExecutorCommand::AddJob(
+                self.jobs_added_count,
+                Arc::new(move |env| {
+                    Box::pin(async move { Box::new(job_creator(env).await) as Box<_> })
+                }),
             ))
+            .map_err(|err| RunnerError::Other(err.to_string()))?;
+        self.jobs_added_count += 1;
+
+        Ok(self)
+    }
+
+    /// Adds a new node to the test harness.
+    ///
+    /// The `node_id` parameter specifies the ID of the node to be added.
+    ///
+    /// The node is added to the test harness, and all jobs that are currently running
+    /// will be executed on the new node.
+    ///
+    /// If the node cannot be added to the test harness, an error is returned.
+    pub fn add_node(&mut self, node_id: usize) -> Result<&mut Self, RunnerError> {
+        self.command_tx
+            .send(MultiNodeExecutorCommand::AddNode(node_id))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
         Ok(self)
     }
 
-    /// Stops a job with the given job ID. Returns an error if the job is not found or if
-    /// the job is not running.
-    pub fn stop_job(&mut self, job_id: usize) -> Result<&mut Self, RunnerError> {
+    /// Removes a node from the test harness.
+    ///
+    /// The `node_id` parameter specifies the ID of the node to be removed.
+    ///
+    /// The node is removed from the test harness, and all jobs that are currently
+    /// running on the node will be terminated.
+    ///
+    /// If the node cannot be removed from the test harness, an error is returned.
+    pub fn remove_node(&mut self, node_id: usize) -> Result<&mut Self, RunnerError> {
         self.command_tx
-            .send(NodeExecutorCommand::StopJob(job_id))
+            .send(MultiNodeExecutorCommand::RemoveNode(node_id))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
         Ok(self)
     }
@@ -214,23 +295,17 @@ impl MultiNodeTangleTestEnv {
         self.start_tx
             .take()
             .ok_or_else(|| RunnerError::Other("Test harness already started".to_string()))?;
-        /*
-        Old logic for reference:
-        let mut handles = FuturesUnordered::new();
-        for test_env in &mut self.test_envs {
-            handles.push(tokio::spawn(test_env.run_runner()));
-        }
-
-        async move {
-            let mut results = handles.try_collect::<Vec<_>>().await
-                .map_err(|err| RunnerError::Other(err.to_string()))?;
-            results.pop().expect("Should have at least one result")
-        }*/
         Ok(())
     }
 
-    pub async fn is_empty(&self) -> bool {
-        self.running_test_nodes.lock().await.is_empty()
+    pub fn is_empty(&self) -> bool {
+        self.running_test_nodes.load(Ordering::SeqCst) == 0
+    }
+
+    pub fn shutdown(&self) {
+        self.command_tx
+            .send(MultiNodeExecutorCommand::Shutdown)
+            .expect("Failed to send shutdown command");
     }
 
     pub async fn wait_for_error(&mut self) {
@@ -241,6 +316,44 @@ impl MultiNodeTangleTestEnv {
 }
 
 const ENDOWED_TEST_NAMES: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
+async fn generate_env_from_node_id(
+    id: usize,
+    http_endpoint: Url,
+    ws_endpoint: Url,
+) -> Result<GadgetConfiguration, RunnerError> {
+    if id >= ENDOWED_TEST_NAMES.len() {
+        return Err(RunnerError::Other(format!(
+            "Invalid node id {id}, must be less than {}",
+            ENDOWED_TEST_NAMES.len()
+        )));
+    }
+
+    let name = ENDOWED_TEST_NAMES[id];
+    let test_dir_path = format!("./{}", name.to_ascii_lowercase());
+    tokio::fs::create_dir_all(&test_dir_path).await?;
+    inject_tangle_key(&test_dir_path, &format!("//{name}"))
+        .map_err(|err| RunnerError::Other(err.to_string()))?;
+
+    // Create context config
+    let context_config = ContextConfig::create_tangle_config(
+        http_endpoint,
+        ws_endpoint,
+        test_dir_path,
+        None,
+        SupportedChains::LocalTestnet,
+        0,
+        Some(0),
+    );
+
+    // Load environment
+    let mut env = gadget_config::load(context_config)
+        .map_err(|e| Error::Setup(e.to_string()))
+        .map_err(|err| RunnerError::Other(err.to_string()))?;
+
+    // Always set test mode, dont require callers to set env vars
+    env.test_mode = true;
+    Ok(env)
+}
 
 #[async_trait::async_trait]
 impl<const N: usize> TestHarness for TangleTestHarness<N> {
@@ -260,33 +373,9 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
 
         let mut client_envs = vec![];
 
-        for name in ENDOWED_TEST_NAMES.iter().take(N) {
-            // Setup testing directory
-            let test_dir_path = test_dir
-                .path()
-                .join(format!("./{}", name.to_ascii_lowercase()))
-                .to_string_lossy()
-                .into_owned();
-            tokio::fs::create_dir_all(&test_dir_path).await?;
-            inject_tangle_key(&test_dir_path, &format!("//{name}"))?;
-
-            // Create context config
-            let context_config = ContextConfig::create_tangle_config(
-                http_endpoint.clone(),
-                ws_endpoint.clone(),
-                test_dir_path,
-                None,
-                SupportedChains::LocalTestnet,
-                0,
-                Some(0),
-            );
-
-            // Load environment
-            let mut env =
-                gadget_config::load(context_config).map_err(|e| Error::Setup(e.to_string()))?;
-
-            // Always set test mode, dont require callers to set env vars
-            env.test_mode = true;
+        for idx in 0..N {
+            let env =
+                generate_env_from_node_id(idx, http_endpoint.clone(), ws_endpoint.clone()).await?;
             client_envs.push(env);
         }
 
@@ -321,6 +410,7 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
             ecdsa_signer,
             alloy_key,
             _temp_dir: test_dir,
+            config,
             _node: node,
         };
 
@@ -448,18 +538,7 @@ impl<const N: usize> TangleTestHarness<N> {
             0
         };
 
-        let config = TangleConfig::new(PriceTargets::default())
-            .with_exit_after_register(exit_after_registration);
-
-        // Create and spawn test environment
-        let mut test_envs = HashMap::new();
-        for (id, env) in self.client_envs.iter().enumerate() {
-            // Create and spawn test environment
-            let test_env = TangleTestEnv::new(config.clone(), env.clone())?;
-            test_envs.insert(id, test_env);
-        }
-
-        let executor = MultiNodeTangleTestEnv::new(test_envs, self.client_envs.clone());
+        let executor = MultiNodeTangleTestEnv::new(N, self.config.clone());
 
         Ok((executor, service_id, blueprint_id))
     }
@@ -575,7 +654,7 @@ mod tests {
 
         // First set up a service
         let (test_envs, service_id) = harness.setup_services().await.unwrap();
-        assert!(!test_envs.is_empty().await, "Should have test environments");
+        assert!(!test_envs.is_empty(), "Should have test environments");
         assert_eq!(service_id, 0, "Should have valid service ID = 0");
 
         // Execute a simple job
