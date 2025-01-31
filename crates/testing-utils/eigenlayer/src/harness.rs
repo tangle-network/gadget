@@ -95,10 +95,6 @@ impl TestHarness for EigenlayerTestHarness {
     fn env(&self) -> &GadgetConfiguration {
         &self.base.env
     }
-
-    fn config(&self) -> &Self::Config {
-        &self.base.config
-    }
 }
 
 impl EigenlayerTestHarness {
