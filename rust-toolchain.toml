@@ -2,6 +2,6 @@
 # Currently we are using this specific nightly version since we rely on the
 # rustdoc API which is not yet stabilized. We will keep updating this version
 # as we go along.
-channel = "nightly-2025-01-22"
+channel = "nightly-2025-01-30"
 components = ["rustfmt", "clippy", "rust-src"]
 profile = "minimal"
