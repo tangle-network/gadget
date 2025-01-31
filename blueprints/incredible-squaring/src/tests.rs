@@ -24,9 +24,7 @@ async fn test_incredible_squaring() -> Result<()> {
         };
 
         // Initialize event handler
-        XsquareEventHandler::new(&env, blueprint_ctx)
-            .await
-            .expect("Failed to create event handler")
+        XsquareEventHandler::new(&env, blueprint_ctx).await
     };
 
     // Setup service
