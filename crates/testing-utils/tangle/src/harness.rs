@@ -77,64 +77,22 @@ enum MultiNodeExecutorCommand {
 }
 
 /// A function that returns a future that returns a result containing an event handler for the job
-trait JobCreator:
-    Fn(
-        GadgetConfiguration,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                    Output = Result<
-                        Box<dyn InitializableEventHandler + Send + 'static>,
-                        RunnerError,
-                    >,
-                > + Send
-                + 'static,
-        >,
-    > + Send
-    + Sync
-    + 'static
-{
-}
-impl<
-        T: Fn(
-                GadgetConfiguration,
-            ) -> Pin<
-                Box<
-                    dyn Future<
-                            Output = Result<
-                                Box<dyn InitializableEventHandler + Send + 'static>,
-                                RunnerError,
-                            >,
-                        > + Send
-                        + 'static,
-                >,
-            > + Send
-            + Sync
-            + 'static,
-    > JobCreator for T
-{
-}
+type EventHandlerBox = Box<dyn InitializableEventHandler + Send + 'static>;
+type JobResult = Result<EventHandlerBox, RunnerError>;
+type JobFuture = Pin<Box<dyn Future<Output = JobResult> + Send + 'static>>;
+
+trait JobCreator: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static {}
+impl<T: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static> JobCreator for T {}
 
 impl MultiNodeTangleTestEnv {
     /// Creates a new `MultiNodeTangleTestEnv` that can execute jobs in parallel across multiple chains.
     ///
-    /// The `test_envs` parameter should be a `HashMap` where the key is the node ID and the value is the
-    /// `TangleTestEnv` to use for that node. The `envs` parameter should be a vector of
-    /// `GadgetConfiguration`s that will be used to create the event handlers for each node.
+    /// # Arguments
+    /// tangle_config - Configuration for the Tangle test harness
     ///
-    /// The `MultiNodeTangleTestEnv` will not execute any jobs until the `execute` method is called.
-    /// When `execute` is called, the `MultiNodeTangleTestEnv` will start a background task that will
-    /// execute the jobs in parallel. The background task will not shut down until all jobs have
-    /// completed or the `MultiNodeTangleTestEnv` is dropped.
-    ///
-    /// The `MultiNodeTangleTestEnv` provides methods for starting and stopping jobs. The `start_job`
-    /// method takes a job ID and a closure that returns an `InitializableEventHandler`. The closure
-    /// will be called with the `GadgetConfiguration` for the specified job ID, and the returned event
-    /// handler will be used to execute the job. The `stop_job` method takes a job ID and will signal
-    /// the background task to stop the job with the specified ID.
-    ///
-    /// The `MultiNodeTangleTestEnv` also provides a method for getting the `GadgetConfiguration` for
-    /// a given job ID. This can be used to get the configuration for a job without starting the job.
+    /// After creating an instance of this, jobs should be added via [`MultiNodeTangleTestEnv::add_job`].
+    /// After ALL jobs are added, then, nodes may be added via [`MultiNodeTangleTestEnv::add_node`].
+    /// Finally, the test can be started via [`MultiNodeTangleTestEnv::start`].
     pub fn new(tangle_config: TangleTestConfig) -> Self {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (initialized_tx, initialized_rx) = tokio::sync::oneshot::channel();
