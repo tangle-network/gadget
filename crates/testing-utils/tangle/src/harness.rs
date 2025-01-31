@@ -20,6 +20,7 @@ use gadget_core_testing_utils::{
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
+use gadget_logging::debug;
 use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
@@ -149,8 +150,10 @@ impl TangleTestHarness {
             .map_err(|e| Error::Setup(e.to_string()))?;
 
         if let Some((rev, addr)) = latest_revision {
-            tracing::debug!("MBSM is deployed at revision #{rev} at address {addr}");
+            debug!("MBSM is deployed at revision #{rev} at address {addr}");
             return Ok(());
+        } else {
+            debug!("MBSM is not deployed");
         }
 
         let bytecode = tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
@@ -160,6 +163,7 @@ impl TangleTestHarness {
             &self.sr25519_signer,
             self.alloy_key.clone(),
             bytecode,
+            alloy_primitives::address!("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"), // TODO: User-defined address?
         )
         .await
         .map_err(|e| Error::Setup(e.to_string()))?;

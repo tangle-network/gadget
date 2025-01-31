@@ -67,7 +67,7 @@ impl EigenlayerClient {
     pub async fn get_slasher_address(&self, delegation_manager_addr: Address) -> Result<Address> {
         let provider = self.get_provider_http();
         let delegation_manager =
-            eigensdk::utils::middleware::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+            eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
                 delegation_manager_addr,
                 provider,
             );

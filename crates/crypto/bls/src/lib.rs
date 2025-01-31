@@ -100,7 +100,7 @@ macro_rules! define_bls_key {
                 use crate::from_bytes;
                 use gadget_crypto_core::{KeyType, KeyTypeId, KeyEncoding};
                 use gadget_std::{UniformRand, string::{String, ToString}};
-                use w3f_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, [<Tiny $ty:upper>]};
+                use tnt_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, [<Tiny $ty:upper>]};
 
                 #[doc = $ty:upper]
                 /// key type

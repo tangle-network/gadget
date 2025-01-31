@@ -48,6 +48,9 @@ blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", 
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
 
+# Bindings
+gadget-eigenlayer-bindings = { version = "0.1.0", path = "./crates/eigenlayer-bindings", default-features = false }
+
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
 gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
@@ -123,7 +126,7 @@ gadget-rpc-calls = { version = "0.1.0", path = "./crates/metrics/rpc-calls", def
 
 cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo_metadata = { version = "0.18.1" }
-tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core.git", default-features = false, branch = "donovan/bytecode" }
+tnt-core-bytecode = { version = "0.2.0", default-features = false }
 
 # Tangle-related dependencies
 tangle-subxt = { version = "0.9.0", default-features = false }
@@ -161,7 +164,7 @@ rand = { version = "0.8.5", default-features = false }
 schnorrkel = { version = "0.11.4", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
-w3f-bls = { git = "https://github.com/drewstone/bls.git", branch = "drew/bump-ark-versions", default-features = false }
+tnt-bls = { version = "0.1.8", default-features = false }
 
 # Data Structures & Serialization
 bincode = { version = "1.3.3", default-features = false }
@@ -256,7 +259,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { git = "https://github.com/Layr-Labs/eigensdk-rs.git", rev = "6ab2674cf19e2f2c78218de706975af1244dad9c", default-features = false }
+eigensdk = { version = "0.1.3", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 

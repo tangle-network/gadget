@@ -1,7 +1,7 @@
 [package]
 name = "gadget-crypto-bls"
 version = "0.1.0"
-description = "w3f-bls crypto primitives for Tangle Blueprints"
+description = "tnt-bls crypto primitives for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,7 +11,7 @@ repository.workspace = true
 [dependencies]
 gadget-crypto-core = { workspace = true, features = ["bls"] }
 gadget-std = { workspace = true }
-w3f-bls = { workspace = true }
+tnt-bls = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true, features = ["alloc"] }
 ark-serialize = { workspace = true }
@@ -32,5 +32,5 @@ std = [
 	"serde/std",
 	"serde_json/std",
 	"serde_bytes/std",
-	"w3f-bls/std",
+	"tnt-bls/std",
 ] 
