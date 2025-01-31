@@ -35,23 +35,34 @@ impl CronJobDefinition for WebPollerContext {
 
 #[job(
     id = 0,
-    // params(_),
     event_listener(
         listener = CronJob<WebPollerContext>,
-        // pre_processor = pre_process,
         post_processor = post_process,
     ),
 )]
 pub async fn web_poller(context: WebPollerContext) -> Result<u8, Error> {
-    info!("Running web_poller");
-    Ok(1u8)
-}
+    // Send a GET request to the JSONPlaceholder API
+    let response = context
+        .client
+        .get("https://jsonplaceholder.typicode.com/todos/10")
+        .send()
+        .await
+        .map_err(|err| Error::Other(err.to_string()))?;
 
-// pub async fn pre_process(event: serde_json::Value) -> Result<bool, Error> {
-//     info!("Running web_poller pre-processor on value: {event}");
-//     let completed = event["completed"].as_bool().unwrap_or(false);
-//     Ok(completed)
-// }
+    // Check if the request was successful
+    if !response.status().is_success() {
+        return Err(Error::Other("Request failed".to_string()));
+    }
+
+    let value: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|err| Error::Other(err.to_string()))?;
+    let completed = value["completed"].as_bool().unwrap_or(false);
+
+    info!("Running web_poller on value: {completed}");
+    Ok(completed as u8)
+}
 
 // Received the u8 value output from the job and performs any last post-processing
 pub async fn post_process(job_output: u8) -> Result<(), ProcessorError> {
