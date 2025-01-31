@@ -365,8 +365,8 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
     type Error = Error;
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
-        assert!(N <= 5, "Cannot setup more than 5 services");
-        assert_ne!(N, 0, "Cannot setup 0 services");
+        assert!(N <= 5, "Cannot setup more than 5 nodes");
+        assert_ne!(N, 0, "Cannot setup 0 nodes");
 
         // Start Local Tangle Node
         let node = run(NodeConfig::new(false))
