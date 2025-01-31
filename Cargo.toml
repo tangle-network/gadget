@@ -7,7 +7,6 @@ members = [
 ]
 exclude = [
 	"blueprints/incredible-squaring-symbiotic",
-	"blueprints/examples"
 ]
 
 [workspace.package]

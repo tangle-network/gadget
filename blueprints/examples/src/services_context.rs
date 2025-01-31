@@ -64,7 +64,10 @@ pub async fn handle_job(
         .current_blueprint_owner(block, blueprint_id)
         .await
         .unwrap();
-    let blueprint = client.current_blueprint(block, blueprint_id).await.unwrap();
+    let blueprint = client
+        .current_blueprint_owner(block, blueprint_id)
+        .await
+        .unwrap();
     let operators_and_percents = client
         .current_service_operators(block, blueprint_id)
         .await
