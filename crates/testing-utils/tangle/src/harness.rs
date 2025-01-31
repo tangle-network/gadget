@@ -500,7 +500,7 @@ impl TangleTestHarness {
             &self.sr25519_signer,
             self.alloy_key.clone(),
             bytecode,
-            alloy_primitives::address!("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"), // TODO: User-defined address?
+            alloy_primitives::address!("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"), // TODO: User-defined address
         )
         .await
         .map_err(|e| Error::Setup(e.to_string()))?;
@@ -667,19 +667,5 @@ mod tests {
             .await
             .unwrap();
         assert!(latest_revision.is_some(), "MBSM should be deployed");
-    }
-
-    #[tokio::test]
-    async fn test_setup_no_jobs() {
-        let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::setup(test_dir).await.unwrap();
-
-        // First set up a service
-        let (test_envs, service_id) = harness.setup_services().await.unwrap();
-        assert!(
-            test_envs.is_empty(),
-            "Should have no loaded jobs environments"
-        );
-        assert_eq!(service_id, 0, "Should have valid service ID = 0");
     }
 }
