@@ -128,7 +128,7 @@ async fn register_bls_impl(
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
     let delegation_manager =
-        eigensdk::utils::middleware::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+        eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
             delegation_manager_address,
             provider.clone(),
         );
@@ -183,7 +183,6 @@ async fn register_bls_impl(
     );
 
     let el_writer = ELChainWriter::new(
-        delegation_manager_address,
         strategy_manager_address,
         rewards_coordinator_address,
         el_chain_reader,
