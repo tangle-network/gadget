@@ -17,7 +17,7 @@ mod tests {
     async fn test_transaction_submission() -> color_eyre::Result<()> {
         // Setup test harness
         let test_dir = tempfile::TempDir::new()?;
-        let harness = TangleTestHarness::<1>::setup(test_dir).await?;
+        let harness = TangleTestHarness::setup(test_dir).await?;
 
         // Test basic transaction submission
         let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
@@ -38,7 +38,7 @@ mod tests {
     async fn test_transaction_progress_tracking() -> color_eyre::Result<()> {
         // Setup test harness
         let test_dir = tempfile::TempDir::new()?;
-        let harness = TangleTestHarness::<1>::setup(test_dir).await?;
+        let harness = TangleTestHarness::setup(test_dir).await?;
 
         // Submit transaction and track progress
         let tx = tangle_subxt::tangle_testnet_runtime::api::tx()

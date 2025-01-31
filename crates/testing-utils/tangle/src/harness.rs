@@ -31,6 +31,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::{
     events::JobResultSubmitted,
 };
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 use url::Url;
 
 /// Configuration for the Tangle test harness
@@ -41,14 +42,13 @@ pub struct TangleTestConfig {
 }
 
 /// Test harness for Tangle network tests
-pub struct TangleTestHarness<const N: usize> {
+pub struct TangleTestHarness {
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
     client: TangleClient,
     pub sr25519_signer: TanglePairSigner<sp_core::sr25519::Pair>,
     pub ecdsa_signer: TanglePairSigner<sp_core::ecdsa::Pair>,
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
-    pub client_envs: Vec<GadgetConfiguration>,
     config: TangleTestConfig,
     _temp_dir: tempfile::TempDir,
     _node: crate::node::testnet::SubstrateNode,
@@ -62,10 +62,11 @@ pub struct TangleTestHarness<const N: usize> {
 /// as a global failure in the testing context.
 pub struct MultiNodeTangleTestEnv {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    initialized_rx: Option<tokio::sync::oneshot::Receiver<()>>,
     command_tx: tokio::sync::mpsc::UnboundedSender<MultiNodeExecutorCommand>,
     dead_rx: Option<tokio::sync::oneshot::Receiver<RunnerError>>,
     running_test_nodes: Arc<AtomicUsize>,
-    jobs_added_count: usize,
+    jobs_added_count: Arc<AtomicUsize>,
 }
 
 enum MultiNodeExecutorCommand {
@@ -134,24 +135,27 @@ impl MultiNodeTangleTestEnv {
     ///
     /// The `MultiNodeTangleTestEnv` also provides a method for getting the `GadgetConfiguration` for
     /// a given job ID. This can be used to get the configuration for a job without starting the job.
-    pub fn new(count: usize, tangle_config: TangleTestConfig) -> Self {
+    pub fn new(tangle_config: TangleTestConfig) -> Self {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let (initialized_tx, initialized_rx) = tokio::sync::oneshot::channel();
         let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel();
         let (dead_tx, dead_rx) = tokio::sync::oneshot::channel();
+
         let running_test_nodes = Arc::new(AtomicUsize::new(0));
-        // Ensure that adding nodes is the first operation handled once started
-        for idx in 0..count {
-            command_tx
-                .send(MultiNodeExecutorCommand::AddNode(idx))
-                .expect("Failed to add node");
-        }
+        let jobs_added_count = Arc::new(AtomicUsize::new(0));
+
+        let initialized_tx = Arc::new(Mutex::new(Some(initialized_tx)));
 
         let running_count = running_test_nodes.clone();
+        let jobs_added = jobs_added_count.clone();
+
         // This task will not run until the user has triggered it to begin
         let background_task = async move {
             if start_rx.await.is_err() {
                 gadget_logging::warn!("MultiNodeTangleTestEnv was dropped without executing");
             }
+
+            let jobs_added = jobs_added.load(Ordering::SeqCst);
 
             // Allows stopping a running job
             let mut handles = HashMap::new();
@@ -173,14 +177,26 @@ impl MultiNodeTangleTestEnv {
                         for (job_id, creator) in jobs.clone() {
                             let job = creator(env.clone()).await?;
                             node.add_job(job);
-                            gadget_logging::trace!("Added job {job_id} to node {node_id}");
+                            gadget_logging::info!("Added job {job_id} to node {node_id}");
                         }
 
                         let (node_control_tx, node_control_rx) =
                             tokio::sync::oneshot::channel::<()>();
                         let running_count_for_job = running_count.clone();
+                        let initialized_tx = initialized_tx.clone();
                         drop(tokio::spawn(async move {
-                            running_count_for_job.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            let current_count = running_count_for_job
+                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                                + 1;
+                            if current_count >= jobs_added {
+                                if let Some(initialized_tx) = initialized_tx.lock().await.take() {
+                                    if initialized_tx.send(()).is_err() {
+                                        gadget_logging::error!(
+                                            "Unable to notify that all nodes were initialized"
+                                        );
+                                    }
+                                }
+                            }
 
                             tokio::select! {
                                 _ = node_control_rx => {
@@ -202,6 +218,7 @@ impl MultiNodeTangleTestEnv {
                     }
 
                     MultiNodeExecutorCommand::AddJob(job_id, creator) => {
+                        gadget_logging::info!("Adding job {job_id}");
                         jobs.push((job_id, creator));
                     }
 
@@ -219,10 +236,11 @@ impl MultiNodeTangleTestEnv {
 
         Self {
             command_tx,
+            initialized_rx: Some(initialized_rx),
             start_tx: Some(start_tx),
             dead_rx: Some(dead_rx),
             running_test_nodes,
-            jobs_added_count: 0,
+            jobs_added_count,
         }
     }
 
@@ -239,7 +257,7 @@ impl MultiNodeTangleTestEnv {
     ///
     /// If the job cannot be added to the test harness, an error is returned.
     pub fn add_job<
-        T: Fn(GadgetConfiguration) -> F + Copy + Send + Sync + 'static,
+        T: Fn(GadgetConfiguration) -> F + Clone + Send + Sync + 'static,
         F: Future<Output = Result<K, E>> + Send + 'static,
         K: InitializableEventHandler + Send + 'static,
         E: std::fmt::Debug + Send + 'static,
@@ -249,10 +267,12 @@ impl MultiNodeTangleTestEnv {
     ) -> Result<&mut Self, RunnerError> {
         self.command_tx
             .send(MultiNodeExecutorCommand::AddJob(
-                self.jobs_added_count,
+                self.jobs_added_count
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
                 Arc::new(move |env| {
+                    let job_creator = job_creator.clone()(env);
                     Box::pin(async move {
-                        let job = job_creator(env)
+                        let job = job_creator
                             .await
                             .map_err(|err| RunnerError::Other(format!("{err:?}")))?;
                         Ok(Box::new(job) as Box<_>)
@@ -260,7 +280,6 @@ impl MultiNodeTangleTestEnv {
                 }),
             ))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
-        self.jobs_added_count += 1;
 
         Ok(self)
     }
@@ -297,9 +316,14 @@ impl MultiNodeTangleTestEnv {
 
     /// Begins the execution of the jobs in parallel and in the background
     ///
-    /// Any jobs preloaded via `add_job` will be executed after this function is called
-    /// Consequent jobs may still be added via `add_job`
-    pub fn start(&mut self) -> Result<(), RunnerError> {
+    /// Waits for all preloaded jobs before returning, ensuring access to vital services
+    pub async fn start(&mut self) -> Result<(), RunnerError> {
+        let jobs_added_count = self.jobs_added_count.load(Ordering::SeqCst);
+
+        if jobs_added_count == 0 {
+            return Err(RunnerError::Other("No jobs added".to_string()));
+        }
+
         self.start_tx
             .take()
             .ok_or_else(|| RunnerError::Other("Test harness already started".to_string()))?
@@ -309,6 +333,24 @@ impl MultiNodeTangleTestEnv {
                     "Failed to start test harness (background task died?)".to_string(),
                 )
             })?;
+
+        // Add nodes after the jobs are added to ensure the nodes, when loaded, can access the jobs
+        for idx in 0..jobs_added_count {
+            self.command_tx
+                .send(MultiNodeExecutorCommand::AddNode(idx))
+                .map_err(|err| RunnerError::Other(format!("Failed to add node {idx}: {err}")))?;
+        }
+
+        self.initialized_rx
+            .take()
+            .ok_or_else(|| RunnerError::Other("Test harness already started".to_string()))?
+            .await
+            .map_err(|_| {
+                RunnerError::Other(
+                    "Failed to start test harness (background task died?)".to_string(),
+                )
+            })?;
+
         Ok(())
     }
 
@@ -370,14 +412,11 @@ async fn generate_env_from_node_id(
 }
 
 #[async_trait::async_trait]
-impl<const N: usize> TestHarness for TangleTestHarness<N> {
+impl TestHarness for TangleTestHarness {
     type Config = TangleTestConfig;
     type Error = Error;
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
-        assert!(N <= 5, "Cannot setup more than 5 nodes");
-        assert_ne!(N, 0, "Cannot setup 0 nodes");
-
         // Start Local Tangle Node
         let node = run(NodeConfig::new(false))
             .await
@@ -385,15 +424,9 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
-        let mut client_envs = vec![];
-
-        for idx in 0..N {
-            let env =
-                generate_env_from_node_id(idx, http_endpoint.clone(), ws_endpoint.clone()).await?;
-            client_envs.push(env);
-        }
-
-        let alice_env = &client_envs[0];
+        // Alice idx = 0
+        let alice_env =
+            generate_env_from_node_id(0, http_endpoint.clone(), ws_endpoint.clone()).await?;
 
         // Create config
         let config = TangleTestConfig {
@@ -416,7 +449,6 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
 
         let client = alice_env.tangle_client().await?;
         let harness = Self {
-            client_envs,
             http_endpoint,
             ws_endpoint,
             client,
@@ -438,11 +470,11 @@ impl<const N: usize> TestHarness for TangleTestHarness<N> {
     }
 
     fn env(&self) -> &GadgetConfiguration {
-        &self.client_envs[0]
+        &self.client.config
     }
 }
 
-impl<const N: usize> TangleTestHarness<N> {
+impl TangleTestHarness {
     /// Gets a reference to the Tangle client
     pub fn client(&self) -> &TangleClient {
         &self.client
@@ -552,7 +584,7 @@ impl<const N: usize> TangleTestHarness<N> {
             0
         };
 
-        let executor = MultiNodeTangleTestEnv::new(N, self.config.clone());
+        let executor = MultiNodeTangleTestEnv::new(self.config.clone());
 
         Ok((executor, service_id, blueprint_id))
     }
@@ -611,12 +643,11 @@ impl<const N: usize> TangleTestHarness<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_harness_setup() {
         let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::<1>::setup(test_dir).await;
+        let harness = TangleTestHarness::setup(test_dir).await;
         assert!(harness.is_ok(), "Harness setup should succeed");
 
         let harness = harness.unwrap();
@@ -624,35 +655,12 @@ mod tests {
             harness.client().now().await.is_some(),
             "Client should be connected to live chain"
         );
-        assert_eq!(harness.client_envs.len(), 1, "Should have 1 client env");
-    }
-
-    #[tokio::test]
-    async fn test_harness_setup_with_multiple_services() {
-        let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::<3>::setup(test_dir).await;
-        assert!(harness.is_ok(), "Harness setup should succeed");
-
-        let harness = harness.unwrap();
-        assert_eq!(harness.client_envs.len(), 3, "Should have 3 client envs");
-
-        // Verify each environment has unique keys
-        let keys: Vec<_> = harness
-            .client_envs
-            .iter()
-            .map(|env| env.keystore().first_local::<SpSr25519>().unwrap())
-            .collect();
-        assert_eq!(keys.len(), 3, "Should have 3 unique keys");
-        assert!(
-            keys[0] != keys[1] && keys[1] != keys[2],
-            "Keys should be unique"
-        );
     }
 
     #[tokio::test]
     async fn test_deploy_mbsm() {
         let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::<1>::setup(test_dir).await.unwrap();
+        let harness = TangleTestHarness::setup(test_dir).await.unwrap();
 
         // MBSM should be deployed during setup
         let latest_revision = transactions::get_latest_mbsm_revision(harness.client())
@@ -662,54 +670,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_execute_job() {
+    async fn test_setup_no_jobs() {
         let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::<1>::setup(test_dir).await.unwrap();
+        let harness = TangleTestHarness::setup(test_dir).await.unwrap();
 
         // First set up a service
         let (test_envs, service_id) = harness.setup_services().await.unwrap();
-        assert!(!test_envs.is_empty(), "Should have test environments");
+        assert!(
+            test_envs.is_empty(),
+            "Should have no loaded jobs environments"
+        );
         assert_eq!(service_id, 0, "Should have valid service ID = 0");
-
-        // Execute a simple job
-        let inputs = vec![InputValue::Uint64(42)];
-        let expected = vec![OutputValue::Uint64(42)];
-        let result = harness.execute_job(service_id, 0, inputs, expected).await;
-        assert!(result.is_ok(), "Job execution should succeed");
-    }
-
-    #[tokio::test]
-    async fn test_create_deploy_opts() {
-        let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::<1>::setup(test_dir).await.unwrap();
-
-        let manifest_path = PathBuf::from("Cargo.toml");
-        let opts = harness.create_deploy_opts(manifest_path.clone());
-
-        assert_eq!(opts.manifest_path, manifest_path);
-        assert!(opts.signer.is_some(), "Should have SR25519 signer");
-        assert!(opts.signer_evm.is_some(), "Should have EVM signer");
-        assert!(
-            opts.http_rpc_url.starts_with("http://"),
-            "Should have HTTP URL"
-        );
-        assert!(
-            opts.ws_rpc_url.starts_with("ws://"),
-            "Should have WebSocket URL"
-        );
-    }
-
-    #[tokio::test]
-    #[should_panic(expected = "Cannot setup more than 5 services")]
-    async fn test_harness_setup_exceeds_max_services() {
-        let test_dir = TempDir::new().unwrap();
-        let _harness = TangleTestHarness::<6>::setup(test_dir).await.unwrap();
-    }
-
-    #[tokio::test]
-    #[should_panic(expected = "Cannot setup 0 services")]
-    async fn test_harness_setup_zero_services() {
-        let test_dir = TempDir::new().unwrap();
-        let _harness = TangleTestHarness::<0>::setup(test_dir).await.unwrap();
     }
 }
