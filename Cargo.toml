@@ -210,7 +210,7 @@ itertools = { version = "0.13.0", default-features = false }
 paste = { version = "1.0.15", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
 quote = { version = "1.0", default-features = false }
-rustdoc-types = { version = "0.33.0", default-features = false }
+rustdoc-types = { version = "0.35.0", default-features = false }
 syn = { version = "2.0.75", default-features = false }
 trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
