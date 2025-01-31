@@ -1,10 +1,8 @@
 use crate::{MyContext, XsquareEventHandler};
 use blueprint_sdk::config::GadgetConfiguration;
-use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::logging::setup_log;
 use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::harness::TestHarness;
-use blueprint_sdk::testing::utils::runner::TestEnv;
 use blueprint_sdk::testing::utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 use color_eyre::Result;
 use std::time::Duration;
@@ -18,7 +16,7 @@ async fn test_incredible_squaring() -> Result<()> {
     let temp_dir = tempfile::TempDir::new()?;
     let harness = TangleTestHarness::<1>::setup(temp_dir).await?;
 
-    let xsquare_creator = |env| async move {
+    let xsquare_creator = |env: GadgetConfiguration| async move {
         // Create blueprint-specific context
         let blueprint_ctx = MyContext {
             env: env.clone(),
@@ -26,7 +24,9 @@ async fn test_incredible_squaring() -> Result<()> {
         };
 
         // Initialize event handler
-        XsquareEventHandler::new(&env, blueprint_ctx).await?
+        XsquareEventHandler::new(&env, blueprint_ctx)
+            .await
+            .expect("Failed to create event handler")
     };
 
     // Setup service

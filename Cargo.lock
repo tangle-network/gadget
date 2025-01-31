@@ -6927,6 +6927,7 @@ name = "gadget-event-listeners-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "auto_impl",
  "futures",
  "gadget-logging",
  "gadget-std",
