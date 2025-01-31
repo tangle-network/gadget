@@ -75,6 +75,7 @@ enum MultiNodeExecutorCommand {
     Shutdown,
 }
 
+/// A function that returns a future that returns a result containing an event handler for the job
 trait JobCreator:
     Fn(
         GadgetConfiguration,
@@ -171,7 +172,7 @@ impl MultiNodeTangleTestEnv {
                         let mut node = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
                         // Add all jobs to the node
                         for (_job_id, creator) in jobs.clone() {
-                            let job = creator(env.clone()).await;
+                            let job = creator(env.clone()).await?;
                             node.add_job(job);
                         }
 
@@ -237,7 +238,7 @@ impl MultiNodeTangleTestEnv {
     ///
     /// If the job cannot be added to the test harness, an error is returned.
     pub fn add_job<
-        T: Fn(GadgetConfiguration) -> F + Send + Sync + 'static,
+        T: Fn(GadgetConfiguration) -> F + Copy + Send + Sync + 'static,
         F: Future<Output = Result<K, RunnerError>> + Send + Sync + 'static,
         K: InitializableEventHandler + Send + Sync + 'static,
     >(
@@ -248,7 +249,10 @@ impl MultiNodeTangleTestEnv {
             .send(MultiNodeExecutorCommand::AddJob(
                 self.jobs_added_count,
                 Arc::new(move |env| {
-                    Box::pin(async move { Box::new(job_creator(env).await) as Box<_> })
+                    Box::pin(async move {
+                        let job = job_creator(env).await?;
+                        Ok(Box::new(job) as Box<_>)
+                    })
                 }),
             ))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
