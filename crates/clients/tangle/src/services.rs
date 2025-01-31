@@ -45,7 +45,6 @@ where
     /// # Errors
     ///
     /// Returns an error if the Blueprint could not be fetched
-    // TODO: @donovan this method is equivalent to `current_blueprint`. Should we remove it?
     pub async fn get_blueprint_by_id(
         &self,
         at: [u8; 32],
@@ -83,21 +82,6 @@ where
             .map_err(TangleDispatchError)?;
 
         Ok(ret)
-    }
-
-    /// Get the current Blueprint information
-    pub async fn current_blueprint(
-        &self,
-        at: [u8; 32],
-        blueprint_id: u64,
-    ) -> Result<ServiceBlueprint> {
-        let call = api::storage().services().blueprints(blueprint_id);
-        let at = BlockRef::from_hash(H256::from_slice(&at));
-        let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        match ret {
-            Some(blueprints) => Ok(blueprints.1),
-            None => Err(Error::Other("Blueprint not found".to_string())),
-        }
     }
 
     /// Query the current Blueprint owner

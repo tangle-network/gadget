@@ -1,7 +1,12 @@
 [package]
 name = "gadget-crypto"
 version = "0.1.0"
-edition = "2021"
+description = "Crypto metapackage for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-crypto-core = { path = "core" }

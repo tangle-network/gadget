@@ -1,6 +1,7 @@
 [package]
 name = "gadget-runner-eigenlayer"
 version = "0.1.0"
+description = "EigenLayer-specific runner for Tangle Blueprints"
 edition = "2021"
 
 [dependencies]

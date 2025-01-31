@@ -1,7 +1,12 @@
 [package]
 name = "gadget-event-listeners-cronjob"
 version = "0.1.0"
-edition = "2021"
+description = "Cronjob event listener for Tangle Blueprints"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-std = { workspace = true }

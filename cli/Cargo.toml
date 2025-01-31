@@ -46,7 +46,7 @@ gadget-crypto-core = { workspace = true, features = ["clap"] }
 gadget-keystore = { workspace = true }
 
 # Optional crypto dependencies
-w3f-bls = { workspace = true, optional = true }
+tnt-bls = { workspace = true, optional = true }
 
 # Optional dependencies based on features
 tangle-subxt = { workspace = true, features = ["std"], optional = true }

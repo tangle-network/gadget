@@ -23,7 +23,7 @@ mod bls381_crypto_tests {
 
 mod bls377_tests {
     use super::*;
-    use ::w3f_bls::SerializableToBytes;
+    use ::tnt_bls::SerializableToBytes;
     use gadget_crypto_hashing::sha2_256;
 
     #[test]
@@ -110,7 +110,7 @@ mod bls377_tests {
 
 mod bls381_tests {
     use super::*;
-    use ::w3f_bls::SerializableToBytes;
+    use ::tnt_bls::SerializableToBytes;
     use gadget_crypto_hashing::sha2_256;
 
     #[test]

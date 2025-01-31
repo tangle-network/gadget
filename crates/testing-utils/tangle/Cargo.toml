@@ -1,6 +1,7 @@
 [package]
 name = "gadget-tangle-testing-utils"
 version = "0.1.0"
+description = "Tangle-specific testing utilities for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -28,6 +29,8 @@ alloy-signer-local = { workspace = true }
 alloy-rpc-types = { workspace = true, features = ["eth"] }
 alloy-json-rpc = { workspace = true }
 alloy-transport = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-primitives = { workspace = true }
 sp-core = { workspace = true }
 subxt = { workspace = true }
 tangle-subxt = { workspace = true }
