@@ -37,6 +37,7 @@ broken_intra_doc_links = "deny"
 blueprint-sdk = { version = "0.1.0", path = "./crates/sdk", default-features = false }
 
 # Blueprint Examples
+blueprint-examples = { version = "0.1.0", path = "./blueprints/examples", default-features = false }
 incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
 incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./blueprints/incredible-squaring-eigenlayer", default-features = false }
 
