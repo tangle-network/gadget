@@ -167,6 +167,7 @@ jobs:
             gadget-networking,
             gadget-executor,
             gadget-utils-tangle,
+            gadget-tangle-testing-utils,
           ]
     steps:
       - name: checkout code
