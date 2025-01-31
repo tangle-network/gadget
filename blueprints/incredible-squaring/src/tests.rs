@@ -14,7 +14,7 @@ async fn test_incredible_squaring() -> Result<()> {
 
     // Initialize test harness (node, keys, deployment)
     let temp_dir = tempfile::TempDir::new()?;
-    let harness = TangleTestHarness::<1>::setup(temp_dir).await?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
 
     let xsquare_creator = |env: GadgetConfiguration| async move {
         // Create blueprint-specific context
@@ -30,7 +30,7 @@ async fn test_incredible_squaring() -> Result<()> {
     // Setup service
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
     test_env.add_job(xsquare_creator)?;
-    test_env.start()?;
+    test_env.start().await?;
 
     test_env.run_runner().await.unwrap();
 
