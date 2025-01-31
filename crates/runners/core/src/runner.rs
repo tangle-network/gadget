@@ -8,8 +8,22 @@ use gadget_config::GadgetConfiguration;
 use gadget_event_listeners::core::InitializableEventHandler;
 use tokio::sync::oneshot;
 
+// Clone traits with distinct names
+pub trait CloneableService: Send {
+    fn clone_box(&self) -> Box<dyn BackgroundService>;
+}
+
+impl<T> CloneableService for T
+where
+    T: BackgroundService + Clone,
+{
+    fn clone_box(&self) -> Box<dyn BackgroundService> {
+        Box::new(self.clone())
+    }
+}
+
 #[async_trait::async_trait]
-pub trait BackgroundService: Send + Sync + 'static {
+pub trait BackgroundService: Send + Sync + CloneableService + 'static {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), Error>>, Error>;
 }
 
@@ -93,5 +107,20 @@ impl BlueprintRunner {
         }
 
         Ok(())
+    }
+}
+
+impl Clone for BlueprintRunner {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone_box(),
+            jobs: self.jobs.iter().map(|job| job.clone_box()).collect(),
+            env: self.env.clone(),
+            background_services: self
+                .background_services
+                .iter()
+                .map(|service| service.clone_box())
+                .collect(),
+        }
     }
 }

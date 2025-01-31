@@ -16,3 +16,5 @@ certs
 node_modules
 
 blueprints/**/dependencies/
+blueprint.lock
+target
