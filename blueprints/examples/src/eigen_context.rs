@@ -1,21 +1,19 @@
-use alloy_primitives::U256;
-use alloy_primitives::{address, Address, Bytes};
+use blueprint_sdk::alloy::primitives::{address, Bytes, U256};
+use blueprint_sdk::alloy::rpc::types::Log;
+use blueprint_sdk::alloy::sol;
 use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::macros::contexts::EigenlayerContext;
 use blueprint_sdk::macros::load_abi;
-use blueprint_sdk::std::Zero;
+use blueprint_sdk::std::{env, Zero};
 use blueprint_sdk::utils::evm::get_provider_http;
 use blueprint_sdk::{job, Error};
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::env;
-use std::ops::Deref;
 
-alloy_sol_types::sol!(
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +25,9 @@ load_abi!(
     EXAMPLE_TASK_MANAGER_ABI_STRING,
     "contracts/out/ExampleTaskManager.sol/ExampleTaskManager.json"
 );
+
+type ProcessorError =
+    blueprint_sdk::event_listeners::core::Error<blueprint_sdk::event_listeners::evm::error::Error>;
 
 #[derive(Clone, EigenlayerContext)]
 pub struct ExampleEigenContext {
@@ -67,7 +68,7 @@ pub async fn constructor(
 pub async fn handle_job(
     ctx: ExampleEigenContext,
     event: ExampleTaskManager::NewTaskCreated,
-    log: alloy_rpc_types::Log,
+    log: Log,
 ) -> Result<u32, Error> {
     // Example address, quorum number, and index
     let operator_addr = address!("70997970C51812dc3A010C7d01b50e0d17dc79C8");
@@ -221,7 +222,7 @@ pub async fn handle_job(
 }
 
 pub async fn handle_events(
-    event: (ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log),
-) -> Result<(ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log), blueprint_sdk::Error> {
-    Ok(event)
+    event: (ExampleTaskManager::NewTaskCreated, Log),
+) -> Result<Option<(ExampleTaskManager::NewTaskCreated, Log)>, ProcessorError> {
+    Ok(Some(event))
 }

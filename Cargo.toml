@@ -5,6 +5,9 @@ members = [
 	"blueprints/*",
 	"crates/*",
 ]
+exclude = [
+	"blueprints/incredible-squaring-symbiotic",
+]
 
 [workspace.package]
 authors = ["Tangle Network"]

@@ -8,6 +8,7 @@ gadget-config = { workspace = true, features = ["networking"] }
 gadget-crypto = { workspace = true, features = ["k256"] }
 gadget-logging = { workspace = true }
 gadget-networking = { workspace = true, features = ["round-based-compat"] }
+gadget-client-core = { workspace = true }
 gadget-std = { workspace = true }
 libp2p = { workspace = true }
 proc-macro2 = { workspace = true }
@@ -21,6 +22,7 @@ std = [
     "gadget-config/std",
     "gadget-crypto/std",
     "gadget-logging/std",
+    "gadget-client-core/std",
     "gadget-networking/std",
     "gadget-std/std",
     "serde/std",

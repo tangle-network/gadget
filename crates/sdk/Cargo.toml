@@ -154,3 +154,5 @@ networking-ed25519 = [
 local-store = ["gadget-stores/local"]
 
 round-based-compat = ["gadget-networking/round-based-compat"]
+
+cronjob = ["gadget-event-listeners/cronjob"]

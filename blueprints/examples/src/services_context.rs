@@ -1,6 +1,5 @@
 use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
-use blueprint_sdk::contexts::services::ServicesContext;
 use blueprint_sdk::contexts::tangle::TangleClientContext;
 use blueprint_sdk::crypto::sp_core::SpSr25519;
 use blueprint_sdk::event_listeners::core::InitializableEventHandler;

@@ -1,20 +1,21 @@
 use crate::eigen_context;
 use crate::eigen_context::ExampleTaskManager;
-use alloy_primitives::Address;
-use alloy_provider::Provider;
+use blueprint_sdk::alloy::primitives::Address;
+use blueprint_sdk::alloy::providers::Provider;
+use blueprint_sdk::alloy::transports::http::reqwest::Url;
 use blueprint_sdk::config::protocol::EigenlayerContractAddresses;
 use blueprint_sdk::config::supported_chains::SupportedChains;
 use blueprint_sdk::config::ContextConfig;
 use blueprint_sdk::logging::{info, setup_log};
 use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
+use blueprint_sdk::std::path::Path;
+use blueprint_sdk::std::time::Duration;
 use blueprint_sdk::testing::utils::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use blueprint_sdk::testing::utils::anvil::{get_receipt, start_default_anvil_testnet};
+use blueprint_sdk::tokio;
+use blueprint_sdk::tokio::time::timeout;
 use blueprint_sdk::utils::evm::get_provider_http;
-use reqwest::Url;
-use std::path::Path;
-use std::time::Duration;
-use tokio::time::timeout;
 
 #[tokio::test]
 async fn test_eigenlayer_context() {
@@ -72,9 +73,7 @@ async fn test_eigenlayer_context() {
     let keystore_path = &format!("{}", tmp_dir.path().display());
     let keystore_path = Path::new(keystore_path);
     let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
-    inject_anvil_key(&keystore_uri, ANVIL_PRIVATE_KEYS[1])
-        .await
-        .unwrap();
+    inject_anvil_key(&keystore_uri, ANVIL_PRIVATE_KEYS[1]).unwrap();
     let keystore_uri_normalized =
         std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());

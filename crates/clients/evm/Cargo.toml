@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 gadget-std = { workspace = true }
+gadget-client-core = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
@@ -42,6 +43,7 @@ default = ["std"]
 std = [
     "gadget-logging/std",
     "gadget-rpc-calls/std",
+    "gadget-client-core/std",
     "gadget-std/std",
     "hex/std",
     "serde/std",

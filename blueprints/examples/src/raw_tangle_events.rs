@@ -1,4 +1,4 @@
-use blueprint_sdk::config::StdGadgetConfiguration;
+use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::crypto::sp_core::SpSr25519;
 use blueprint_sdk::event_listeners::core::InitializableEventHandler;
@@ -6,19 +6,19 @@ use blueprint_sdk::event_listeners::tangle::events::{TangleEvent, TangleEventLis
 use blueprint_sdk::job;
 use blueprint_sdk::keystore::backends::Backend;
 use blueprint_sdk::logging::info;
-use blueprint_sdk::macros::contexts::TangleClientContext;
+use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
 use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
 
-#[derive(Clone, TangleClientContext)]
+#[derive(Clone, TangleClientContext, ServicesContext)]
 pub struct MyContext {
     #[config]
-    sdk_config: StdGadgetConfiguration,
+    sdk_config: GadgetConfiguration,
     #[call_id]
     call_id: Option<u64>,
 }
 
 pub async fn constructor(
-    env: StdGadgetConfiguration,
+    env: GadgetConfiguration,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     let signer = env
         .clone()

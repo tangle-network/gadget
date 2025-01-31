@@ -2551,33 +2551,11 @@ dependencies = [
 name = "blueprint-examples"
 version = "0.1.1"
 dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-json-abi",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives 0.8.19",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types 0.8.19",
- "alloy-transport",
- "alloy-transport-http",
- "async-trait",
  "blueprint-sdk",
  "color-eyre",
- "eigensdk",
- "reqwest 0.12.12",
  "serde",
  "serde_json",
  "tempfile",
- "tokio",
- "tokio-util 0.7.13",
- "tracing",
  "uuid 1.12.1",
 ]
 
@@ -6556,6 +6534,7 @@ dependencies = [
  "alloy-transport",
  "eigensdk",
  "gadget-anvil-testing-utils",
+ "gadget-client-core",
  "gadget-config",
  "gadget-std",
  "gadget-utils-evm",
@@ -6585,6 +6564,7 @@ dependencies = [
  "alloy-transport-http",
  "async-trait",
  "gadget-anvil-testing-utils",
+ "gadget-client-core",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
@@ -6602,6 +6582,7 @@ dependencies = [
 name = "gadget-client-networking"
 version = "0.1.0"
 dependencies = [
+ "gadget-client-core",
  "gadget-config",
  "gadget-crypto",
  "gadget-logging",
@@ -8643,16 +8624,6 @@ dependencies = [
  "tokio-util 0.7.13",
  "tracing",
  "uuid 1.12.1",
-]
-
-[[package]]
-name = "incredible-squaring-blueprint-symbiotic"
-version = "0.1.1"
-dependencies = [
- "alloy-rpc-types",
- "alloy-sol-types 0.8.19",
- "blueprint-sdk",
- "lazy_static",
 ]
 
 [[package]]
