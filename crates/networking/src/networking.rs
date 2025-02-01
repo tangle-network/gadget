@@ -152,7 +152,7 @@ pub struct NetworkMultiplexer {
     unclaimed_receiving_streams: Arc<DashMap<StreamKey, MultiplexedReceiver>>,
     tx_to_networking_layer: MultiplexedSender,
     sequence_numbers: Arc<DashMap<CompoundStreamKey, u64>>,
-    my_id: GossipMsgPublicKey,
+    pub my_id: GossipMsgPublicKey,
 }
 
 type ActiveStreams = Arc<DashMap<StreamKey, UnboundedSender<ProtocolMessage>>>;
