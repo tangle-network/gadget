@@ -1,9 +1,10 @@
+use crate::node::transactions::setup_operator_and_service_multiple;
 use crate::Error;
 use crate::{
     keys::inject_tangle_key,
     node::{
         run,
-        transactions::{self, setup_operator_and_service, submit_and_verify_job},
+        transactions::{self, submit_and_verify_job},
         NodeConfig,
     },
     runner::TangleTestEnv,
@@ -133,9 +134,18 @@ impl MultiNodeTangleTestEnv {
                         let mut node = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
                         // Add all jobs to the node
                         for (job_id, creator) in jobs.clone() {
-                            let job = creator(env.clone()).await?;
-                            node.add_job(job);
-                            gadget_logging::info!("Added job {job_id} to node {node_id}");
+                            match creator(env.clone()).await {
+                                Ok(job) => {
+                                    node.add_job(job);
+                                    gadget_logging::info!("Added job {job_id} to node {node_id}");
+                                }
+                                Err(e) => {
+                                    gadget_logging::error!(
+                                        "Error adding job {job_id} to node {node_id}: {e}"
+                                    );
+                                    panic!("Error adding job {job_id} to node {node_id}: {e}");
+                                }
+                            }
                         }
 
                         let (node_control_tx, node_control_rx) =
@@ -228,6 +238,7 @@ impl MultiNodeTangleTestEnv {
                 self.jobs_added_count
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
                 Arc::new(move |env| {
+                    let job_creator = job_creator.clone();
                     let job_creator = job_creator.clone()(env);
                     Box::pin(async move {
                         let job = job_creator
@@ -250,7 +261,15 @@ impl MultiNodeTangleTestEnv {
     /// will be executed on the new node.
     ///
     /// If the node cannot be added to the test harness, an error is returned.
+    ///
+    /// NOTE: This should only be called after calling start(), as this is used for adding additional nodes, not initial nodes
     pub fn add_node(&mut self, node_id: usize) -> Result<&mut Self, RunnerError> {
+        if self.start_tx.is_some() {
+            return Err(RunnerError::Other(
+                "add_node cannot be called until start() has been called".to_string(),
+            ));
+        }
+
         self.command_tx
             .send(MultiNodeExecutorCommand::AddNode(node_id))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
@@ -265,7 +284,15 @@ impl MultiNodeTangleTestEnv {
     /// running on the node will be terminated.
     ///
     /// If the node cannot be removed from the test harness, an error is returned.
+    ///
+    /// Note: This should only be called after calling start(), as this is used for removing nodes after initializing them
     pub fn remove_node(&mut self, node_id: usize) -> Result<&mut Self, RunnerError> {
+        if self.start_tx.is_some() {
+            return Err(RunnerError::Other(
+                "remove_node cannot be called until start() has been called".to_string(),
+            ));
+        }
+
         self.command_tx
             .send(MultiNodeExecutorCommand::RemoveNode(node_id))
             .map_err(|err| RunnerError::Other(err.to_string()))?;
@@ -275,11 +302,18 @@ impl MultiNodeTangleTestEnv {
     /// Begins the execution of the jobs in parallel and in the background
     ///
     /// Waits for all preloaded jobs before returning, ensuring access to vital services
-    pub async fn start(&mut self) -> Result<(), RunnerError> {
+    pub async fn start<const N: usize>(&mut self) -> Result<(), RunnerError> {
         let jobs_added_count = self.jobs_added_count.load(Ordering::SeqCst);
 
         if jobs_added_count == 0 {
             return Err(RunnerError::Other("No jobs added".to_string()));
+        }
+
+        // Add nodes after the jobs are added to ensure the nodes, when loaded, can access the jobs
+        for idx in 0..N {
+            self.command_tx
+                .send(MultiNodeExecutorCommand::AddNode(idx))
+                .map_err(|err| RunnerError::Other(format!("Failed to add node {idx}: {err}")))?;
         }
 
         self.start_tx
@@ -291,13 +325,6 @@ impl MultiNodeTangleTestEnv {
                     "Failed to start test harness (background task died?)".to_string(),
                 )
             })?;
-
-        // Add nodes after the jobs are added to ensure the nodes, when loaded, can access the jobs
-        for idx in 0..jobs_added_count {
-            self.command_tx
-                .send(MultiNodeExecutorCommand::AddNode(idx))
-                .map_err(|err| RunnerError::Other(format!("Failed to add node {idx}: {err}")))?;
-        }
 
         self.initialized_rx
             .take()
@@ -330,6 +357,7 @@ impl MultiNodeTangleTestEnv {
 }
 
 const ENDOWED_TEST_NAMES: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
+
 async fn generate_env_from_node_id(
     id: usize,
     http_endpoint: Url,
@@ -366,6 +394,7 @@ async fn generate_env_from_node_id(
 
     // Always set test mode, dont require callers to set env vars
     env.test_mode = true;
+
     Ok(env)
 }
 
@@ -433,6 +462,41 @@ impl TestHarness for TangleTestHarness {
 }
 
 impl TangleTestHarness {
+    async fn get_all_sr25519_pairs(
+        &self,
+    ) -> Result<Vec<TanglePairSigner<sp_core::sr25519::Pair>>, RunnerError> {
+        let mut ret = vec![];
+
+        let http_endpoint = self
+            .config
+            .http_endpoint
+            .clone()
+            .ok_or_else(|| RunnerError::Other("http_endpoint not set".to_string()))?;
+        let ws_endpoint = self
+            .config
+            .ws_endpoint
+            .clone()
+            .ok_or_else(|| RunnerError::Other("ws_endpoint not set".to_string()))?;
+
+        for idx in 0..ENDOWED_TEST_NAMES.len() {
+            let env =
+                generate_env_from_node_id(idx, http_endpoint.clone(), ws_endpoint.clone()).await?;
+
+            // Setup signers
+            let keystore = env.keystore();
+            let sr25519_public = keystore
+                .first_local::<SpSr25519>()
+                .map_err(|err| RunnerError::Other(err.to_string()))?;
+            let sr25519_pair = keystore
+                .get_secret::<SpSr25519>(&sr25519_public)
+                .map_err(|err| RunnerError::Other(err.to_string()))?;
+            let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
+            ret.push(sr25519_signer);
+        }
+
+        Ok(ret)
+    }
+
     /// Gets a reference to the Tangle client
     pub fn client(&self) -> &TangleClient {
         &self.client
@@ -526,6 +590,8 @@ impl TangleTestHarness {
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
 
+        let all_signers = self.get_all_sr25519_pairs().await?;
+
         // Setup operator and get service
         let preferences = self.get_default_operator_preferences();
         let service_id = if !exit_after_registration {
@@ -553,9 +619,9 @@ impl TangleTestHarness {
     /// that has already been registered to.
     pub async fn request_service(&self, blueprint_id: u64) -> Result<u64, Error> {
         let preferences = self.get_default_operator_preferences();
-        let service_id = setup_operator_and_service(
+        let service_id = setup_operator_and_service_multiple(
             &self.client,
-            &self.sr25519_signer,
+            &all_signers,
             blueprint_id,
             preferences,
             false,

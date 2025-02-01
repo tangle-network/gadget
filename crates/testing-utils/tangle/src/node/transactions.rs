@@ -403,41 +403,53 @@ pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Transaction
 /// 5. Returns the newly created service ID from events
 pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     client: &TestClient,
-    sr25519_signer: &T,
+    sr25519_signer: T,
+    blueprint_id: u64,
+    preferences: Preferences,
+) -> Result<u64, TransactionError> {
+    setup_operator_and_service_multiple(client, &[sr25519_signer], blueprint_id, preferences).await
+}
+
+pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
+    client: &TestClient,
+    sr25519_signers: &[T],
     blueprint_id: u64,
     preferences: Preferences,
     exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
-    if exit_after_registration {
-        // Register for blueprint
-        register_blueprint(
-            client,
-            sr25519_signer,
-            blueprint_id,
-            preferences,
-            RegistrationArgs::new(),
-            0,
-        )
-        .await?;
+    let alice_signer = sr25519_signers
+        .first()
+        .ok_or(TransactionError::Other("No signer".to_string()))?;
+    // Join operators
+    join_operators(client, alice_signer).await?;
+    for operator in sr25519_signers {
+        if exit_after_registration {
+            // Register for blueprint
+            register_blueprint(
+                client,
+                operator,
+                blueprint_id,
+                preferences.clone(),
+                RegistrationArgs::new(),
+                0,
+            )
+            .await?;
+        }
     }
 
     // Get the current service ID before requesting new service
     let prev_service_id = get_next_service_id(client).await?;
 
     // Request service
-    let account_id = sr25519_signer.account_id();
-    request_service(
-        client,
-        sr25519_signer,
-        blueprint_id,
-        vec![account_id.clone()],
-        0,
-    )
-    .await?;
+    let all_accounts = sr25519_signers
+        .iter()
+        .map(|s| s.account_id())
+        .collect::<Vec<_>>();
+    request_service(client, alice_signer, blueprint_id, all_accounts, 0).await?;
 
     // Approve the service request and wait for completion
     let request_id = get_next_request_id(client).await?.saturating_sub(1);
-    approve_service(client, sr25519_signer, request_id, 20).await?;
+    approve_service(client, alice_signer, request_id, 20).await?;
 
     // Get the new service ID from events
     let new_service_id = get_next_service_id(client).await?;
