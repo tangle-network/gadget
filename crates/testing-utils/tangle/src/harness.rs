@@ -464,14 +464,22 @@ impl TestHarness for TangleTestHarness {
 impl TangleTestHarness {
     async fn get_all_sr25519_pairs(
         &self,
-    ) -> Result<Vec<TanglePairSigner<sp_core::sr25519::Pair>>, RunnerError> {
-        let mut ret = vec![];
+    ) -> Result<
+        (
+            Vec<TanglePairSigner<sp_core::sr25519::Pair>>,
+            Vec<TangleClient>,
+        ),
+        RunnerError,
+    > {
+        let mut keys = vec![];
+        let mut clients = vec![];
 
         let http_endpoint = self
             .config
             .http_endpoint
             .clone()
             .ok_or_else(|| RunnerError::Other("http_endpoint not set".to_string()))?;
+
         let ws_endpoint = self
             .config
             .ws_endpoint
@@ -482,6 +490,13 @@ impl TangleTestHarness {
             let env =
                 generate_env_from_node_id(idx, http_endpoint.clone(), ws_endpoint.clone()).await?;
 
+            let client = env
+                .tangle_client()
+                .await
+                .map_err(|err| RunnerError::Other(err.to_string()))?;
+
+            clients.push(client);
+
             // Setup signers
             let keystore = env.keystore();
             let sr25519_public = keystore
@@ -491,10 +506,10 @@ impl TangleTestHarness {
                 .get_secret::<SpSr25519>(&sr25519_public)
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
             let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
-            ret.push(sr25519_signer);
+            keys.push(sr25519_signer);
         }
 
-        Ok(ret)
+        Ok((keys, clients))
     }
 
     /// Gets a reference to the Tangle client
@@ -590,7 +605,7 @@ impl TangleTestHarness {
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
 
-        let all_signers = self.get_all_sr25519_pairs().await?;
+        let (all_signers, all_clients) = self.get_all_sr25519_pairs().await?;
 
         // Setup operator and get service
         let preferences = self.get_default_operator_preferences();
@@ -620,7 +635,7 @@ impl TangleTestHarness {
     pub async fn request_service(&self, blueprint_id: u64) -> Result<u64, Error> {
         let preferences = self.get_default_operator_preferences();
         let service_id = setup_operator_and_service_multiple(
-            &self.client,
+            &all_clients,
             &all_signers,
             blueprint_id,
             preferences,
