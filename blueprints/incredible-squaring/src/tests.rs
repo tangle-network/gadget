@@ -30,7 +30,7 @@ async fn test_incredible_squaring() -> Result<()> {
     // Setup service
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
     test_env.add_job(xsquare_creator)?;
-    test_env.start().await?;
+    test_env.start::<1>().await?;
 
     test_env.run_runner().await.unwrap();
 
