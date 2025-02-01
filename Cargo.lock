@@ -7272,6 +7272,7 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-macros",
+ "gadget-networking",
  "gadget-runners",
  "gadget-std",
  "reqwest 0.12.12",
