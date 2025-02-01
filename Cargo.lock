@@ -2548,6 +2548,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-examples"
+version = "0.1.1"
+dependencies = [
+ "blueprint-sdk",
+ "color-eyre",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uuid 1.12.1",
+]
+
+[[package]]
 name = "blueprint-manager"
 version = "0.2.2"
 dependencies = [
@@ -6542,6 +6554,7 @@ dependencies = [
  "alloy-transport",
  "eigensdk",
  "gadget-anvil-testing-utils",
+ "gadget-client-core",
  "gadget-config",
  "gadget-std",
  "gadget-utils-evm",
@@ -6571,6 +6584,7 @@ dependencies = [
  "alloy-transport-http",
  "async-trait",
  "gadget-anvil-testing-utils",
+ "gadget-client-core",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
@@ -6588,6 +6602,7 @@ dependencies = [
 name = "gadget-client-networking"
 version = "0.1.0"
 dependencies = [
+ "gadget-client-core",
  "gadget-config",
  "gadget-crypto",
  "gadget-logging",
@@ -15220,9 +15235,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc-types"
-version = "0.33.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e33060dbec9e1d13d285c4cddc150a431569be97f33bf0b6c1ec6eea934c31ca"
+checksum = "bf583db9958b3161d7980a56a8ee3c25e1a40708b81259be72584b7e0ea07c95"
 dependencies = [
  "serde",
 ]

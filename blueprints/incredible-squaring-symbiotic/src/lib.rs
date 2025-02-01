@@ -1,8 +1,8 @@
-use alloy_primitives::U256;
 use alloy_sol_types::sol;
-use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::{job, load_abi};
-use serde::{Deserialize, Serialize};
+use blueprint_sdk::alloy::primitives::U256;
+use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
+use blueprint_sdk::macros::load_abi;
+use blueprint_sdk::{job, Error};
 use std::ops::Deref;
 
 sol!(
@@ -32,7 +32,7 @@ pub struct MyContext;
         pre_processor = convert_event_to_inputs,
     ),
 )]
-pub fn xsquare(x: U256, context: MyContext) -> Result<U256, gadget_sdk::Error> {
+pub fn xsquare(x: U256, context: MyContext) -> Result<U256, Error> {
     Ok(x.saturating_pow(U256::from(2)))
 }
 
@@ -42,6 +42,6 @@ pub async fn convert_event_to_inputs(
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),
-) -> Result<(U256,), gadget_sdk::Error> {
+) -> Result<(U256,), Error> {
     Ok((event.task.numberToBeSquared,))
 }

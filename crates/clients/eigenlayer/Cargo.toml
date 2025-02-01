@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 gadget-config = { workspace = true, features = ["eigenlayer"] }
+gadget-client-core = { workspace = true }
 gadget-std = { workspace = true }
 gadget-utils-evm = { workspace = true }
 alloy-contract = { workspace = true }
@@ -48,5 +49,6 @@ std = [
 	"gadget-std/std",
 	"gadget-utils-evm/std",
 	"tokio/full",
+	"gadget-client-core/std",
 	# TODO: "url/std",
 ]

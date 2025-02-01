@@ -1,17 +1,19 @@
-use alloy_primitives::U256;
-use alloy_primitives::{address, Address, Bytes};
+use blueprint_sdk::alloy::primitives::{address, Bytes, U256};
+use blueprint_sdk::alloy::rpc::types::Log;
+use blueprint_sdk::alloy::sol;
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
+use blueprint_sdk::event_listeners::core::InitializableEventHandler;
+use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
+use blueprint_sdk::macros::contexts::EigenlayerContext;
+use blueprint_sdk::macros::load_abi;
+use blueprint_sdk::std::{env, Zero};
+use blueprint_sdk::utils::evm::get_provider_http;
+use blueprint_sdk::{job, Error};
 use color_eyre::eyre::eyre;
-use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
-use gadget_sdk::event_utils::InitializableEventHandler;
-use gadget_sdk::subxt_core::ext::sp_runtime::traits::Zero;
-use gadget_sdk::utils::evm::get_provider_http;
-use gadget_sdk::{config::StdGadgetConfiguration, contexts::EigenlayerContext, job, load_abi};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::env;
-use std::ops::Deref;
 
-alloy_sol_types::sol!(
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
@@ -24,14 +26,17 @@ load_abi!(
     "contracts/out/ExampleTaskManager.sol/ExampleTaskManager.json"
 );
 
+type ProcessorError =
+    blueprint_sdk::event_listeners::core::Error<blueprint_sdk::event_listeners::evm::error::Error>;
+
 #[derive(Clone, EigenlayerContext)]
 pub struct ExampleEigenContext {
     #[config]
-    pub std_config: StdGadgetConfiguration,
+    pub std_config: GadgetConfiguration,
 }
 
 pub async fn constructor(
-    env: StdGadgetConfiguration,
+    env: GadgetConfiguration,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     let example_address = env::var("EXAMPLE_TASK_MANAGER_ADDRESS")
         .map(|addr| addr.parse().expect("Invalid EXAMPLE_TASK_MANAGER_ADDRESS"))
@@ -63,19 +68,25 @@ pub async fn constructor(
 pub async fn handle_job(
     ctx: ExampleEigenContext,
     event: ExampleTaskManager::NewTaskCreated,
-    log: alloy_rpc_types::Log,
-) -> Result<u32, Box<dyn std::error::Error>> {
+    log: Log,
+) -> Result<u32, Error> {
     // Example address, quorum number, and index
     let operator_addr = address!("70997970C51812dc3A010C7d01b50e0d17dc79C8");
     let quorum_number: u8 = 0;
     let index: U256 = U256::from(0);
 
     // Get an Operator's ID as FixedBytes from its Address.
-    let operator_id = ctx.get_operator_id(operator_addr).await?;
+    let operator_id = ctx
+        .eigenlayer_client()
+        .await?
+        .get_operator_id(operator_addr)
+        .await?;
     println!("Operator ID from Address: {:?}", operator_id);
 
     // Get an Operator's latest stake update.
     let latest_stake_update = ctx
+        .eigenlayer_client()
+        .await?
         .get_latest_stake_update(operator_id, quorum_number)
         .await?;
     println!("Latest Stake Update: \n\tStake: {:?},\n\tUpdate Block Number: {:?},\n\tNext Update Block Number: {:?}",
@@ -87,12 +98,16 @@ pub async fn handle_job(
 
     // Get Operator stake in Quorums at a given block.
     let stake_in_quorums_at_block = ctx
+        .eigenlayer_client()
+        .await?
         .get_operator_stake_in_quorums_at_block(block_number, Bytes::from(vec![0]))
         .await?;
     assert!(!stake_in_quorums_at_block.is_empty());
 
     // Get an Operator's stake in Quorums at the current block.
     let stake_in_quorums_at_current_block = ctx
+        .eigenlayer_client()
+        .await?
         .get_operator_stake_in_quorums_at_current_block(operator_id)
         .await?;
     println!(
@@ -102,12 +117,18 @@ pub async fn handle_job(
     assert!(!stake_in_quorums_at_current_block.is_empty());
 
     // Get an Operator by ID.
-    let operator_by_id = ctx.get_operator_by_id(*operator_id).await?;
+    let operator_by_id = ctx
+        .eigenlayer_client()
+        .await?
+        .get_operator_by_id(*operator_id)
+        .await?;
     println!("Operator by ID: {:?}", operator_by_id);
     assert_eq!(operator_by_id, operator_addr);
 
     // Get an Operator stake history.
     let stake_history = ctx
+        .eigenlayer_client()
+        .await?
         .get_operator_stake_history(operator_id, quorum_number)
         .await?;
     println!("Stake History for {operator_id} in Quorum {quorum_number}:");
@@ -121,6 +142,8 @@ pub async fn handle_job(
 
     // Get an Operator stake update at a given index.
     let stake_update_at_index = ctx
+        .eigenlayer_client()
+        .await?
         .get_operator_stake_update_at_index(quorum_number, operator_id, index)
         .await?;
     println!("Stake Update at Index {index}: \n\tStake: {:?}\n\tUpdate Block Number: {:?}\n\tNext Update Block Number: {:?}", stake_update_at_index.stake, stake_update_at_index.updateBlockNumber, stake_update_at_index.nextUpdateBlockNumber);
@@ -128,13 +151,19 @@ pub async fn handle_job(
 
     // Get an Operator's stake at a given block number.
     let stake_at_block_number = ctx
+        .eigenlayer_client()
+        .await?
         .get_operator_stake_at_block_number(operator_id, quorum_number, block_number)
         .await?;
     println!("Stake at Block Number: {:?}", stake_at_block_number);
     assert!(!stake_at_block_number.is_zero());
 
     // Get an Operator's details.
-    let operator = ctx.get_operator_details(operator_addr).await?;
+    let operator = ctx
+        .eigenlayer_client()
+        .await?
+        .get_operator_details(operator_addr)
+        .await?;
     println!("Operator Details: \n\tAddress: {:?},\n\tEarnings receiver address: {:?},\n\tDelegation approver address: {:?},\n\tMetadata URL: {:?},\n\tStaker Opt Out Window Blocks: {:?}",
              operator.address,
              operator.earnings_receiver_address,
@@ -145,11 +174,15 @@ pub async fn handle_job(
 
     // Get an Operator's latest stake update.
     let latest_stake_update = ctx
+        .eigenlayer_client()
+        .await?
         .get_latest_stake_update(operator_id, quorum_number)
         .await?;
     let block_number = latest_stake_update.updateBlockNumber - 1;
     // Get the total stake at a given block number from a given index.
     let total_stake_at_block_number_from_index = ctx
+        .eigenlayer_client()
+        .await?
         .get_total_stake_at_block_number_from_index(quorum_number, block_number, index)
         .await?;
     println!(
@@ -159,7 +192,11 @@ pub async fn handle_job(
     assert!(total_stake_at_block_number_from_index.is_zero());
 
     // Get the total stake history length of a given quorum.
-    let total_stake_history_length = ctx.get_total_stake_history_length(quorum_number).await?;
+    let total_stake_history_length = ctx
+        .eigenlayer_client()
+        .await?
+        .get_total_stake_history_length(quorum_number)
+        .await?;
     println!(
         "Total Stake History Length: {:?}",
         total_stake_history_length
@@ -168,6 +205,8 @@ pub async fn handle_job(
 
     // Provides the public keys of existing registered operators within the provided block range.
     let existing_registered_operator_pub_keys = ctx
+        .eigenlayer_client()
+        .await?
         .query_existing_registered_operator_pub_keys(0, block_number as u64)
         .await?;
     println!(
@@ -183,7 +222,7 @@ pub async fn handle_job(
 }
 
 pub async fn handle_events(
-    event: (ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log),
-) -> Result<(ExampleTaskManager::NewTaskCreated, alloy_rpc_types::Log), gadget_sdk::Error> {
-    Ok(event)
+    event: (ExampleTaskManager::NewTaskCreated, Log),
+) -> Result<Option<(ExampleTaskManager::NewTaskCreated, Log)>, ProcessorError> {
+    Ok(Some(event))
 }

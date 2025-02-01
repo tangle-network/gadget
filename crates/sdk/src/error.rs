@@ -56,6 +56,21 @@ pub enum AlloyError {
     LocalSigner(#[from] alloy::signers::local::LocalSignerError),
 }
 
+// Two-layer Client conversions
+macro_rules! implement_client_error {
+    ($feature:literal, $client_type:path) => {
+        #[cfg(feature = $feature)]
+        impl From<$client_type> for Error {
+            fn from(value: $client_type) -> Self {
+                Error::Client(value.into())
+            }
+        }
+    };
+}
+implement_client_error!("eigenlayer", gadget_clients::eigenlayer::error::Error);
+implement_client_error!("evm", gadget_clients::evm::error::Error);
+implement_client_error!("tangle", gadget_clients::tangle::error::Error);
+
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 macro_rules! implement_from_alloy_error {
     ($($path:ident)::+, $variant:ident) => {
@@ -66,7 +81,6 @@ macro_rules! implement_from_alloy_error {
         }
     };
 }
-
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 implement_from_alloy_error!(signers::Error, Signer);
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
