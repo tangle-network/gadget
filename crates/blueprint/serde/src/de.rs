@@ -70,7 +70,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         match self.0 {
             Field::String(bound_string) => string = String::from_utf8(bound_string.0 .0)?,
             _ => return Err(self.invalid_type(&visitor)),
-        };
+        }
 
         let mut chars = string.chars();
         let Some(ch) = chars.next() else {

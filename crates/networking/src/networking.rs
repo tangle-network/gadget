@@ -593,6 +593,7 @@ mod tests {
     use gadget_crypto::KeyType;
     use gadget_logging::setup_log;
     use gadget_std::collections::BTreeMap;
+    use gadget_std::sync::LazyLock;
     use serde::{Deserialize, Serialize};
     use tokio::time::sleep;
 
@@ -910,10 +911,11 @@ mod tests {
         node_with_id().0
     }
 
-    lazy_static::lazy_static! {
-        static ref NODE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 2);
-        static ref MESSAGE_COUNT: usize = std::env::var("IN_CI").map_or_else(|_| 10, |_| 100);
-    }
+    static NODE_COUNT: LazyLock<usize> =
+        LazyLock::new(|| std::env::var("IN_CI").map_or_else(|_| 10, |_| 2));
+    #[allow(dead_code)]
+    static MESSAGE_COUNT: LazyLock<usize> =
+        LazyLock::new(|| std::env::var("IN_CI").map_or_else(|_| 10, |_| 100));
 
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::cast_possible_truncation)]
