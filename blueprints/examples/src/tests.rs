@@ -140,7 +140,7 @@ async fn test_periodic_web_poller() -> Result<()> {
     let harness = TangleTestHarness::setup(temp_dir).await?;
 
     // Setup service
-    let (mut test_env, service_id) = harness.setup_services().await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
 
     // Add the web poller job
     test_env.add_job(crate::periodic_web_poller::constructor("*/5 * * * * *"));
@@ -172,7 +172,7 @@ async fn test_raw_tangle_events() -> Result<()> {
     let env = harness.env().clone();
 
     // Setup service
-    let (mut test_env, service_id) = harness.setup_services().await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
 
     // Add the raw tangle events job
     test_env.add_job(crate::raw_tangle_events::constructor(env.clone()).await?);

@@ -48,6 +48,9 @@ impl BlueprintRunner {
     pub async fn run(&mut self) -> Result<(), Error> {
         if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?;
+            if self.config.should_exit_after_registration() {
+                return Ok(());
+            }
         }
 
         let mut background_receivers = Vec::new();

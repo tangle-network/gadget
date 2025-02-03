@@ -46,16 +46,35 @@ impl Default for PriceTargets {
 #[derive(Clone, Default)]
 pub struct TangleConfig {
     pub price_targets: PriceTargets,
+    pub exit_after_register: bool,
+}
+
+impl TangleConfig {
+    pub fn new(price_targets: PriceTargets) -> Self {
+        Self {
+            price_targets,
+            exit_after_register: true,
+        }
+    }
+
+    pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
+        self.exit_after_register = should_exit_after_registration;
+        self
+    }
 }
 
 #[async_trait::async_trait]
 impl BlueprintConfig for TangleConfig {
+    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
+        register_impl(self.price_targets.clone(), vec![], env).await
+    }
+
     async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
         requires_registration_impl(env).await
     }
 
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
-        register_impl(self.clone().price_targets, vec![], env).await
+    fn should_exit_after_registration(&self) -> bool {
+        self.exit_after_register
     }
 }
 
