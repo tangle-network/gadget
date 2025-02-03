@@ -1973,9 +1973,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-kms"
-version = "1.57.0"
+version = "1.58.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7b2cd8354dcccf1ae003100a41c7b862837cfd7af14a42b1e3ed98a8c3e487b"
+checksum = "40b7a24700ac548025a47a5c579886f5198895bb1eccd8964dfd71cd66c16912"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -3618,7 +3618,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -9213,7 +9213,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -19062,7 +19062,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.7",
  "rand",
  "static_assertions",
@@ -19873,7 +19873,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
