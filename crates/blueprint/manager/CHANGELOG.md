@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.2.2...blueprint-manager-v0.2.3) - 2025-02-03
+
+### Added
+
+- gadget workspace migration
+
+### Other
+
+- add descriptions to crates ([#616](https://github.com/tangle-network/gadget/pull/616))
+
 ## [0.2.2](https://github.com/tangle-network/gadget/compare/blueprint-manager-v0.2.1...blueprint-manager-v0.2.2) - 2024-12-11
 
 ### Other
