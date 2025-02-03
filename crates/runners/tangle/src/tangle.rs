@@ -46,19 +46,19 @@ impl Default for PriceTargets {
 #[derive(Clone, Default)]
 pub struct TangleConfig {
     pub price_targets: PriceTargets,
-    pub pre_register: bool,
+    pub exit_after_register: bool,
 }
 
 impl TangleConfig {
     pub fn new(price_targets: PriceTargets) -> Self {
         Self {
             price_targets,
-            pre_register: true,
+            exit_after_register: true,
         }
     }
 
-    pub fn with_pre_register(mut self, pre_register: bool) -> Self {
-        self.pre_register = pre_register;
+    pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
+        self.exit_after_register = should_exit_after_registration;
         self
     }
 }
@@ -73,8 +73,8 @@ impl BlueprintConfig for TangleConfig {
         requires_registration_impl(env).await
     }
 
-    fn should_pre_register(&self) -> bool {
-        self.pre_register
+    fn should_exit_after_registration(&self) -> bool {
+        self.exit_after_register
     }
 }
 

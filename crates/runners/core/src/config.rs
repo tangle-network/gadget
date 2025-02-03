@@ -12,7 +12,7 @@ pub trait BlueprintConfig: Send + Sync + 'static {
     /// Controls whether the runner should exit after registration
     ///
     /// Returns true if the runner should exit after registration, false if it should continue
-    fn should_pre_register(&self) -> bool {
+    fn should_exit_after_registration(&self) -> bool {
         true // By default, runners exit after registration
     }
 }

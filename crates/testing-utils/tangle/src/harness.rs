@@ -221,7 +221,7 @@ impl TangleTestHarness {
     /// The Service ID will always be 0 if automatic registration is disabled, as there is not yet a service to have an ID
     pub async fn setup_services(
         &self,
-        automatic_registration: bool,
+        exit_after_registration: bool,
     ) -> Result<(TangleTestEnv, u64, u64), Error> {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
@@ -233,13 +233,13 @@ impl TangleTestHarness {
 
         // Setup operator and get service
         let preferences = self.get_default_operator_preferences();
-        let service_id = if automatic_registration {
+        let service_id = if !exit_after_registration {
             setup_operator_and_service(
                 &self.client,
                 &self.sr25519_signer,
                 blueprint_id,
                 preferences,
-                automatic_registration,
+                exit_after_registration,
             )
             .await
             .map_err(|e| Error::Setup(e.to_string()))?
@@ -247,8 +247,8 @@ impl TangleTestHarness {
             0
         };
 
-        let config =
-            TangleConfig::new(PriceTargets::default()).with_pre_register(!automatic_registration);
+        let config = TangleConfig::new(PriceTargets::default())
+            .with_exit_after_register(!exit_after_registration);
 
         // Create and spawn test environment
         let test_env = TangleTestEnv::new(config, self.env().clone())?;

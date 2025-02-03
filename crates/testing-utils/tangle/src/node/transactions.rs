@@ -406,9 +406,9 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     sr25519_signer: &T,
     blueprint_id: u64,
     preferences: Preferences,
-    automatic_registration: bool,
+    exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
-    if automatic_registration {
+    if !exit_after_registration {
         // Register for blueprint
         register_blueprint(
             client,

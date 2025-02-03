@@ -34,15 +34,18 @@ sol!(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_eigenlayer_incredible_squaring_blueprint() {
-    run_eigenlayer_incredible_squaring_test(false, 1).await;
+    run_eigenlayer_incredible_squaring_test(true, 1).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_eigenlayer_pre_register_incredible_squaring_blueprint() {
-    run_eigenlayer_incredible_squaring_test(true, 1).await;
+    run_eigenlayer_incredible_squaring_test(false, 1).await;
 }
 
-async fn run_eigenlayer_incredible_squaring_test(pre_register: bool, expected_responses: usize) {
+async fn run_eigenlayer_incredible_squaring_test(
+    exit_after_registration: bool,
+    expected_responses: usize,
+) {
     setup_log();
 
     // Initialize test harness
@@ -99,7 +102,7 @@ async fn run_eigenlayer_incredible_squaring_test(pre_register: bool, expected_re
 
     let mut test_env = EigenlayerBLSTestEnv::new(
         EigenlayerBLSConfig::new(Default::default(), Default::default())
-            .with_pre_registration(pre_register),
+            .with_exit_after_register(exit_after_registration),
         env.clone(),
     )
     .unwrap();
@@ -107,7 +110,7 @@ async fn run_eigenlayer_incredible_squaring_test(pre_register: bool, expected_re
     test_env.add_job(x_square_eigen);
     test_env.add_background_service(aggregator_context);
 
-    if pre_register {
+    if exit_after_registration {
         // Run the runner once to register, since pre-registration is enabled
         test_env.run_runner().await.unwrap();
     }

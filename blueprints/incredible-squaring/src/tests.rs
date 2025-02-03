@@ -70,7 +70,7 @@ async fn test_pre_registration_incredible_squaring() -> Result<()> {
         .unwrap();
 
     // Setup service, but we don't register yet
-    let (mut test_env, _, blueprint_id) = harness.setup_services(false).await?;
+    let (mut test_env, _, blueprint_id) = harness.setup_services(true).await?;
     test_env.add_job(handler);
 
     // Run once for pre-registration
