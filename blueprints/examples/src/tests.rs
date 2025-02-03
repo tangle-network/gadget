@@ -21,17 +21,22 @@ use blueprint_sdk::tokio;
 use blueprint_sdk::tokio::time::timeout;
 use blueprint_sdk::utils::evm::get_provider_http;
 use color_eyre::Result;
+use blueprint_sdk::testing::utils::eigenlayer::EigenlayerTestHarness;
 
 #[tokio::test]
 async fn test_eigenlayer_context() {
     setup_log();
 
-    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
-    let url = Url::parse(&http_endpoint).unwrap();
+    // Initialize test harness
+    let temp_dir = tempfile::TempDir::new()?;
+    let harness = EigenlayerTestHarness::setup(temp_dir).await?;
+
+    let env = harness.env().clone();
+    let http_endpoint = harness.http_endpoint.to_string();
 
     let provider = get_provider_http(&http_endpoint);
     info!("Fetching accounts");
-    let accounts = provider.get_accounts().await.unwrap();
+    let accounts = provider.get_accounts().await?;
 
     let owner_address = accounts[1];
     let task_generator_address = accounts[4];
@@ -47,6 +52,7 @@ async fn test_eigenlayer_context() {
         "EXAMPLE_TASK_MANAGER_ADDRESS",
         context_example_task_manager_address.to_string(),
     );
+
     let context_example_task_manager =
         ExampleTaskManager::new(context_example_task_manager_address, provider.clone());
 
@@ -73,25 +79,27 @@ async fn test_eigenlayer_context() {
         }
     });
 
-    // Set up Temporary Testing Keystore
-    let tmp_dir = tempfile::TempDir::new().unwrap();
-    let keystore_path = &format!("{}", tmp_dir.path().display());
-    let keystore_path = Path::new(keystore_path);
-    let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
-    inject_anvil_key(&keystore_uri, ANVIL_PRIVATE_KEYS[1]).unwrap();
-    let keystore_uri_normalized =
-        std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
-    let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+    // // Set up Temporary Testing Keystore
+    // let tmp_dir = tempfile::TempDir::new().unwrap();
+    // let keystore_path = &format!("{}", tmp_dir.path().display());
+    // let keystore_path = Path::new(keystore_path);
+    // let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
+    // inject_anvil_key(&keystore_uri, ANVIL_PRIVATE_KEYS[1]).unwrap();
+    // let keystore_uri_normalized =
+    //     std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
+    // let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-    let config = ContextConfig::create_eigenlayer_config(
-        url,
-        Url::parse(&ws_endpoint).unwrap(),
-        keystore_uri_str,
-        None,
-        SupportedChains::LocalTestnet,
-        EigenlayerContractAddresses::default(),
-    );
-    let env = blueprint_sdk::config::load(config).expect("Failed to load environment");
+    // let config = ContextConfig::create_eigenlayer_config(
+    //     url,
+    //     Url::parse(&ws_endpoint).unwrap(),
+    //     keystore_uri_str,
+    //     None,
+    //     SupportedChains::LocalTestnet,
+    //     EigenlayerContractAddresses::default(),
+    // );
+    // let env = blueprint_sdk::config::load(config).expect("Failed to load environment");
+
+    harness.
 
     let mut blueprint = BlueprintRunner::new(
         EigenlayerBLSConfig::new(Address::default(), Address::default()),
