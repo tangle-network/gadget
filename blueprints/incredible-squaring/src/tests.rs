@@ -28,7 +28,7 @@ async fn test_incredible_squaring() -> Result<()> {
         .unwrap();
 
     // Setup service
-    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(true).await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
     test_env.add_job(handler);
 
     tokio::spawn(async move {

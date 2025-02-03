@@ -239,7 +239,7 @@ impl TangleTestHarness {
                 &self.sr25519_signer,
                 blueprint_id,
                 preferences,
-                exit_after_registration,
+                !exit_after_registration,
             )
             .await
             .map_err(|e| Error::Setup(e.to_string()))?
@@ -248,7 +248,7 @@ impl TangleTestHarness {
         };
 
         let config = TangleConfig::new(PriceTargets::default())
-            .with_exit_after_register(!exit_after_registration);
+            .with_exit_after_register(exit_after_registration);
 
         // Create and spawn test environment
         let test_env = TangleTestEnv::new(config, self.env().clone())?;

@@ -408,7 +408,7 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     preferences: Preferences,
     exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
-    if !exit_after_registration {
+    if exit_after_registration {
         // Register for blueprint
         register_blueprint(
             client,
