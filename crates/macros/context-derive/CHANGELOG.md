@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.3.1...gadget-context-derive-v0.3.2) - 2025-02-03
+
+### Added
+
+- gadget workspace migration
+
+### Other
+
+- add descriptions to crates ([#616](https://github.com/tangle-network/gadget/pull/616))
+
 ## [0.3.1](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.3.0...gadget-context-derive-v0.3.1) - 2024-12-11
 
 ### Other
