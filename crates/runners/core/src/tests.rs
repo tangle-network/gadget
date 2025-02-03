@@ -4,6 +4,7 @@ use crate::runner::{BackgroundService, BlueprintRunner};
 use gadget_config::GadgetConfiguration;
 use tokio::sync::oneshot;
 
+#[derive(Clone)]
 struct MockBlueprintConfig;
 
 #[async_trait::async_trait]
@@ -17,6 +18,7 @@ impl BlueprintConfig for MockBlueprintConfig {
     }
 }
 
+#[derive(Clone)]
 struct MockBackgroundService;
 
 #[async_trait::async_trait]

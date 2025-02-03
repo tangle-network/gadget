@@ -4,6 +4,7 @@ use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError as Error;
 use gadget_runners::core::runner::{BackgroundService, BlueprintRunner};
 
+#[derive(Clone)]
 pub struct TestRunner {
     inner: BlueprintRunner,
 }
