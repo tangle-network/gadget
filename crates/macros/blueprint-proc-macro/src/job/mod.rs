@@ -400,34 +400,28 @@ pub(crate) fn generate_event_workflow_tokenstream(
             async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
-
-                    static CTX: ::blueprint_sdk::macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = ::blueprint_sdk::macros::ext::tokio::sync::OnceCell::const_new();
-                    #context_declaration
-
-                    if let Err(_err) = CTX.set(ctx.clone()) {
-                        ::blueprint_sdk::macros::ext::logging::error!("Failed to set the context");
-                        return None;
-                    }
-                    let job_processor = #job_processor_wrapper;
-
-                    let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
-                    let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
-                        listener,
-                        #pre_processor_function,
-                        job_processor,
-                        #post_processor_function,
-                    );
-
-                    let task = async move {
-                        let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
-                        let _ = tx.send(res);
-                    };
-                    ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
-                    return Some(rx)
+                    ::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
                 }
 
-                None
+                let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
+
+                #context_declaration
+                let job_processor = #job_processor_wrapper;
+
+                let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
+                let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
+                    listener,
+                    #pre_processor_function,
+                    job_processor,
+                    #post_processor_function,
+                );
+
+                let task = async move {
+                    let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
+                    let _ = tx.send(res);
+                };
+                ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
+                return Some(rx)
             }
         };
 
