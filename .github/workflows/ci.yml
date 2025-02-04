@@ -139,12 +139,14 @@ jobs:
           # if test == "gadget_context_derive", add --features="networking", else ""
           if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
             echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
+          elif [[ "${{ matrix.package }}" == "incredible-squaring-blueprint" || "${{ matrix.package }}" == "incredible-squaring-blueprint-eigenlayer" ]]; then
+            echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
           else
-            echo "cargo_nextest_args=" >> $GITHUB_ENV
+            echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
           fi
 
       - name: tests
-        run: cargo nextest run --profile ci --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
+        run: cargo nextest run --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests

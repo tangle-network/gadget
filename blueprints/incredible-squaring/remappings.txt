@@ -1,2 +1,1 @@
-incredible-squaring/=contracts/src/
 tnt-core/=dependencies/tnt-core-0.1.0/src/
