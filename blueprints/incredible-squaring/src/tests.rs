@@ -30,19 +30,16 @@ async fn test_incredible_squaring() -> Result<()> {
     // Setup service
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
     test_env.add_job(xsquare_creator)?;
-    test_env.start::<1>().await?;
+    test_env.initialize::<1>().await?;
 
-    test_env.run_runner().await.unwrap();
-
-    // Execute job and verify result
-    let results = harness
-        .execute_job(
-            service_id,
-            0,
-            vec![InputValue::Uint64(5)],
-            vec![OutputValue::Uint64(25)],
-        )
+    // Submit job and wait for execution
+    let job = harness
+        .submit_job(service_id, 0, vec![InputValue::Uint64(5)])
         .await?;
+    let results = harness.wait_for_job_execution(service_id, job).await?;
+
+    // Verify results match expected output
+    let results = harness.verify_job(results, vec![OutputValue::Uint64(25)])?;
 
     assert_eq!(results.service_id, service_id);
     Ok(())
