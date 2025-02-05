@@ -57,7 +57,7 @@ pub async fn constructor(
 
 #[job(
     id = 0,
-    params(event, log),
+    params(task_index, log_index, block_number),
     event_listener(
         listener = EvmContractEventListener<ExampleTaskManager::NewTaskCreated>,
         instance = ExampleTaskManager,
@@ -67,8 +67,9 @@ pub async fn constructor(
 )]
 pub async fn handle_job(
     ctx: ExampleEigenContext,
-    event: ExampleTaskManager::NewTaskCreated,
-    log: Log,
+    task_index: u32,
+    log_index: u64,
+    block_number: u64,
 ) -> Result<u32, Error> {
     // Example address, quorum number, and index
     let operator_addr = address!("70997970C51812dc3A010C7d01b50e0d17dc79C8");
@@ -223,6 +224,10 @@ pub async fn handle_job(
 
 pub async fn handle_events(
     event: (ExampleTaskManager::NewTaskCreated, Log),
-) -> Result<Option<(ExampleTaskManager::NewTaskCreated, Log)>, ProcessorError> {
-    Ok(Some(event))
+) -> Result<Option<(u32, u64, u64)>, ProcessorError> {
+    let (event, log) = event;
+    let task_id = event.taskIndex;
+    let log_index = log.log_index.unwrap_or_default();
+    let block_number = log.block_number.unwrap_or_default();
+    Ok(Some((task_id, block_number, log_index)))
 }

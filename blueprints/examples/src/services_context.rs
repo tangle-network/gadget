@@ -45,7 +45,7 @@ pub async fn constructor(
 }
 
 #[job(
-    id = 2,
+    id = 3,
     params(job_details),
     event_listener(
         listener = TangleEventListener<ExampleServiceContext, JobCalled>,
@@ -57,21 +57,14 @@ pub async fn handle_job(
     context: ExampleServiceContext,
     job_details: Vec<u8>,
 ) -> Result<u64, blueprint_sdk::Error> {
-    let client = context.tangle_client().await.unwrap();
-    let blueprint_id = client.blueprint_id().await.unwrap();
+    let client = context.tangle_client().await?;
+    let blueprint_id = client.blueprint_id().await?;
     let block = client.now().await.unwrap();
-    let blueprint_owner = client
-        .current_blueprint_owner(block, blueprint_id)
-        .await
-        .unwrap();
-    let blueprint = client
-        .current_blueprint_owner(block, blueprint_id)
-        .await
-        .unwrap();
+    let blueprint_owner = client.current_blueprint_owner(block, blueprint_id).await?;
+    let blueprint = client.current_blueprint_owner(block, blueprint_id).await?;
     let operators_and_percents = client
         .current_service_operators(block, blueprint_id)
-        .await
-        .unwrap();
+        .await?;
     let operators = operators_and_percents
         .iter()
         .map(|(op, per)| op)

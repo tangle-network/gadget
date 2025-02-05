@@ -39,7 +39,7 @@ pub async fn constructor(
 }
 
 #[job(
-    id = 0,
+    id = 2,
     event_listener(
         listener = TangleEventListener<MyContext>,
     ),

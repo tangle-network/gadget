@@ -5,6 +5,8 @@ use blueprint_sdk::event_listeners::cronjob::{
 };
 use blueprint_sdk::logging::info;
 use blueprint_sdk::macros::ext::async_trait::async_trait;
+use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
+use blueprint_sdk::testing::utils::tangle::OutputValue;
 use blueprint_sdk::{job, Error};
 
 type ProcessorError = blueprint_sdk::event_listeners::core::Error<CronJobError>;
@@ -34,7 +36,7 @@ impl CronJobDefinition for WebPollerContext {
 }
 
 #[job(
-    id = 0,
+    id = 1,
     event_listener(
         listener = CronJob<WebPollerContext>,
         post_processor = post_process,
@@ -68,49 +70,14 @@ pub async fn web_poller(context: WebPollerContext) -> Result<u8, Error> {
 pub async fn post_process(job_output: u8) -> Result<(), ProcessorError> {
     info!("Running web_poller post-processor on value: {job_output}");
     if job_output == 1 {
+        let result = std::env::var("WEB_POLLER_RESULT").unwrap_or("0".to_string());
+        let result = result.parse::<u64>().unwrap_or(0);
+        let result = result + 1;
+        std::env::set_var("WEB_POLLER_RESULT", result.to_string());
         Ok(())
     } else {
         Err(ProcessorError::EventHandler(
             "Job failed since query returned with a false status".to_string(),
         ))
-    }
-}
-
-pub struct WebPoller {
-    pub context: WebPollerContext,
-}
-
-#[async_trait]
-impl EventListener<serde_json::Value, WebPollerContext> for WebPoller {
-    type ProcessorError = CronJobError;
-
-    async fn new(context: &WebPollerContext) -> Result<Self, ProcessorError>
-    where
-        Self: Sized,
-    {
-        Ok(Self {
-            context: context.clone(),
-        })
-    }
-
-    /// Implement the logic that polls the web server
-    async fn next_event(&mut self) -> Option<serde_json::Value> {
-        // Send a GET request to the JSONPlaceholder API
-        let response = self
-            .context
-            .client
-            .get("https://jsonplaceholder.typicode.com/todos/10")
-            .send()
-            .await
-            .ok()?;
-
-        // Check if the request was successful
-        if response.status().is_success() {
-            // Parse the JSON response
-            let resp: serde_json::Value = response.json().await.ok()?;
-            Some(resp)
-        } else {
-            None
-        }
     }
 }
