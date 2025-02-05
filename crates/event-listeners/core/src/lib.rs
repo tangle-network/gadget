@@ -29,9 +29,6 @@ pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
     ExponentialBackoff::from_millis(2).factor(1000).take(N)
 }
 
-#[async_trait]
-#[auto_impl(Arc, Box)]
-pub trait InitializableEventHandler {
 pub trait CloneableEventHandler: Send {
     fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send>;
 }
@@ -46,6 +43,7 @@ where
 }
 
 #[async_trait]
+#[auto_impl(Arc, Box)]
 pub trait InitializableEventHandler: Send + CloneableEventHandler {
     async fn init_event_handler(
         &self,
