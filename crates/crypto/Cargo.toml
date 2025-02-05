@@ -18,9 +18,6 @@ gadget-crypto-bls = { path = "bls", optional = true }
 gadget-crypto-bn254 = { path = "bn254", optional = true }
 gadget-crypto-sp-core = { path = "sp-core", optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-sha3 = { workspace = true, optional = true }
-blake3 = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]

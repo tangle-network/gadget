@@ -6609,7 +6609,6 @@ dependencies = [
  "gadget-networking",
  "gadget-std",
  "libp2p",
- "proc-macro2",
  "serde",
  "serde_json",
  "thiserror 2.0.11",
@@ -6632,8 +6631,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-core",
- "subxt",
- "subxt-core",
  "tangle-subxt",
  "thiserror 2.0.11",
  "tokio",
@@ -6727,7 +6724,6 @@ dependencies = [
 name = "gadget-crypto"
 version = "0.1.0"
 dependencies = [
- "blake3",
  "gadget-crypto-bls",
  "gadget-crypto-bn254",
  "gadget-crypto-core",
@@ -6737,8 +6733,6 @@ dependencies = [
  "gadget-crypto-sp-core",
  "gadget-crypto-sr25519",
  "gadget-crypto-tangle-pair-signer",
- "sha2 0.10.8",
- "sha3",
  "thiserror 2.0.11",
 ]
 

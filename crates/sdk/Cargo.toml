@@ -87,7 +87,7 @@ macros = [
 	"dep:gadget-context-derive",
 ]
 
-build = ["blueprint-metadata", "blueprint-build-utils"]
+build = ["dep:blueprint-metadata", "dep:blueprint-build-utils"]
 
 tangle = [
 	"dep:tangle-subxt",
@@ -101,37 +101,37 @@ tangle = [
 ]
 
 evm = [
+	"dep:alloy",
+	"dep:alloy-json-abi",
 	"gadget-clients/evm",
 	"gadget-crypto-tangle-pair-signer?/evm",
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
-	"alloy",
-	"alloy-json-abi",
 	"gadget-macros?/evm",
 	"gadget-event-listeners/evm"
 ]
 
 eigenlayer = [
+	"dep:alloy",
+	"dep:alloy-json-abi",
+	"dep:eigensdk",
 	"gadget-clients/eigenlayer",
 	"gadget-runners/eigenlayer",
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
 	"gadget-macros?/eigenlayer",
-	"alloy",
-	"alloy-json-abi",
-	"eigensdk",
 	"gadget-event-listeners/evm"
 ]
 
 testing = [
-	"std",
 	"dep:gadget-testing-utils",
-	"tempfile"
+	"dep:tempfile",
+	"std",
 ]
 
 networking = [
-	"gadget-networking",
-	"gadget-client-networking",
+	"dep:gadget-networking",
+	"dep:gadget-client-networking",
 	"gadget-contexts/networking",
 	"gadget-clients/networking",
 	"gadget-keystore/std",

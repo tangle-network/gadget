@@ -77,7 +77,7 @@ std = [
 	"round-based?/std",
 ]
 
-round-based-compat = ["round-based"]
+round-based-compat = ["dep:round-based"]
 
 # Only one of these features should be enabled at a time.
 # If none are enabled, k256 ECDSA will be used by default.

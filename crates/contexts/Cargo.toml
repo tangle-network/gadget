@@ -31,6 +31,6 @@ std = [
 
 evm = ["gadget-clients/evm"]
 eigenlayer = ["gadget-clients/eigenlayer"]
-networking = ["gadget-clients/networking", "gadget-networking", "proc-macro2"]
+networking = ["gadget-clients/networking", "dep:gadget-networking", "dep:proc-macro2"]
 keystore = ["dep:gadget-config", "dep:gadget-keystore"]
 tangle = ["dep:subxt", "gadget-clients/tangle"]

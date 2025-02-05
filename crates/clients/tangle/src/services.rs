@@ -11,6 +11,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     self, ServiceBlueprint,
 };
+use tangle_subxt::subxt;
 
 /// A client for interacting with the services API
 #[derive(Debug, Clone)]
