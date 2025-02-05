@@ -129,7 +129,7 @@ cargo_metadata = { version = "0.18.1" }
 tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core", default-features = false }
 
 # Tangle-related dependencies
-tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
+tangle-subxt = { version = "0.11.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
