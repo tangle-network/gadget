@@ -11,6 +11,7 @@ mod tests;
 
 pub mod harness;
 pub mod keys;
+pub mod multi_node;
 pub mod node;
 pub mod runner;
 

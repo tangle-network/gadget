@@ -44,7 +44,7 @@ where
 
 #[async_trait]
 #[auto_impl(Arc, Box)]
-pub trait InitializableEventHandler: Send + CloneableEventHandler {
+pub trait InitializableEventHandler: gadget_std::fmt::Debug + Send + CloneableEventHandler {
     async fn init_event_handler(
         &self,
     ) -> Option<tokio::sync::oneshot::Receiver<Result<(), Box<dyn core::error::Error + Send>>>>;
