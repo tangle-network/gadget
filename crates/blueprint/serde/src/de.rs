@@ -38,10 +38,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 let s = String::from_utf8(s.0 .0)?;
                 visitor.visit_string(s)
             }
-            Field::Bytes(b) => {
-                // Unless `deserialize_bytes` is explicitly called, assume a sequence is desired
-                de::value::SeqDeserializer::new(b.0.into_iter()).deserialize_any(visitor)
-            }
             Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
             Field::Struct(_, fields) => visit_struct(*fields, visitor),
             Field::AccountId(a) => visitor.visit_string(a.to_string()),
@@ -212,7 +208,6 @@ impl Deserializer {
             Field::Int64(i) => de::Unexpected::Signed(*i),
 
             Field::String(s) => de::Unexpected::Str(core::str::from_utf8(&s.0 .0).unwrap_or("")),
-            Field::Bytes(b) => de::Unexpected::Bytes(b.0.as_slice()),
             Field::Array(_) | Field::List(_) => de::Unexpected::Seq,
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),

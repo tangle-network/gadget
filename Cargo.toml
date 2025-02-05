@@ -126,19 +126,16 @@ gadget-rpc-calls = { version = "0.1.0", path = "./crates/metrics/rpc-calls", def
 
 cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo_metadata = { version = "0.18.1" }
-tnt-core-bytecode = { version = "0.2.0", default-features = false }
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core", default-features = false }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.9.0", default-features = false }
-subxt = { version = "0.38.0", default-features = false }
-subxt-core = { version = "0.38.0", default-features = false }
+tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
 round-based = { version = "0.3.0", default-features = false }
 
 # Substrate dependencies
 sp-core = { version = "34.0.0", default-features = false }
 sp-io = { version = "38.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
-sp-runtime-interface = { version = "28.0.0", default-features = false }
 
 # Async & Runtime
 async-trait = { version = "0.1.86", default-features = false }

@@ -2,7 +2,7 @@ use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
 use std::io::Write;
 use std::path::Path;
-use subxt::utils::AccountId32;
+use tangle_subxt::subxt_core::utils::AccountId32;
 
 pub use gadget_core_testing_utils::Error;
 

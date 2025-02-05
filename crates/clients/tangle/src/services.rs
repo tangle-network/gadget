@@ -6,12 +6,12 @@ use subxt::backend::BlockRef;
 use subxt::utils::AccountId32;
 use subxt::utils::H256;
 use subxt::{Config, OnlineClient};
+use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     self, ServiceBlueprint,
 };
-use tangle_subxt::subxt;
 
 /// A client for interacting with the services API
 #[derive(Debug, Clone)]

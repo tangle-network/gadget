@@ -11,7 +11,7 @@ use alloy_sol_types::{sol, SolConstructor};
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
 use sp_core::H160;
-use subxt::{
+use tangle_subxt::subxt::{
     blocks::ExtrinsicEvents,
     client::OnlineClientT,
     tx::{signer::Signer, TxProgress},
@@ -50,7 +50,7 @@ pub enum TransactionError {
     #[error(transparent)]
     PendingTransaction(#[from] PendingTransactionError),
     #[error(transparent)]
-    Subxt(#[from] subxt::Error),
+    Subxt(#[from] tangle_subxt::subxt::Error),
     #[error("{0}")]
     Other(String),
 }
