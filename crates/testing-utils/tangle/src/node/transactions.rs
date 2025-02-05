@@ -406,12 +406,14 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
     sr25519_signer: T,
     blueprint_id: u64,
     preferences: Preferences,
+    exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
     setup_operator_and_service_multiple(
         &[client.clone()],
         &[sr25519_signer],
         blueprint_id,
         preferences,
+        exit_after_registration,
     )
     .await
 }
@@ -439,7 +441,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
                 RegistrationArgs::new(),
                 0,
             )
-                .await?;
+            .await?;
         }
     }
 
@@ -478,6 +480,22 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     Ok(new_service_id.saturating_sub(1))
 }
 
+/// Submits a job to a service and verifies the outputs match the expected values.
+///
+/// # Warning
+/// This method should only be used in a single node context. For multi-node testing,
+/// use the multi-node test harness methods instead.
+///
+/// # Arguments
+/// * `client` - The test client to use for submitting the job
+/// * `signer` - The signer to use for submitting the job
+/// * `service_id` - The ID of the service to submit the job to
+/// * `job` - The job to submit
+/// * `inputs` - The inputs to provide to the job
+/// * `expected_outputs` - The expected outputs from the job
+///
+/// # Returns
+/// The job results if successful
 pub async fn submit_and_verify_job<T: Signer<TangleConfig>>(
     client: &TestClient,
     signer: &T,
