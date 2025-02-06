@@ -36,6 +36,7 @@ sp-core = { workspace = true }
 tangle-subxt = { workspace = true }
 
 async-trait = { workspace = true }
+futures = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
 reqwest = { workspace = true, features = ["json", "default-tls"] }

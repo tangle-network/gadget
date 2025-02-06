@@ -431,18 +431,16 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
 
     for (operator, client) in sr25519_signers.iter().zip(clients) {
         join_operators(client, operator).await?;
-        if exit_after_registration {
-            // Register for blueprint
-            register_blueprint(
-                client,
-                operator,
-                blueprint_id,
-                preferences.clone(),
-                RegistrationArgs::new(),
-                0,
-            )
-            .await?;
-        }
+        // Register for blueprint
+        register_blueprint(
+            client,
+            operator,
+            blueprint_id,
+            preferences.clone(),
+            RegistrationArgs::new(),
+            0,
+        )
+        .await?;
     }
 
     // Get the current service ID before requesting new service

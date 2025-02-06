@@ -30,21 +30,21 @@ pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
 }
 
 pub trait CloneableEventHandler: Send {
-    fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send>;
+    fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send + Sync>;
 }
 
 impl<T> CloneableEventHandler for T
 where
-    T: InitializableEventHandler + Clone + 'static,
+    T: InitializableEventHandler + Clone + Sync + 'static,
 {
-    fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send> {
+    fn clone_box(&self) -> Box<dyn InitializableEventHandler + Send + Sync> {
         Box::new(self.clone())
     }
 }
 
 #[async_trait]
 #[auto_impl(Arc, Box)]
-pub trait InitializableEventHandler: gadget_std::fmt::Debug + Send + CloneableEventHandler {
+pub trait InitializableEventHandler: Send + CloneableEventHandler {
     async fn init_event_handler(
         &self,
     ) -> Option<tokio::sync::oneshot::Receiver<Result<(), Box<dyn core::error::Error + Send>>>>;

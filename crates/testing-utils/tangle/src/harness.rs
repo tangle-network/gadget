@@ -30,6 +30,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use tangle_subxt::subxt::tx::Signer;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
@@ -39,7 +40,7 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 use url::Url;
 
-const ENDOWED_TEST_NAMES: [&str; 10] = [
+pub const ENDOWED_TEST_NAMES: [&str; 10] = [
     "Alice",
     "Bob",
     "Charlie",
@@ -53,10 +54,10 @@ const ENDOWED_TEST_NAMES: [&str; 10] = [
 ];
 
 /// Configuration for the Tangle test harness
-#[derive(Default, Clone)]
+#[derive(Clone, Debug)]
 pub struct TangleTestConfig {
-    pub http_endpoint: Option<Url>,
-    pub ws_endpoint: Option<Url>,
+    pub http_endpoint: Url,
+    pub ws_endpoint: Url,
 }
 
 /// Test harness for Tangle network tests
@@ -126,13 +127,17 @@ impl TestHarness for TangleTestHarness {
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
         // Alice idx = 0
-        let alice_env =
-            generate_env_from_node_id(0, http_endpoint.clone(), ws_endpoint.clone()).await?;
+        let alice_env = generate_env_from_node_id(
+            ENDOWED_TEST_NAMES[0],
+            http_endpoint.clone(),
+            ws_endpoint.clone(),
+        )
+        .await?;
 
         // Create config
         let config = TangleTestConfig {
-            http_endpoint: Some(http_endpoint.clone()),
-            ws_endpoint: Some(ws_endpoint.clone()),
+            http_endpoint: http_endpoint.clone(),
+            ws_endpoint: ws_endpoint.clone(),
         };
 
         // Setup signers
@@ -188,21 +193,13 @@ impl TangleTestHarness {
         let mut keys = vec![];
         let mut clients = vec![];
 
-        let http_endpoint = self
-            .config
-            .http_endpoint
-            .clone()
-            .ok_or_else(|| RunnerError::Other("http_endpoint not set".to_string()))?;
-
-        let ws_endpoint = self
-            .config
-            .ws_endpoint
-            .clone()
-            .ok_or_else(|| RunnerError::Other("ws_endpoint not set".to_string()))?;
-
-        for idx in 0..ENDOWED_TEST_NAMES.len() {
-            let env =
-                generate_env_from_node_id(idx, http_endpoint.clone(), ws_endpoint.clone()).await?;
+        for name in ENDOWED_TEST_NAMES {
+            let env = generate_env_from_node_id(
+                name,
+                self.http_endpoint.clone(),
+                self.ws_endpoint.clone(),
+            )
+            .await?;
 
             let client = env
                 .tangle_client()
@@ -240,9 +237,9 @@ impl TangleTestHarness {
         if let Some((rev, addr)) = latest_revision {
             debug!("MBSM is deployed at revision #{rev} at address {addr}");
             return Ok(());
-        } else {
-            debug!("MBSM is not deployed");
         }
+
+        debug!("MBSM is not deployed");
 
         let bytecode = tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
         transactions::deploy_new_mbsm_revision(
@@ -307,29 +304,26 @@ impl TangleTestHarness {
     ///
     /// # Note
     /// The Service ID will always be 0 if automatic registration is disabled, as there is not yet a service to have an ID
-    pub async fn setup_services(
+    pub async fn setup_services<const N: usize>(
         &self,
         exit_after_registration: bool,
     ) -> Result<(MultiNodeTestEnv, u64, u64), Error> {
+        const { assert!(N > 0, "Must have at least 1 initial node") };
+
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
-
-        // Join operators
-        join_operators(&self.client, &self.sr25519_signer)
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?;
 
         let (all_signers, all_clients) = self.get_all_sr25519_pairs().await?;
 
         // Setup operator and get service
         let preferences = self.get_default_operator_preferences();
         let service_id = if !exit_after_registration {
-            setup_operator_and_service(
-                &self.client,
-                &self.sr25519_signer,
+            setup_operator_and_service_multiple(
+                &all_clients[..N],
+                &all_signers[..N],
                 blueprint_id,
                 preferences,
-                !exit_after_registration,
+                exit_after_registration,
             )
             .await
             .map_err(|e| Error::Setup(e.to_string()))?
@@ -338,7 +332,7 @@ impl TangleTestHarness {
         };
 
         // Create and initialize the new multi-node environment
-        let executor = MultiNodeTestEnv::new(self.config.clone()).await?;
+        let executor = MultiNodeTestEnv::new::<N>(self.config.clone()).await?;
 
         Ok((executor, service_id, blueprint_id))
     }
