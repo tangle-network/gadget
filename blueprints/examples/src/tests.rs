@@ -160,9 +160,7 @@ async fn test_periodic_web_poller() -> Result<()> {
     test_env.add_job(crate::periodic_web_poller::constructor("*/5 * * * * *"));
 
     // Run the test environment
-    let _test_handle = tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    test_env.run_runner().await.unwrap();
 
     // Execute job and verify result
     let result = tokio::select! {
@@ -247,9 +245,7 @@ async fn test_raw_tangle_events() -> Result<()> {
     let _handle = balance_transfer_event(env.clone()).await.unwrap();
 
     // Run the test environment
-    let _test_handle = tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    test_env.run_runner().await.unwrap();
 
     // Execute job and verify result
     let result = tokio::select! {
@@ -286,7 +282,7 @@ async fn balance_transfer_event(env: GadgetConfiguration) -> Result<JoinHandle<(
     let transfer_client = client.clone();
     let signer = env.keystore().first_local::<SpSr25519>().unwrap();
     let sr_pair = TanglePairSigner::new(env.keystore().get_secret::<SpSr25519>(&signer).unwrap().0);
-    let transfer_id = AccountId32::from(signer.0);
+    let transfer_id = AccountId32::from(signer.0 .0);
     let receiver_id = AccountId32::from(random::<[u8; 32]>());
 
     // Spawn task to transfer balance into Operator's account on Tangle

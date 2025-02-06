@@ -16,5 +16,7 @@ pub trait ServicesContext {
     fn get_call_id(&mut self) -> &mut Option<u64>;
 
     /// Returns the Services client instance
-    async fn services_client(&self) -> TangleServicesClient<subxt::PolkadotConfig>;
+    async fn services_client(
+        &self,
+    ) -> TangleServicesClient<tangle_subxt::subxt_core::config::PolkadotConfig>;
 }

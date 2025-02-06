@@ -29,9 +29,9 @@ web = [
 ]
 
 
-evm = ["gadget-event-listeners-evm"]
-cronjob = ["gadget-event-listeners-cronjob"]
-tangle = ["gadget-event-listeners-tangle"]
+evm = ["dep:gadget-event-listeners-evm"]
+cronjob = ["dep:gadget-event-listeners-cronjob"]
+tangle = ["dep:gadget-event-listeners-tangle"]
 testing = [
     "gadget-event-listeners-core/testing"
 ]

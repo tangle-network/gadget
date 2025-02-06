@@ -59,6 +59,7 @@ impl TestEnv for TangleTestEnv {
         // Just check if it failed immediately
         if let Some(handle) = self.runner_handle.take() {
             if handle.is_finished() {
+                gadget_logging::info!("Runner task finished OK");
                 match handle.await {
                     Ok(Ok(())) => Ok(()),
                     Ok(Err(e)) => {

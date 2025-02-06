@@ -38,8 +38,6 @@ alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"
 # Substrate dependencies (optional)
 sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
-subxt = { workspace = true, features = ["substrate-compat"], optional = true }
-subxt-core = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 
 # Eigenlayer dependencies (optional)
@@ -80,7 +78,7 @@ std = [
 	"gadget-crypto/std",
 	"gadget-std/std",
 	"thiserror/std",
-	"tokio",
+	"dep:tokio",
 	# Conditional std enables for misc
 	"hex?/std",
 	# Condition std enables for alloy
@@ -95,29 +93,31 @@ std = [
 	"alloy-primitives?/std",
 	"sp-core?/std",
 	"sp-io?/std",
-	"subxt-core?/std",
-	"subxt?/native",
+	"tangle-subxt/std",
 	"ark-serialize?/std",
+]
+web = [
+	"tangle-subxt/web",
 ]
 
 # Crypto primitive features
-ecdsa = ["k256", "ripemd", "hex", "gadget-crypto/k256"]
-sr25519-schnorrkel = ["schnorrkel", "hex", "gadget-crypto/sr25519-schnorrkel"]
-zebra = ["ed25519-zebra", "hex", "gadget-crypto/ed25519"]
-bls = ["tnt-bls", "hex", "gadget-crypto/bls"]
-bn254 = ["ark-bn254", "ark-ec", "ark-ff", "ark-serialize", "gadget-crypto/bn254"]
+ecdsa = ["dep:k256", "dep:ripemd", "dep:hex", "gadget-crypto/k256"]
+sr25519-schnorrkel = ["dep:schnorrkel", "dep:hex", "gadget-crypto/sr25519-schnorrkel"]
+zebra = ["dep:ed25519-zebra", "dep:hex", "gadget-crypto/ed25519"]
+bls = ["dep:tnt-bls", "dep:hex", "gadget-crypto/bls"]
+bn254 = ["dep:ark-bn254", "dep:ark-ec", "dep:ark-ff", "dep:ark-serialize", "gadget-crypto/bn254"]
 sp-core = ["dep:sp-core", "gadget-crypto/sp-core"]
 
 # Meant to be used in conjunction with `tangle` feature (for `sp-core`)
-substrate = ["paste", "sp-core", "sp-io", "subxt", "subxt-core", "tangle-subxt", "gadget-crypto/sp-core"]
+substrate = ["dep:paste", "dep:sp-core", "dep:sp-io", "dep:tangle-subxt", "gadget-crypto/sp-core"]
 
 # Protocol features
 evm = [
 	"ecdsa",
-	"alloy-primitives",
-	"alloy-signer",
-	"alloy-signer-local",
-	"alloy-network",
+	"dep:alloy-primitives",
+	"dep:alloy-signer",
+	"dep:alloy-signer-local",
+	"dep:alloy-network",
 ]
 
 tangle = [
@@ -136,8 +136,8 @@ tangle-bls = [
 
 eigenlayer = [
 	"evm",
-	"eigensdk",
-	"rust-bls-bn254",
+	"dep:eigensdk",
+	"dep:rust-bls-bn254",
 	"bn254",
 ]
 
@@ -158,10 +158,6 @@ gcp-signer = ["remote", "alloy-signer-gcp", "gcloud-sdk", "evm", "std"]
 ledger-browser = ["remote", "evm", "alloy-signer-ledger/browser"]
 ledger-node = ["remote", "evm", "alloy-signer-ledger/node", "std"]
 all-remote-signers = ["remote", "aws-signer", "gcp-signer", "ledger-browser", "ledger-node", "std"]
-
-web = [
-	"subxt/web",
-]
 
 [package.metadata.docs.rs]
 all-features = true

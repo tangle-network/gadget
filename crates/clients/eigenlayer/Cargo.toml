@@ -50,5 +50,5 @@ std = [
 	"gadget-utils-evm/std",
 	"tokio/full",
 	"gadget-client-core/std",
-	# TODO: "url/std",
+	"url/std",
 ]

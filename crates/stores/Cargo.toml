@@ -16,4 +16,4 @@ default = ["std", "local"]
 std = [
     "gadget-store-local-database?/std",
 ]
-local = ["gadget-store-local-database"]
+local = ["dep:gadget-store-local-database"]

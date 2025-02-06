@@ -31,7 +31,7 @@ alloy-provider = { workspace = true }
 alloy-transport = { workspace = true }
 round-based = { workspace = true, features = ["derive"] }
 serde = { workspace = true }
-subxt-core.workspace = true
+tangle-subxt = { workspace = true }
 
 [features]
 default = ["std"]

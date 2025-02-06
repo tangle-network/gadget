@@ -43,6 +43,7 @@ std = [
 	"tokio/full",
 ]
 web = [
+	"gadget-clients/web",
 	"gadget-utils-tangle/web",
 	"tangle-subxt/web",
 ]
