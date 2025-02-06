@@ -9,8 +9,8 @@ pub mod transactions;
 
 pub use testnet::NodeConfig;
 
-const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.5/tangle-testnet-manual-seal-darwin-amd64";
-const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.5/tangle-testnet-manual-seal-linux-amd64";
+const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.8/tangle-testnet-manual-seal-darwin-amd64";
+const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.8/tangle-testnet-manual-seal-linux-amd64";
 
 /// Downloads the appropriate Tangle binary for the current platform and returns the path
 pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {

@@ -39,6 +39,7 @@ libp2p = { workspace = true }
 auto_impl = { workspace = true }
 parking_lot = { workspace = true }
 async-trait = { workspace = true }
+sp-core = { workspace = true }
 
 [lints]
 workspace = true

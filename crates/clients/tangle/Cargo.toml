@@ -21,8 +21,6 @@ auto_impl = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 sp-core = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee"], optional = true }
-subxt-core = { workspace = true }
 tangle-subxt = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -34,7 +32,6 @@ color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"
 [features]
 default = ["std"]
 std = [
-	"dep:subxt",
 	"gadget-client-core/std",
 	"gadget-keystore/std",
 	"gadget-logging/std",
@@ -44,11 +41,8 @@ std = [
 	"serde/std",
 	"serde_json/std",
 	"sp-core/std",
-	"subxt/native",
-	"subxt-core/std",
 	"tangle-subxt/std",
 ]
 web = [
-	"dep:subxt",
-	"subxt/web"
+	"tangle-subxt/web"
 ]

@@ -43,10 +43,12 @@ std = [
 eigenlayer = ["dep:alloy-primitives"]
 symbiotic = ["dep:alloy-primitives"]
 tangle = []
-networking = ["libp2p", "gadget-networking", "keystore", "gadget-keystore"]
+networking = ["dep:libp2p", "dep:gadget-networking", "keystore"]
 
 # Core feature groups
-keystore = []
+keystore = [
+	"dep:gadget-keystore"
+]
 
 # Testing features
 test-utils = ["std"]

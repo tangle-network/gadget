@@ -4,7 +4,7 @@ use gadget_client_tangle::EventsClient;
 use gadget_clients::GadgetServicesClient;
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_logging::setup_log;
-use subxt::tx::Signer;
+use tangle_subxt::subxt::tx::Signer;
 
 #[tokio::test]
 async fn test_client_initialization() -> Result<(), Error> {

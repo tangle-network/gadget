@@ -15,8 +15,9 @@ gadget-crypto-sp-core = { workspace = true }
 
 k256 = { workspace = true, optional = true }
 serde = { workspace = true }
-subxt = { workspace = true, features = ["substrate-compat"] }
-subxt-core = { workspace = true, features = ["substrate-compat"] }
+tangle-subxt = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
 thiserror = { workspace = true }
 
 alloy-primitives = { workspace = true, optional = true }
@@ -29,9 +30,14 @@ std = [
 	"gadget-crypto-sp-core/std",
 	"gadget-std/std",
 	"serde/std",
-	"subxt/native",
-	"subxt-core/std",
+	"tangle-subxt/std",
+	"sp-runtime/std",
+	"sp-core/std",
 ]
+web = [
+	"tangle-subxt/web",
+]
+
 evm = [
 	"dep:alloy-primitives",
 	"dep:alloy-signer-local",

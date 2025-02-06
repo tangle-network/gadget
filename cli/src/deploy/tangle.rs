@@ -9,7 +9,6 @@ use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
 use subxt::tx::Signer;
 use tangle_subxt::subxt;
-use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 

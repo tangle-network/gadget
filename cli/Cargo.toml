@@ -50,7 +50,7 @@ tnt-bls = { workspace = true, optional = true }
 
 # Optional dependencies based on features
 tangle-subxt = { workspace = true, features = ["std"], optional = true }
-subxt = { workspace = true, features = ["substrate-compat"], optional = true }
+sp-core = { workspace = true, optional = true }
 
 # EVM dependencies
 alloy-json-abi = { workspace = true, optional = true }
@@ -76,8 +76,8 @@ std = [
 
 # Main features
 tangle = [
-    "tangle-subxt/std",
-    "subxt/native",
+    "dep:tangle-subxt",
+    "dep:sp-core",
     "gadget-clients/tangle",
     "gadget-keystore/tangle-full",
     "evm",

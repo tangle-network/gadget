@@ -13,4 +13,4 @@ gadget-rpc-calls = { workspace = true, optional = true }
 
 [features]
 default = ["rpc-calls"]
-rpc-calls = ["gadget-rpc-calls"]
+rpc-calls = ["dep:gadget-rpc-calls"]

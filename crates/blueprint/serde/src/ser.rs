@@ -240,7 +240,6 @@ impl SerializeSeq<'_> {
             Field::Uint64(_),
             Field::Int64(_),
             Field::String(_),
-            Field::Bytes(_),
             Field::Array(_),
             Field::List(_),
             Field::AccountId(_),

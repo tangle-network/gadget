@@ -9,6 +9,7 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<()> {
+    color_eyre::install()?;
     setup_log();
 
     // Initialize test harness (node, keys, deployment)

@@ -25,6 +25,6 @@ tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 default = ["std"]
 std = ["thiserror/std", "getrandom"]
 tokio = ["dep:async-trait", "dep:tokio"]
-parallel = ["rayon", "std"]
+parallel = ["dep:rayon", "std"]
 print-trace = ["std"]
 getrandom = ["rand/std"]
