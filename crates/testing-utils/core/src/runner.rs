@@ -20,7 +20,7 @@ impl TestRunner {
 
     pub fn add_job<J>(&mut self, job: J) -> &mut Self
     where
-        J: InitializableEventHandler + Send + 'static,
+        J: InitializableEventHandler + Send + Sync + 'static,
     {
         self.inner.job(job);
         self
@@ -45,10 +45,10 @@ pub trait TestEnv: Sized {
     fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error>;
     fn add_job<J>(&mut self, job: J)
     where
-        J: InitializableEventHandler + Send + 'static;
+        J: InitializableEventHandler + Send + Sync + 'static;
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static;
-    fn get_gadget_config(self) -> GadgetConfiguration;
-    fn run_runner(&mut self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
+    fn get_gadget_config(&self) -> GadgetConfiguration;
+    fn run_runner(&self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
 }
