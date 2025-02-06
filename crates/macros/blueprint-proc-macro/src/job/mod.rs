@@ -246,13 +246,12 @@ pub(crate) fn generate_event_workflow_tokenstream(
         // We assume the first supplied event handler arg is the context we are injecting into the event listener
         // Then, pass that into the EventFlowWrapper
         let fn_name_ident = &input.sig.ident;
-        let static_ctx_get_override = quote! { CTX.get().unwrap() };
         #[cfg(feature = "tangle")]
         let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
+            get_fn_call_ordered(param_types, params, is_raw)?;
         #[cfg(not(feature = "tangle"))]
         let (_ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
+            get_fn_call_ordered(param_types, params, is_raw)?;
 
         let asyncness = get_asyncness(input);
 
@@ -309,7 +308,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
-                ctx_pos_in_ordered_inputs,
             )?,
 
             #[cfg(feature = "evm")]
@@ -339,19 +337,23 @@ pub(crate) fn generate_event_workflow_tokenstream(
             match listener_meta.listener_type {
                 #[cfg(feature = "tangle")]
                 ListenerType::Tangle => {
+                    // TODO: Double clone on client and signer
                     quote! {
-                        |(mut client_context, job_result)| async move {
-                            let ctx = CTX.get().unwrap();
-                            let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                            let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
-                                results: job_result,
-                                service_id: ctx.service_id,
-                                call_id,
-                                client: ctx.client.subxt_client().clone(),
-                                signer: ctx.signer.clone(),
-                            };
+                        move |(mut context, job_result)| {
+                            let client = client.clone();
+                            let signer = signer.clone();
+                            async move {
+                                let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut context).expect("Tangle call ID was not injected into context");
+                                let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
+                                    results: job_result,
+                                    service_id,
+                                    call_id,
+                                    client,
+                                    signer,
+                                };
 
-                            #postprocessor(tangle_job_result).await
+                                #postprocessor(tangle_job_result).await
+                            }
                         }
                     }
                 }
@@ -381,6 +383,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
                         service_id: ctx.service_id,
                         context: #field_in_self_getter,
                     };
+
+                    let client = context.client.clone();
+                    let signer = context.signer.clone();
+                    let service_id = context.service_id;
                 }
             }
 
@@ -400,7 +406,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    ::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
+                    //::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
                 }
 
                 let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
@@ -410,6 +416,8 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
                 let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
                 let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
+                    |c| { c },
+                    context,
                     listener,
                     #pre_processor_function,
                     job_processor,
@@ -552,7 +560,6 @@ pub fn generate_autogen_struct(
 pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
-    replacement_for_self: Option<TokenStream>,
     is_raw: bool,
 ) -> syn::Result<(usize, Vec<TokenStream>)> {
     let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
@@ -571,7 +578,7 @@ pub fn get_fn_call_ordered(
     let mut job_var_idx = 0;
     let mut non_job_var_count = 0;
     let mut ctx_pos = None;
-    let this = replacement_for_self.unwrap_or_else(|| quote! { self });
+    let this = quote! { self };
     let ret = param_types
         .iter()
         .enumerate()
@@ -742,7 +749,7 @@ pub(crate) fn generate_combined_event_listener_selector(struct_name: &Ident) -> 
                 futures.push(listener);
             }
             if let Some(res) = ::blueprint_sdk::macros::ext::futures::stream::StreamExt::next(&mut futures).await {
-                ::blueprint_sdk::macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+                //::blueprint_sdk::macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
                 let res = match res {
                     Ok(res) => {
                         res

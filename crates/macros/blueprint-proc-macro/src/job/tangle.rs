@@ -2,7 +2,7 @@ use crate::job::args::EventListenerArgs;
 use crate::job::declared_params_to_field_types;
 use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Ident, Type};
 
@@ -103,7 +103,6 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     fn_name_ident: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
-    ctx_pos_in_ordered_inputs: usize,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(job_params, param_map)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
@@ -113,29 +112,28 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         const PARAMETER_COUNT: usize = #parameter_count;
     };
 
-    let injected_context_var_name = quote! { injected_context };
+    let context_type = params.last().unwrap();
+    let context_type_ident =
+        Ident::new(&context_type.ty.as_rust_type(), context_type.span.unwrap());
 
-    let injected_context = ordered_inputs[ctx_pos_in_ordered_inputs].clone();
+    let injected_context_name = quote! { injected_context };
+    let context_field = quote! { context.context };
     let call_id_injector = quote! {
-        let mut #injected_context_var_name = #injected_context;
+        let mut #injected_context_name = #context_field;
         if let Some(call_id) = tangle_event.call_id {
-            ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_var_name, call_id);
+            ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_name, call_id);
         }
     };
 
-    // Clone to allow passing to the post-processor closure
-    ordered_inputs[ctx_pos_in_ordered_inputs] = quote! { injected_context.clone() };
-
     let job_processor_call = if params_tokens.is_empty() {
-        let second_param = ordered_inputs
-            .pop()
-            .ok_or_else(|| syn::Error::new(Span::call_site(), "Context type required"))?;
         quote! {
             #call_id_injector
             // If no args are specified, assume this job has no parameters and thus takes in the raw event
-            let res = #fn_name_ident (tangle_event, #second_param) #asyncness;
+            let res = #fn_name_ident (tangle_event, #injected_context_name.clone()) #asyncness;
         }
     } else {
+        let params_without_context = &ordered_inputs[..ordered_inputs.len() - 1];
+
         quote! {
             #parameter_count_const
 
@@ -150,15 +148,15 @@ pub(crate) fn get_tangle_job_processor_wrapper(
 
             #call_id_injector
 
-            let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
+            let res = #fn_name_ident (#(#params_without_context,)* #injected_context_name.clone()) #asyncness;
         }
     };
 
     let job_processor_call_return =
-        get_return_type_wrapper(return_type, Some(injected_context_var_name));
+        get_return_type_wrapper(return_type, Some(injected_context_name));
 
     Ok(quote! {
-        move |tangle_event: ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleEvent<_, _>| async move {
+        move |(tangle_event, context): (::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleEvent<_, _>, ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<_>)| async move {
 
             #job_processor_call
             #job_processor_call_return

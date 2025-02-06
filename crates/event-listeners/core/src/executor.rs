@@ -102,7 +102,7 @@ where
     }
 }
 
-pub trait ProcessorFunction<Event, Out, Fut>: Fn(Event) -> Fut
+pub trait ProcessorFunction<Event, Out, Fut>: FnMut(Event) -> Fut
 where
     Fut: Future<Output = Out> + Send + 'static,
     Event: Send + 'static,
@@ -113,7 +113,7 @@ where
 // Blanket implementation of ProcessorFunction for all functions that satisfy the constraints
 impl<F, Event, Out, Fut> ProcessorFunction<Event, Out, Fut> for F
 where
-    F: Fn(Event) -> Fut,
+    F: FnMut(Event) -> Fut,
     Fut: Future<Output = Out> + Send + 'static,
     Event: Send + 'static,
     Out: Send + 'static,
@@ -139,7 +139,8 @@ pub struct EventFlowWrapper<
         dyn Fn((PreProcessOut, Ctx)) -> BoxedFuture<Result<JobOutput, Error<ProcessorError>>>
             + Send,
     >,
-    postprocessor: Box<dyn Fn(JobOutput) -> BoxedFuture<Result<(), Error<ProcessorError>>> + Send>,
+    postprocessor:
+        Box<dyn FnMut(JobOutput) -> BoxedFuture<Result<(), Error<ProcessorError>>> + Send>,
     _pd: PhantomData<Ctx>,
     ctx_transformer: Box<dyn Fn(Ctx) -> Ctx + Send + 'static>,
 }
@@ -163,7 +164,7 @@ impl<
         event_listener: T,
         preprocessor: Pre,
         job_processor: Job,
-        postprocessor: Post,
+        mut postprocessor: Post,
     ) -> Self
     where
         T: EventListener<Event, Ctx, ProcessorError = ProcessorError>,
@@ -172,7 +173,7 @@ impl<
             Future<Output = Result<Option<PreProcessOut>, Error<ProcessorError>>> + Send + 'static,
         Job: Fn((PreProcessOut, Ctx)) -> JobFut + Send + 'static,
         JobFut: Future<Output = Result<JobOutput, Error<ProcessorError>>> + Send + 'static,
-        Post: Fn(JobOutput) -> PostFut + Send + 'static,
+        Post: FnMut(JobOutput) -> PostFut + Send + 'static,
         PostFut: Future<Output = Result<(), Error<ProcessorError>>> + Send + 'static,
         F: Fn(Ctx) -> Ctx + Send + 'static,
     {
@@ -211,7 +212,7 @@ impl<
     >;
     type JobProcessedEvent = JobOutput;
     type PostProcessor = Box<
-        dyn Fn(Self::JobProcessedEvent) -> BoxedFuture<Result<(), Error<ProcessorError>>> + Send,
+        dyn FnMut(Self::JobProcessedEvent) -> BoxedFuture<Result<(), Error<ProcessorError>>> + Send,
     >;
 
     fn get_context(&self) -> &Ctx {
