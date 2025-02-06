@@ -146,9 +146,7 @@ async fn test_periodic_web_poller() -> Result<()> {
     test_env.add_job(crate::periodic_web_poller::constructor("*/5 * * * * *"));
 
     // Run the test environment
-    let _test_handle = tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    test_env.run_runner().await.unwrap();
 
     // Wait for a few seconds to allow the job to execute
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -178,9 +176,7 @@ async fn test_raw_tangle_events() -> Result<()> {
     test_env.add_job(crate::raw_tangle_events::constructor(env.clone()).await?);
 
     // Run the test environment
-    let _test_handle = tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    test_env.run_runner().await.unwrap();
 
     // Wait for a few seconds to allow the job to execute
     tokio::time::sleep(Duration::from_secs(10)).await;

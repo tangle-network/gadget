@@ -115,9 +115,9 @@ async fn run_eigenlayer_incredible_squaring_test(
         test_env.run_runner().await.unwrap();
     }
 
-    tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    test_env.run_runner().await.unwrap();
 
     // Wait for environment to initialize
     tokio::time::sleep(Duration::from_secs(5)).await;
