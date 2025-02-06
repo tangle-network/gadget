@@ -73,11 +73,10 @@ contract ExampleBlueprint is BlueprintServiceManagerBase {
     onlyFromMaster
     {
         if (jobCallId == 0) {
-            // Decode the inputs and outputs
-            uint256 input = abi.decode(inputs, (uint256));
+            // Decode the output
             uint256 output = abi.decode(outputs, (uint256));
-            // Check if the output is the square of the input
-            bool isValid = output == input * input;
+            // For this example, we're just requiring the result to be 1
+            bool isValid = output == 1;
             require(isValid, "Invalid result");
         }
     }

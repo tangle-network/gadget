@@ -1,12 +1,9 @@
 use blueprint_sdk::alloy::transports::http::reqwest;
-use blueprint_sdk::event_listeners::core::{EventListener, InitializableEventHandler};
+use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::event_listeners::cronjob::{
     error::Error as CronJobError, CronJob, CronJobDefinition,
 };
 use blueprint_sdk::logging::info;
-use blueprint_sdk::macros::ext::async_trait::async_trait;
-use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
-use blueprint_sdk::testing::utils::tangle::OutputValue;
 use blueprint_sdk::{job, Error};
 
 type ProcessorError = blueprint_sdk::event_listeners::core::Error<CronJobError>;

@@ -94,6 +94,7 @@ evm = [
 
 eigenlayer = [
 	"gadget-contexts/eigenlayer",
+	"dep:tokio",
 ]
 
 networking = ["gadget-context-derive/networking", "gadget-contexts/networking"]

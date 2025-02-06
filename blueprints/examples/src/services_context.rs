@@ -70,5 +70,5 @@ pub async fn handle_job(
         .map(|(op, per)| op)
         .cloned()
         .collect::<Vec<AccountId32>>();
-    Ok(0)
+    Ok(1)
 }

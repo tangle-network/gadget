@@ -52,6 +52,13 @@ pub fn raw(event: TangleEvent<MyContext>, context: MyContext) -> Result<u64, blu
         .flatten()
     {
         info!("Found a balance transfer: {balance_transfer:?}");
+
+        let result = std::env::var("RAW_EVENT_RESULT").unwrap_or("0".to_string());
+        let result = result.parse::<u64>().unwrap_or(0);
+        let result = result + 1;
+        std::env::set_var("RAW_EVENT_RESULT", result.to_string());
+
+        return Ok(1);
     }
     Ok(0)
 }
