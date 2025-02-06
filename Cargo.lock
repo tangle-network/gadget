@@ -3181,6 +3181,7 @@ dependencies = [
  "gadget-std",
  "gadget-utils-tangle",
  "hex",
+ "serde",
  "serde_json",
  "sp-core",
  "tangle-subxt",

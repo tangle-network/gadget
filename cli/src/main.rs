@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use cargo_tangle::create::BlueprintType;
+#[cfg(feature = "eigenlayer")]
+use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts, NetworkTarget};
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use gadget_crypto::KeyTypeId;
@@ -49,9 +51,39 @@ pub enum GadgetCommands {
         blueprint_type: Option<BlueprintType>,
     },
 
-    /// Deploy a blueprint to the Tangle Network.
+    /// Deploy a blueprint to the Tangle Network or Eigenlayer.
     #[command(visible_alias = "d")]
     Deploy {
+        #[command(subcommand)]
+        target: DeployTarget,
+    },
+
+    /// Generate a key
+    Keygen {
+        /// The type of key to generate
+        #[arg(short, long, value_enum)]
+        key_type: KeyTypeId,
+
+        /// The path to save the key to, if not provided, the key will be printed
+        /// to the console instead
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+
+        /// The seed to use for the generation of the key in hex format without 0x prefix,
+        /// if not provided, a random seed will be generated
+        #[arg(short, long, value_name = "SEED_HEX", env = "SEED")]
+        seed: Option<String>,
+
+        /// If true, the secret key will be printed along with the public key
+        #[arg(long)]
+        show_secret: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DeployTarget {
+    /// Deploy to Tangle Network
+    Tangle {
         /// HTTP RPC URL to use
         #[arg(
             long,
@@ -72,25 +104,21 @@ pub enum GadgetCommands {
         #[arg(short, long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
         package: Option<String>,
     },
-    /// Generate a key
-    Keygen {
-        /// The type of key to generate
-        #[arg(short, long, value_enum)]
-        key_type: KeyTypeId,
-
-        /// The path to save the key to, if not provided, the key will be printed
-        /// to the console instead
-        #[arg(short, long)]
-        path: Option<PathBuf>,
-
-        /// The seed to use for the generation of the key in hex format without 0x prefix,
-        /// if not provided, a random seed will be generated
-        #[arg(short, long, value_name = "SEED_HEX", env = "SEED")]
-        seed: Option<String>,
-
-        /// If true, the secret key will be printed along with the public key
-        #[arg(long)]
-        show_secret: bool,
+    /// Deploy to Eigenlayer
+    #[cfg(feature = "eigenlayer")]
+    Eigenlayer {
+        /// Deploy to local network with given RPC URL
+        #[arg(long, value_name = "URL", group = "network")]
+        local: Option<String>,
+        /// Deploy to testnet with given RPC URL
+        #[arg(long, value_name = "URL", group = "network")]
+        testnet: Option<String>,
+        /// Deploy to mainnet with given RPC URL
+        #[arg(long, value_name = "URL", group = "network")]
+        mainnet: Option<String>,
+        /// Path to the configuration file
+        #[arg(long, value_name = "PATH")]
+        config: PathBuf,
     },
 }
 
@@ -123,25 +151,48 @@ async fn main() -> color_eyre::Result<()> {
             } => {
                 create::new_blueprint(name, source, blueprint_type)?;
             }
-            GadgetCommands::Deploy {
-                http_rpc_url,
-                ws_rpc_url,
-                package,
-            } => {
-                let manifest_path = cli
-                    .manifest
-                    .manifest_path
-                    .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                let _ = deploy_to_tangle(Opts {
+            GadgetCommands::Deploy { target } => match target {
+                DeployTarget::Tangle {
                     http_rpc_url,
                     ws_rpc_url,
-                    manifest_path,
-                    pkg_name: package,
-                    signer: None,
-                    signer_evm: None,
-                })
-                .await?;
-            }
+                    package,
+                } => {
+                    let manifest_path = cli
+                        .manifest
+                        .manifest_path
+                        .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
+                    let _ = deploy_to_tangle(Opts {
+                        http_rpc_url,
+                        ws_rpc_url,
+                        manifest_path,
+                        pkg_name: package,
+                        signer: None,
+                        signer_evm: None,
+                    })
+                    .await?;
+                }
+                #[cfg(feature = "eigenlayer")]
+                DeployTarget::Eigenlayer {
+                    local,
+                    testnet,
+                    mainnet,
+                    config,
+                } => {
+                    let (network, rpc_url) = match (local, testnet, mainnet) {
+                        (Some(url), None, None) => (NetworkTarget::Local, url),
+                        (None, Some(url), None) => (NetworkTarget::Testnet, url),
+                        (None, None, Some(url)) => (NetworkTarget::Mainnet, url),
+                        _ => return Err(color_eyre::eyre::eyre!("Must specify exactly one network target (--local, --testnet, or --mainnet)")),
+                    };
+
+                    deploy_to_eigenlayer(EigenlayerDeployOpts {
+                        network,
+                        rpc_url,
+                        config_path: config,
+                    })
+                    .await?;
+                }
+            },
             GadgetCommands::Keygen {
                 key_type,
                 path,
