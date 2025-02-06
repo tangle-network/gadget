@@ -309,6 +309,7 @@ impl EigenlayerClient {
             eigensdk::logging::get_test_logger(),
             slasher_addr,
             contract_addresses.delegation_manager_address,
+            contract_addresses.rewards_coordinator_address,
             contract_addresses.avs_directory_address,
             http_rpc_endpoint.clone(),
         );

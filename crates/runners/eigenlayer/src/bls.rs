@@ -194,6 +194,7 @@ async fn register_bls_impl(
         logger,
         slasher_address,
         delegation_manager_address,
+        rewards_coordinator_address,
         avs_directory_address,
         env.http_rpc_endpoint.clone(),
     );
