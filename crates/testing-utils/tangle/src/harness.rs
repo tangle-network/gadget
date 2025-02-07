@@ -27,6 +27,7 @@ use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -58,6 +59,7 @@ pub const ENDOWED_TEST_NAMES: [&str; 10] = [
 pub struct TangleTestConfig {
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
+    pub temp_dir: PathBuf,
 }
 
 /// Test harness for Tangle network tests
@@ -69,7 +71,7 @@ pub struct TangleTestHarness {
     pub ecdsa_signer: TanglePairSigner<sp_core::ecdsa::Pair>,
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
     config: TangleTestConfig,
-    _temp_dir: tempfile::TempDir,
+    temp_dir: tempfile::TempDir,
     _node: crate::node::testnet::SubstrateNode,
 }
 
@@ -85,17 +87,18 @@ pub async fn generate_env_from_node_id(
     identity: &str,
     http_endpoint: Url,
     ws_endpoint: Url,
+    test_dir: &Path,
 ) -> Result<GadgetConfiguration, RunnerError> {
-    let test_dir_path = format!("./{}", identity.to_ascii_lowercase());
-    tokio::fs::create_dir_all(&test_dir_path).await?;
-    inject_tangle_key(&test_dir_path, &format!("//{identity}"))
+    let keystore_path = test_dir.join(identity.to_ascii_lowercase());
+    tokio::fs::create_dir_all(&keystore_path).await?;
+    inject_tangle_key(&keystore_path, &format!("//{identity}"))
         .map_err(|err| RunnerError::Other(err.to_string()))?;
 
     // Create context config
     let context_config = ContextConfig::create_tangle_config(
         http_endpoint,
         ws_endpoint,
-        test_dir_path,
+        keystore_path.display().to_string(),
         None,
         SupportedChains::LocalTestnet,
         0,
@@ -131,6 +134,7 @@ impl TestHarness for TangleTestHarness {
             ENDOWED_TEST_NAMES[0],
             http_endpoint.clone(),
             ws_endpoint.clone(),
+            test_dir.path(),
         )
         .await?;
 
@@ -138,6 +142,7 @@ impl TestHarness for TangleTestHarness {
         let config = TangleTestConfig {
             http_endpoint: http_endpoint.clone(),
             ws_endpoint: ws_endpoint.clone(),
+            temp_dir: test_dir.path().to_path_buf()
         };
 
         // Setup signers
@@ -161,7 +166,7 @@ impl TestHarness for TangleTestHarness {
             sr25519_signer,
             ecdsa_signer,
             alloy_key,
-            _temp_dir: test_dir,
+            temp_dir: test_dir,
             config,
             _node: node,
         };
@@ -198,6 +203,7 @@ impl TangleTestHarness {
                 name,
                 self.http_endpoint.clone(),
                 self.ws_endpoint.clone(),
+                self.temp_dir.path(),
             )
             .await?;
 
