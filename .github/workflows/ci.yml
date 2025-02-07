@@ -79,6 +79,7 @@ jobs:
             # Blueprints
             incredible-squaring-blueprint,
             incredible-squaring-blueprint-eigenlayer,
+            blueprint-examples,
 
             # Macros
             gadget-blueprint-proc-macro,
