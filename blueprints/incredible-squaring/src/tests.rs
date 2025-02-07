@@ -49,7 +49,7 @@ async fn test_incredible_squaring() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_pre_registration_incredible_squaring() -> Result<()> {
+async fn test_pre_register_incredible_squaring() -> Result<()> {
     setup_log();
 
     // Initialize test harness (node, keys, deployment)

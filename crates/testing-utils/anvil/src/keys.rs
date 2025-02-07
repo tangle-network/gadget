@@ -27,6 +27,10 @@ pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
 pub fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> Result<(), Error> {
+    let keystore_path = keystore_path.as_ref();
+    if !keystore_path.exists() {
+        std::fs::create_dir_all(keystore_path).map_err(|e| Error::Keystore(e.into()))?;
+    }
     let config = KeystoreConfig::new().fs_root(keystore_path);
     let keystore = Keystore::new(config)?;
 
