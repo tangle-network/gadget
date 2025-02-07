@@ -5,6 +5,7 @@ use crate::{
     Error,
 };
 use futures::future::join_all;
+use gadget_config::GadgetConfiguration;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClient};
 use gadget_core_testing_utils::runner::TestEnv;
@@ -15,13 +16,12 @@ use gadget_keystore::crypto::sp_core::SpSr25519;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter, Write};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{collections::HashMap, sync::Arc};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
-use gadget_config::GadgetConfiguration;
 
 /// Represents a single node in the multi-node test environment
 pub struct NodeHandle {
@@ -396,6 +396,7 @@ impl NodeHandle {
             ENDOWED_TEST_NAMES[node_id],
             config.http_endpoint.clone(),
             config.ws_endpoint.clone(),
+            config.temp_dir.as_path()
         )
         .await?;
 
