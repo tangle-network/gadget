@@ -142,7 +142,7 @@ impl TestHarness for TangleTestHarness {
         let config = TangleTestConfig {
             http_endpoint: http_endpoint.clone(),
             ws_endpoint: ws_endpoint.clone(),
-            temp_dir: test_dir.path().to_path_buf()
+            temp_dir: test_dir.path().to_path_buf(),
         };
 
         // Setup signers

@@ -46,12 +46,7 @@ impl NodeHandle {
     ///
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
-    pub async fn add_job<
-        K: InitializableEventHandler + Send + Sync + 'static,
-    >(
-        &self,
-        job: K,
-    ) {
+    pub async fn add_job<K: InitializableEventHandler + Send + Sync + 'static>(&self, job: K) {
         self.test_env.write().await.add_job(job)
     }
 
@@ -265,12 +260,9 @@ impl MultiNodeTestEnv {
                         let _ = result_tx.send(result);
                     }
                     EnvironmentCommand::Start { result_tx } => {
-                        let result = Self::handle_start(
-                            nodes.clone(),
-                            &event_tx,
-                            running_nodes.clone(),
-                        )
-                        .await;
+                        let result =
+                            Self::handle_start(nodes.clone(), &event_tx, running_nodes.clone())
+                                .await;
                         let _ = result_tx.send(result);
                     }
                     EnvironmentCommand::Shutdown => {
@@ -283,12 +275,15 @@ impl MultiNodeTestEnv {
     }
 
     pub async fn node_handles(&self) -> Vec<Arc<NodeHandle>> {
-        self.nodes.read().await.iter().filter_map(|n| {
-            match n {
+        self.nodes
+            .read()
+            .await
+            .iter()
+            .filter_map(|n| match n {
                 NodeSlot::Occupied(node) => Some(node.clone()),
                 NodeSlot::Empty => None,
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     async fn handle_add_node(
@@ -396,7 +391,7 @@ impl NodeHandle {
             ENDOWED_TEST_NAMES[node_id],
             config.http_endpoint.clone(),
             config.ws_endpoint.clone(),
-            config.temp_dir.as_path()
+            config.temp_dir.as_path(),
         )
         .await?;
 

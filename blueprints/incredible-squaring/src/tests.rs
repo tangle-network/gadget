@@ -3,10 +3,10 @@ use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::logging::setup_log;
 use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::harness::TestHarness;
+use blueprint_sdk::testing::utils::runner::TestEnv;
 use blueprint_sdk::testing::utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 use color_eyre::Result;
 use std::time::Duration;
-use blueprint_sdk::testing::utils::runner::TestEnv;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<()> {
