@@ -30,7 +30,7 @@ impl TestEnv for EigenlayerBLSTestEnv {
 
     fn add_job<J>(&mut self, job: J)
     where
-        J: InitializableEventHandler + Send + 'static,
+        J: InitializableEventHandler + Send + Sync + 'static,
     {
         self.runner.add_job(job);
     }
