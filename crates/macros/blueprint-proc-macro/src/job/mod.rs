@@ -265,7 +265,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
             .first()
             .map(|field_in_self| {
                 // If is_raw, assume the actual context is the second param
-                (quote! { ctx. #field_in_self .clone() }, event_handler_arg_types[0])
+                (
+                    quote! { ctx. #field_in_self .clone() },
+                    event_handler_arg_types[0],
+                )
             })
             .ok_or_else(|| {
                 syn::Error::new(
