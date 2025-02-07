@@ -420,7 +420,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
                 let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
                 let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
-                    |c| { c },
                     context,
                     listener,
                     #pre_processor_function,

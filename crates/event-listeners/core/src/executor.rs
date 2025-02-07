@@ -44,7 +44,6 @@ where
         BoxedFuture<Result<(), Error<<Self as EventListener<T, Ctx>>::ProcessorError>>>,
     >;
     fn get_context(&self) -> &Ctx;
-    fn get_context_transformer(&self) -> &Box<dyn Fn(Ctx) -> Ctx + Send + 'static>;
 
     fn get_preprocessor(&mut self) -> &mut Self::PreProcessor;
     fn get_job_processor(&mut self) -> &mut Self::JobProcessor;
@@ -65,8 +64,7 @@ where
         preprocessed_event: Self::PreprocessedEvent,
     ) -> Result<Self::JobProcessedEvent, Error<<Self as EventListener<T, Ctx>>::ProcessorError>>
     {
-        let mut context = self.get_context().clone();
-        context = self.get_context_transformer()(context);
+        let context = self.get_context().clone();
         self.get_job_processor()((preprocessed_event, context)).await
     }
 
@@ -142,7 +140,6 @@ pub struct EventFlowWrapper<
     postprocessor:
         Box<dyn FnMut(JobOutput) -> BoxedFuture<Result<(), Error<ProcessorError>>> + Send>,
     _pd: PhantomData<Ctx>,
-    ctx_transformer: Box<dyn Fn(Ctx) -> Ctx + Send + 'static>,
 }
 
 /*
@@ -158,8 +155,7 @@ impl<
         ProcessorError: core::error::Error + Send + Sync + 'static,
     > EventFlowWrapper<Ctx, Event, PreProcessOut, JobOutput, ProcessorError>
 {
-    pub fn new<T, Pre, PreFut, Job, JobFut, Post, PostFut, F>(
-        ctx_transformer: F,
+    pub fn new<T, Pre, PreFut, Job, JobFut, Post, PostFut>(
         ctx: Ctx,
         event_listener: T,
         preprocessor: Pre,
@@ -175,11 +171,9 @@ impl<
         JobFut: Future<Output = Result<JobOutput, Error<ProcessorError>>> + Send + 'static,
         Post: FnMut(JobOutput) -> PostFut + Send + 'static,
         PostFut: Future<Output = Result<(), Error<ProcessorError>>> + Send + 'static,
-        F: Fn(Ctx) -> Ctx + Send + 'static,
     {
         Self {
             ctx,
-            ctx_transformer: Box::new(ctx_transformer),
             event_listener: Box::new(event_listener),
             preprocessor: Box::new(move |event| Box::pin(preprocessor(event))),
             job_processor: Box::new(move |(event, ctx)| Box::pin(job_processor((event, ctx)))),
@@ -217,10 +211,6 @@ impl<
 
     fn get_context(&self) -> &Ctx {
         &self.ctx
-    }
-
-    fn get_context_transformer(&self) -> &Box<dyn Fn(Ctx) -> Ctx + Send + 'static> {
-        &self.ctx_transformer
     }
 
     fn get_preprocessor(&mut self) -> &mut Self::PreProcessor {
