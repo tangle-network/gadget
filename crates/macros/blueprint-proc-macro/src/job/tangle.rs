@@ -103,6 +103,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     fn_name_ident: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
+    context_ty: &Type,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(job_params, param_map)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
@@ -111,10 +112,6 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let parameter_count_const = quote! {
         const PARAMETER_COUNT: usize = #parameter_count;
     };
-
-    let context_type = params.last().unwrap();
-    let context_type_ident =
-        Ident::new(&context_type.ty.as_rust_type(), context_type.span.unwrap());
 
     let injected_context_name = quote! { injected_context };
     let context_field = quote! { context.context };
@@ -156,7 +153,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         get_return_type_wrapper(return_type, Some(injected_context_name));
 
     Ok(quote! {
-        move |(tangle_event, context): (::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleEvent<_, _>, ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<_>)| async move {
+        move |(tangle_event, context): (::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleEvent<_, _>, ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<#context_ty>)| async move {
 
             #job_processor_call
             #job_processor_call_return

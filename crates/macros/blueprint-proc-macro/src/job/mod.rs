@@ -215,7 +215,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 ) -> syn::Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let return_type = get_return_type(input);
 
-    let (mut event_handler_args, _event_handler_arg_types) =
+    let (mut event_handler_args, event_handler_arg_types) =
         get_event_handler_args(param_types, params)?;
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     #[cfg(feature = "tangle")]
@@ -261,11 +261,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let _ = event_handler_args.remove(0);
         }
 
-        let field_in_self_getter = event_handler_args
+        let (context_field, context_ty) = event_handler_args
             .first()
             .map(|field_in_self| {
                 // If is_raw, assume the actual context is the second param
-                quote! { ctx. #field_in_self .clone() }
+                (quote! { ctx. #field_in_self .clone() }, event_handler_arg_types[0])
             })
             .ok_or_else(|| {
                 syn::Error::new(
@@ -308,6 +308,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                context_ty,
             )?,
 
             #[cfg(feature = "evm")]
@@ -376,12 +377,12 @@ pub(crate) fn generate_event_workflow_tokenstream(
             #[cfg(feature = "tangle")]
             ListenerType::Tangle => {
                 quote! {
-                    let context = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
+                    let context: ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<#context_ty> = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
                         client: ctx.client.subxt_client().clone(),
                         signer: ctx.signer.clone(),
                         job_id: #job_id_name,
                         service_id: ctx.service_id,
-                        context: #field_in_self_getter,
+                        context: #context_field,
                     };
 
                     let client = context.client.clone();
@@ -398,7 +399,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             }
 
             ListenerType::Custom => {
-                quote! { let context = #field_in_self_getter; }
+                quote! { let context = #context_field; }
             }
         };
 
