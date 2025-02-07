@@ -25,20 +25,15 @@ use gadget_logging::debug;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
-use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use tangle_subxt::subxt::tx::Signer;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
     events::JobResultSubmitted,
 };
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 use url::Url;
 
 pub const ENDOWED_TEST_NAMES: [&str; 10] = [
