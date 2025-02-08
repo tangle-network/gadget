@@ -29,7 +29,7 @@ use std::convert::Infallible;
     id = 0,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     event_listener(
-        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
+        listener = EvmContractEventListener<EigenSquareContext, IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,

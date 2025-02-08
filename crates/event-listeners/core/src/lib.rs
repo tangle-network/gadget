@@ -14,15 +14,17 @@ use gadget_std::iter::Take;
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
-pub trait EventListener<T: Send + 'static, Ctx: Send + 'static>: Send + 'static {
+pub trait EventListener<Event: Send + 'static, Ctx: Send + 'static, Creator = Ctx>:
+    Send + 'static
+{
     type ProcessorError: core::error::Error + Send + Sync + 'static;
 
-    async fn new(context: &Ctx) -> Result<Self, Error<Self::ProcessorError>>
+    async fn new(context: &Creator) -> Result<Self, Error<Self::ProcessorError>>
     where
         Self: Sized;
 
     /// Obtains the next event to be processed by the event listener.
-    async fn next_event(&mut self) -> Option<T>;
+    async fn next_event(&mut self) -> Option<Event>;
 }
 
 pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
