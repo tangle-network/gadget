@@ -15,7 +15,7 @@ const BLOCK_TIME_SECONDS: u32 = 12;
     id = 1,
     params(task, task_index),
     event_listener(
-        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
+        listener = EvmContractEventListener<AggregatorContext, IncredibleSquaringTaskManager::NewTaskCreated>,
         instance = IncredibleSquaringTaskManager,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,

@@ -16,7 +16,7 @@ use crate::shared::{self, get_return_type_wrapper, pascal_case, type_to_field_ty
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use gadget_std::str::FromStr;
 use indexmap::{IndexMap, IndexSet};
-use itertools::Itertools;
+use itertools::{enumerate, Itertools};
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -246,12 +246,14 @@ pub(crate) fn generate_event_workflow_tokenstream(
         // We assume the first supplied event handler arg is the context we are injecting into the event listener
         // Then, pass that into the EventFlowWrapper
         let fn_name_ident = &input.sig.ident;
-        #[cfg(feature = "tangle")]
-        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, is_raw)?;
-        #[cfg(not(feature = "tangle"))]
-        let (_ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, is_raw)?;
+
+        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => get_fn_call_ordered(param_types, params, is_raw)?,
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => get_fn_call_ordered(param_types, params, is_raw)?,
+            ListenerType::Custom => get_fn_call_ordered(param_types, params, is_raw)?,
+        };
 
         let asyncness = get_asyncness(input);
 
@@ -266,7 +268,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             .map(|field_in_self| {
                 // If is_raw, assume the actual context is the second param
                 (
-                    quote! { ctx. #field_in_self .clone() },
+                    quote! { handler. #field_in_self .clone() },
                     event_handler_arg_types[0],
                 )
             })
@@ -312,6 +314,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 &asyncness,
                 &return_type,
                 context_ty,
+                ctx_pos_in_ordered_inputs,
             )?,
 
             #[cfg(feature = "evm")]
@@ -323,6 +326,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                ctx_pos_in_ordered_inputs,
             )?,
 
             ListenerType::Custom => {
@@ -381,10 +385,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
             ListenerType::Tangle => {
                 quote! {
                     let context: ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<#context_ty> = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
-                        client: ctx.client.subxt_client().clone(),
-                        signer: ctx.signer.clone(),
+                        client: handler.client.subxt_client().clone(),
+                        signer: handler.signer.clone(),
                         job_id: #job_id_name,
-                        service_id: ctx.service_id,
+                        service_id: handler.service_id,
                         context: #context_field,
                     };
 
@@ -397,7 +401,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             #[cfg(feature = "evm")]
             ListenerType::Evm => {
                 quote! {
-                    let context = ::blueprint_sdk::macros::ext::std::ops::Deref::deref(&ctx).clone();
+                    let context = #context_field;
                 }
             }
 
@@ -406,8 +410,30 @@ pub(crate) fn generate_event_workflow_tokenstream(
             }
         };
 
+        let context_to_listener = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { &context },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { &handler },
+            ListenerType::Custom => quote! { &context },
+        };
+
+        let event_listener_creator_param = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { _ },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { #autogen_struct_name },
+            ListenerType::Custom => quote! { _ },
+        };
+
+        let wrapper_type_params = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { ::<_, _, #autogen_struct_name> },
+            _ => quote! {},
+        };
+
         let next_listener = quote! {
-            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
+            async fn #listener_function_name (handler: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
                     //::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
@@ -418,7 +444,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 #context_declaration
                 let job_processor = #job_processor_wrapper;
 
-                let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
+                let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _, #event_listener_creator_param>>::new(#context_to_listener).await.expect("Failed to create event listener");
                 let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
                     context,
                     listener,
@@ -428,7 +454,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 );
 
                 let task = async move {
-                    let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
+                    let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor #wrapper_type_params::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
                     let _ = tx.send(res);
                 };
                 ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
@@ -581,7 +607,7 @@ pub fn get_fn_call_ordered(
     let mut job_var_idx = 0;
     let mut non_job_var_count = 0;
     let mut ctx_pos = None;
-    let this = quote! { self };
+    let this = quote! { handler };
     let ret = param_types
         .iter()
         .enumerate()

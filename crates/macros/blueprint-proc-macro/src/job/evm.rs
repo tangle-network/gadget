@@ -1,5 +1,5 @@
 use super::args::EventListenerArgs;
-use super::declared_params_to_field_types;
+use super::{declared_params_to_field_types, get_fn_call_ordered};
 use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
 use proc_macro2::{Span, TokenStream};
@@ -106,7 +106,7 @@ pub(crate) fn generate_evm_specific_impl(
         contract_instance: Default::default(),
     });
 
-    for (field_name, ty) in non_job_param_map {
+    for (field_name, ty) in &non_job_param_map {
         new_function_signature.push(quote! {
             #field_name: #ty,
         });
@@ -115,9 +115,13 @@ pub(crate) fn generate_evm_specific_impl(
         })
     }
 
+
+    let (context_field, context_type) = non_job_param_map.get_index(0).expect("context should exist");
+
     let struct_name_as_literal = struct_name.to_string();
 
     Ok(quote! {
+        #[automatically_derived]
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -132,14 +136,19 @@ pub(crate) fn generate_evm_specific_impl(
         }
 
         #[automatically_derived]
-        impl ::blueprint_sdk::macros::ext::std::ops::Deref for #struct_name
-        {
-            type Target = ::blueprint_sdk::macros::ext::event_listeners::evm::AlloyContractInstance;
-            fn deref(&self) -> &Self::Target {
+        impl ::blueprint_sdk::macros::ext::event_listeners::evm::ContractProvider for #struct_name {
+            fn contract(&self) -> &::blueprint_sdk::macros::ext::event_listeners::evm::AlloyContractInstance {
                 self.contract_instance.get_or_init(|| {
                     let abi_location = ::blueprint_sdk::alloy::contract::Interface::new(::blueprint_sdk::alloy::json_abi::JsonAbi::from_json_str(#abi_string).unwrap());
                     ::blueprint_sdk::alloy::contract::ContractInstance::new(self.contract.address().clone(), self.contract.provider().clone(), abi_location )
                 })
+            }
+        }
+
+        #[automatically_derived]
+        impl ::blueprint_sdk::macros::ext::event_listeners::evm::ContextProvider<#context_type> for #struct_name {
+            fn context(&self) -> #context_type {
+                self.#context_field.clone()
             }
         }
 
@@ -156,9 +165,12 @@ pub(crate) fn get_evm_job_processor_wrapper(
     fn_name_ident: &Ident,
     asyncness: &TokenStream,
     return_type: &Type,
+    ctx_pos_in_ordered_inputs: usize,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(params, param_types)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
+
+    ordered_inputs[ctx_pos_in_ordered_inputs] = quote! { context };
 
     let job_processor_call = if params_tokens.is_empty() {
         let second_param = ordered_inputs
@@ -186,7 +198,7 @@ pub(crate) fn get_evm_job_processor_wrapper(
         .collect::<Vec<_>>();
 
     Ok(quote! {
-        move |param0: (#(#inner_param_type)*)| async move {
+        move |(param0, context): ((#(#inner_param_type)*), _)| async move {
             #job_processor_call
             #job_processor_call_return
         }

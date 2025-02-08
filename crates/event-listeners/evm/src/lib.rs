@@ -18,26 +18,32 @@ use uuid::Uuid;
 pub type AlloyRootProvider = RootProvider<BoxTransport>;
 pub type AlloyContractInstance = ContractInstance<BoxTransport, AlloyRootProvider, Ethereum>;
 
-pub struct EvmContractEventListener<E: SolEvent + Send + 'static> {
+pub struct EvmContractEventListener<Ctx: Send + 'static, E: SolEvent + Send + 'static> {
     instance: AlloyContractInstance,
     chain_id: u64,
     local_db: LocalDatabase<u64>,
     should_cooldown: bool,
     enqueued_events: VecDeque<(E, alloy_rpc_types::Log)>,
+    context: Ctx,
 }
 
 #[async_trait::async_trait]
-impl<E: SolEvent + Send + Sync + 'static>
-    EventListener<(E, alloy_rpc_types::Log), AlloyContractInstance>
-    for EvmContractEventListener<E>
+impl<Creator, Context, E> EventListener<(E, alloy_rpc_types::Log), Context, Creator>
+    for EvmContractEventListener<Context, E>
+where
+    Creator: ContractProvider + ContextProvider<Context> + Send + Sync + 'static,
+    Context: Send + Sync + 'static,
+    E: SolEvent + Send + Sync + 'static,
 {
     type ProcessorError = Error;
 
-    async fn new(context: &AlloyContractInstance) -> Result<Self, CoreError<Self::ProcessorError>>
+    async fn new(creator: &Creator) -> Result<Self, CoreError<Self::ProcessorError>>
     where
         Self: Sized,
     {
-        let provider = context.provider().root();
+        let contract = creator.contract();
+
+        let provider = contract.provider().root();
         // Add more detailed error handling and logging
         let chain_id = provider
             .get_chain_id()
@@ -50,7 +56,8 @@ impl<E: SolEvent + Send + Sync + 'static>
             should_cooldown: false,
             enqueued_events: VecDeque::new(),
             local_db,
-            instance: context.clone(),
+            instance: contract.clone(),
+            context: creator.context(),
         })
     }
 
@@ -80,7 +87,12 @@ impl<E: SolEvent + Send + Sync + 'static>
         let should_cooldown = block >= target_block_number;
         if should_cooldown {
             self.should_cooldown = true;
-            return self.next_event().await;
+            return <EvmContractEventListener<Context, E> as EventListener<
+                (E, alloy_rpc_types::Log),
+                Context,
+                Creator,
+            >>::next_event::<'_, '_>(self)
+            .await;
         }
 
         let dest_block = core::cmp::min(block + step, target_block_number);
@@ -108,12 +120,22 @@ impl<E: SolEvent + Send + Sync + 'static>
 
                 if events.is_empty() {
                     self.should_cooldown = true;
-                    return self.next_event().await;
+                    return <EvmContractEventListener<Context, E> as EventListener<
+                        (E, alloy_rpc_types::Log),
+                        Context,
+                        Creator,
+                    >>::next_event::<'_, '_>(self)
+                    .await;
                 }
 
                 self.enqueued_events = events;
 
-                self.next_event().await
+                <EvmContractEventListener<Context, E> as EventListener<
+                    (E, alloy_rpc_types::Log),
+                    Context,
+                    Creator,
+                >>::next_event::<'_, '_>(self)
+                .await
             }
             Err(e) => {
                 gadget_logging::error!(?e, %self.chain_id, "Error while querying events");
@@ -121,4 +143,15 @@ impl<E: SolEvent + Send + Sync + 'static>
             }
         }
     }
+}
+
+pub trait ContractProvider {
+    fn contract(&self) -> &AlloyContractInstance;
+}
+
+pub trait ContextProvider<Ctx>
+where
+    Ctx: Send + 'static,
+{
+    fn context(&self) -> Ctx;
 }
