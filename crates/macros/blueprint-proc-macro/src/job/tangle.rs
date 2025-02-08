@@ -104,6 +104,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     asyncness: &TokenStream,
     return_type: &Type,
     context_ty: &Type,
+    ctx_pos_in_ordered_inputs: usize,
 ) -> syn::Result<TokenStream> {
     let params = declared_params_to_field_types(job_params, param_map)?;
     let params_tokens = event_listeners.get_param_name_tokenstream(&params);
@@ -122,6 +123,8 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         }
     };
 
+    ordered_inputs[ctx_pos_in_ordered_inputs] = quote! { #injected_context_name.clone() };
+
     let job_processor_call = if params_tokens.is_empty() {
         quote! {
             #call_id_injector
@@ -129,8 +132,6 @@ pub(crate) fn get_tangle_job_processor_wrapper(
             let res = #fn_name_ident (tangle_event, #injected_context_name.clone()) #asyncness;
         }
     } else {
-        let params_without_context = &ordered_inputs[..ordered_inputs.len() - 1];
-
         quote! {
             #parameter_count_const
 
@@ -145,7 +146,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
 
             #call_id_injector
 
-            let res = #fn_name_ident (#(#params_without_context,)* #injected_context_name.clone()) #asyncness;
+            let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
         }
     };
 

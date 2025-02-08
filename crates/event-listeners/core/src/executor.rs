@@ -10,38 +10,45 @@ use gadget_std::pin::Pin;
 /// Provides the structure for the workflow of taking events and running them through a series of steps.
 /// This is meant to be auto-implemented by the job macro onto the provided structs that implement T: EventListener.
 #[async_trait]
-pub trait EventFlowExecutor<T, Ctx>
+pub trait EventFlowExecutor<T, Ctx, Creator>
 where
     T: Send + 'static,
     Ctx: Clone + Send + 'static,
-    Self: EventListener<T, Ctx>,
+    Creator: Send + 'static,
+    Self: EventListener<T, Ctx, Creator>,
 {
     type PreprocessedEvent: Send + 'static;
     type PreProcessor: ProcessorFunction<
         T,
         Result<
             Option<Self::PreprocessedEvent>,
-            Error<<Self as EventListener<T, Ctx>>::ProcessorError>,
+            Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
         >,
         BoxedFuture<
             Result<
                 Option<Self::PreprocessedEvent>,
-                Error<<Self as EventListener<T, Ctx>>::ProcessorError>,
+                Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
             >,
         >,
     >;
     type JobProcessor: ProcessorFunction<
         (Self::PreprocessedEvent, Ctx),
-        Result<Self::JobProcessedEvent, Error<<Self as EventListener<T, Ctx>>::ProcessorError>>,
+        Result<
+            Self::JobProcessedEvent,
+            Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
+        >,
         BoxedFuture<
-            Result<Self::JobProcessedEvent, Error<<Self as EventListener<T, Ctx>>::ProcessorError>>,
+            Result<
+                Self::JobProcessedEvent,
+                Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
+            >,
         >,
     >;
     type JobProcessedEvent: Send + 'static;
     type PostProcessor: ProcessorFunction<
         Self::JobProcessedEvent,
-        Result<(), Error<<Self as EventListener<T, Ctx>>::ProcessorError>>,
-        BoxedFuture<Result<(), Error<<Self as EventListener<T, Ctx>>::ProcessorError>>>,
+        Result<(), Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>>,
+        BoxedFuture<Result<(), Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>>>,
     >;
     fn get_context(&self) -> &Ctx;
 
@@ -54,7 +61,7 @@ where
         event: T,
     ) -> Result<
         Option<Self::PreprocessedEvent>,
-        Error<<Self as EventListener<T, Ctx>>::ProcessorError>,
+        Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
     > {
         self.get_preprocessor()(event).await
     }
@@ -62,8 +69,10 @@ where
     async fn process(
         &mut self,
         preprocessed_event: Self::PreprocessedEvent,
-    ) -> Result<Self::JobProcessedEvent, Error<<Self as EventListener<T, Ctx>>::ProcessorError>>
-    {
+    ) -> Result<
+        Self::JobProcessedEvent,
+        Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>,
+    > {
         let context = self.get_context().clone();
         self.get_job_processor()((preprocessed_event, context)).await
     }
@@ -71,13 +80,13 @@ where
     async fn post_process(
         &mut self,
         job_output: Self::JobProcessedEvent,
-    ) -> Result<(), Error<<Self as EventListener<T, Ctx>>::ProcessorError>> {
+    ) -> Result<(), Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>> {
         self.get_postprocessor()(job_output).await
     }
 
     async fn event_loop(
         &mut self,
-    ) -> Result<(), Error<<Self as EventListener<T, Ctx>>::ProcessorError>> {
+    ) -> Result<(), Error<<Self as EventListener<T, Ctx, Creator>>::ProcessorError>> {
         // TODO: add exponential backoff logic here
         while let Some(event) = self.next_event().await {
             match self.pre_process(event).await {
@@ -123,13 +132,14 @@ pub type BoxedFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 #[allow(clippy::type_complexity)]
 pub struct EventFlowWrapper<
     Ctx: Clone + Send + 'static,
+    Creator: Send + 'static,
     Event: Send + 'static,
     PreProcessOut: Send + 'static,
     JobOutput: Send + 'static,
     ProcessorError: core::error::Error + Send + Sync + 'static,
 > {
-    ctx: Ctx,
-    event_listener: Box<dyn EventListener<Event, Ctx, ProcessorError = ProcessorError>>,
+    context: Ctx,
+    event_listener: Box<dyn EventListener<Event, Ctx, Creator, ProcessorError = ProcessorError>>,
     preprocessor: Box<
         dyn Fn(Event) -> BoxedFuture<Result<Option<PreProcessOut>, Error<ProcessorError>>> + Send,
     >,
@@ -150,20 +160,21 @@ pub struct EventFlowFilter<O: Send + 'static> {
 impl<
         Ctx: Clone + Send + 'static,
         Event: Send + 'static,
+        Creator: Send + 'static,
         PreProcessOut: Send + 'static,
         JobOutput: Send + 'static,
         ProcessorError: core::error::Error + Send + Sync + 'static,
-    > EventFlowWrapper<Ctx, Event, PreProcessOut, JobOutput, ProcessorError>
+    > EventFlowWrapper<Ctx, Creator, Event, PreProcessOut, JobOutput, ProcessorError>
 {
     pub fn new<T, Pre, PreFut, Job, JobFut, Post, PostFut>(
-        ctx: Ctx,
+        context: Ctx,
         event_listener: T,
         preprocessor: Pre,
         job_processor: Job,
         mut postprocessor: Post,
     ) -> Self
     where
-        T: EventListener<Event, Ctx, ProcessorError = ProcessorError>,
+        T: EventListener<Event, Ctx, Creator, ProcessorError = ProcessorError>,
         Pre: Fn(Event) -> PreFut + Send + 'static,
         PreFut:
             Future<Output = Result<Option<PreProcessOut>, Error<ProcessorError>>> + Send + 'static,
@@ -173,7 +184,7 @@ impl<
         PostFut: Future<Output = Result<(), Error<ProcessorError>>> + Send + 'static,
     {
         Self {
-            ctx,
+            context,
             event_listener: Box::new(event_listener),
             preprocessor: Box::new(move |event| Box::pin(preprocessor(event))),
             job_processor: Box::new(move |(event, ctx)| Box::pin(job_processor((event, ctx)))),
@@ -186,12 +197,13 @@ impl<
 #[async_trait]
 impl<
         Ctx: Clone + Send + 'static,
+        Creator: Send + 'static,
         Event: Send + 'static,
         PreProcessOut: Send + 'static,
         JobOutput: Send + 'static,
         ProcessorError: core::error::Error + Send + Sync + 'static,
-    > EventFlowExecutor<Event, Ctx>
-    for EventFlowWrapper<Ctx, Event, PreProcessOut, JobOutput, ProcessorError>
+    > EventFlowExecutor<Event, Ctx, Creator>
+    for EventFlowWrapper<Ctx, Creator, Event, PreProcessOut, JobOutput, ProcessorError>
 {
     type PreprocessedEvent = PreProcessOut;
     type PreProcessor = Box<
@@ -210,7 +222,7 @@ impl<
     >;
 
     fn get_context(&self) -> &Ctx {
-        &self.ctx
+        &self.context
     }
 
     fn get_preprocessor(&mut self) -> &mut Self::PreProcessor {
@@ -229,16 +241,17 @@ impl<
 #[async_trait]
 impl<
         Ctx: Clone + Send + 'static,
+        Creator: Send + 'static,
         Event: Send + 'static,
         PreProcessOut: Send + 'static,
         JobOutput: Send + 'static,
         ProcessorError: core::error::Error + Send + Sync + 'static,
-    > EventListener<Event, Ctx>
-    for EventFlowWrapper<Ctx, Event, PreProcessOut, JobOutput, ProcessorError>
+    > EventListener<Event, Ctx, Creator>
+    for EventFlowWrapper<Ctx, Creator, Event, PreProcessOut, JobOutput, ProcessorError>
 {
     type ProcessorError = ProcessorError;
 
-    async fn new(_context: &Ctx) -> Result<Self, Error<Self::ProcessorError>> {
+    async fn new(_context: &Creator) -> Result<Self, Error<Self::ProcessorError>> {
         unreachable!("Not called here")
     }
 
