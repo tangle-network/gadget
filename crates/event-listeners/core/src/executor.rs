@@ -310,7 +310,6 @@ mod tests {
     async fn test_event_flow_executor_builds() {
         let counter = Arc::new(AtomicU64::new(0));
         let _event_listener = EventFlowWrapper::new(
-            Box::new(|_| ()),
             counter.clone(),
             DummyEventListener(counter.clone()),
             preprocess,
@@ -323,7 +322,6 @@ mod tests {
     async fn test_event_flow_executor_executes() {
         let counter = &Arc::new(AtomicU64::new(0));
         let mut event_listener = EventFlowWrapper::new(
-            Box::new(|_| ()),
             counter.clone(),
             DummyEventListener(counter.clone()),
             preprocess,
