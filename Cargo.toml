@@ -258,7 +258,7 @@ zeroize = { version = "1.8.1", default-features = false }
 # Eigenlayer
 eigensdk = { version = "0.1.3", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
-testcontainers = { version = "0.23.1", default-features = false }
+testcontainers = { version = "0.23.2", default-features = false }
 
 # Symbiotic
 symbiotic-rs = { version = "0.1.1" }
