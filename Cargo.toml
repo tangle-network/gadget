@@ -149,7 +149,7 @@ tokio-cron-scheduler = "0.13.0"
 cargo-generate = { version = "0.22.1", default-features = false }
 clap = { version = "4.5.16" }
 clap-cargo = { version = "0.14", default-features = false }
-toml = { version = "0.8.19", default-features = false }
+toml = { version = "0.8.20", default-features = false }
 
 # Cryptography & Blockchain
 bip39 = { version = "2.1.0", default-features = false }
