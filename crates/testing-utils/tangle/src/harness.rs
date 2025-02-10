@@ -1,33 +1,28 @@
 use crate::multi_node::MultiNodeTestEnv;
-use crate::node::transactions::{
-    join_operators, setup_operator_and_service, setup_operator_and_service_multiple,
-};
+use crate::node::transactions::
+    setup_operator_and_service_multiple;
 use crate::Error;
 use crate::{
     keys::inject_tangle_key,
     node::{
         run,
-        transactions::{self, submit_and_verify_job},
+        transactions,
         NodeConfig,
     },
-    runner::TangleTestEnv,
     InputValue, OutputValue,
 };
 use gadget_client_tangle::client::TangleClient;
 use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
-use gadget_core_testing_utils::{harness::TestHarness, runner::TestEnv};
+use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
-use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_logging::debug;
 use gadget_runners::core::error::RunnerError;
-use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
+use gadget_runners::tangle::tangle::PriceTargets;
 use sp_core::Pair;
-use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
@@ -69,14 +64,6 @@ pub struct TangleTestHarness {
     temp_dir: tempfile::TempDir,
     _node: crate::node::testnet::SubstrateNode,
 }
-
-/// A function that returns a future that returns a result containing an event handler for the job
-type EventHandlerBox = Box<dyn InitializableEventHandler + Send + 'static>;
-type JobResult = Result<EventHandlerBox, RunnerError>;
-type JobFuture = Pin<Box<dyn Future<Output = JobResult> + Send + 'static>>;
-
-trait JobCreator: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static {}
-impl<T: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static> JobCreator for T {}
 
 pub async fn generate_env_from_node_id(
     identity: &str,
