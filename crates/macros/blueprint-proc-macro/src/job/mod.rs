@@ -333,7 +333,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 let job_processor_call_return = get_return_type_wrapper(&return_type, None);
 
                 quote! {
-                    move |param0| async move {
+                    move |(param0, context)| async move {
                         let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
                         #job_processor_call_return
                     }
@@ -436,7 +436,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             async fn #listener_function_name (handler: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    //::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
+                    ::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
                 }
 
                 let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
@@ -778,7 +778,7 @@ pub(crate) fn generate_combined_event_listener_selector(struct_name: &Ident) -> 
                 futures.push(listener);
             }
             if let Some(res) = ::blueprint_sdk::macros::ext::futures::stream::StreamExt::next(&mut futures).await {
-                //::blueprint_sdk::macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+                ::blueprint_sdk::macros::ext::logging::warn!("An Event Handler for {} has stopped running", stringify!(#struct_name));
                 let res = match res {
                     Ok(res) => {
                         res
