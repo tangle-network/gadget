@@ -24,6 +24,7 @@ pub struct EvmContractEventListener<Ctx: Send + 'static, E: SolEvent + Send + 's
     local_db: LocalDatabase<u64>,
     should_cooldown: bool,
     enqueued_events: VecDeque<(E, alloy_rpc_types::Log)>,
+    #[allow(dead_code)]
     context: Ctx,
 }
 

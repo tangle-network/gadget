@@ -423,7 +423,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     sr25519_signers: &[T],
     blueprint_id: u64,
     preferences: Preferences,
-    exit_after_registration: bool,
+    _exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
     let alice_client = clients
         .first()

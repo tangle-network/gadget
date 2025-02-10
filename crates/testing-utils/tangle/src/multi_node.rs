@@ -15,9 +15,7 @@ use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::SpSr25519;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::TangleConfig;
-use std::fmt::{Debug, Formatter, Write};
-use std::future::Future;
-use std::pin::Pin;
+use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tangle_subxt::subxt::tx::Signer;
@@ -32,14 +30,6 @@ pub struct NodeHandle {
     command_tx: mpsc::Sender<NodeCommand>,
     test_env: Arc<RwLock<TangleTestEnv>>,
 }
-
-/// A function that returns a future that returns a result containing an event handler for the job
-type EventHandlerBox = Box<dyn InitializableEventHandler + Send + 'static>;
-type JobResult = Result<EventHandlerBox, RunnerError>;
-type JobFuture = Pin<Box<dyn Future<Output = JobResult> + Send + 'static>>;
-
-trait JobCreator: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static {}
-impl<T: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static> JobCreator for T {}
 
 impl NodeHandle {
     /// Adds a job to the node to be executed when the test is run.
@@ -141,7 +131,7 @@ impl MultiNodeTestEnv {
 
         let (command_tx, command_rx) = mpsc::channel(32);
         let (event_tx, _) = broadcast::channel(100);
-        let (initialized_tx, initialized_rx) = oneshot::channel();
+        let (initialized_tx, _initialized_rx) = oneshot::channel();
 
         let env = Self {
             nodes: Arc::new(RwLock::new(vec![NodeSlot::Empty; N])),
@@ -303,7 +293,7 @@ impl MultiNodeTestEnv {
         node_id: usize,
         event_tx: &broadcast::Sender<TestEvent>,
     ) -> Result<(), Error> {
-        let mut nodes = nodes.write().await;
+        let nodes = nodes.read().await;
 
         let NodeSlot::Occupied(node) = nodes[node_id].clone() else {
             return Err(Error::Setup(format!("Node {} not found", node_id)));
@@ -366,7 +356,7 @@ impl MultiNodeTestEnv {
         nodes: Arc<RwLock<Vec<NodeSlot>>>,
         event_tx: &broadcast::Sender<TestEvent>,
     ) {
-        let mut nodes = nodes.write().await;
+        let nodes = nodes.read().await;
         for (node_id, node) in nodes.iter().enumerate() {
             if let NodeSlot::Occupied(node) = node {
                 if let Err(e) = node.shutdown().await {
