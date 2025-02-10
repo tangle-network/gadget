@@ -16,7 +16,7 @@ use crate::shared::{self, get_return_type_wrapper, pascal_case, type_to_field_ty
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use gadget_std::str::FromStr;
 use indexmap::{IndexMap, IndexSet};
-use itertools::{enumerate, Itertools};
+use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
