@@ -1,5 +1,5 @@
 use super::args::EventListenerArgs;
-use super::{declared_params_to_field_types, get_fn_call_ordered};
+use super::declared_params_to_field_types;
 use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
 use proc_macro2::{Span, TokenStream};
@@ -115,8 +115,9 @@ pub(crate) fn generate_evm_specific_impl(
         })
     }
 
-
-    let (context_field, context_type) = non_job_param_map.get_index(0).expect("context should exist");
+    let (context_field, context_type) = non_job_param_map
+        .get_index(0)
+        .expect("context should exist");
 
     let struct_name_as_literal = struct_name.to_string();
 
@@ -157,6 +158,7 @@ pub(crate) fn generate_evm_specific_impl(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn get_evm_job_processor_wrapper(
     params: &[Ident],
     param_types: &IndexMap<Ident, Type>,
