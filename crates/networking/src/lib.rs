@@ -9,42 +9,11 @@ pub mod round_based_compat;
 #[cfg(feature = "round-based-compat")]
 pub use round_based;
 
+pub mod error;
 pub mod setup;
-
-use gadget_std::string::String;
 
 /// Unique identifier for a party
 pub type UserID = u16;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Network error: {0}")]
-    NetworkError(String),
-
-    #[error("Channel error: {0}")]
-    ChannelError(String),
-
-    #[error("Gossip error: {0}")]
-    GossipError(String),
-
-    #[error("Messaging error: {0}")]
-    MessagingError(String),
-
-    #[error("Round based error: {0}")]
-    RoundBasedError(String),
-
-    #[error("Serde JSON error: {0}")]
-    SerdeJson(#[from] serde_json::Error),
-
-    #[error("Connection error: {0}")]
-    ConnectionError(String),
-
-    #[error("Protocol error: {0}")]
-    ProtocolError(String),
-
-    #[error("Other error: {0}")]
-    Other(String),
-}
 
 pub use key_types::*;
 

@@ -16,7 +16,11 @@ impl NetworkService<'_> {
     ) {
         use request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
         match event {
-            Message { peer, message } => {
+            Message {
+                peer,
+                message,
+                connection_id: _,
+            } => {
                 gadget_logging::trace!("Received P2P message from: {peer}");
                 self.handle_p2p_message(peer, message).await;
             }
@@ -24,6 +28,7 @@ impl NetworkService<'_> {
                 peer,
                 request_id,
                 error,
+                connection_id: _,
             } => {
                 gadget_logging::error!("Failed to send message to peer: {peer} with request_id: {request_id} and error: {error}");
             }
@@ -31,10 +36,15 @@ impl NetworkService<'_> {
                 peer,
                 request_id,
                 error,
+                connection_id: _,
             } => {
                 gadget_logging::error!("Failed to receive message from peer: {peer} with request_id: {request_id} and error: {error}");
             }
-            ResponseSent { peer, request_id } => {
+            ResponseSent {
+                peer,
+                request_id,
+                connection_id: _,
+            } => {
                 gadget_logging::debug!(
                     "Sent response to peer: {peer} with request_id: {request_id}"
                 );

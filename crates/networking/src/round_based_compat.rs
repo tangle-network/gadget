@@ -90,8 +90,8 @@ where
 {
     type Send = SplitSink<NetworkWrapper<M>, Outgoing<M>>;
     type Receive = SplitStream<NetworkWrapper<M>>;
-    type SendError = crate::Error;
-    type ReceiveError = crate::Error;
+    type SendError = crate::error::Error;
+    type ReceiveError = crate::error::Error;
 
     fn split(self) -> (Self::Receive, Self::Send) {
         let (sink, stream) = self.network.split();
@@ -104,7 +104,7 @@ where
     M: serde::de::DeserializeOwned + Unpin,
     M: round_based::ProtocolMessage,
 {
-    type Item = Result<Incoming<M>, crate::Error>;
+    type Item = Result<Incoming<M>, crate::error::Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let res = ready!(self.get_mut().rx.poll_recv(cx));
@@ -121,7 +121,7 @@ where
                 Ok(msg) => msg,
                 Err(err) => {
                     gadget_logging::error!(%err, "Failed to deserialize message (round_based_compat)");
-                    return Poll::Ready(Some(Err(crate::Error::Other(err.to_string()))));
+                    return Poll::Ready(Some(Err(crate::error::Error::Other(err.to_string()))));
                 }
             };
 
@@ -142,7 +142,7 @@ where
     M: Unpin + serde::Serialize,
     M: round_based::ProtocolMessage,
 {
-    type Error = crate::Error;
+    type Error = crate::error::Error;
 
     fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
@@ -183,7 +183,9 @@ where
 
         if matches!(out.recipient, MessageDestination::OneParty(_)) && to_network_id.is_none() {
             gadget_logging::warn!("Recipient not found when required for {:?}", out.recipient);
-            return Err(crate::Error::Other("Recipient not found".to_string()));
+            return Err(crate::error::Error::Other(
+                "Recipient not found".to_string(),
+            ));
         }
 
         // Manually construct a `ProtocolMessage` since rounds-based

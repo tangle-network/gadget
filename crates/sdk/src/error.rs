@@ -40,7 +40,7 @@ pub enum Error {
     // Specific to Networking
     #[cfg(feature = "networking")]
     #[error("Networking error: {0}")]
-    Networking(#[from] gadget_networking::Error),
+    Networking(#[from] gadget_networking::error::Error),
 }
 
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]

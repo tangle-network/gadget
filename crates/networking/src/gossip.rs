@@ -5,8 +5,8 @@
     clippy::exhaustive_enums
 )]
 
+use crate::error::Error;
 use crate::key_types::{GossipMsgKeyPair, GossipMsgPublicKey, GossipSignedMsgSignature};
-use crate::Error;
 use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
 use gadget_std::collections::BTreeMap;
