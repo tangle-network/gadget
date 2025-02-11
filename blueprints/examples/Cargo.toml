@@ -24,6 +24,9 @@ blueprint-sdk = { workspace = true, features = ["std", "testing", "evm", "tangle
 [build-dependencies]
 blueprint-sdk = { workspace = true, features = ["build"] }
 
+[package.metadata.blueprint]
+manager = { Evm = "ExampleBlueprint" }
+master_revision = "Latest"
 
 [features]
 default = ["std"]

@@ -32,9 +32,7 @@ async fn test_incredible_squaring() -> Result<()> {
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
     test_env.add_job(handler);
 
-    tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
-    });
+    test_env.run_runner().await.unwrap();
 
     // Execute job and verify result
     let results = harness
@@ -51,7 +49,7 @@ async fn test_incredible_squaring() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_pre_registration_incredible_squaring() -> Result<()> {
+async fn test_pre_register_incredible_squaring() -> Result<()> {
     setup_log();
 
     // Initialize test harness (node, keys, deployment)
@@ -76,12 +74,13 @@ async fn test_pre_registration_incredible_squaring() -> Result<()> {
 
     // Run once for pre-registration
     test_env.run_runner().await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
     let service_id = harness.request_service(blueprint_id).await.unwrap();
 
-    tokio::spawn(async move {
-        // Run again to actually run the service, now that we have registered
-        test_env.run_runner().await.unwrap();
-    });
+    // Run again to actually run the service, now that we have registered
+    test_env.run_runner().await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 

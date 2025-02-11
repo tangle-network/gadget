@@ -1,0 +1,10 @@
+[profile.default]
+src = "contracts/src"
+out = "contracts/out"
+libs = ["dependencies"]
+remappings = ["examples/=contracts/src/"]
+auto_detect_remappings = true
+solc_version = "0.8.20"
+
+[dependencies]
+tnt-core = "0.2.0"
