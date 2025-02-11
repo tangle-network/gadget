@@ -1,5 +1,3 @@
-use gadget_std::path::Path;
-use gadget_std::str::FromStr;
 use alloy_network::Network;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_types_eth::{BlockNumberOrTag, TransactionRequest};
@@ -7,10 +5,12 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
 use color_eyre::Result;
 use gadget_logging::info;
-use serde::{Deserialize, Serialize};
 use gadget_std::env;
+use gadget_std::path::Path;
 use gadget_std::path::PathBuf;
 use gadget_std::process::Command;
+use gadget_std::str::FromStr;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkTarget {
@@ -59,9 +59,7 @@ pub async fn deploy_local(
     info!("Deploying contracts to local network using Alloy...");
 
     // Get deployment parameters
-    let nonce = provider
-        .get_transaction_count(wallet.address())
-        .await?;
+    let nonce = provider.get_transaction_count(wallet.address()).await?;
 
     // TODO: local deployment logic
 
@@ -91,11 +89,13 @@ pub async fn deploy_nonlocal(opts: &EigenlayerDeployOpts) -> Result<()> {
     let mut cmd = Command::new("forge");
     cmd.arg("create")
         .arg(contract_path)
-        .arg("--rpc-url").arg(&opts.rpc_url)
-        .arg("--private-key").arg(&private_key);
-        // .arg("--etherscan-api-key").arg("$ETHERSCAN_API_KEY")
-        // .arg(network_arg)
-        // .arg("--verify");
+        .arg("--rpc-url")
+        .arg(&opts.rpc_url)
+        .arg("--private-key")
+        .arg(&private_key);
+    // .arg("--etherscan-api-key").arg("$ETHERSCAN_API_KEY")
+    // .arg(network_arg)
+    // .arg("--verify");
 
     info!("Running command: {:?}", cmd);
 
@@ -115,7 +115,10 @@ pub async fn deploy_nonlocal(opts: &EigenlayerDeployOpts) -> Result<()> {
         info!("Contract deployed successfully. Output:\n{}", stdout);
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(color_eyre::eyre::eyre!("Deployment failed. Error:\n{}", stderr));
+        return Err(color_eyre::eyre::eyre!(
+            "Deployment failed. Error:\n{}",
+            stderr
+        ));
     }
 
     Ok(())
@@ -126,10 +129,13 @@ fn parse_contract_path(contract_path: &str) -> Result<String> {
 
     // Check if the file has a .sol extension
     if path.extension().and_then(|ext| ext.to_str()) != Some("sol") {
-        return Err(color_eyre::eyre::eyre!("Contract file must have a .sol extension"));
+        return Err(color_eyre::eyre::eyre!(
+            "Contract file must have a .sol extension"
+        ));
     }
 
-    let file_name = path.file_name()
+    let file_name = path
+        .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| color_eyre::eyre::eyre!("Invalid contract file name"))?;
 
@@ -139,7 +145,8 @@ fn parse_contract_path(contract_path: &str) -> Result<String> {
     let mut new_path = path.to_path_buf();
     new_path.set_file_name(file_name); // Ensure we keep the .sol extension
 
-    let formatted_path = new_path.to_str()
+    let formatted_path = new_path
+        .to_str()
         .ok_or_else(|| color_eyre::eyre::eyre!("Failed to convert path to string"))?;
 
     Ok(format!("{}:{}", formatted_path, contract_name))
@@ -150,7 +157,9 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
 
     match opts.network {
         NetworkTarget::Local => {
-            let provider = ProviderBuilder::new().on_http((&opts.rpc_url).parse()?).boxed();
+            let provider = ProviderBuilder::new()
+                .on_http((&opts.rpc_url).parse()?)
+                .boxed();
 
             let wallet = PrivateKeySigner::from_str(&opts.get_private_key()?)?;
             deploy_local(&opts, provider, wallet).await?;

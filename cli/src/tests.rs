@@ -10,15 +10,15 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tangle_subxt::subxt_signer::bip39;
-use tempfile::{TempDir, tempdir};
+use tempfile::{tempdir, TempDir};
 
+use crate::deploy::eigenlayer::NetworkTarget;
 use crate::deploy::eigenlayer::{deploy_nonlocal, EigenlayerDeployOpts};
+use gadget_logging::setup_log;
+use gadget_testing_utils::anvil::{start_default_anvil_testnet, Container};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
-use gadget_logging::setup_log;
-use crate::deploy::eigenlayer::NetworkTarget;
-use gadget_testing_utils::anvil::{start_default_anvil_testnet, Container};
 
 #[test]
 fn test_cli_fs_key_generation() -> Result<()> {
@@ -169,7 +169,7 @@ contract TestContract {
     }
 }
 "#;
-    
+
     fs::write(contract_dir.join("TestContract.sol"), contract_content)?;
 
     // Create foundry.toml
@@ -184,7 +184,10 @@ libs = ['lib']"#;
     // Set up deployment options with temporary directory path
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
-        contract_path: contract_dir.join("TestContract.sol").to_string_lossy().to_string(),
+        contract_path: contract_dir
+            .join("TestContract.sol")
+            .to_string_lossy()
+            .to_string(),
         network: NetworkTarget::Local,
     };
 
@@ -209,11 +212,7 @@ libs = ['lib']"#;
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let contract = ContractInstance::new(
-        contract_address,
-        TestContract::abi(),
-        provider.clone(),
-    );
+    let contract = ContractInstance::new(contract_address, TestContract::abi(), provider.clone());
 
     // Interact with the contract
     let initial_value = contract.getValue().call().await?;
@@ -226,8 +225,11 @@ libs = ['lib']"#;
 
     // Get the updated value
     let updated_value = contract.getValue().call().await?;
-    assert_eq!(updated_value, new_value, "Value should be updated to {}", new_value);
-
+    assert_eq!(
+        updated_value, new_value,
+        "Value should be updated to {}",
+        new_value
+    );
 
     Ok(())
 }
