@@ -79,6 +79,7 @@ jobs:
             # Blueprints
             incredible-squaring-blueprint,
             incredible-squaring-blueprint-eigenlayer,
+            blueprint-examples,
 
             # Macros
             gadget-blueprint-proc-macro,
@@ -139,7 +140,7 @@ jobs:
           # if test == "gadget_context_derive", add --features="networking", else ""
           if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
             echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
-          elif [[ "${{ matrix.package }}" == "incredible-squaring-blueprint" || "${{ matrix.package }}" == "incredible-squaring-blueprint-eigenlayer" ]]; then
+          elif [[ "${{ matrix.package }}" == "incredible-squaring-blueprint" || "${{ matrix.package }}" == "incredible-squaring-blueprint-eigenlayer" || "${{ matrix.package }}" == "blueprint-examples" ]]; then
             echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
           else
             echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
