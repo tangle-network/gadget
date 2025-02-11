@@ -77,8 +77,6 @@ pub enum Error {
 #[cfg(feature = "networking")]
 use libp2p::Multiaddr;
 
-pub type StdGadgetConfiguration = GadgetConfiguration;
-
 /// Gadget environment.
 #[non_exhaustive]
 #[derive(Debug, Clone, Default)]

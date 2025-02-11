@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use gadget_sdk::config::StdGadgetConfiguration;
+use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::contexts::TangleClientContext;
 use gadget_sdk::event_listener::tangle::events::TangleEventListener;
 use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
@@ -30,7 +30,7 @@ impl std::error::Error for Error {}
 #[derive(Clone, TangleClientContext)]
 pub struct MyContext {
     #[config]
-    pub config: StdGadgetConfiguration,
+    pub config: GadgetConfiguration,
     #[call_id]
     pub call_id: Option<u64>,
 }
