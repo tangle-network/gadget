@@ -11,6 +11,14 @@ use std::path::PathBuf;
 use tangle_subxt::subxt_signer::bip39;
 use tempfile::tempdir;
 
+use crate::deploy::eigenlayer::{deploy_nonlocal, EigenlayerDeployOpts};
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
+use gadget_logging::setup_log;
+use crate::deploy::eigenlayer::NetworkTarget;
+use gadget_testing_utils::anvil::{start_default_anvil_testnet, Container};
+
 #[test]
 fn test_cli_fs_key_generation() -> Result<()> {
     let temp_dir = tempdir()?;
@@ -131,6 +139,64 @@ fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
     // Test when the EVM_SIGNER environment variable is not set
     env::remove_var(EVM_SIGNER_ENV);
     assert!(load_evm_signer_from_env().is_err());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
+    setup_log();
+
+    // Start Anvil testnet
+    let (container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
+
+    // Set up deployment options
+    let opts = EigenlayerDeployOpts {
+        rpc_url: http_endpoint.clone(),
+        contract_path: "cli/contracts/src/TestContract.sol".to_string(),
+        network: NetworkTarget::Local,
+    };
+
+    // Build the contracts first
+    Command::new("forge")
+        .arg("build")
+        .current_dir("contracts")
+        .output()
+        .expect("Failed to build contracts");
+
+    // Deploy the contract
+    let result = deploy_nonlocal(&opts).await;
+
+    // Check deployment result
+    assert!(result.is_ok(), "Contract deployment failed: {:?}", result);
+
+    // Get the deployed contract address from the result
+    let contract_address = result.unwrap();
+
+    // Create a provider
+
+    let provider = get_provider_http(&http_endpoint);
+
+    // Create a contract instance
+    let contract = ContractInstance::new(
+        contract_address,
+        TestContract::abi(),
+        provider.clone(),
+    );
+
+    // Interact with the contract
+    let initial_value = contract.getValue().call().await?;
+    assert_eq!(initial_value, 0, "Initial value should be 0");
+
+    // Set a new value
+    let new_value = 42;
+    let tx = contract.setValue(new_value).send().await?;
+    tx.await?;
+
+    // Get the updated value
+    let updated_value = contract.getValue().call().await?;
+    assert_eq!(updated_value, new_value, "Value should be updated to {}", new_value);
+
 
     Ok(())
 }

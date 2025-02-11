@@ -59,10 +59,13 @@ alloy-provider = { workspace = true, optional = true }
 alloy-network = { workspace = true, optional = true }
 alloy-rpc-types-eth = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
 
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = "3.10.1"
+gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
+gadget-utils = { workspace = true, features = ["evm"] }
 
 [features]
 default = ["std", "tangle"]
@@ -98,4 +101,5 @@ evm = [
     "alloy-network",
     "alloy-rpc-types-eth",
     "alloy-signer-local",
+    "alloy-transport",
 ]
