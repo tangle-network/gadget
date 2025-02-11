@@ -1,4 +1,4 @@
-use blueprint_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
@@ -11,7 +11,7 @@ use gadget_context_derive::{
 #[allow(dead_code)]
 struct MyContext(
     String,
-    #[config] StdGadgetConfiguration,
+    #[config] GadgetConfiguration,
     #[call_id] Option<u64>,
 );
 
