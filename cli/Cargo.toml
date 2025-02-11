@@ -63,9 +63,9 @@ alloy-transport = { workspace = true, optional = true }
 
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
-tempfile = "3.10.1"
+tempfile = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
-gadget-utils = { workspace = true, features = ["evm"] }
+gadget-utils = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 
 [features]
 default = ["std", "tangle"]

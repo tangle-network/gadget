@@ -7,9 +7,10 @@ use gadget_crypto_core::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 use tangle_subxt::subxt_signer::bip39;
-use tempfile::tempdir;
+use tempfile::{TempDir, tempdir};
 
 use crate::deploy::eigenlayer::{deploy_nonlocal, EigenlayerDeployOpts};
 use std::process::Command;
@@ -147,20 +148,50 @@ fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
 async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
     setup_log();
 
-    // Start Anvil testnet
+    // Create a temporary directory for our test contract
+    let temp_dir = TempDir::new()?;
+    let contract_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&contract_dir)?;
+
+    // Write the test contract
+    let contract_content = r#"// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract TestContract {
+    uint256 private value;
+
+    function setValue(uint256 _value) public {
+        value = _value;
+    }
+
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+}
+"#;
+    
+    fs::write(contract_dir.join("TestContract.sol"), contract_content)?;
+
+    // Create foundry.toml
+    let foundry_content = r#"[profile.default]
+src = 'src'
+out = 'out'
+libs = ['lib']"#;
+    fs::write(temp_dir.path().join("foundry.toml"), foundry_content)?;
+
     let (container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
 
-    // Set up deployment options
+    // Set up deployment options with temporary directory path
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
-        contract_path: "cli/contracts/src/TestContract.sol".to_string(),
+        contract_path: contract_dir.join("TestContract.sol").to_string_lossy().to_string(),
         network: NetworkTarget::Local,
     };
 
-    // Build the contracts first
+    // Build the contracts in temporary directory
     Command::new("forge")
         .arg("build")
-        .current_dir("contracts")
+        .current_dir(temp_dir.path())
         .output()
         .expect("Failed to build contracts");
 
