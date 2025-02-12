@@ -102,6 +102,9 @@ pub struct GadgetConfiguration {
     /// The list of bootnodes to connect to
     #[cfg(feature = "networking")]
     pub bootnodes: Vec<Multiaddr>,
+    /// The port to bind the network to
+    #[cfg(feature = "networking")]
+    pub network_bind_port: u16,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
     /// Protocol-specific settings
@@ -160,7 +163,7 @@ impl GadgetConfiguration {
             network_identity,
             ecdsa_pair,
             self.bootnodes.clone(),
-            0,
+            self.network_bind_port,
             network_name,
         );
 
@@ -186,6 +189,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 ws_rpc_url,
                 #[cfg(feature = "networking")]
                 bootnodes,
+                #[cfg(feature = "networking")]
+                network_bind_port,
                 keystore_uri,
                 protocol,
                 #[cfg(feature = "tangle")]
@@ -303,6 +308,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         data_dir: None,
         #[cfg(feature = "networking")]
         bootnodes: bootnodes.unwrap_or_default(),
+        #[cfg(feature = "networking")]
+        network_bind_port: network_bind_port.unwrap_or_default(),
         protocol,
         protocol_settings,
     })
