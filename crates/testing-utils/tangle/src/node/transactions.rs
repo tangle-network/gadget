@@ -224,8 +224,11 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
     Err(TransactionError::NoJobCalled)
 }
 
-/// Requests a service with a given blueprint. This is meant for testing, and will allow any node
-/// to make a call to run a service, and will have all nodes running the service.
+/// Requests a service with a given blueprint.
+///
+/// This is meant for testing.
+///
+/// `user` will be the only permitted caller, and all `test_nodes` will be selected as operators.
 pub async fn request_service<T: Signer<TangleConfig>>(
     client: &TestClient,
     user: &T,
@@ -233,11 +236,11 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     test_nodes: Vec<AccountId32>,
     value: u128,
 ) -> Result<(), TransactionError> {
-    debug!(requester = ?user.address(), ?test_nodes, %blueprint_id, "Requesting service");
+    info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
     let call = api::tx().services().request(
         None, // TODO: Ensure this is okay for testing
         blueprint_id,
-        test_nodes.clone(),
+        Vec::new(),
         test_nodes,
         Default::default(),
         Assets::from([0]),
@@ -454,9 +457,10 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     let accounts = sr25519_signers.iter().map(|s| s.account_id()).collect::<Vec<_>>();
     request_service(alice_client, alice_signer, blueprint_id, accounts, 0).await?;
 
+    // Approve the service request and wait for completion
+    let request_id = get_next_request_id(alice_client).await?.saturating_sub(1);
+
     for (signer, client) in sr25519_signers.iter().zip(clients) {
-        // Approve the service request and wait for completion
-        let request_id = get_next_request_id(client).await?.saturating_sub(1);
         approve_service(client, signer, request_id, 20).await?;
     }
 
