@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gadget_config::GadgetConfiguration;
+use gadget_config::{GadgetConfiguration, Multiaddr};
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::error::RunnerError as Error;
@@ -15,6 +15,13 @@ pub struct TangleTestEnv {
     config: TangleConfig,
     gadget_config: GadgetConfiguration,
     runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
+}
+
+impl TangleTestEnv {
+    pub(crate) fn update_networking_config(&mut self, bootnodes: Vec<Multiaddr>, network_bind_port: u16) {
+        self.gadget_config.bootnodes = bootnodes;
+        self.gadget_config.network_bind_port = network_bind_port;
+    }
 }
 
 impl Debug for TangleTestEnv {

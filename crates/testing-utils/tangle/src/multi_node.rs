@@ -5,7 +5,7 @@ use crate::{
     Error,
 };
 use futures::future::join_all;
-use gadget_config::GadgetConfiguration;
+use gadget_config::{GadgetConfiguration, Multiaddr};
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClient};
 use gadget_core_testing_utils::runner::TestEnv;
@@ -16,73 +16,11 @@ use gadget_keystore::crypto::sp_core::SpSr25519;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
-
-/// Represents a single node in the multi-node test environment
-pub struct NodeHandle {
-    node_id: usize,
-    client: TangleClient,
-    signer: TanglePairSigner<sp_core::sr25519::Pair>,
-    state: Arc<RwLock<NodeState>>,
-    command_tx: mpsc::Sender<NodeCommand>,
-    test_env: Arc<RwLock<TangleTestEnv>>,
-}
-
-impl NodeHandle {
-    /// Adds a job to the node to be executed when the test is run.
-    ///
-    /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
-    /// method.
-    pub async fn add_job<K: InitializableEventHandler + Send + Sync + 'static>(&self, job: K) {
-        self.test_env.write().await.add_job(job)
-    }
-
-    pub async fn gadget_config(&self) -> GadgetConfiguration {
-        self.test_env.read().await.get_gadget_config()
-    }
-}
-
-impl Debug for NodeHandle {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeHandle")
-            .field("node_id", &self.node_id)
-            .field("signer", &self.signer.address())
-            .field("test_env", &self.test_env)
-            .finish()
-    }
-}
-
-struct NodeState {
-    is_running: bool,
-}
-
-impl Debug for NodeState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeState")
-            .field("is_running", &self.is_running)
-            .finish()
-    }
-}
-
-/// Commands that can be sent to individual nodes
-enum NodeCommand {
-    StartRunner {
-        result_tx: oneshot::Sender<Result<(), Error>>,
-    },
-    Shutdown,
-}
-
-impl Debug for NodeCommand {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NodeCommand::StartRunner { .. } => f.write_str("StartRunner"),
-            NodeCommand::Shutdown => f.write_str("Shutdown"),
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 enum NodeSlot {
@@ -165,6 +103,28 @@ impl MultiNodeTestEnv {
         // First add N nodes
         for node_id in 0..initial_node_count {
             self.add_node(node_id).await?;
+        }
+
+        // Setup the bootnodes
+        if initial_node_count > 1 {
+            let nodes = self.nodes.read().await;
+            for (index, node) in nodes.iter().enumerate() {
+                let NodeSlot::Occupied(node) = node else {
+                    panic!("Not all nodes were initialized");
+                };
+
+                let mut bootnodes = Vec::new();
+                for node in nodes.iter().enumerate().filter(|(n, _)| *n != index) {
+                    let NodeSlot::Occupied(node) = node.1 else {
+                        panic!("Not all nodes were initialized");
+                    };
+
+                    bootnodes.push(node.addr.clone());
+                }
+
+                let mut env = node.test_env.write().await;
+                env.update_networking_config(bootnodes, node.port);
+            }
         }
 
         // Signal initialization is complete
@@ -370,6 +330,71 @@ impl MultiNodeTestEnv {
     }
 }
 
+struct NodeState {
+    is_running: bool,
+}
+
+impl Debug for NodeState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeState")
+            .field("is_running", &self.is_running)
+            .finish()
+    }
+}
+
+/// Commands that can be sent to individual nodes
+enum NodeCommand {
+    StartRunner {
+        result_tx: oneshot::Sender<Result<(), Error>>,
+    },
+    Shutdown,
+}
+
+impl Debug for NodeCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeCommand::StartRunner { .. } => f.write_str("StartRunner"),
+            NodeCommand::Shutdown => f.write_str("Shutdown"),
+        }
+    }
+}
+
+/// Represents a single node in the multi-node test environment
+pub struct NodeHandle {
+    node_id: usize,
+    addr: Multiaddr,
+    port: u16,
+    client: TangleClient,
+    signer: TanglePairSigner<sp_core::sr25519::Pair>,
+    state: Arc<RwLock<NodeState>>,
+    command_tx: mpsc::Sender<NodeCommand>,
+    test_env: Arc<RwLock<TangleTestEnv>>,
+}
+
+impl NodeHandle {
+    /// Adds a job to the node to be executed when the test is run.
+    ///
+    /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
+    /// method.
+    pub async fn add_job<K: InitializableEventHandler + Send + Sync + 'static>(&self, job: K) {
+        self.test_env.write().await.add_job(job)
+    }
+
+    pub async fn gadget_config(&self) -> GadgetConfiguration {
+        self.test_env.read().await.get_gadget_config()
+    }
+}
+
+impl Debug for NodeHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeHandle")
+            .field("node_id", &self.node_id)
+            .field("signer", &self.signer.address())
+            .field("test_env", &self.test_env)
+            .finish()
+    }
+}
+
 // Implementation for NodeHandle
 impl NodeHandle {
     async fn new(node_id: usize, config: &TangleTestConfig) -> Result<Arc<Self>, Error> {
@@ -398,8 +423,16 @@ impl NodeHandle {
         // Create TangleTestEnv for this node
         let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
 
+        let port = find_open_tcp_bind_port();
+        gadget_logging::info!("Binding node {node_id} to port {port}");
+
+        let addr = Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/{port}"))
+            .expect("Should parse MultiAddr");
+
         let node = Arc::new(Self {
             node_id,
+            addr,
+            port,
             client,
             signer: sr25519_signer,
             state,
@@ -469,4 +502,15 @@ impl NodeHandle {
     pub fn signer(&self) -> &TanglePairSigner<sp_core::sr25519::Pair> {
         &self.signer
     }
+}
+
+pub fn find_open_tcp_bind_port() -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("Should bind to localhost");
+    let port = listener
+        .local_addr()
+        .expect("Should have a local address")
+        .port();
+    drop(listener);
+    port
 }

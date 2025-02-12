@@ -33,6 +33,10 @@ pub enum GadgetCLICoreSettings {
         #[arg(long, value_parser = <Multiaddr as gadget_std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
+        #[cfg(feature = "networking")]
+        #[arg(long, env)]
+        #[serde(default)]
+        network_bind_port: Option<u16>,
         #[arg(long, short = 'd', env)]
         keystore_uri: String,
         #[arg(long, value_enum, env)]
@@ -212,6 +216,8 @@ impl Default for GadgetCLICoreSettings {
             ws_rpc_url: default_ws_rpc_url(),
             #[cfg(feature = "networking")]
             bootnodes: None,
+            #[cfg(feature = "networking")]
+            network_bind_port: None,
             keystore_uri: String::new(),
             chain: SupportedChains::default(),
             verbose: 0,
@@ -342,6 +348,8 @@ impl ContextConfig {
                 http_rpc_url,
                 #[cfg(feature = "networking")]
                 bootnodes: None,
+                #[cfg(feature = "networking")]
+                network_bind_port: None,
                 keystore_uri,
                 chain,
                 verbose: 3,
