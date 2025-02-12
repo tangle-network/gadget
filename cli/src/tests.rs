@@ -7,9 +7,18 @@ use gadget_crypto_core::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 use tangle_subxt::subxt_signer::bip39;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
+
+use crate::deploy::eigenlayer::NetworkTarget;
+use crate::deploy::eigenlayer::{deploy_nonlocal, EigenlayerDeployOpts};
+use gadget_logging::setup_log;
+use gadget_testing_utils::anvil::{start_default_anvil_testnet, Container};
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 #[test]
 fn test_cli_fs_key_generation() -> Result<()> {
@@ -131,6 +140,96 @@ fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
     // Test when the EVM_SIGNER environment variable is not set
     env::remove_var(EVM_SIGNER_ENV);
     assert!(load_evm_signer_from_env().is_err());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
+    setup_log();
+
+    // Create a temporary directory for our test contract
+    let temp_dir = TempDir::new()?;
+    let contract_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&contract_dir)?;
+
+    // Write the test contract
+    let contract_content = r#"// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract TestContract {
+    uint256 private value;
+
+    function setValue(uint256 _value) public {
+        value = _value;
+    }
+
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+}
+"#;
+
+    fs::write(contract_dir.join("TestContract.sol"), contract_content)?;
+
+    // Create foundry.toml
+    let foundry_content = r#"[profile.default]
+src = 'src'
+out = 'out'
+libs = ['lib']"#;
+    fs::write(temp_dir.path().join("foundry.toml"), foundry_content)?;
+
+    let (container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
+
+    // Set up deployment options with temporary directory path
+    let opts = EigenlayerDeployOpts {
+        rpc_url: http_endpoint.clone(),
+        contract_path: contract_dir
+            .join("TestContract.sol")
+            .to_string_lossy()
+            .to_string(),
+        network: NetworkTarget::Local,
+    };
+
+    // Build the contracts in temporary directory
+    Command::new("forge")
+        .arg("build")
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("Failed to build contracts");
+
+    // Deploy the contract
+    let result = deploy_nonlocal(&opts).await;
+
+    // Check deployment result
+    assert!(result.is_ok(), "Contract deployment failed: {:?}", result);
+
+    // Get the deployed contract address from the result
+    let contract_address = result.unwrap();
+
+    // Create a provider
+
+    let provider = get_provider_http(&http_endpoint);
+
+    // Create a contract instance
+    let contract = ContractInstance::new(contract_address, TestContract::abi(), provider.clone());
+
+    // Interact with the contract
+    let initial_value = contract.getValue().call().await?;
+    assert_eq!(initial_value, 0, "Initial value should be 0");
+
+    // Set a new value
+    let new_value = 42;
+    let tx = contract.setValue(new_value).send().await?;
+    tx.await?;
+
+    // Get the updated value
+    let updated_value = contract.getValue().call().await?;
+    assert_eq!(
+        updated_value, new_value,
+        "Value should be updated to {}",
+        new_value
+    );
 
     Ok(())
 }
