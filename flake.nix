@@ -1,5 +1,5 @@
 {
-  description = "Webb Gadgets development environment";
+  description = "Tangle Gadgets development environment";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
