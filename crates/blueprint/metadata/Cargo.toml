@@ -19,3 +19,6 @@ rustdoc-types.workspace = true
 cargo_metadata.workspace = true
 fs2.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

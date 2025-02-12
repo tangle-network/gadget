@@ -102,6 +102,7 @@ jobs:
             gadget-event-listeners-core,
             gadget-event-listeners-cronjob,
 
+            blueprint-metadata,
             gadget-blueprint-serde,
             gadget-config,
             gadget-keystore,
