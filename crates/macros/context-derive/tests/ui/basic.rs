@@ -112,7 +112,7 @@ impl Network for StubNetwork {
     async fn send_message(
         &self,
         message: ProtocolMessage,
-    ) -> Result<(), blueprint_sdk::networking::Error> {
+    ) -> Result<(), blueprint_sdk::networking::error::Error> {
         drop(message);
         Ok(())
     }
