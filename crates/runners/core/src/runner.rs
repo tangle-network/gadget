@@ -29,7 +29,7 @@ pub trait BackgroundService: Send + Sync + CloneableService + 'static {
 
 pub struct BlueprintRunner {
     pub config: Box<dyn BlueprintConfig>,
-    pub jobs: Vec<Box<dyn InitializableEventHandler + Send + 'static>>,
+    pub jobs: Vec<Box<dyn InitializableEventHandler + Send + Sync + 'static>>,
     pub env: GadgetConfiguration,
     pub background_services: Vec<Box<dyn BackgroundService>>,
 }
@@ -47,7 +47,7 @@ impl BlueprintRunner {
     pub fn job<J, T>(&mut self, job: J) -> &mut Self
     where
         J: Into<JobBuilder<T>>,
-        T: InitializableEventHandler + Send + 'static,
+        T: InitializableEventHandler + Send + Sync + 'static,
     {
         let JobBuilder { event_handler } = job.into();
         self.jobs.push(Box::new(event_handler));

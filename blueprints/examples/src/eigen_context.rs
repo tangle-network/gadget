@@ -59,7 +59,7 @@ pub async fn constructor(
     id = 0,
     params(task_index, log_index, block_number),
     event_listener(
-        listener = EvmContractEventListener<ExampleTaskManager::NewTaskCreated>,
+        listener = EvmContractEventListener<ExampleEigenContext, ExampleTaskManager::NewTaskCreated>,
         instance = ExampleTaskManager,
         abi = EXAMPLE_TASK_MANAGER_ABI_STRING,
         pre_processor = handle_events,

@@ -215,7 +215,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 ) -> syn::Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let return_type = get_return_type(input);
 
-    let (mut event_handler_args, _event_handler_arg_types) =
+    let (mut event_handler_args, event_handler_arg_types) =
         get_event_handler_args(param_types, params)?;
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     #[cfg(feature = "tangle")]
@@ -246,13 +246,14 @@ pub(crate) fn generate_event_workflow_tokenstream(
         // We assume the first supplied event handler arg is the context we are injecting into the event listener
         // Then, pass that into the EventFlowWrapper
         let fn_name_ident = &input.sig.ident;
-        let static_ctx_get_override = quote! { CTX.get().unwrap() };
-        #[cfg(feature = "tangle")]
-        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
-        #[cfg(not(feature = "tangle"))]
-        let (_ctx_pos_in_ordered_inputs, mut ordered_inputs) =
-            get_fn_call_ordered(param_types, params, Some(static_ctx_get_override), is_raw)?;
+
+        let (ctx_pos_in_ordered_inputs, mut ordered_inputs) = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => get_fn_call_ordered(param_types, params, is_raw)?,
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => get_fn_call_ordered(param_types, params, is_raw)?,
+            ListenerType::Custom => get_fn_call_ordered(param_types, params, is_raw)?,
+        };
 
         let asyncness = get_asyncness(input);
 
@@ -262,11 +263,14 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let _ = event_handler_args.remove(0);
         }
 
-        let field_in_self_getter = event_handler_args
+        let (context_field, context_ty) = event_handler_args
             .first()
             .map(|field_in_self| {
                 // If is_raw, assume the actual context is the second param
-                quote! { ctx. #field_in_self .clone() }
+                (
+                    quote! { handler. #field_in_self .clone() },
+                    event_handler_arg_types[0],
+                )
             })
             .ok_or_else(|| {
                 syn::Error::new(
@@ -309,6 +313,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                context_ty,
                 ctx_pos_in_ordered_inputs,
             )?,
 
@@ -321,13 +326,14 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 fn_name_ident,
                 &asyncness,
                 &return_type,
+                ctx_pos_in_ordered_inputs,
             )?,
 
             ListenerType::Custom => {
                 let job_processor_call_return = get_return_type_wrapper(&return_type, None);
 
                 quote! {
-                    move |param0| async move {
+                    move |(param0, context)| async move {
                         let res = #fn_name_ident (#(#ordered_inputs),*) #asyncness;
                         #job_processor_call_return
                     }
@@ -339,19 +345,23 @@ pub(crate) fn generate_event_workflow_tokenstream(
             match listener_meta.listener_type {
                 #[cfg(feature = "tangle")]
                 ListenerType::Tangle => {
+                    // TODO: Double clone on client and signer
                     quote! {
-                        |(mut client_context, job_result)| async move {
-                            let ctx = CTX.get().unwrap();
-                            let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut client_context).expect("Tangle call ID was not injected into context");
-                            let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
-                                results: job_result,
-                                service_id: ctx.service_id,
-                                call_id,
-                                client: ctx.client.subxt_client().clone(),
-                                signer: ctx.signer.clone(),
-                            };
+                        move |(mut context, job_result)| {
+                            let client = client.clone();
+                            let signer = signer.clone();
+                            async move {
+                                let call_id = ::blueprint_sdk::macros::ext::contexts::services::ServicesContext::get_call_id(&mut context).expect("Tangle call ID was not injected into context");
+                                let tangle_job_result = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleResult::<_> {
+                                    results: job_result,
+                                    service_id,
+                                    call_id,
+                                    client,
+                                    signer,
+                                };
 
-                            #postprocessor(tangle_job_result).await
+                                #postprocessor(tangle_job_result).await
+                            }
                         }
                     }
                 }
@@ -374,60 +384,81 @@ pub(crate) fn generate_event_workflow_tokenstream(
             #[cfg(feature = "tangle")]
             ListenerType::Tangle => {
                 quote! {
-                    let context = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
-                        client: ctx.client.subxt_client().clone(),
-                        signer: ctx.signer.clone(),
+                    let context: ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput<#context_ty> = ::blueprint_sdk::macros::ext::event_listeners::tangle::events::TangleListenerInput {
+                        client: handler.client.subxt_client().clone(),
+                        signer: handler.signer.clone(),
                         job_id: #job_id_name,
-                        service_id: ctx.service_id,
-                        context: #field_in_self_getter,
+                        service_id: handler.service_id,
+                        context: #context_field,
                     };
+
+                    let client = context.client.clone();
+                    let signer = context.signer.clone();
+                    let service_id = context.service_id;
                 }
             }
 
             #[cfg(feature = "evm")]
             ListenerType::Evm => {
                 quote! {
-                    let context = ::blueprint_sdk::macros::ext::std::ops::Deref::deref(&ctx).clone();
+                    let context = #context_field;
                 }
             }
 
             ListenerType::Custom => {
-                quote! { let context = #field_in_self_getter; }
+                quote! { let context = #context_field; }
             }
         };
 
+        let context_to_listener = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { &context },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { &handler },
+            ListenerType::Custom => quote! { &context },
+        };
+
+        let event_listener_creator_param = match listener_meta.listener_type {
+            #[cfg(feature = "tangle")]
+            ListenerType::Tangle => quote! { _ },
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { #autogen_struct_name },
+            ListenerType::Custom => quote! { _ },
+        };
+
+        let wrapper_type_params = match listener_meta.listener_type {
+            #[cfg(feature = "evm")]
+            ListenerType::Evm => quote! { ::<_, _, #autogen_struct_name> },
+            _ => quote! {},
+        };
+
         let next_listener = quote! {
-            async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
+            async fn #listener_function_name (handler: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.fetch_or(true, std::sync::atomic::Ordering::Relaxed) {
-                    let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
-
-                    static CTX: ::blueprint_sdk::macros::ext::tokio::sync::OnceCell<#autogen_struct_name> = ::blueprint_sdk::macros::ext::tokio::sync::OnceCell::const_new();
-                    #context_declaration
-
-                    if let Err(_err) = CTX.set(ctx.clone()) {
-                        ::blueprint_sdk::macros::ext::logging::error!("Failed to set the context");
-                        return None;
-                    }
-                    let job_processor = #job_processor_wrapper;
-
-                    let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _>>::new(&context).await.expect("Failed to create event listener");
-                    let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
-                        listener,
-                        #pre_processor_function,
-                        job_processor,
-                        #post_processor_function,
-                    );
-
-                    let task = async move {
-                        let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
-                        let _ = tx.send(res);
-                    };
-                    ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
-                    return Some(rx)
+                    ::blueprint_sdk::logging::warn!("(Test mode?) Duplicated call for event listener {}", stringify!(#struct_name));
                 }
 
-                None
+                let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
+
+                #context_declaration
+                let job_processor = #job_processor_wrapper;
+
+                let listener = <#listener as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _, #event_listener_creator_param>>::new(#context_to_listener).await.expect("Failed to create event listener");
+                let mut event_workflow = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowWrapper::new(
+                    context,
+                    listener,
+                    #pre_processor_function,
+                    job_processor,
+                    #post_processor_function,
+                );
+
+                let task = async move {
+                    let res = ::blueprint_sdk::macros::ext::event_listeners::core::executor::EventFlowExecutor #wrapper_type_params::event_loop(&mut event_workflow).await.map_err(|e| Box::new(e) as Box<dyn ::core::error::Error + Send>);
+                    let _ = tx.send(res);
+                };
+                ::blueprint_sdk::macros::ext::tokio::task::spawn(task);
+                return Some(rx)
             }
         };
 
@@ -558,7 +589,6 @@ pub fn generate_autogen_struct(
 pub fn get_fn_call_ordered(
     param_types: &IndexMap<Ident, Type>,
     params_from_job_args: &[Ident],
-    replacement_for_self: Option<TokenStream>,
     is_raw: bool,
 ) -> syn::Result<(usize, Vec<TokenStream>)> {
     let (event_handler_args, _) = get_event_handler_args(param_types, params_from_job_args)?;
@@ -577,7 +607,7 @@ pub fn get_fn_call_ordered(
     let mut job_var_idx = 0;
     let mut non_job_var_count = 0;
     let mut ctx_pos = None;
-    let this = replacement_for_self.unwrap_or_else(|| quote! { self });
+    let this = quote! { handler };
     let ret = param_types
         .iter()
         .enumerate()
