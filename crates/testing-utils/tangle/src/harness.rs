@@ -105,7 +105,7 @@ impl TestHarness for TangleTestHarness {
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false))
+        let node = run(NodeConfig::new(true)) // TODO(cleanup): REMOVE
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
@@ -157,7 +157,7 @@ impl TestHarness for TangleTestHarness {
         harness
             .deploy_mbsm_if_needed()
             .await
-            .map_err(|_| Error::Setup("Failed to deploy MBSM".to_string()))?;
+            .map_err(|e| Error::Setup(format!("Failed to deploy MBSM: {e}")))?;
 
         Ok(harness)
     }

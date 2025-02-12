@@ -9,7 +9,7 @@ use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{sol, SolConstructor};
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
-use gadget_logging::{error, info};
+use gadget_logging::{debug, error, info};
 use sp_core::H160;
 use tangle_subxt::subxt::{
     blocks::ExtrinsicEvents,
@@ -233,6 +233,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     test_nodes: Vec<AccountId32>,
     value: u128,
 ) -> Result<(), TransactionError> {
+    debug!(requester = ?user.address(), ?test_nodes, %blueprint_id, "Requesting service");
     let call = api::tx().services().request(
         None, // TODO: Ensure this is okay for testing
         blueprint_id,
@@ -425,6 +426,10 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     preferences: Preferences,
     _exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
+    let alice_signer = sr25519_signers.first().ok_or(TransactionError::Other(
+        "No signers".to_string()
+    ))?;
+
     let alice_client = clients
         .first()
         .ok_or(TransactionError::Other("No client".to_string()))?;
@@ -446,9 +451,10 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     // Get the current service ID before requesting new service
     let prev_service_id = get_next_service_id(alice_client).await?;
 
+    let accounts = sr25519_signers.iter().map(|s| s.account_id()).collect::<Vec<_>>();
+    request_service(alice_client, alice_signer, blueprint_id, accounts, 0).await?;
+
     for (signer, client) in sr25519_signers.iter().zip(clients) {
-        let account_id = signer.account_id();
-        request_service(client, signer, blueprint_id, vec![account_id], 0).await?;
         // Approve the service request and wait for completion
         let request_id = get_next_request_id(client).await?.saturating_sub(1);
         approve_service(client, signer, request_id, 20).await?;

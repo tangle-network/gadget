@@ -73,10 +73,11 @@ pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
 
     // Add binary paths
     if config.use_local_tangle {
-        let tangle_from_env =
-            std::env::var(TANGLE_NODE_ENV).unwrap_or_else(|_| "tangle".to_string());
+        if let Ok(tangle_from_env) = std::env::var(TANGLE_NODE_ENV) {
+            builder.add_binary_path(tangle_from_env);
+        }
+
         builder
-            .add_binary_path(tangle_from_env)
             .add_binary_path("../tangle/target/release/tangle")
             .add_binary_path("../../tangle/target/release/tangle")
             .add_binary_path("../../../tangle/target/release/tangle");
