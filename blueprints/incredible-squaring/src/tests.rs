@@ -58,25 +58,27 @@ async fn test_incredible_squaring() -> Result<()> {
 //     // Initialize test harness (node, keys, deployment)
 //     let temp_dir = tempfile::TempDir::new()?;
 //     let harness = TangleTestHarness::setup(temp_dir).await?;
-//     let env = harness.env().clone();
+//
+//     // Setup service, but we don't register yet
+//     let (mut test_env, service_id, blueprint_id) = harness.setup_services::<1>(true).await?;
+//     test_env.initialize().await?;
+//
+//     let nodes = test_env.node_handles().await;
+//     let alice_node = &nodes[0];
 //
 //     // Create blueprint-specific context
+//     let env = alice_node.gadget_config().await;
 //     let blueprint_ctx = MyContext {
 //         env: env.clone(),
 //         call_id: None,
 //     };
 //
-//     // Initialize event handler
-//     let handler = XsquareEventHandler::new(&env.clone(), blueprint_ctx)
-//         .await
-//         .unwrap();
+//     // Initialize the event handler
+//     let handler = XsquareEventHandler::new(&env, blueprint_ctx).await?;
 //
-//     // Setup service, but we don't register yet
-//     let (mut test_env, _, blueprint_id) = harness.setup_services(true).await?;
-//     test_env.add_job(handler);
-//
-//     // Run once for pre-registration
-//     test_env.run_runner().await.unwrap();
+//     // Add the job to the node, and run once for pre-registration
+//     alice_node.add_job(handler).await;
+//     test_env.start().await?;
 //
 //     tokio::time::sleep(Duration::from_secs(2)).await;
 //
