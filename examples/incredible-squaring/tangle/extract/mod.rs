@@ -10,5 +10,7 @@ where
 {
     type Rejection = ();
 
-    async fn from_job_call(call: JobCall, ctx: &Ctx) -> Result<Self, Self::Rejection> {}
+    async fn from_job_call(call: JobCall, ctx: &Ctx) -> Result<Self, Self::Rejection> {
+        todo!()
+    }
 }

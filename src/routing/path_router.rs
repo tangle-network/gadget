@@ -1,25 +1,48 @@
-use super::nop::NoOp;
 use super::{Route, RouteId};
-use super::{FALLBACK_PARAM_PATH, NEST_TAIL_PARAM};
+use crate::boxed::BoxedIntoRoute;
 use crate::routing::future::RouteFuture;
-use crate::routing::strip_prefix::StripPrefix;
 use crate::{IntoJobResult, Job, JobCall};
 
 use alloc::borrow::Cow;
 use core::fmt;
-use matchit::MatchError;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tower::{Layer, Service};
 
-pub(super) struct JobIdRouter<const IS_FALLBACK: bool> {
-    routes: HashMap<RouteId, Route>,
+enum Handler<Ctx> {
+    Route(Route),
+    Boxed(BoxedIntoRoute<Ctx, Infallible>),
+}
+
+impl<Ctx> fmt::Debug for Handler<Ctx> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Handler::Route(route) => route.fmt(f),
+            Handler::Boxed(boxed) => boxed.fmt(f),
+        }
+    }
+}
+
+impl<Ctx> Clone for Handler<Ctx> {
+    fn clone(&self) -> Self {
+        match self {
+            Handler::Route(route) => Handler::Route(route.clone()),
+            Handler::Boxed(boxed) => Handler::Boxed(boxed.clone()),
+        }
+    }
+}
+
+pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
+    routes: HashMap<RouteId, Handler<Ctx>>,
     node: Arc<Node>,
     prev_route_id: RouteId,
 }
 
-impl JobIdRouter<true> {
+impl<Ctx> JobIdRouter<Ctx, true>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     pub(super) fn new_fallback() -> Self {
         let mut this = Self::default();
         // this.set_fallback(Route::new(NoOp));
@@ -31,16 +54,19 @@ impl JobIdRouter<true> {
     }
 }
 
-impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
-    pub(super) fn route<J, T, Ctx>(&mut self, job_id: u32, job: J) -> Result<(), Cow<'static, str>>
+impl<Ctx, const IS_FALLBACK: bool> JobIdRouter<Ctx, IS_FALLBACK>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
+    pub(super) fn route<J, T>(&mut self, job_id: u32, job: J) -> Result<(), Cow<'static, str>>
     where
         J: Job<T, Ctx>,
-        Ctx: Clone + Send + Sync + 'static,
         T: 'static,
     {
         let id = self.next_route_id();
         self.set_node(job_id, id)?;
-        self.routes.insert(id, Route::new(job));
+        self.routes
+            .insert(id, Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
         Ok(())
     }
@@ -57,7 +83,7 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
     {
         let id = self.next_route_id();
         self.set_node(job_id, id)?;
-        self.routes.insert(id, Route::new(service));
+        self.routes.insert(id, Handler::Route(Route::new(service)));
         Ok(())
     }
 
@@ -70,43 +96,12 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
 
     pub(super) fn merge(
         &mut self,
-        other: JobIdRouter<IS_FALLBACK>,
+        other: JobIdRouter<Ctx, IS_FALLBACK>,
     ) -> Result<(), Cow<'static, str>> {
-        let JobIdRouter {
-            routes,
-            node,
-            prev_route_id: _,
-        } = other;
-
-        for (id, route) in routes {
-            let job_id = node
-                .route_id_to_job
-                .get(&id)
-                .copied()
-                .expect("no path for route id. This is a bug in axum. Please file an issue");
-
-            if IS_FALLBACK {
-                // when merging two routers it doesn't matter if you do `a.merge(b)` or
-                // `b.merge(a)`. This must also be true for fallbacks.
-                //
-                // However all fallback routers will have routes for `/` and `/*` so when merging
-                // we have to ignore the top level fallbacks on one side otherwise we get
-                // conflicts.
-                //
-                // `Router::merge` makes sure that when merging fallbacks `other` always has the
-                // fallback we want to keep. It panics if both routers have a custom fallback. Thus
-                // it is always okay to ignore one fallback and `Router::merge` also makes sure the
-                // one we can ignore is that of `self`.
-                self.replace_route(job_id, route);
-            } else {
-                self.route_service(job_id, route)?
-            }
-        }
-
-        Ok(())
+        todo!();
     }
 
-    pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<IS_FALLBACK>
+    pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx, IS_FALLBACK>
     where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
@@ -114,20 +109,7 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
         <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
-        let routes = self
-            .routes
-            .into_iter()
-            .map(|(id, endpoint)| {
-                let route = endpoint.layer(layer.clone());
-                (id, route)
-            })
-            .collect();
-
-        JobIdRouter {
-            routes,
-            node: self.node,
-            prev_route_id: self.prev_route_id,
-        }
+        todo!()
     }
 
     #[track_caller]
@@ -139,19 +121,20 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
         <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
-        if self.routes.is_empty() {
-            panic!(
-                "Adding a route_layer before any routes is a no-op. \
-                 Add the routes you want the layer to apply to first."
-            );
-        }
+        todo!()
+    }
 
+    pub(super) fn has_routes(&self) -> bool {
+        !self.routes.is_empty()
+    }
+
+    pub(super) fn with_context<Ctx2>(self, context: Ctx) -> JobIdRouter<Ctx2, IS_FALLBACK> {
         let routes = self
             .routes
             .into_iter()
-            .map(|(id, endpoint)| {
-                let route = endpoint.layer(layer.clone());
-                (id, route)
+            .map(|(id, endpoint)| match endpoint {
+                Handler::Route(route) => (id, Handler::Route(route)),
+                Handler::Boxed(boxed) => (id, Handler::Route(boxed.into_route(context.clone()))),
             })
             .collect();
 
@@ -162,30 +145,26 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
         }
     }
 
-    pub(super) fn has_routes(&self) -> bool {
-        !self.routes.is_empty()
-    }
-
-    pub(super) fn call_with_context<Ctx>(
+    pub(super) fn call_with_context(
         &self,
         mut call: JobCall,
         context: Ctx,
-    ) -> Result<RouteFuture<Infallible>, (JobCall, Ctx)>
-    where
-        Ctx: Clone + Send + Sync + 'static,
-    {
+    ) -> Result<RouteFuture<Infallible>, (JobCall, Ctx)> {
         let (mut parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
             return Err((JobCall::from_parts(parts, body), context));
         };
 
-        let route = self
+        let handler = self
             .routes
             .get(&route)
             .expect("no route for id. This is a bug in axum. Please file an issue");
 
-        let req = JobCall::from_parts(parts, body);
-        Ok(route.clone().call_owned(req))
+        let call = JobCall::from_parts(parts, body);
+        match handler {
+            Handler::Route(route) => Ok(route.clone().call_owned(call)),
+            Handler::Boxed(boxed) => Ok(boxed.clone().into_route(context).call(call)),
+        }
     }
 
     pub(super) fn replace_route(&mut self, job_id: u32, route: Route) {
@@ -203,7 +182,7 @@ impl<const IS_FALLBACK: bool> JobIdRouter<IS_FALLBACK> {
     }
 }
 
-impl<const IS_FALLBACK: bool> Default for JobIdRouter<IS_FALLBACK> {
+impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
     fn default() -> Self {
         Self {
             routes: Default::default(),
@@ -213,7 +192,7 @@ impl<const IS_FALLBACK: bool> Default for JobIdRouter<IS_FALLBACK> {
     }
 }
 
-impl<const IS_FALLBACK: bool> fmt::Debug for JobIdRouter<IS_FALLBACK> {
+impl<Ctx, const IS_FALLBACK: bool> fmt::Debug for JobIdRouter<Ctx, IS_FALLBACK> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PathRouter")
             .field("routes", &self.routes)
@@ -222,7 +201,10 @@ impl<const IS_FALLBACK: bool> fmt::Debug for JobIdRouter<IS_FALLBACK> {
     }
 }
 
-impl<const IS_FALLBACK: bool> Clone for JobIdRouter<IS_FALLBACK> {
+impl<Ctx, const IS_FALLBACK: bool> Clone for JobIdRouter<Ctx, IS_FALLBACK>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     fn clone(&self) -> Self {
         Self {
             routes: self.routes.clone(),

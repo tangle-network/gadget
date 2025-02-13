@@ -70,8 +70,8 @@ pub use self::service::JobService;
 ///
 /// ```
 /// use blueprint_sdk::job::JobWithoutContextExt;
-/// use blueprint_sdk::Context;
-/// use tower_service::Service;
+/// use blueprint_sdk::{Context, JobCall, Job};
+/// use tower::Service;
 ///
 /// // this handler doesn't require any state
 /// async fn one() {}
@@ -81,16 +81,15 @@ pub use self::service::JobService;
 /// // this handler requires a context
 /// async fn two(_: Context<String>) {}
 /// // so we have to provide it
-/// let handler_with_state = two.with_state(String::new());
+/// let handler_with_state = two.with_context(String::new());
 /// // which gives us a `Service`
 /// assert_service(handler_with_state);
 ///
 /// // helper to check that a value implements `Service`
 /// fn assert_service<S>(service: S)
 /// where
-///     S: Service<Request>,
-/// {
-/// }
+///     S: Service<JobCall>,
+/// {}
 /// ```
 //#[doc = include_str!("../docs/debugging_handler_type_errors.md")]
 ///
@@ -100,22 +99,17 @@ pub use self::service::JobService;
 /// fixed data for routes:
 ///
 /// ```
-/// use blueprint_sdk::{
-///     Router,
-///     routing::{get, post},
-///     Json,
-///     http::StatusCode,
-/// };
+/// use blueprint_sdk::Router;
 /// use serde_json::json;
+///
+/// const HELLO_JOB_ID: u32 = 0;
+/// const USERS_JOB_ID: u32 = 1;
 ///
 /// let app = Router::new()
 ///     // respond with a fixed string
-///     .route("/", get("Hello, World!"))
+///     .route(HELLO_JOB_ID, "Hello, World!")
 ///     // or return some mock data
-///     .route("/users", post((
-///         StatusCode::CREATED,
-///         Json(json!({ "id": 1, "username": "alice" })),
-///     )));
+///     .route(USERS_JOB_ID, json!({ "id": 1, "username": "alice" }).to_string());
 /// # let _: Router = app;
 /// ```
 #[diagnostic::on_unimplemented(
@@ -149,14 +143,15 @@ pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
     /// can be done like so:
     ///
     /// ```rust
-    /// use blueprint_sdk::Job;
+    /// use blueprint_sdk::{Job, Router};
     /// use tower::limit::{ConcurrencyLimit, ConcurrencyLimitLayer};
     ///
-    /// async fn handler() { /* ... */
-    /// }
+    /// async fn handler() { /* ... */ }
+    ///
+    /// const MY_JOB_ID: u32 = 0;
     ///
     /// let layered_handler = handler.layer(ConcurrencyLimitLayer::new(64));
-    /// let app = Router::new().route("/", get(layered_handler));
+    /// let app = Router::new().route(MY_JOB_ID, layered_handler);
     /// # let _: Router = app;
     /// ```
     fn layer<L>(self, layer: L) -> Layered<L, Self, T, Ctx>

@@ -19,7 +19,7 @@ where
     {
         Self(Box::new(MakeErasedJob {
             job,
-            into_route: |handler, state| Route::new(Job::with_context(handler, state)),
+            into_route: |handler, context| Route::new(Job::with_context(handler, context)),
         }))
     }
 }
