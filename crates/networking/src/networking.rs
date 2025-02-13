@@ -22,7 +22,6 @@ use gadget_std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
-use tracing::trace;
 
 pub type UserID = u16;
 
@@ -297,7 +296,7 @@ impl NetworkMultiplexer {
                     let current_seq = *seq;
                     *seq += 1;
 
-                    trace!(
+                    gadget_logging::trace!(
                         "SEND SEQ {current_seq} FROM {} | StreamKey: {:?}",
                         msg.sender.user_id,
                         hex::encode(bincode::serialize(&compound_key).unwrap())
@@ -344,89 +343,88 @@ impl NetworkMultiplexer {
                         }
                     }
 
-                    if let Ok(multiplexed_message) =
-                        bincode::deserialize::<MultiplexedMessage>(&msg.payload)
-                    {
-                        let stream_id = multiplexed_message.stream_id;
-                        let compound_key = CompoundStreamKey {
-                            stream_key: stream_id,
-                            send_user: msg.sender.user_id,
-                            recv_user: msg.recipient.as_ref().map(|p| p.user_id),
-                        };
-                        let seq = multiplexed_message.payload.seq;
-                        msg.payload = multiplexed_message.payload.payload;
+                    let Ok(multiplexed_message) = bincode::deserialize::<MultiplexedMessage>(&msg.payload) else {
+                        gadget_logging::error!("Failed to deserialize message (networking)");
+                        continue;
+                    };
 
-                        // Get or create the pending heap for this stream
-                        let pending = pending_messages.entry(compound_key).or_default();
-                        let expected_seq = expected_seqs.entry(compound_key).or_default();
+                    let stream_id = multiplexed_message.stream_id;
+                    let compound_key = CompoundStreamKey {
+                        stream_key: stream_id,
+                        send_user: msg.sender.user_id,
+                        recv_user: msg.recipient.as_ref().map(|p| p.user_id),
+                    };
+                    let seq = multiplexed_message.payload.seq;
+                    msg.payload = multiplexed_message.payload.payload;
 
-                        let send_user = msg.sender.user_id;
-                        let recv_user = msg.recipient.as_ref().map_or(-1, |p| i32::from(p.user_id));
-                        let compound_key_hex =
-                            hex::encode(bincode::serialize(&compound_key).unwrap());
-                        trace!(
-                            "RECV SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}",
-                            send_user,
-                            recv_user,
-                            *expected_seq,
-                            compound_key_hex,
-                        );
+                    // Get or create the pending heap for this stream
+                    let pending = pending_messages.entry(compound_key).or_default();
+                    let expected_seq = expected_seqs.entry(compound_key).or_default();
 
-                        // Add the message to pending
-                        pending.push(Reverse(PendingMessage { seq, message: msg }));
+                    let send_user = msg.sender.user_id;
+                    let recv_user = msg.recipient.as_ref().map(|p| p.user_id);
+                    let compound_key_hex =
+                        hex::encode(bincode::serialize(&compound_key).unwrap());
+                    gadget_logging::trace!(
+                        "RECV SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}",
+                        send_user,
+                        recv_user,
+                        *expected_seq,
+                        compound_key_hex,
+                    );
 
-                        // Try to deliver messages in order
-                        if let Some(active_receiver) = active_streams.get(&stream_id) {
-                            while let Some(Reverse(PendingMessage { seq, message: _ })) =
-                                pending.peek()
-                            {
-                                if *seq != *expected_seq {
-                                    break;
-                                }
+                    // Add the message to pending
+                    pending.push(Reverse(PendingMessage { seq, message: msg }));
 
-                                trace!("DELIVERING SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
-
-                                *expected_seq += 1;
-
-                                let message = pending.pop().unwrap().0.message;
-
-                                if let Err(err) = active_receiver.send(message) {
-                                    gadget_logging::error!(%err, "Failed to send message to receiver");
-                                    let _ = active_streams.remove(&stream_id);
-                                    break;
-                                }
-                            }
-                        } else {
-                            let (tx, rx) = Self::create_multiplexed_stream_inner(
-                                tx_to_networking_layer.clone(),
-                                &active_streams,
-                                stream_id,
-                            );
-
-                            // Deliver any pending messages in order
-                            while let Some(Reverse(PendingMessage { seq, message: _ })) =
-                                pending.peek()
-                            {
-                                if *seq != *expected_seq {
-                                    break;
-                                }
-
-                                gadget_logging::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
-
-                                *expected_seq += 1;
-
-                                let message = pending.pop().unwrap().0.message;
-
-                                if let Err(err) = tx.send(message) {
-                                    gadget_logging::error!(%err, "Failed to send message to receiver");
-                                    break;
-                                }
+                    // Try to deliver messages in order
+                    if let Some(active_receiver) = active_streams.get(&stream_id) {
+                        while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                            pending.peek()
+                        {
+                            if *seq != *expected_seq {
+                                break;
                             }
 
-                            let _ = unclaimed_streams.insert(stream_id, rx);
+                            gadget_logging::trace!("DELIVERING SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+
+                            *expected_seq += 1;
+
+                            let message = pending.pop().unwrap().0.message;
+
+                            if let Err(err) = active_receiver.send(message) {
+                                gadget_logging::error!(%err, "Failed to send message to receiver");
+                                let _ = active_streams.remove(&stream_id);
+                                break;
+                            }
                         }
                     } else {
-                        gadget_logging::error!("Failed to deserialize message (networking)");
+                        let (tx, rx) = Self::create_multiplexed_stream_inner(
+                            tx_to_networking_layer.clone(),
+                            &active_streams,
+                            stream_id,
+                        );
+
+                        // Deliver any pending messages in order
+                        while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                            pending.peek()
+                        {
+                            if *seq != *expected_seq {
+                                break;
+                            }
+
+                            gadget_logging::warn!("EARLY DELIVERY SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}", send_user, recv_user, *expected_seq, compound_key_hex);
+
+                            *expected_seq += 1;
+
+                            let message = pending.pop().unwrap().0.message;
+
+                            if let Err(err) = tx.send(message) {
+                                gadget_logging::error!(%err, "Failed to send message to receiver");
+                                break;
+                            }
+                        }
+
+                        let _ = unclaimed_streams.insert(stream_id, rx);
                     }
                 }
             };
