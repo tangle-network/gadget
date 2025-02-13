@@ -16,6 +16,8 @@ use gadget_keystore::crypto::sp_core::SpSr25519;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
+use std::future::Future;
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -61,6 +63,14 @@ pub enum TestEvent {
     NodeShutdown(usize),
     Error(String),
 }
+
+/// A function that returns a future that returns a result containing an event handler for the job
+type EventHandlerBox = Box<dyn InitializableEventHandler + Send + 'static>;
+type JobResult = Result<EventHandlerBox, RunnerError>;
+type JobFuture = Pin<Box<dyn Future<Output = JobResult> + Send + 'static>>;
+
+trait JobCreator: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static {}
+impl<T: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static> JobCreator for T {}
 
 impl MultiNodeTestEnv {
     /// Creates a new multi-node test environment
@@ -130,6 +140,27 @@ impl MultiNodeTestEnv {
         // Signal initialization is complete
         if let Some(tx) = self.initialized_tx.take() {
             let _ = tx.send(());
+        }
+
+        Ok(())
+    }
+
+    /// Adds a job to the node to be executed when the test is run.
+    ///
+    /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
+    /// method.
+    pub async fn add_job<
+        T: Fn(GadgetConfiguration) -> F + Clone + Send + Sync + 'static,
+        F: Future<Output = Result<K, E>> + Send + 'static,
+        K: InitializableEventHandler + Send + Sync + 'static,
+        E: std::fmt::Debug + Send + 'static,
+    >(&self, creator: T) -> Result<(), E> {
+        let mut nodes = self.nodes.write().await;
+        for node in nodes.iter_mut() {
+            if let NodeSlot::Occupied(node) = node {
+                let job = creator(node.gadget_config().await).await?;
+                node.add_job(job).await;
+            }
         }
 
         Ok(())
