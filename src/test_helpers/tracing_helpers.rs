@@ -19,29 +19,10 @@ pub(crate) struct TracingEvent<T> {
     pub(crate) level: String,
 }
 
-/// Run an async closure and capture the tracing output it produces.
-pub(crate) fn capture_tracing<T, F>(f: F) -> CaptureTracing<T, F>
-where
-    T: DeserializeOwned,
-{
-    CaptureTracing {
-        f,
-        filter: None,
-        _phantom: PhantomData,
-    }
-}
-
 pub(crate) struct CaptureTracing<T, F> {
     f: F,
     filter: Option<Targets>,
     _phantom: PhantomData<fn() -> T>,
-}
-
-impl<T, F> CaptureTracing<T, F> {
-    pub(crate) fn with_filter(mut self, filter_string: &str) -> Self {
-        self.filter = Some(filter_string.parse().unwrap());
-        self
-    }
 }
 
 impl<T, F, Fut> IntoFuture for CaptureTracing<T, F>

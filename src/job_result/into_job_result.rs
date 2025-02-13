@@ -5,7 +5,7 @@ use crate::JobResult;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::{borrow::Cow, vec::Vec};
-use bytes::{Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use core::{convert::Infallible, fmt};
 
 /// Trait for generating JobResults.
@@ -44,7 +44,7 @@ use core::{convert::Infallible, fmt};
 /// const HANDLER_JOB_ID: u32 = 0;
 ///
 /// // `Result<impl IntoJobResult, MyError>` can now be returned from handlers
-/// let app = Router::new().route(HANDLER_JOB_ID, handler.into_service());
+/// let app = Router::new().route(HANDLER_JOB_ID, handler);
 ///
 /// async fn handler() -> Result<(), MyError> {
 ///     Err(MyError::SomethingWentWrong)
@@ -119,10 +119,10 @@ where
 
 impl<B> IntoJobResult for crate::job_result::JobResult<B>
 where
-    B: Into<Bytes> + Send + 'static,
+    B: Buf + Send + 'static,
 {
     fn into_job_result(self) -> JobResult {
-        self.map(Into::into)
+        self.map(|b| Bytes::from(b.chunk().to_vec()))
     }
 }
 

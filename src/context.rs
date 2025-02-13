@@ -19,7 +19,7 @@ use core::{
 /// # With `Router`
 ///
 /// ```
-/// use blueprint_sdk::{extract::context, routing::get, Router};
+/// use blueprint_sdk::{Router, Context, Job};
 ///
 /// // the application context
 /// //
@@ -30,20 +30,22 @@ use core::{
 ///
 /// let context = AppContext {};
 ///
+/// const MY_JOB_ID: u32 = 0;
+///
 /// // create a `Router` that holds our context
 /// let app = Router::new()
-///     .route("/", get(handler))
+///     .route(MY_JOB_ID, handler)
 ///     // provide the context so the router can access it
-///     .with_state(context);
+///     .with_context(context);
 ///
 /// async fn handler(
-///     // access the context via the `context` extractor
+///     // access the context via the `Context` extractor
 ///     // extracting a context of the wrong type results in a compile error
-///     context(context): context<AppContext>,
+///     Context(context): Context<AppContext>,
 /// ) {
 ///     // use `context`...
 /// }
-/// # let _: axum::Router = app;
+/// # let _: Router = app;
 /// ```
 ///
 /// Note that `context` is an extractor, so be sure to put it before any body
@@ -117,27 +119,7 @@ use core::{
 /// [`Router::nest`]: crate::Router::nest
 /// [`Router::with_state`]: crate::Router::with_state
 ///
-/// # With `MethodRouter`
-///
-/// ```
-/// use blueprint_sdk::{extract::context, routing::get};
-///
-/// #[derive(Clone)]
-/// struct AppContext {}
-///
-/// let context = AppContext {};
-///
-/// let method_router_with_state = get(handler)
-///     // provide the context so the handler can access it
-///     .with_state(context);
-/// # let _: axum::routing::MethodRouter = method_router_with_state;
-///
-/// async fn handler(context(context): context<AppContext>) {
-///     // use `context`...
-/// }
-/// ```
-///
-/// # With `Handler`
+/// # With `Job`
 ///
 /// ```
 /// use blueprint_sdk::{Context, Job};
@@ -147,12 +129,12 @@ use core::{
 ///
 /// let context = AppContext {};
 ///
-/// async fn handler(Context(context): Context<AppContext>) {
+/// async fn job(Context(context): Context<AppContext>) {
 ///     // use `context`...
 /// }
 ///
 /// // provide the context so the handler can access it
-/// let handler_with_state = handler.with_context(context);
+/// let handler_with_state = job.with_context(context);
 ///
 /// # async {
 /// let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -167,8 +149,8 @@ use core::{
 /// [`context`] only allows a single context type but you can use [`FromRef`] to extract "substates":
 ///
 /// ```
-/// use blueprint_sdk::Context;
-/// use blueprint_sdk::extract::FromRef;{
+/// use blueprint_sdk::extract::FromRef;
+/// use blueprint_sdk::{Context, Router};
 ///
 /// // the application context
 /// #[derive(Clone)]
@@ -192,12 +174,15 @@ use core::{
 ///     api_state: ApiContext {},
 /// };
 ///
+/// const HANDLER_JOB_ID: u32 = 0;
+/// const FETCH_API_JOB_ID: u32 = 1;
+///
 /// let app = Router::new()
-///     .route("/", get(handler))
-///     .route("/api/users", get(api_users))
+///     .route(HANDLER_JOB_ID, handler)
+///     .route(FETCH_API_JOB_ID, fetch_api)
 ///     .with_context(context);
 ///
-/// async fn api_users(
+/// async fn fetch_api(
 ///     // access the api specific context
 ///     Context(api_state): Context<ApiContext>,
 /// ) {
@@ -208,7 +193,7 @@ use core::{
 ///     Context(context): Context<AppContext>,
 /// ) {
 /// }
-/// # let _: axum::Router = app;
+/// # let _: Router = app;
 /// ```
 ///
 /// For convenience `FromRef` can also be derived using `#[derive(FromRef)]`.
@@ -220,13 +205,13 @@ use core::{
 ///
 /// ```rust
 /// use blueprint_sdk::extract::{FromJobCallParts, FromRef};
-/// use http::request::Parts;
+/// use blueprint_sdk::job_call::Parts;
 /// use std::convert::Infallible;
 ///
 /// // the extractor your library provides
 /// struct MyLibraryExtractor;
 ///
-/// impl<S> FromRequestParts<S> for MyLibraryExtractor
+/// impl<S> FromJobCallParts<S> for MyLibraryExtractor
 /// where
 ///     // keep `S` generic but require that it can produce a `MyLibraryContext`
 ///     // this means users will have to implement `FromRef<UserContext> for MyLibraryContext`
@@ -235,7 +220,7 @@ use core::{
 /// {
 ///     type Rejection = Infallible;
 ///
-///     async fn from_request_parts(
+///     async fn from_job_call_parts(
 ///         parts: &mut Parts,
 ///         context: &S,
 ///     ) -> Result<Self, Self::Rejection> {

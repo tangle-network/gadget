@@ -25,6 +25,7 @@ pub mod job_call;
 pub mod job_result;
 pub mod metadata;
 pub mod routing;
+pub mod service_ext;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 mod util;
@@ -37,6 +38,7 @@ pub use bytes::Bytes;
 pub use context::Context;
 pub use job::Job;
 pub use routing::Router;
+pub use service_ext::ServiceExt;
 
 /// A type representing a job result with a body of type `bytes::Bytes`.
 pub type JobResult<T = Bytes> = crate::job_result::JobResult<T>;

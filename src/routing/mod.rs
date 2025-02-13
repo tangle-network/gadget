@@ -1,9 +1,11 @@
 //! Routing between [`Service`]s and handlers.
 
 pub mod future;
+mod into_make_service;
 mod nop;
 mod path_router;
 mod strip_prefix;
+pub use into_make_service::IntoMakeService;
 
 use future::{Route, RouteFuture};
 
@@ -14,7 +16,7 @@ use crate::routing::path_router::JobIdRouter;
 use crate::util::try_downcast;
 use crate::{IntoJobResult, Job, JobCall, JobResult};
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use core::fmt;
 use std::convert::Infallible;
 use std::marker::PhantomData;
@@ -49,8 +51,8 @@ impl<Ctx> Clone for Router<Ctx> {
 }
 
 struct RouterInner<Ctx> {
-    job_id_router: JobIdRouter<false>,
-    fallback_router: JobIdRouter<true>,
+    job_id_router: JobIdRouter<Ctx, false>,
+    fallback_router: JobIdRouter<Ctx, true>,
     default_fallback: bool,
     catch_all_fallback: Fallback<Ctx>,
 }
@@ -138,6 +140,7 @@ where
     pub fn route<J, T>(self, job_id: u32, job: J) -> Self
     where
         J: Job<T, Ctx>,
+        T: 'static,
     {
         tap_inner!(self, mut this => {
             panic_on_err!(this.job_id_router.route(job_id, job));
@@ -282,8 +285,8 @@ where
 
     pub fn with_context<Ctx2>(self, context: Ctx) -> Router<Ctx2> {
         map_inner!(self, this => RouterInner {
-            job_id_router: this.job_id_router,
-            fallback_router: this.fallback_router,
+            job_id_router: this.job_id_router.with_context(context.clone()),
+            fallback_router: this.fallback_router.with_context(context.clone()),
             default_fallback: this.default_fallback,
             catch_all_fallback: this.catch_all_fallback.with_context(context),
         })
@@ -341,13 +344,15 @@ where
     /// Calling `Router::as_service` fixes that:
     ///
     /// ```
-    /// use axum::{body::Body, http::Request, routing::get};
-    /// use blueprint_sdk::Router;
+    /// use blueprint_sdk::{JobCall, Router};
+    /// use bytes::Bytes;
     /// use tower::{Service, ServiceExt};
     ///
+    /// const MY_JOB_ID: u32 = 0;
+    ///
     /// # async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut router = Router::new().route("/", get(|| async {}));
-    /// let request = Request::new(Body::empty());
+    /// let mut router = Router::new().route(MY_JOB_ID, || async {});
+    /// let request = JobCall::new(MY_JOB_ID, Bytes::new());
     /// let response = router.as_service().ready().await?.call(request).await?;
     /// # Ok(())
     /// # }
@@ -375,9 +380,34 @@ where
     }
 }
 
+impl Router {
+    /// Convert this router into a [`MakeService`], that is a [`Service`] whose
+    /// response is another service.
+    ///
+    /// ```
+    /// use blueprint_sdk::Router;
+    ///
+    /// const MY_JOB_ID: u32 = 0;
+    ///
+    /// let app = Router::new().route(MY_JOB_ID, || async { "Hi!" });
+    ///
+    /// # async {
+    /// let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    /// axum::serve(listener, app).await.unwrap();
+    /// # };
+    /// ```
+    ///
+    /// [`MakeService`]: tower::make::MakeService
+    pub fn into_make_service(self) -> IntoMakeService<Self> {
+        // call `Router::with_state` such that everything is turned into `Route` eagerly
+        // rather than doing that per request
+        IntoMakeService::new(self.with_context(()))
+    }
+}
+
 impl<B> Service<JobCall<B>> for Router<()>
 where
-    B: Into<Bytes> + Send + 'static,
+    B: Buf + Send + 'static,
 {
     type Response = JobResult;
     type Error = Infallible;
@@ -390,7 +420,7 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.call_with_context(call.map(Into::into), ())
+        self.call_with_context(call.map(|b| Bytes::from(b.chunk().to_vec())), ())
     }
 }
 
@@ -404,7 +434,7 @@ pub struct RouterAsService<'a, B, Ctx = ()> {
 
 impl<B> Service<JobCall<B>> for RouterAsService<'_, B, ()>
 where
-    B: Into<Bytes> + Send + 'static,
+    B: Buf + Send + 'static,
 {
     type Response = JobResult;
     type Error = Infallible;
@@ -417,7 +447,7 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.router.call(call.map(Into::into))
+        self.router.call(call)
     }
 }
 
@@ -454,7 +484,7 @@ where
 
 impl<B> Service<JobCall<B>> for RouterIntoService<B, ()>
 where
-    B: Into<Bytes> + Send + 'static,
+    B: Buf + Send + 'static,
 {
     type Response = JobResult;
     type Error = Infallible;
@@ -467,7 +497,7 @@ where
 
     #[inline]
     fn call(&mut self, req: JobCall<B>) -> Self::Future {
-        self.router.call(req.map(Into::into))
+        self.router.call(req)
     }
 }
 

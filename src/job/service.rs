@@ -2,7 +2,7 @@ use super::Job;
 
 use crate::job_call::JobCall;
 use crate::JobResult;
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use core::{
     convert::Infallible,
     fmt,
@@ -72,7 +72,7 @@ where
 impl<J, T, Ctx, B> Service<JobCall<B>> for JobService<J, T, Ctx>
 where
     J: Job<T, Ctx> + Clone + Send + 'static,
-    B: Into<Bytes> + Send + 'static,
+    B: Buf + Send + 'static,
     Ctx: Clone + Send + Sync,
 {
     type Response = JobResult;
@@ -90,7 +90,7 @@ where
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
         use futures_util::future::FutureExt;
 
-        let call = call.map(Into::into);
+        let call = call.map(|b| Bytes::from(b.chunk().to_vec()));
 
         let handler = self.job.clone();
         let future = Job::call(handler, call, self.ctx.clone());
