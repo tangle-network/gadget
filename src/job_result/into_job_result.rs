@@ -5,7 +5,7 @@ use crate::JobResult;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::{borrow::Cow, vec::Vec};
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Bytes, BytesMut};
 use core::{convert::Infallible, fmt};
 
 /// Trait for generating JobResults.
@@ -119,10 +119,10 @@ where
 
 impl<B> IntoJobResult for crate::job_result::JobResult<B>
 where
-    B: Buf + Send + 'static,
+    B: Into<Bytes> + Send + 'static,
 {
     fn into_job_result(self) -> JobResult {
-        self.map(|b| Bytes::from(b.chunk().to_vec()))
+        self.map(Into::into)
     }
 }
 

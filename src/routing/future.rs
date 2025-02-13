@@ -1,5 +1,5 @@
 use crate::{IntoJobResult, JobCall, JobResult};
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use pin_project_lite::pin_project;
 use std::{
     convert::Infallible,
@@ -77,7 +77,7 @@ impl<E> fmt::Debug for Route<E> {
 
 impl<B, E> Service<JobCall<B>> for Route<E>
 where
-    B: Buf + Send + 'static,
+    B: Into<Bytes>,
 {
     type Response = JobResult;
     type Error = E;
@@ -90,8 +90,7 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.oneshot_inner(call.map(|b| Bytes::from(b.chunk().to_vec())))
-            .not_top_level()
+        self.oneshot_inner(call.map(Into::into)).not_top_level()
     }
 }
 

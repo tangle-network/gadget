@@ -1,15 +1,21 @@
-use blueprint_sdk::job::*;
+extern crate alloc;
+
 use blueprint_sdk::*;
+use gadget_blueprint_serde::BoundedVec;
+use gadget_blueprint_serde::Field;
 use tangle::CallId;
+use tangle_subxt::parity_scale_codec::Encode;
+use tangle_subxt::subxt::utils::AccountId32;
 use tower::{Service, ServiceExt};
 
 /// Tangle Network Integration
 mod tangle;
 
-use tangle::Args;
+use tangle::{TangleArgs, TangleResult};
 
 // The job ID (to be generated?)
 const XSQUARE_JOB_ID: u32 = 1;
+const MULTIPLY_JOB_ID: u32 = 2;
 
 // The context (any type that's `Clone` + `Send` + `Sync` + 'static)
 #[derive(Clone, Debug)]
@@ -17,19 +23,43 @@ pub struct MyContext {
     foo: u64,
 }
 
-const RETURN_VALUE: [u8; 3] = [1, 2, 3];
-
 // The job function
 //
 // The arguments are made up of "extractors", which take a portion of the `JobCall` to convert into the
 // target type.
+//
+// The context is passed in as a parameter, and can be used to store any shared state between job calls.
 pub async fn square(
     CallId(call_id): CallId,
     Context(ctx): Context<MyContext>,
+    TangleArgs(x): TangleArgs<u64>,
 ) -> impl IntoJobResult {
     println!("call_id: {}", call_id);
-    println!("ctx: {:?}", ctx);
-    RETURN_VALUE
+    println!("ctx.foo: {:?}", ctx.foo);
+    println!("x: {}", x);
+    let result = x * x;
+
+    println!("result: {}", result);
+
+    // The result is then converted into a `JobResult` to be sent back to the caller.
+    TangleResult(result)
+}
+
+pub async fn multiply(
+    CallId(call_id): CallId,
+    Context(ctx): Context<MyContext>,
+    TangleArgs((x, y)): TangleArgs<(u64, u64)>,
+) -> impl IntoJobResult {
+    println!("call_id: {}", call_id);
+    println!("ctx.foo: {:?}", ctx.foo);
+    println!("x: {}", x);
+    println!("y: {}", y);
+    let result = x * y;
+
+    println!("result: {}", result);
+
+    // The result is then converted into a `JobResult` to be sent back to the caller.
+    TangleResult(result)
 }
 
 #[tokio::main]
@@ -38,26 +68,44 @@ async fn main() -> Result<(), BoxError> {
     //
     // Each "route" is a job ID and the job function. We can also support arbitrary `Service`s from `tower`,
     // which may make it easier for people to port over existing services to a blueprint.
-    let mut router: Router<()> = Router::new()
+    let mut router = Router::new()
         .route(XSQUARE_JOB_ID, square)
+        .route(MULTIPLY_JOB_ID, multiply)
         .with_context(MyContext { foo: 10 });
 
     // Job calls will be created by the Producer
     let job_call = tangle::create_call()
         .job_id(XSQUARE_JOB_ID)
         .call_id(42)
+        .args(Field::Uint64(2))
         .call();
 
     // `Router`s themselves are `Service`s, so we can convert it into one, and then call it with the `JobCall`.
     // The `Router` then finds the job function internally that matches the `job_id`, and calls it.
-    let job_result = router
-        .as_service::<Bytes>()
-        .ready()
-        .await?
-        .call(job_call)
-        .await?;
+    let job_result = router.as_service().ready().await?.call(job_call).await?;
 
     // Proof that we got the right value
-    assert_eq!(job_result.into_body(), Bytes::from(RETURN_VALUE.as_slice()));
+    assert_eq!(
+        job_result.into_body(),
+        Bytes::from(Field::<AccountId32>::Uint64(4).encode())
+    );
+
+    // Another job call example
+    let job_call = tangle::create_call()
+        .job_id(MULTIPLY_JOB_ID)
+        .call_id(43)
+        .args(Field::Array(BoundedVec(vec![
+            Field::Uint64(2),
+            Field::Uint64(3),
+        ])))
+        .call();
+
+    let job_result = router.as_service().ready().await?.call(job_call).await?;
+
+    assert_eq!(
+        job_result.into_body(),
+        Bytes::from(Field::<AccountId32>::Uint64(6).encode())
+    );
+
     Ok(())
 }
