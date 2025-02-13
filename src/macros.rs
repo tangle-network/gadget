@@ -244,8 +244,8 @@ macro_rules! __define_rejection {
             }
 
             /// Get the response body text used for this rejection.
-            pub fn body_text(&self) -> alloc::string::String {
-                use alloc::string::ToString;
+            pub fn body_text(&self) -> ::alloc::string::String {
+                use ::alloc::string::ToString;
                 self.to_string()
             }
         }

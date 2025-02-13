@@ -16,7 +16,7 @@ use crate::routing::path_router::JobIdRouter;
 use crate::util::try_downcast;
 use crate::{IntoJobResult, Job, JobCall, JobResult};
 
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use core::fmt;
 use std::convert::Infallible;
 use std::marker::PhantomData;
@@ -260,10 +260,13 @@ where
     #[track_caller]
     pub fn fallback<J, T>(self, job: J) -> Self
     where
-        J: JobWithoutContextExt<T>,
+        J: Job<T, Ctx>,
         T: 'static,
     {
-        self.fallback_service(job.into_service())
+        tap_inner!(self, mut this => {
+            this.catch_all_fallback = Fallback::BoxedHandler(BoxedIntoRoute::from_job(job));
+            this.default_fallback = false;
+        })
     }
 
     /// Add a fallback [`Service`] to the router.
@@ -407,7 +410,7 @@ impl Router {
 
 impl<B> Service<JobCall<B>> for Router<()>
 where
-    B: Buf + Send + 'static,
+    B: Into<Bytes>,
 {
     type Response = JobResult;
     type Error = Infallible;
@@ -420,7 +423,7 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.call_with_context(call.map(|b| Bytes::from(b.chunk().to_vec())), ())
+        self.call_with_context(call.map(Into::into), ())
     }
 }
 
@@ -434,7 +437,7 @@ pub struct RouterAsService<'a, B, Ctx = ()> {
 
 impl<B> Service<JobCall<B>> for RouterAsService<'_, B, ()>
 where
-    B: Buf + Send + 'static,
+    B: Into<Bytes>,
 {
     type Response = JobResult;
     type Error = Infallible;
@@ -484,7 +487,7 @@ where
 
 impl<B> Service<JobCall<B>> for RouterIntoService<B, ()>
 where
-    B: Buf + Send + 'static,
+    B: Into<Bytes>,
 {
     type Response = JobResult;
     type Error = Infallible;
