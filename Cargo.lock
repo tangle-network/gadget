@@ -15104,15 +15104,14 @@ dependencies = [
 
 [[package]]
 name = "round-based"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81564866f5617d497753563151d8beb80d61e925e904d94b7e8a202b721e931e"
+checksum = "da76edf50de0a9d6911fc79261bb04cc9f3f3a375e0201799f5edf58499af341"
 dependencies = [
- "displaydoc",
  "futures-util",
  "phantom-type",
  "round-based-derive",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tracing",
 ]
 

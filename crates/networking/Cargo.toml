@@ -74,7 +74,6 @@ std = [
 	"tokio/full",
 	"serde/std",
 	"serde_json/std",
-	"round-based?/std",
 ]
 
 round-based-compat = ["dep:round-based"]
