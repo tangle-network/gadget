@@ -113,19 +113,19 @@ pub trait Network: Send + Sync + 'static {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SequencedMessage {
-    seq: u64,
+    sequence_number: u64,
     payload: Vec<u8>,
 }
 
 #[derive(Debug)]
 struct PendingMessage {
-    seq: u64,
+    sequence_number: u64,
     message: ProtocolMessage,
 }
 
 impl PartialEq for PendingMessage {
     fn eq(&self, other: &Self) -> bool {
-        self.seq == other.seq
+        self.sequence_number == other.sequence_number
     }
 }
 
@@ -139,7 +139,7 @@ impl PartialOrd for PendingMessage {
 
 impl Ord for PendingMessage {
     fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-        self.seq.cmp(&other.seq)
+        self.sequence_number.cmp(&other.sequence_number)
     }
 }
 
@@ -305,7 +305,7 @@ impl NetworkMultiplexer {
                     let multiplexed_message = MultiplexedMessage {
                         stream_id,
                         payload: SequencedMessage {
-                            seq: current_seq,
+                            sequence_number: current_seq,
                             payload: msg.payload,
                         },
                     };
@@ -354,7 +354,7 @@ impl NetworkMultiplexer {
                         send_user: msg.sender.user_id,
                         recv_user: msg.recipient.as_ref().map(|p| p.user_id),
                     };
-                    let seq = multiplexed_message.payload.seq;
+                    let seq = multiplexed_message.payload.sequence_number;
                     msg.payload = multiplexed_message.payload.payload;
 
                     // Get or create the pending heap for this stream
@@ -374,14 +374,15 @@ impl NetworkMultiplexer {
                     );
 
                     // Add the message to pending
-                    pending.push(Reverse(PendingMessage { seq, message: msg }));
+                    pending.push(Reverse(PendingMessage { sequence_number: seq, message: msg }));
 
                     // Try to deliver messages in order
                     if let Some(active_receiver) = active_streams.get(&stream_id) {
-                        while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                        while let Some(Reverse(PendingMessage { sequence_number, message: _ })) =
                             pending.peek()
                         {
-                            if *seq != *expected_seq {
+                            if *sequence_number != *expected_seq {
+                                gadget_logging::error!("Sequence number mismatch, expected {} but got {}", *expected_seq, sequence_number);
                                 break;
                             }
 
@@ -405,10 +406,11 @@ impl NetworkMultiplexer {
                         );
 
                         // Deliver any pending messages in order
-                        while let Some(Reverse(PendingMessage { seq, message: _ })) =
+                        while let Some(Reverse(PendingMessage { sequence_number, message: _ })) =
                             pending.peek()
                         {
-                            if *seq != *expected_seq {
+                            if *sequence_number != *expected_seq {
+                                gadget_logging::error!("Sequence number mismatch, expected {} but got {}", *expected_seq, sequence_number);
                                 break;
                             }
 
