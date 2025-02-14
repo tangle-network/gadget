@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
+use gadget_runners::core::runner::BackgroundService;
 
 #[derive(Clone, Debug)]
 enum NodeSlot {
@@ -409,6 +410,10 @@ impl NodeHandle {
     /// method.
     pub async fn add_job<K: InitializableEventHandler + Send + Sync + 'static>(&self, job: K) {
         self.test_env.write().await.add_job(job)
+    }
+
+    pub async fn add_background_service<K: BackgroundService + Send + 'static>(&self, service: K) {
+        self.test_env.write().await.add_background_service(service)
     }
 
     pub async fn gadget_config(&self) -> GadgetConfiguration {
