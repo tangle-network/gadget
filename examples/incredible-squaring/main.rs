@@ -9,10 +9,14 @@ use tangle_subxt::subxt::utils::AccountId32;
 use tower::filter::FilterLayer;
 use tower::{Service, ServiceExt};
 
+use tangle_subxt::tangle_testnet_runtime::api::balances::events::Transfer;
+
 /// Tangle Network Integration
 mod tangle;
 
-use tangle::extract::{CallId, TangleArgs, TangleResult};
+use tangle::extract::{
+    BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, TangleArgs, TangleResult,
+};
 
 use tangle::filters::MatchesServiceId;
 use tangle::producer::{TangleClient, TangleProducer};
@@ -68,8 +72,52 @@ pub async fn multiply(
     TangleResult(result)
 }
 
+/// An Example of a job function that uses the `Event` extractors
+/// NOTE: this job will fail if no Transfer events are found in the block
+/// to avoid this, you can use the `Option<Event<T>>` extractor which
+/// will return `None` if no events are found.
+pub async fn on_transfer(
+    BlockNumber(block_number): BlockNumber,
+    // The `Event` extractor will extract all the `Transfer` events that happened in the current block.
+    Event(transfers): Event<Transfer>,
+    // Or maybe you are interested in the first transfer event
+    FirstEvent(first_transfer): FirstEvent<Transfer>,
+    // you can also get the last transfer event
+    LastEvent(last_transfer): LastEvent<Transfer>,
+) -> impl IntoJobResult {
+    println!("on_transfer");
+    println!("Block number: {}", block_number);
+
+    for transfer in transfers {
+        println!("Transfer: {:?}", transfer);
+    }
+
+    println!("First Transfer: {:?}", first_transfer);
+    println!("Last Transfer: {:?}", last_transfer);
+
+    TangleResult(0)
+}
+
+/// An Example of a job function that uses the `BlockEvents` extractor
+/// This should be used when you want to manually handle the events
+pub async fn manual_event_handling(
+    BlockNumber(block_number): BlockNumber,
+    // This allows you to extract all the events that happened in the current block
+    BlockEvents(events): BlockEvents,
+) -> impl IntoJobResult {
+    println!("Manual Event Handling for Block Number: {}", block_number);
+
+    for event in events.iter() {
+        println!("Event: {:?}", event);
+    }
+
+    TangleResult(0)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
+    let tangle_client = TangleClient::new().await?;
+    let service_id = 1;
     // A router
     //
     // Each "route" is a job ID and the job function. We can also support arbitrary `Service`s from `tower`,
@@ -77,15 +125,20 @@ async fn main() -> Result<(), BoxError> {
     let mut router = Router::new()
         .route(XSQUARE_JOB_ID, square)
         .route(MULTIPLY_JOB_ID, multiply)
+        // TODO: make this work regardless of the job ID?
+        .route(3, on_transfer)
+        // This is an example of a job function that manually handles the events
+        .route(4, manual_event_handling)
         .with_context(MyContext { foo: 10 })
-        .layer(FilterLayer::new(MatchesServiceId(1)));
+        // Add the `FilterLayer` to filter out job calls that don't match the service ID
+        .layer(FilterLayer::new(MatchesServiceId(service_id)));
 
     // Job calls will be created by the Producer
     let job_call = tangle::create_call()
         .job_id(XSQUARE_JOB_ID)
         .block_number(20)
         .call_id(42)
-        .service_id(1)
+        .service_id(service_id)
         .args(Field::Uint64(2))
         .call();
 
@@ -104,7 +157,7 @@ async fn main() -> Result<(), BoxError> {
         .job_id(MULTIPLY_JOB_ID)
         .block_number(20)
         .call_id(43)
-        .service_id(1)
+        .service_id(service_id)
         .args(Field::Array(BoundedVec(vec![
             Field::Uint64(2),
             Field::Uint64(3),
@@ -123,7 +176,7 @@ async fn main() -> Result<(), BoxError> {
         .job_id(MULTIPLY_JOB_ID)
         .block_number(20)
         .call_id(43)
-        .service_id(2)
+        .service_id(200000000)
         .args(Field::Array(BoundedVec(vec![
             Field::Uint64(2),
             Field::Uint64(3),
@@ -135,7 +188,6 @@ async fn main() -> Result<(), BoxError> {
         .downcast::<MismatchedServiceId>()
         .is_ok());
 
-    let tangle_client = TangleClient::new().await?;
     let mut tangle_producer = TangleProducer::finalized_blocks(tangle_client).await?;
 
     // The `TangleProducer` is also a `Stream`, so we can use it to get job calls from the Tangle network.

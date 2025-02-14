@@ -1,4 +1,5 @@
 use alloc::collections::VecDeque;
+use blueprint_sdk::extensions::Extensions;
 use blueprint_sdk::job_call::Parts;
 use core::pin::Pin;
 use core::task::Context;
@@ -93,7 +94,10 @@ where
 async fn block_to_job_calls(block: TangleBlock) -> Result<Vec<JobCall>, subxt::Error> {
     let header = block.header();
     let metadata = block_header_to_job_metadata(header);
+    let mut extensions = Extensions::new();
     let events = block.events().await?;
+    extensions.insert(events.clone());
+
     let job_calls = events
         .find::<JobCalled>()
         .map(|c| {
@@ -102,10 +106,10 @@ async fn block_to_job_calls(block: TangleBlock) -> Result<Vec<JobCall>, subxt::E
                 metadata.insert(extract::CallId::METADATA_KEY, c.call_id);
                 // metadata.insert(extract::CallerAccountId::METADATA_KEY, c.caller);
                 metadata.insert(extract::ServiceId::METADATA_KEY, c.service_id);
-                JobCall::from_parts(
-                    Parts::with_metadata(c.job.into(), metadata),
-                    c.args.encode().into(),
-                )
+                let parts = Parts::new(c.job.into())
+                    .with_metadata(metadata)
+                    .with_extensions(extensions.clone());
+                JobCall::from_parts(parts, c.args.encode().into())
             })
         })
         .collect::<Result<Vec<_>, _>>()?;

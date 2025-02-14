@@ -19,6 +19,7 @@ mod boxed;
 pub mod context;
 mod error;
 pub mod ext_traits;
+pub mod extensions;
 pub mod extract;
 pub mod job;
 pub mod job_call;

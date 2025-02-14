@@ -1,3 +1,4 @@
+use crate::extensions::Extensions;
 use crate::metadata::{MetadataMap, MetadataValue};
 
 #[derive(Clone, Debug)]
@@ -22,6 +23,8 @@ pub struct Parts {
     pub job_id: u32,
     /// Any metadata that were included in the job call
     pub metadata: MetadataMap<MetadataValue>,
+    /// The job call extensions
+    pub extensions: Extensions,
 }
 
 impl Parts {
@@ -29,11 +32,18 @@ impl Parts {
         Self {
             job_id,
             metadata: MetadataMap::new(),
+            extensions: Extensions::new(),
         }
     }
 
-    pub fn with_metadata(job_id: u32, metadata: MetadataMap<MetadataValue>) -> Self {
-        Self { job_id, metadata }
+    pub fn with_metadata(mut self, metadata: MetadataMap<MetadataValue>) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    pub fn with_extensions(mut self, extensions: Extensions) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -42,6 +52,7 @@ impl Default for Parts {
         Self {
             job_id: 0,
             metadata: MetadataMap::new(),
+            extensions: Extensions::new(),
         }
     }
 }
@@ -83,8 +94,12 @@ impl<T> JobCall<T> {
         &mut self.head.metadata
     }
 
-    pub fn body_mut(&mut self) -> &mut T {
-        &mut self.body
+    pub fn extensions(&self) -> &Extensions {
+        &self.head.extensions
+    }
+
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.head.extensions
     }
 
     pub fn body(&self) -> &T {
