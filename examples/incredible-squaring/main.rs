@@ -1,9 +1,9 @@
 extern crate alloc;
 
 use blueprint_sdk::*;
+use futures_util::{StreamExt, TryStreamExt};
 use gadget_blueprint_serde::BoundedVec;
 use gadget_blueprint_serde::Field;
-use tangle::CallId;
 use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::utils::AccountId32;
 use tower::{Service, ServiceExt};
@@ -11,7 +11,9 @@ use tower::{Service, ServiceExt};
 /// Tangle Network Integration
 mod tangle;
 
-use tangle::{TangleArgs, TangleResult};
+use tangle::extract::{CallId, TangleArgs, TangleResult};
+
+use crate::tangle::producer::{TangleClient, TangleProducer};
 
 // The job ID (to be generated?)
 const XSQUARE_JOB_ID: u32 = 1;
@@ -76,6 +78,7 @@ async fn main() -> Result<(), BoxError> {
     // Job calls will be created by the Producer
     let job_call = tangle::create_call()
         .job_id(XSQUARE_JOB_ID)
+        .block_number(20)
         .call_id(42)
         .args(Field::Uint64(2))
         .call();
@@ -93,6 +96,7 @@ async fn main() -> Result<(), BoxError> {
     // Another job call example
     let job_call = tangle::create_call()
         .job_id(MULTIPLY_JOB_ID)
+        .block_number(20)
         .call_id(43)
         .args(Field::Array(BoundedVec(vec![
             Field::Uint64(2),
@@ -106,6 +110,16 @@ async fn main() -> Result<(), BoxError> {
         job_result.into_body(),
         Bytes::from(Field::<AccountId32>::Uint64(6).encode())
     );
+
+    let tangle_client = TangleClient::new().await?;
+    let mut tangle_producer = TangleProducer::finalized_blocks(tangle_client).await?;
+
+    // The `TangleProducer` is also a `Stream`, so we can use it to get job calls from the Tangle network.
+    while let Some(job_call) = tangle_producer.try_next().await? {
+        println!("job_call: {:?}", job_call);
+        let job_result = router.as_service().ready().await?.call(job_call).await?;
+        println!("job_result: {:?}", job_result);
+    }
 
     Ok(())
 }

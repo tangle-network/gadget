@@ -31,6 +31,10 @@ impl Parts {
             metadata: MetadataMap::new(),
         }
     }
+
+    pub fn with_metadata(job_id: u32, metadata: MetadataMap<MetadataValue>) -> Self {
+        Self { job_id, metadata }
+    }
 }
 
 impl Default for Parts {

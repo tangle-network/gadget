@@ -4,3 +4,7 @@ mod args;
 pub use args::*;
 mod result;
 pub use result::*;
+mod block_number;
+pub use block_number::*;
+mod block_hash;
+pub use block_hash::*;
