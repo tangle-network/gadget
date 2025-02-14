@@ -2,11 +2,10 @@ use crate::{JobCall, JobResult};
 
 use bytes::Bytes;
 use std::{
-    convert::Infallible,
     future::ready,
     task::{Context, Poll},
 };
-use tower::Service;
+use tower::{BoxError, Service};
 
 /// A [`Service`] that responds with 0 bytes to all requests.
 ///
@@ -20,7 +19,7 @@ where
     B: Send + 'static,
 {
     type Response = JobResult;
-    type Error = Infallible;
+    type Error = BoxError;
     type Future = std::future::Ready<Result<JobResult, Self::Error>>;
 
     #[inline]

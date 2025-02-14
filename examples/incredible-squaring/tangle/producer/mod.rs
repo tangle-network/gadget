@@ -101,7 +101,7 @@ async fn block_to_job_calls(block: TangleBlock) -> Result<Vec<JobCall>, subxt::E
                 let mut metadata = metadata.clone();
                 metadata.insert(extract::CallId::METADATA_KEY, c.call_id);
                 // metadata.insert(extract::CallerAccountId::METADATA_KEY, c.caller);
-                // metadata.insert(extract::ServiceId::METADATA_KEY, c.service_id);
+                metadata.insert(extract::ServiceId::METADATA_KEY, c.service_id);
                 JobCall::from_parts(
                     Parts::with_metadata(c.job.into(), metadata),
                     c.args.encode().into(),

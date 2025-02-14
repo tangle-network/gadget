@@ -5,6 +5,7 @@ use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::utils::AccountId32;
 
 pub mod extract;
+pub mod filters;
 pub mod layers;
 pub mod producer;
 
@@ -13,6 +14,7 @@ pub fn create_call(
     job_id: u32,
     call_id: u64,
     block_number: u64,
+    service_id: u64,
     args: Option<Field<AccountId32>>,
 ) -> JobCall {
     let mut call = match args {
@@ -24,5 +26,8 @@ pub fn create_call(
 
     call.metadata_mut()
         .insert(extract::BlockNumber::METADATA_KEY, block_number);
+
+    call.metadata_mut()
+        .insert(extract::ServiceId::METADATA_KEY, service_id);
     call
 }

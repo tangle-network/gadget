@@ -70,7 +70,7 @@ pub use self::service::JobService;
 ///
 /// ```
 /// use blueprint_sdk::job::JobWithoutContextExt;
-/// use blueprint_sdk::{Context, JobCall, Job};
+/// use blueprint_sdk::{Context, Job, JobCall};
 /// use tower::Service;
 ///
 /// // this handler doesn't require any state
@@ -89,7 +89,8 @@ pub use self::service::JobService;
 /// fn assert_service<S>(service: S)
 /// where
 ///     S: Service<JobCall>,
-/// {}
+/// {
+/// }
 /// ```
 //#[doc = include_str!("../docs/debugging_handler_type_errors.md")]
 ///
@@ -146,7 +147,8 @@ pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
     /// use blueprint_sdk::{Job, Router};
     /// use tower::limit::{ConcurrencyLimit, ConcurrencyLimitLayer};
     ///
-    /// async fn handler() { /* ... */ }
+    /// async fn handler() { /* ... */
+    /// }
     ///
     /// const MY_JOB_ID: u32 = 0;
     ///

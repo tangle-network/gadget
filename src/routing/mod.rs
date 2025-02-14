@@ -16,13 +16,12 @@ use crate::routing::path_router::JobIdRouter;
 use crate::util::try_downcast;
 use crate::{IntoJobResult, Job, JobCall, JobResult};
 
+use alloc::sync::Arc;
 use bytes::Bytes;
 use core::fmt;
-use std::convert::Infallible;
-use std::marker::PhantomData;
-use std::sync::Arc;
-use std::task::{Context, Poll};
-use tower::{Layer, Service};
+use core::marker::PhantomData;
+use core::task::{Context, Poll};
+use tower::{BoxError, Layer, Service};
 
 macro_rules! panic_on_err {
     ($expr:expr) => {
@@ -149,7 +148,7 @@ where
 
     pub fn route_service<T>(self, job_id: u32, service: T) -> Self
     where
-        T: Service<JobCall, Error = Infallible> + Clone + Send + Sync + 'static,
+        T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
         T::Response: IntoJobResult,
         T::Future: Send + 'static,
     {
@@ -224,7 +223,7 @@ where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
         <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
         map_inner!(self, this => RouterInner {
@@ -241,7 +240,7 @@ where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
         <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
         map_inner!(self, this => RouterInner {
@@ -274,7 +273,7 @@ where
     /// See [`Router::fallback`] for more details.
     pub fn fallback_service<T>(self, service: T) -> Self
     where
-        T: Service<JobCall, Error = Infallible> + Clone + Send + Sync + 'static,
+        T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
         T::Response: IntoJobResult,
         T::Future: Send + 'static,
     {
@@ -295,7 +294,7 @@ where
         })
     }
 
-    pub(crate) fn call_with_context(&self, call: JobCall, context: Ctx) -> RouteFuture<Infallible> {
+    pub(crate) fn call_with_context(&self, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
             Ok(future) => return future,
             Err((call, context)) => (call, context),
@@ -413,8 +412,8 @@ where
     B: Into<Bytes>,
 {
     type Response = JobResult;
-    type Error = Infallible;
-    type Future = RouteFuture<Infallible>;
+    type Error = BoxError;
+    type Future = RouteFuture<BoxError>;
 
     #[inline]
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -440,8 +439,8 @@ where
     B: Into<Bytes>,
 {
     type Response = JobResult;
-    type Error = Infallible;
-    type Future = RouteFuture<Infallible>;
+    type Error = BoxError;
+    type Future = RouteFuture<BoxError>;
 
     #[inline]
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -490,8 +489,8 @@ where
     B: Into<Bytes>,
 {
     type Response = JobResult;
-    type Error = Infallible;
-    type Future = RouteFuture<Infallible>;
+    type Error = BoxError;
+    type Future = RouteFuture<BoxError>;
 
     #[inline]
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -515,7 +514,7 @@ where
     }
 }
 
-enum Fallback<Ctx, E = Infallible> {
+enum Fallback<Ctx, E = BoxError> {
     Default(Route<E>),
     Service(Route<E>),
     BoxedHandler(BoxedIntoRoute<Ctx, E>),

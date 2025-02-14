@@ -4,15 +4,31 @@ use crate::routing::future::RouteFuture;
 use crate::{IntoJobResult, Job, JobCall};
 
 use alloc::borrow::Cow;
+use alloc::sync::Arc;
 use core::fmt;
 use std::collections::HashMap;
-use std::convert::Infallible;
-use std::sync::Arc;
-use tower::{Layer, Service};
+use tower::{BoxError, Layer, Service};
 
 enum Handler<Ctx> {
     Route(Route),
-    Boxed(BoxedIntoRoute<Ctx, Infallible>),
+    Boxed(BoxedIntoRoute<Ctx, BoxError>),
+}
+
+impl<Ctx> Handler<Ctx> {
+    fn layer<L>(self, layer: L) -> Handler<Ctx>
+    where
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
+        <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
+        <L::Service as Service<JobCall>>::Future: Send + 'static,
+        Ctx: 'static,
+    {
+        match self {
+            Handler::Route(route) => Handler::Route(route.layer(layer)),
+            Handler::Boxed(boxed) => Handler::Boxed(boxed.layer(layer)),
+        }
+    }
 }
 
 impl<Ctx> fmt::Debug for Handler<Ctx> {
@@ -77,7 +93,7 @@ where
         service: T,
     ) -> Result<(), Cow<'static, str>>
     where
-        T: Service<JobCall, Error = Infallible> + Clone + Send + Sync + 'static,
+        T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
         T::Response: IntoJobResult,
         T::Future: Send + 'static,
     {
@@ -106,10 +122,23 @@ where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
         <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
-        todo!()
+        let routes = self
+            .routes
+            .into_iter()
+            .map(|(id, h)| {
+                let route = h.layer(layer.clone());
+                (id, route)
+            })
+            .collect();
+
+        JobIdRouter {
+            routes,
+            node: self.node,
+            prev_route_id: self.prev_route_id,
+        }
     }
 
     #[track_caller]
@@ -118,7 +147,7 @@ where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
         <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
         todo!()
@@ -149,7 +178,7 @@ where
         &self,
         mut call: JobCall,
         context: Ctx,
-    ) -> Result<RouteFuture<Infallible>, (JobCall, Ctx)> {
+    ) -> Result<RouteFuture<BoxError>, (JobCall, Ctx)> {
         let (mut parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
             return Err((JobCall::from_parts(parts, body), context));
