@@ -52,11 +52,12 @@ impl<T> MetadataMap<T> {
     /// If the map did have this key present, the value is updated, and the old
     /// value is returned. The key is not updated, though; it is retained as
     /// is (verbatim).
-    pub fn insert<K>(&mut self, key: K, value: T) -> Option<T>
+    pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<T>
     where
         K: Into<Cow<'static, str>>,
+        V: Into<T>,
     {
-        self.map.insert(key.into(), value)
+        self.map.insert(key.into(), value.into())
     }
 
     /// Gets a reference to the value associated with the given key.
@@ -290,6 +291,18 @@ impl From<Vec<u8>> for MetadataValue {
 
 impl From<&Vec<u8>> for MetadataValue {
     fn from(value: &Vec<u8>) -> Self {
+        Self::from_bytes(Bytes::copy_from_slice(value))
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for MetadataValue {
+    fn from(value: [u8; N]) -> Self {
+        Self::from_bytes(Bytes::copy_from_slice(&value))
+    }
+}
+
+impl<const N: usize> From<&[u8; N]> for MetadataValue {
+    fn from(value: &[u8; N]) -> Self {
         Self::from_bytes(Bytes::copy_from_slice(value))
     }
 }

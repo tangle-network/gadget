@@ -5,15 +5,24 @@ use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::utils::AccountId32;
 
 pub mod extract;
-pub use extract::*;
+pub mod layers;
+pub mod producer;
 
 #[bon::builder]
-pub fn create_call(job_id: u32, call_id: u64, args: Option<Field<AccountId32>>) -> JobCall {
+pub fn create_call(
+    job_id: u32,
+    call_id: u64,
+    block_number: u64,
+    args: Option<Field<AccountId32>>,
+) -> JobCall {
     let mut call = match args {
         Some(args) => JobCall::new(job_id, Bytes::from(args.encode())),
         None => JobCall::empty(job_id),
     };
     call.metadata_mut()
-        .insert(CallId::METADATA_KEY, call_id.into());
+        .insert(extract::CallId::METADATA_KEY, call_id);
+
+    call.metadata_mut()
+        .insert(extract::BlockNumber::METADATA_KEY, block_number);
     call
 }
