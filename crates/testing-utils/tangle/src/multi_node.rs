@@ -17,7 +17,6 @@ use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
-use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -63,14 +62,6 @@ pub enum TestEvent {
     NodeShutdown(usize),
     Error(String),
 }
-
-/// A function that returns a future that returns a result containing an event handler for the job
-type EventHandlerBox = Box<dyn InitializableEventHandler + Send + 'static>;
-type JobResult = Result<EventHandlerBox, RunnerError>;
-type JobFuture = Pin<Box<dyn Future<Output = JobResult> + Send + 'static>>;
-
-trait JobCreator: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static {}
-impl<T: Fn(GadgetConfiguration) -> JobFuture + Send + Sync + 'static> JobCreator for T {}
 
 impl MultiNodeTestEnv {
     /// Creates a new multi-node test environment
@@ -154,7 +145,10 @@ impl MultiNodeTestEnv {
         F: Future<Output = Result<K, E>> + Send + 'static,
         K: InitializableEventHandler + Send + Sync + 'static,
         E: std::fmt::Debug + Send + 'static,
-    >(&self, creator: T) -> Result<(), E> {
+    >(
+        &self,
+        creator: T,
+    ) -> Result<(), E> {
         let mut nodes = self.nodes.write().await;
         for node in nodes.iter_mut() {
             if let NodeSlot::Occupied(node) = node {
@@ -536,8 +530,7 @@ impl NodeHandle {
 }
 
 pub fn find_open_tcp_bind_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0")
-        .expect("Should bind to localhost");
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Should bind to localhost");
     let port = listener
         .local_addr()
         .expect("Should have a local address")

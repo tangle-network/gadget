@@ -13,6 +13,7 @@ mod kw {
     syn::custom_keyword!(abi);
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct EvmArgs {
     pub instance: Option<Ident>,
     pub abi: Option<Type>,

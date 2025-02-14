@@ -1,14 +1,9 @@
 use crate::multi_node::MultiNodeTestEnv;
-use crate::node::transactions::
-    setup_operator_and_service_multiple;
+use crate::node::transactions::setup_operator_and_service_multiple;
 use crate::Error;
 use crate::{
     keys::inject_tangle_key,
-    node::{
-        run,
-        transactions,
-        NodeConfig,
-    },
+    node::{run, transactions, NodeConfig},
     InputValue, OutputValue,
 };
 use gadget_client_tangle::client::TangleClient;
