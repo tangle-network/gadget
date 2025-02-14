@@ -50,7 +50,7 @@ impl TryFrom<&mut JobCallParts> for BlockHash {
         if block_hash.len() != 32 {
             return Err(InvalidBlockHash.into());
         }
-        Ok(BlockHash(H256::from_slice(&block_hash)))
+        Ok(BlockHash(H256::from_slice(block_hash)))
     }
 }
 

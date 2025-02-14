@@ -10,3 +10,5 @@ mod block_hash;
 pub use block_hash::*;
 mod service_id;
 pub use service_id::*;
+mod block_events;
+pub use block_events::*;
