@@ -25,18 +25,7 @@ pub fn generate_context_impl(
         #[::blueprint_sdk::macros::ext::async_trait::async_trait]
         impl #impl_generics ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext for #name #ty_generics #where_clause {
             async fn tangle_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::macros::ext::clients::Error> {
-                use ::blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt;
-
-                static CLIENT: std::sync::OnceLock<#config_ty> = std::sync::OnceLock::new();
-                match CLIENT.get() {
-                    Some(client) => Ok(client.clone()),
-                    None => {
-                        let client = ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext::tangle_client(&#field_access_config).await?;
-                        CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
-                            ::blueprint_sdk::macros::ext::clients::Error::msg("Failed to set client")
-                        })
-                    }
-                }
+                ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext::tangle_client(&#field_access_config).await
             }
         }
     }
