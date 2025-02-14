@@ -217,9 +217,10 @@ async fn run_protocol<N: Network>(
         })
         .collect::<Vec<_>>();
     for msg in msgs {
-        let to = msg.recipient.map(|r| r.user_id).expect(
-            "Recipient should be present for P2P message. This is a bug in the test code",
-        );
+        let to = msg
+            .recipient
+            .map(|r| r.user_id)
+            .expect("Recipient should be present for P2P message. This is a bug in the test code");
         gadget_logging::debug!(%to, "Send P2P Message");
         round2_network.send(msg)?;
     }
@@ -229,13 +230,13 @@ async fn run_protocol<N: Network>(
     while let Some(msg) = round2_network.recv().await {
         let m = deserialize::<Msg>(&msg.payload).unwrap();
         gadget_logging::info!(
-                "[Node {}] Received message from {} | Intended Recipient: {}",
-                i,
-                msg.sender.user_id,
-                msg.recipient
-                    .as_ref()
-                    .map_or_else(|| "Broadcast".into(), |r| r.user_id.to_string())
-            );
+            "[Node {}] Received message from {} | Intended Recipient: {}",
+            i,
+            msg.sender.user_id,
+            msg.recipient
+                .as_ref()
+                .map_or_else(|| "Broadcast".into(), |r| r.user_id.to_string())
+        );
         // Expecting Round2 message
         assert!(
             matches!(m, Msg::Round2(_)),
@@ -312,15 +313,14 @@ fn node_with_id() -> (GossipHandle, crate::key_types::GossipMsgKeyPair) {
     let identity = libp2p::identity::Keypair::generate_ed25519();
     let crypto_key = crate::key_types::Curve::generate_with_seed(None).unwrap();
     let bind_port = 0;
-    let handle =
-        crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(
-            identity,
-            crypto_key.clone(),
-            Vec::default(),
-            bind_port,
-            TOPIC,
-        ))
-            .unwrap();
+    let handle = crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(
+        identity,
+        crypto_key.clone(),
+        Vec::default(),
+        bind_port,
+        TOPIC,
+    ))
+    .unwrap();
 
     (handle, crypto_key)
 }
@@ -465,7 +465,7 @@ async fn nested_multiplex<N: Network>(
         subnetwork0,
         subnetwork1,
     ))
-        .await;
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -695,9 +695,9 @@ async fn test_network_id_handling() {
     // Message with wrong network ID should not be received
     let timeout = tokio::time::sleep(tokio::time::Duration::from_millis(100));
     tokio::select! {
-            () = timeout => (),
-            _ = subnetwork1.recv() => panic!("Should not receive message with wrong network ID"),
-        }
+        () = timeout => (),
+        _ = subnetwork1.recv() => panic!("Should not receive message with wrong network ID"),
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -762,8 +762,8 @@ async fn test_stream_isolation() {
     // Verify no cross-stream message leakage
     let timeout = tokio::time::sleep(tokio::time::Duration::from_millis(100));
     tokio::select! {
-            () = timeout => (),
-            _ = subnetwork1_stream1.recv() => panic!("Should not receive more messages on stream 1"),
-            _ = subnetwork1_stream2.recv() => panic!("Should not receive more messages on stream 2"),
-        }
+        () = timeout => (),
+        _ = subnetwork1_stream1.recv() => panic!("Should not receive more messages on stream 1"),
+        _ = subnetwork1_stream2.recv() => panic!("Should not receive more messages on stream 2"),
+    }
 }

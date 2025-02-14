@@ -18,7 +18,11 @@ pub struct TangleTestEnv {
 }
 
 impl TangleTestEnv {
-    pub(crate) fn update_networking_config(&mut self, bootnodes: Vec<Multiaddr>, network_bind_port: u16) {
+    pub(crate) fn update_networking_config(
+        &mut self,
+        bootnodes: Vec<Multiaddr>,
+        network_bind_port: u16,
+    ) {
         self.gadget_config.bootnodes = bootnodes;
         self.gadget_config.network_bind_port = network_bind_port;
     }
