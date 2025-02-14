@@ -1,5 +1,6 @@
-mod event_listener;
-pub(crate) use event_listener::{EventListenerArgs, ListenerType};
+pub mod event_listener;
+
+pub use event_listener::{EventListenerArgs, ListenerType};
 
 use super::{Results, ResultsKind};
 use crate::shared::MacroExt;

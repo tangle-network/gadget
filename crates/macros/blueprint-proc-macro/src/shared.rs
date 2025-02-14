@@ -2,6 +2,7 @@ use crate::job::ParameterType;
 use crate::job::{IsResultType, ResultsKind};
 use gadget_blueprint_proc_macro_core::FieldType;
 use indexmap::IndexMap;
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 use syn::{Ident, Signature, Type};
@@ -41,24 +42,12 @@ pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
     }
 }
 
-pub fn type_to_field_type(ty: &Type) -> syn::Result<ParameterType> {
-    let field_type = match ty {
-        Type::Array(arr) => {
-            let elem_type = type_to_field_type(&arr.elem)?;
-            // convert arr.len expr to u64
-            let len = match arr.len.to_token_stream().to_string().parse::<u64>() {
-                Ok(l) => l,
-                Err(_) => {
-                    return Err(syn::Error::new_spanned(
-                        &arr.len,
-                        "array length must be a constant",
-                    ))
-                }
-            };
-            Ok(FieldType::Array(len, Box::new(elem_type.ty)))
-        }
+/// Helper function to convert types that don't need special processing like arrays.
+fn base_type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
+    match ty {
         Type::Path(inner) => path_to_field_type(&inner.path),
         Type::Reference(type_reference) => {
+            // For references, remove reference and convert inner type.
             type_to_field_type(&type_reference.elem).map(|ref_ty| ref_ty.ty)
         }
         Type::Tuple(tuple) => {
@@ -71,12 +60,46 @@ pub fn type_to_field_type(ty: &Type) -> syn::Result<ParameterType> {
         }
         _ => Err(syn::Error::new_spanned(
             ty,
-            "unsupported type (type_to_field_type)",
+            "unsupported type (base_type_to_field_type)",
         )),
-    };
+    }
+}
 
+/// Trait to convert a syn::Type to our FieldType, with special handling for arrays and debug logging.
+pub trait IntoFieldType {
+    fn into_field_type(&self) -> syn::Result<FieldType>;
+}
+
+impl IntoFieldType for Type {
+    fn into_field_type(&self) -> syn::Result<FieldType> {
+        // eprintln!("[DEBUG] Converting type: {:?}", self);
+        match self {
+            Type::Infer(_) => {
+                // eprintln!("[DEBUG] Encountered inferred type '_' - defaulting to unit type ()");
+                let unit: Type = syn::parse_quote! { () };
+                unit.into_field_type()
+            }
+            Type::Array(arr) => {
+                let elem_field_type = type_to_field_type(&arr.elem)?;
+                let len = arr
+                    .len
+                    .to_token_stream()
+                    .to_string()
+                    .parse::<u64>()
+                    .map_err(|_| {
+                        syn::Error::new_spanned(&arr.len, "array length must be a constant")
+                    })?;
+                Ok(FieldType::Array(len, Box::new(elem_field_type.ty)))
+            }
+            _ => base_type_to_field_type(self),
+        }
+    }
+}
+
+/// Updated public API that uses our trait.
+pub fn type_to_field_type(ty: &Type) -> syn::Result<ParameterType> {
     Ok(ParameterType {
-        ty: field_type?,
+        ty: ty.into_field_type()?,
         span: Some(ty.span()),
     })
 }
@@ -185,12 +208,36 @@ pub fn get_non_job_arguments(
 
 pub(crate) trait MacroExt {
     fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<ParameterType>> {
+        // If the result type is inferred ('_'), default to unit type
+        let effective_result = if let Type::Infer(_) = result {
+            // eprintln!("[DEBUG] result type is inferred '_' so defaulting to unit type ()");
+            syn::parse_quote! { () }
+        } else {
+            result.clone()
+        };
         match self.return_type() {
-            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
+            ResultsKind::Infered => {
+                // For Result types, extract the Ok type
+                if effective_result.is_result_type() {
+                    if let Type::Path(type_path) = &effective_result {
+                        if let Some(last_seg) = type_path.path.segments.last() {
+                            if let syn::PathArguments::AngleBracketed(args) = &last_seg.arguments {
+                                if let Some(syn::GenericArgument::Type(inner_type)) =
+                                    args.args.first()
+                                {
+                                    return type_to_field_type(inner_type).map(|x| vec![x]);
+                                }
+                            }
+                        }
+                    }
+                }
+                // For non-Result types, use the type directly
+                type_to_field_type(&effective_result).map(|x| vec![x])
+            }
             ResultsKind::Types(types) => {
                 let xs = types
                     .iter()
-                    .map(type_to_field_type)
+                    .map(|ty| type_to_field_type(ty))
                     .collect::<syn::Result<Vec<_>>>()?;
                 Ok(xs)
             }
@@ -224,8 +271,8 @@ pub(crate) fn param_types(sig: &Signature) -> syn::Result<IndexMap<Ident, Type>>
 
 pub fn get_return_type_wrapper(
     return_type: &Type,
-    injected_context_var_name: Option<proc_macro2::TokenStream>,
-) -> proc_macro2::TokenStream {
+    injected_context_var_name: Option<TokenStream>,
+) -> TokenStream {
     if let Some(context_var_name) = injected_context_var_name {
         if return_type.is_result_type() {
             quote! { res.map_err(|err| ::blueprint_sdk::macros::ext::event_listeners::core::Error::Other(err.to_string())).map(|res| (#context_var_name, res)) }

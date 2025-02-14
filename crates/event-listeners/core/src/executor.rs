@@ -159,36 +159,44 @@ pub struct EventFlowFilter<O: Send + 'static> {
 
 impl<
         Ctx: Clone + Send + 'static,
-        Event: Send + 'static,
         Creator: Send + 'static,
+        Event: Send + 'static,
         PreProcessOut: Send + 'static,
         JobOutput: Send + 'static,
         ProcessorError: core::error::Error + Send + Sync + 'static,
     > EventFlowWrapper<Ctx, Creator, Event, PreProcessOut, JobOutput, ProcessorError>
 {
-    pub fn new<T, Pre, PreFut, Job, JobFut, Post, PostFut>(
+    pub fn new<
+        PreProcessor,
+        PreProcessorFut,
+        JobProcessor,
+        JobProcessorFut,
+        PostProcessor,
+        PostProcessorFut,
+        L,
+    >(
         context: Ctx,
-        event_listener: T,
-        preprocessor: Pre,
-        job_processor: Job,
-        mut postprocessor: Post,
+        event_listener: L,
+        preprocessor: PreProcessor,
+        job_processor: JobProcessor,
+        mut postprocessor: PostProcessor,
     ) -> Self
     where
-        T: EventListener<Event, Ctx, Creator, ProcessorError = ProcessorError>,
-        Pre: Fn(Event) -> PreFut + Send + 'static,
-        PreFut:
+        PreProcessor: Fn(Event) -> PreProcessorFut + Send + 'static,
+        PreProcessorFut:
             Future<Output = Result<Option<PreProcessOut>, Error<ProcessorError>>> + Send + 'static,
-        Job: Fn((PreProcessOut, Ctx)) -> JobFut + Send + 'static,
-        JobFut: Future<Output = Result<JobOutput, Error<ProcessorError>>> + Send + 'static,
-        Post: FnMut(JobOutput) -> PostFut + Send + 'static,
-        PostFut: Future<Output = Result<(), Error<ProcessorError>>> + Send + 'static,
+        JobProcessor: Fn((PreProcessOut, Ctx)) -> JobProcessorFut + Send + 'static,
+        JobProcessorFut: Future<Output = Result<JobOutput, Error<ProcessorError>>> + Send + 'static,
+        PostProcessor: FnMut(JobOutput) -> PostProcessorFut + Send + 'static,
+        PostProcessorFut: Future<Output = Result<(), Error<ProcessorError>>> + Send + 'static,
+        L: EventListener<Event, Ctx, Creator, ProcessorError = ProcessorError> + 'static,
     {
         Self {
             context,
             event_listener: Box::new(event_listener),
-            preprocessor: Box::new(move |event| Box::pin(preprocessor(event))),
-            job_processor: Box::new(move |(event, ctx)| Box::pin(job_processor((event, ctx)))),
-            postprocessor: Box::new(move |event| Box::pin(postprocessor(event))),
+            preprocessor: Box::new(move |evt| Box::pin(preprocessor(evt))),
+            job_processor: Box::new(move |input| Box::pin(job_processor(input))),
+            postprocessor: Box::new(move |output| Box::pin(postprocessor(output))),
             _pd: PhantomData,
         }
     }
@@ -290,20 +298,28 @@ mod tests {
         }
     }
 
-    async fn preprocess(event: TestEvent) -> Result<Option<(u64, TestEvent)>, Error<Infallible>> {
-        let amount = event.fetch_add(1, Ordering::SeqCst) + 1;
-        Ok(Some((amount, event)))
+    fn preprocess(
+        event: TestEvent,
+    ) -> impl Future<Output = Result<Option<(u64, TestEvent)>, Error<Infallible>>> + Send {
+        async move {
+            let amount = event.fetch_add(1, Ordering::SeqCst) + 1;
+            Ok(Some((amount, event)))
+        }
     }
 
-    async fn job_processor(
+    fn job_processor(
         preprocessed_event: ((u64, TestEvent), Arc<AtomicU64>),
-    ) -> Result<u64, Error<Infallible>> {
-        let amount = preprocessed_event.1.fetch_add(1, Ordering::SeqCst) + 1;
-        Ok(amount)
+    ) -> impl Future<Output = Result<u64, Error<Infallible>>> + Send {
+        async move {
+            let amount = preprocessed_event.1.fetch_add(1, Ordering::SeqCst) + 1;
+            Ok(amount)
+        }
     }
 
-    async fn post_process(_job_output: u64) -> Result<(), Error<Infallible>> {
-        Ok(())
+    fn post_process(
+        _job_output: u64,
+    ) -> impl Future<Output = Result<(), Error<Infallible>>> + Send {
+        async move { Ok(()) }
     }
 
     #[tokio::test]

@@ -1,6 +1,7 @@
 #[cfg(feature = "evm")]
 use crate::job::evm::EvmArgs;
 use crate::job::ParameterType;
+use crate::shared;
 #[cfg(feature = "evm")]
 use proc_macro2::Ident;
 #[cfg(feature = "tangle")]
@@ -11,7 +12,7 @@ use std::str::FromStr;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 #[cfg(any(not(feature = "evm"), not(feature = "tangle")))]
 use syn::spanned::Spanned;
-use syn::{Index, Token, Type};
+use syn::{GenericArgument, Index, PathArguments, Token, Type};
 
 const EVM_EVENT_LISTENER_TAG: &str = "EvmContractEventListener";
 const TANGLE_EVENT_LISTENER_TAG: &str = "TangleEventListener";
@@ -64,7 +65,8 @@ pub enum ListenerType {
     Custom,
 }
 
-pub(crate) struct SingleListener {
+#[derive(Debug, Clone)]
+pub struct SingleListener {
     pub listener: Type,
     #[cfg(feature = "evm")]
     pub evm_args: Option<EvmArgs>,
@@ -87,7 +89,7 @@ impl SingleListener {
 
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
-pub(crate) struct EventListenerArgs {
+pub struct EventListenerArgs {
     pub(crate) listeners: Vec<SingleListener>,
 }
 
@@ -172,8 +174,8 @@ impl Parse for EventListenerArgs {
                 }
             } else {
                 return Err(content.error(
-					"Unexpected field parsed. Expected one of `listener`, `event`, `pre_processor`, `post_processor`",
-				));
+                    "Unexpected field parsed. Expected one of `listener`, `event`, `pre_processor`, `post_processor`",
+                ));
             }
         }
 
@@ -253,43 +255,106 @@ impl EventListenerArgs {
         let listener_type = self.get_event_listener().listener_type;
 
         params
-			.iter()
-			.enumerate()
-			.map(|(i, param_ty)| {
-				let ident = format_ident!("param{i}");
-				let index = Index::from(i);
-				match listener_type {
-					#[cfg(feature = "tangle")]
-					ListenerType::Tangle => {
-						let ty_token_stream = proc_macro2::TokenStream::from_str(&param_ty.ty.as_rust_type()).expect("should be valid");
-						let ty_tokens = quote_spanned! {param_ty.span.expect("should always be available")=>
+            .iter()
+            .enumerate()
+            .map(|(i, param_ty)| {
+                let ident = format_ident!("param{i}");
+                let index = Index::from(i);
+                match listener_type {
+                    #[cfg(feature = "tangle")]
+                    ListenerType::Tangle => {
+                        let ty_token_stream = proc_macro2::TokenStream::from_str(&param_ty.ty.as_rust_type()).expect("should be valid");
+                        let ty_tokens = quote_spanned! {param_ty.span.expect("should always be available")=>
                             #ty_token_stream
                         };
-						quote! {
+                        quote! {
                             let __arg = args.next().expect("parameter count checked before");
                             let Ok(#ident) = ::blueprint_sdk::macros::ext::blueprint_serde::from_field::<#ty_tokens>(__arg) else {
                                 return Err(::blueprint_sdk::macros::ext::event_listeners::core::Error::BadArgumentDecoding(format!("Failed to decode the field `{}` to `{}`", stringify!(#ident), stringify!(#ty_tokens))));
                             };
                         }
-					}
+                    }
 
-					#[cfg(feature = "evm")]
-					ListenerType::Evm => {
+                    #[cfg(feature = "evm")]
+                    ListenerType::Evm => {
                         let _ = param_ty;
-						quote! {
+                        quote! {
                             let #ident = inputs.#index;
                         }
-					}
+                    }
 
-					// All other event listeners will return just one type
-					ListenerType::Custom => {
-						quote! {
+                    ListenerType::Custom => {
+                        quote! {
                             let #ident = inputs.#index;
                         }
-					}
-				}
-			})
-			.collect::<Vec<_>>()
+                    }
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn infer_types(&mut self, sig: &syn::Signature) -> syn::Result<()> {
+        for listener in &mut self.listeners {
+            if let Type::Path(path) = &mut listener.listener {
+                if let Some(last_segment) = path.path.segments.last_mut() {
+                    // Don't try to infer types if they're explicitly specified
+                    let has_explicit_types = match &last_segment.arguments {
+                        PathArguments::AngleBracketed(args) => !args.args.is_empty(),
+                        _ => false,
+                    };
+
+                    if !has_explicit_types {
+                        // Get all parameter types from the function signature
+                        let param_types = shared::param_types(sig)?;
+
+                        // Find the context parameter - it's usually the one with a type containing "Context" or ending with "Ctx"
+                        let mut context_type = None;
+                        let mut event_type = None;
+                        for ty in param_types.values() {
+                            if let Type::Path(type_path) = ty {
+                                let type_name = type_path
+                                    .path
+                                    .segments
+                                    .last()
+                                    .map(|seg| seg.ident.to_string())
+                                    .unwrap_or_default();
+                                if type_name.contains("Context") || type_name.ends_with("Ctx") {
+                                    context_type = Some(ty.clone());
+                                } else {
+                                    // If it's not a context type, it's probably an event type
+                                    event_type = Some(ty.clone());
+                                }
+                            }
+                        }
+
+                        // If we couldn't find a context type, default to unit type
+                        if context_type.is_none() {
+                            context_type = Some(syn::parse_quote! { () });
+                        }
+
+                        // If we couldn't find an event type, default to unit type
+                        if event_type.is_none() {
+                            event_type = Some(syn::parse_quote! { () });
+                        }
+
+                        // Create the generic arguments based on what we found
+                        let generic_args = syn::AngleBracketedGenericArguments {
+                            colon2_token: None,
+                            lt_token: syn::token::Lt::default(),
+                            args: syn::punctuated::Punctuated::from_iter(vec![
+                                GenericArgument::Type(event_type.unwrap()),
+                                GenericArgument::Type(context_type.unwrap()),
+                            ]),
+                            gt_token: syn::token::Gt::default(),
+                        };
+
+                        // Set the generic arguments directly
+                        last_segment.arguments = PathArguments::AngleBracketed(generic_args);
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     #[cfg(feature = "tangle")]

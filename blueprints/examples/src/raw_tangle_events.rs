@@ -19,7 +19,7 @@ pub struct MyContext {
 
 pub async fn constructor(
     env: GadgetConfiguration,
-) -> color_eyre::Result<impl InitializableEventHandler> {
+) -> color_eyre::Result<impl InitializableEventHandler + Clone + Send + Sync + 'static> {
     let signer = env
         .clone()
         .keystore()

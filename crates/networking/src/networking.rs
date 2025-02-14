@@ -343,7 +343,9 @@ impl NetworkMultiplexer {
                         }
                     }
 
-                    let Ok(multiplexed_message) = bincode::deserialize::<MultiplexedMessage>(&msg.payload) else {
+                    let Ok(multiplexed_message) =
+                        bincode::deserialize::<MultiplexedMessage>(&msg.payload)
+                    else {
                         gadget_logging::error!("Failed to deserialize message (networking)");
                         continue;
                     };
@@ -363,8 +365,7 @@ impl NetworkMultiplexer {
 
                     let send_user = msg.sender.user_id;
                     let recv_user = msg.recipient.as_ref().map(|p| p.user_id);
-                    let compound_key_hex =
-                        hex::encode(bincode::serialize(&compound_key).unwrap());
+                    let compound_key_hex = hex::encode(bincode::serialize(&compound_key).unwrap());
                     gadget_logging::trace!(
                         "RECV SEQ {seq} FROM {} as user {:?} | Expecting: {} | StreamKey: {:?}",
                         send_user,
@@ -374,15 +375,24 @@ impl NetworkMultiplexer {
                     );
 
                     // Add the message to pending
-                    pending.push(Reverse(PendingMessage { sequence_number: seq, message: msg }));
+                    pending.push(Reverse(PendingMessage {
+                        sequence_number: seq,
+                        message: msg,
+                    }));
 
                     // Try to deliver messages in order
                     if let Some(active_receiver) = active_streams.get(&stream_id) {
-                        while let Some(Reverse(PendingMessage { sequence_number, message: _ })) =
-                            pending.peek()
+                        while let Some(Reverse(PendingMessage {
+                            sequence_number,
+                            message: _,
+                        })) = pending.peek()
                         {
                             if *sequence_number != *expected_seq {
-                                gadget_logging::error!("Sequence number mismatch, expected {} but got {}", *expected_seq, sequence_number);
+                                gadget_logging::error!(
+                                    "Sequence number mismatch, expected {} but got {}",
+                                    *expected_seq,
+                                    sequence_number
+                                );
                                 break;
                             }
 
@@ -406,11 +416,17 @@ impl NetworkMultiplexer {
                         );
 
                         // Deliver any pending messages in order
-                        while let Some(Reverse(PendingMessage { sequence_number, message: _ })) =
-                            pending.peek()
+                        while let Some(Reverse(PendingMessage {
+                            sequence_number,
+                            message: _,
+                        })) = pending.peek()
                         {
                             if *sequence_number != *expected_seq {
-                                gadget_logging::error!("Sequence number mismatch, expected {} but got {}", *expected_seq, sequence_number);
+                                gadget_logging::error!(
+                                    "Sequence number mismatch, expected {} but got {}",
+                                    *expected_seq,
+                                    sequence_number
+                                );
                                 break;
                             }
 

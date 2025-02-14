@@ -24,8 +24,7 @@ use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use blueprint_sdk::testing::utils::anvil::{get_receipt, start_default_anvil_testnet};
 use blueprint_sdk::testing::utils::harness::TestHarness;
-use blueprint_sdk::testing::utils::runner::TestEnv;
-use blueprint_sdk::testing::utils::tangle::{InputValue, OutputValue, TangleTestHarness};
+use blueprint_sdk::testing::utils::tangle::{InputValue, TangleTestHarness};
 use blueprint_sdk::tokio;
 use blueprint_sdk::tokio::task::JoinHandle;
 use blueprint_sdk::tokio::time::timeout;
@@ -154,17 +153,22 @@ async fn test_periodic_web_poller() -> Result<()> {
     let harness = TangleTestHarness::setup(temp_dir).await?;
 
     // Setup service
-    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
     // Add the web poller job
-    test_env.add_job(crate::periodic_web_poller::constructor("*/5 * * * * *"));
+    test_env
+        .add_job(|_env| async move {
+            Ok::<_, ()>(crate::periodic_web_poller::constructor("*/5 * * * * *"))
+        })
+        .await
+        .unwrap();
 
     // Run the test environment
-    test_env.run_runner().await.unwrap();
+    test_env.start().await?;
 
     // Execute job and verify result
     let result = tokio::select! {
-        result = harness.execute_job(service_id, 1, vec![], vec![OutputValue::Uint64(1)]) => {
+        result = harness.submit_job(service_id, 1, vec![]) => {
             match result {
                 Ok(_) => {Ok(())},
                 Err(e) => Err(e),
@@ -199,26 +203,26 @@ async fn test_services_context() -> Result<()> {
     // Initialize test harness
     let temp_dir = tempfile::TempDir::new()?;
     let harness = TangleTestHarness::setup(temp_dir).await?;
-    let env = harness.env().clone();
 
     // Setup service
-    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
     // Add the raw tangle events job
-    test_env.add_job(crate::services_context::constructor(env.clone()).await?);
+    test_env
+        .add_job(|env| async move { crate::services_context::constructor(env).await })
+        .await?;
 
     // Run the test environment
     let _test_handle = tokio::spawn(async move {
-        test_env.run_runner().await.unwrap();
+        test_env.start().await.unwrap();
     });
 
     // Execute job and verify result
     let results = harness
-        .execute_job(
+        .submit_job(
             service_id,
             3,
             vec![InputValue::List(BoundedVec(vec![InputValue::Uint8(0)]))],
-            vec![OutputValue::Uint64(1)],
         )
         .await?;
 
@@ -236,20 +240,22 @@ async fn test_raw_tangle_events() -> Result<()> {
     let env = harness.env().clone();
 
     // Setup service
-    let (mut test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
+    let (mut test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
     // Add the raw tangle events job
-    test_env.add_job(crate::raw_tangle_events::constructor(env.clone()).await?);
+    test_env
+        .add_job(|env| async move { crate::raw_tangle_events::constructor(env).await })
+        .await?;
 
     // Spawn the balance transfer task
-    let _handle = balance_transfer_event(env.clone()).await.unwrap();
+    let _handle = balance_transfer_event(env.clone()).await?;
 
     // Run the test environment
-    test_env.run_runner().await.unwrap();
+    test_env.start().await?;
 
     // Execute job and verify result
     let result = tokio::select! {
-        result = harness.execute_job(service_id, 2, vec![], vec![OutputValue::Uint64(1)]) => {
+        result = harness.submit_job(service_id, 2, vec![]) => {
             match result {
                 Ok(_) => {Ok(())},
                 Err(e) => Err(e),
