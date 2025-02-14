@@ -37,6 +37,21 @@ composite_rejection! {
     }
 }
 
+impl TryFrom<&mut JobCallParts> for BlockNumber {
+    type Error = BlockNumberRejection;
+
+    fn try_from(parts: &mut JobCallParts) -> Result<Self, Self::Error> {
+        let block_number_raw = parts
+            .metadata
+            .get(Self::METADATA_KEY)
+            .ok_or(MissingBlockNumber)?;
+        let block_number = block_number_raw
+            .try_into()
+            .map_err(|_| InvalidBlockNumber)?;
+        Ok(BlockNumber(block_number))
+    }
+}
+
 impl<Ctx> FromJobCallParts<Ctx> for BlockNumber
 where
     Ctx: Send + Sync,
@@ -47,13 +62,6 @@ where
         parts: &mut JobCallParts,
         _: &Ctx,
     ) -> Result<Self, Self::Rejection> {
-        let block_number_raw = parts
-            .metadata
-            .get(Self::METADATA_KEY)
-            .ok_or(MissingBlockNumber)?;
-        let block_number = block_number_raw
-            .try_into()
-            .map_err(|_| InvalidBlockNumber)?;
-        Ok(BlockNumber(block_number))
+        Self::try_from(parts)
     }
 }

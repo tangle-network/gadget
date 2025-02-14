@@ -38,6 +38,22 @@ composite_rejection! {
     }
 }
 
+impl TryFrom<&mut JobCallParts> for BlockHash {
+    type Error = BlockHashRejection;
+
+    fn try_from(parts: &mut JobCallParts) -> Result<Self, Self::Error> {
+        let block_hash_raw = parts
+            .metadata
+            .get(Self::METADATA_KEY)
+            .ok_or(MissingBlockHash)?;
+        let block_hash = block_hash_raw.as_bytes();
+        if block_hash.len() != 32 {
+            return Err(InvalidBlockHash.into());
+        }
+        Ok(BlockHash(H256::from_slice(&block_hash)))
+    }
+}
+
 impl<Ctx> FromJobCallParts<Ctx> for BlockHash
 where
     Ctx: Send + Sync,
@@ -48,14 +64,6 @@ where
         parts: &mut JobCallParts,
         _: &Ctx,
     ) -> Result<Self, Self::Rejection> {
-        let block_hash_raw = parts
-            .metadata
-            .get(Self::METADATA_KEY)
-            .ok_or(MissingBlockHash)?;
-        let block_hash = block_hash_raw.as_bytes();
-        if block_hash.len() != 32 {
-            return Err(InvalidBlockHash.into());
-        }
-        Ok(BlockHash(H256::from_slice(&block_hash)))
+        Self::try_from(parts)
     }
 }

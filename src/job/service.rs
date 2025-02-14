@@ -4,12 +4,11 @@ use crate::job_call::JobCall;
 use crate::JobResult;
 use bytes::Bytes;
 use core::{
-    convert::Infallible,
     fmt,
     marker::PhantomData,
     task::{Context, Poll},
 };
-use tower::Service;
+use tower::{BoxError, Service};
 
 /// An adapter that makes a [`Job`] into a [`Service`].
 ///
@@ -76,7 +75,7 @@ where
     Ctx: Clone + Send + Sync,
 {
     type Response = JobResult;
-    type Error = Infallible;
+    type Error = BoxError;
     type Future = super::future::IntoServiceFuture<J::Future>;
 
     #[inline]

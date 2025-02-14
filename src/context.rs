@@ -19,7 +19,7 @@ use core::{
 /// # With `Router`
 ///
 /// ```
-/// use blueprint_sdk::{Router, Context, Job};
+/// use blueprint_sdk::{Context, Job, Router};
 ///
 /// // the application context
 /// //

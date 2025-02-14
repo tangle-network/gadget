@@ -20,7 +20,7 @@ define_rejection! {
   pub struct MissingCallId;
 }
 
-blueprint_sdk::__define_rejection! {
+define_rejection! {
   #[body = "The call id in the metadata is not a valid integer"]
   /// A Rejection type for [`CallId`] when it is not a valid u64.
   pub struct InvalidCallId;
@@ -29,11 +29,24 @@ blueprint_sdk::__define_rejection! {
 composite_rejection! {
     /// Rejection used for [`CallId`].
     ///
-    /// Contains one variant for each way the [`Form`](super::Form) extractor
+    /// Contains one variant for each way the [`CallId`] extractor
     /// can fail.
     pub enum CallIdRejection {
         MissingCallId,
         InvalidCallId,
+    }
+}
+
+impl TryFrom<&mut JobCallParts> for CallId {
+    type Error = CallIdRejection;
+
+    fn try_from(parts: &mut JobCallParts) -> Result<Self, Self::Error> {
+        let call_id_raw = parts
+            .metadata
+            .get(Self::METADATA_KEY)
+            .ok_or(MissingCallId)?;
+        let call_id = call_id_raw.try_into().map_err(|_| InvalidCallId)?;
+        Ok(CallId(call_id))
     }
 }
 
@@ -47,11 +60,6 @@ where
         parts: &mut JobCallParts,
         _: &Ctx,
     ) -> Result<Self, Self::Rejection> {
-        let call_id_raw = parts
-            .metadata
-            .get(Self::METADATA_KEY)
-            .ok_or(MissingCallId)?;
-        let call_id = call_id_raw.try_into().map_err(|_| InvalidCallId)?;
-        Ok(CallId(call_id))
+        CallId::try_from(parts)
     }
 }

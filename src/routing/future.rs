@@ -9,13 +9,13 @@ use std::{
     task::{ready, Context, Poll},
 };
 use tower::util::{BoxCloneSyncService, MapErrLayer, MapResponseLayer, Oneshot};
-use tower::{Layer, Service, ServiceExt};
+use tower::{BoxError, Layer, Service, ServiceExt};
 
 /// How routes are stored inside a [`Router`](super::Router).
 ///
 /// You normally shouldn't need to care about this type. It's used in
 /// [`Router::layer`](super::Router::layer).
-pub struct Route<E = Infallible>(BoxCloneSyncService<JobCall, JobResult, E>);
+pub struct Route<E = BoxError>(BoxCloneSyncService<JobCall, JobResult, E>);
 
 impl<E> Route<E> {
     pub(crate) fn new<T>(svc: T) -> Self

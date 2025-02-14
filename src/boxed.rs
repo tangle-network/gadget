@@ -1,14 +1,15 @@
 use crate::routing::future::Route;
 use crate::routing::future::RouteFuture;
-use crate::{Job, JobCall, Router};
+use crate::{IntoJobResult, Job, JobCall, Router};
 
-use std::{convert::Infallible, fmt};
+use core::fmt;
 
-use tower::Service;
+use tower::util::{MapErrLayer, MapResponseLayer};
+use tower::{BoxError, Layer, Service};
 
 pub(crate) struct BoxedIntoRoute<S, E>(Box<dyn ErasedIntoRoute<S, E>>);
 
-impl<Ctx> BoxedIntoRoute<Ctx, Infallible>
+impl<Ctx> BoxedIntoRoute<Ctx, BoxError>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
@@ -41,6 +42,27 @@ impl<Ctx, E> BoxedIntoRoute<Ctx, E> {
     pub(crate) fn into_route(self, context: Ctx) -> Route<E> {
         self.0.into_route(context)
     }
+
+    pub(crate) fn layer<L>(self, layer: L) -> BoxedIntoRoute<Ctx, E>
+    where
+        L: Layer<Route<E>> + Clone + Send + Sync + 'static,
+        L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
+        <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
+        <L::Service as Service<JobCall>>::Error: Into<E> + 'static,
+        <L::Service as Service<JobCall>>::Future: Send + 'static,
+        E: 'static,
+        Ctx: 'static,
+    {
+        let layer = (
+            MapErrLayer::new(Into::into),
+            MapResponseLayer::new(IntoJobResult::into_job_result),
+            layer,
+        );
+        BoxedIntoRoute(Box::new(Map {
+            inner: self.0,
+            layer: Box::new(|route| route.layer(layer)),
+        }))
+    }
 }
 
 impl<Ctx, E> Clone for BoxedIntoRoute<Ctx, E> {
@@ -69,12 +91,12 @@ pub(crate) struct MakeErasedJob<J, Ctx> {
     pub(crate) into_route: fn(J, Ctx) -> Route,
 }
 
-impl<J, Ctx> ErasedIntoRoute<Ctx, Infallible> for MakeErasedJob<J, Ctx>
+impl<J, Ctx> ErasedIntoRoute<Ctx, BoxError> for MakeErasedJob<J, Ctx>
 where
     J: Clone + Send + Sync + 'static,
     Ctx: 'static,
 {
-    fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, Infallible>> {
+    fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, BoxError>> {
         Box::new(self.clone())
     }
 
@@ -82,7 +104,7 @@ where
         (self.into_route)(self.job, context)
     }
 
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<Infallible> {
+    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
         self.into_route(context).call(call)
     }
 }
@@ -100,16 +122,16 @@ where
 }
 
 #[allow(dead_code)]
-pub(crate) struct MakeErasedRouter<S> {
-    pub(crate) router: Router<S>,
-    pub(crate) into_route: fn(Router<S>, S) -> Route,
+pub(crate) struct MakeErasedRouter<Ctx> {
+    pub(crate) router: Router<Ctx>,
+    pub(crate) into_route: fn(Router<Ctx>, Ctx) -> Route,
 }
 
-impl<Ctx> ErasedIntoRoute<Ctx, Infallible> for MakeErasedRouter<Ctx>
+impl<Ctx> ErasedIntoRoute<Ctx, BoxError> for MakeErasedRouter<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, Infallible>> {
+    fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, BoxError>> {
         Box::new(self.clone())
     }
 
@@ -117,7 +139,7 @@ where
         (self.into_route)(self.router, context)
     }
 
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<Infallible> {
+    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
         self.router.call_with_context(call, context)
     }
 }

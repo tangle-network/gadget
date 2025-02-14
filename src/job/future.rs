@@ -1,8 +1,8 @@
 //! Handler future types.
 
-use crate::JobCall;
 use crate::JobResult;
-use core::{convert::Infallible, future::Future, pin::Pin, task::Context};
+use crate::{BoxError, JobCall};
+use core::{future::Future, pin::Pin, task::Context};
 use futures_util::future::Map;
 use pin_project_lite::pin_project;
 use tower::util::Oneshot;
@@ -13,7 +13,7 @@ opaque_future! {
     pub type IntoServiceFuture<F> =
         Map<
             F,
-            fn(JobResult) -> Result<JobResult, Infallible>,
+            fn(JobResult) -> Result<JobResult, BoxError>,
         >;
 }
 
