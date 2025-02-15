@@ -1,12 +1,12 @@
 use core::pin::Pin;
 
-use blueprint_sdk::{BoxError, JobCall};
+use blueprint_job_router::{BoxError, JobCall};
 use futures_util::TryFutureExt;
 use tangle_subxt::subxt_signer::bip39::core::future::Future;
 use tower::{Layer, Service};
 
-use crate::tangle::extract::BlockHash;
-use crate::tangle::producer::TangleClient;
+use crate::extract::BlockHash;
+use crate::producer::TangleClient;
 
 /// Automatically add all the events that happened in the current block to the job call extensions.
 #[derive(Clone, Debug)]

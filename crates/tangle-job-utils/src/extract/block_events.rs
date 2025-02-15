@@ -1,17 +1,17 @@
-use blueprint_sdk::__composite_rejection as composite_rejection;
-use blueprint_sdk::__define_rejection as define_rejection;
-use blueprint_sdk::{job_call::Parts as JobCallParts, FromJobCallParts};
+use blueprint_job_router::__composite_rejection as composite_rejection;
+use blueprint_job_router::__define_rejection as define_rejection;
+use blueprint_job_router::{job_call::Parts as JobCallParts, FromJobCallParts};
 use tangle_subxt::subxt::events::Events;
 use tangle_subxt::subxt::events::StaticEvent;
 
-use crate::tangle::producer::TangleConfig;
+use crate::producer::TangleConfig;
 
 /// Extracts all the events that happened in the current block.
 #[derive(Debug, Clone)]
 pub struct BlockEvents(pub Events<TangleConfig>);
 
-blueprint_sdk::__impl_deref!(BlockEvents: Events<TangleConfig>);
-blueprint_sdk::__impl_from!(Events<TangleConfig>, BlockEvents);
+blueprint_job_router::__impl_deref!(BlockEvents: Events<TangleConfig>);
+blueprint_job_router::__impl_from!(Events<TangleConfig>, BlockEvents);
 
 define_rejection! {
   #[body = "No events found in the extensions. Did you forget to add the `AddBlockEventsLayer`?"]
@@ -55,8 +55,8 @@ pub struct LastEvent<T>(pub T);
 /// Extracts all the events of type `T` that happened in the current block.
 pub struct Event<T>(pub Vec<T>);
 
-blueprint_sdk::__impl_deref!(FirstEvent);
-blueprint_sdk::__impl_deref!(LastEvent);
+blueprint_job_router::__impl_deref!(FirstEvent);
+blueprint_job_router::__impl_deref!(LastEvent);
 
 define_rejection! {
   #[body = "No event that matches this event found in the extensions. Did you forget to add the `AddBlockEventsLayer`?"]

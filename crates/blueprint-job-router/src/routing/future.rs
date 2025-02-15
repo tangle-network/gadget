@@ -2,7 +2,6 @@ use crate::{IntoJobResult, JobCall, JobResult};
 use bytes::Bytes;
 use pin_project_lite::pin_project;
 use std::{
-    convert::Infallible,
     fmt,
     future::Future,
     pin::Pin,
@@ -31,7 +30,7 @@ impl<E> Route<E> {
 
     /// Variant of [`Route::call`] that takes ownership of the route to avoid cloning.
     pub(crate) fn call_owned(self, call: JobCall) -> RouteFuture<E> {
-        self.oneshot_inner_owned(call).not_top_level()
+        self.oneshot_inner_owned(call)
     }
 
     pub(crate) fn oneshot_inner(&mut self, call: JobCall) -> RouteFuture<E> {
@@ -90,7 +89,7 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.oneshot_inner(call.map(Into::into)).not_top_level()
+        self.oneshot_inner(call.map(Into::into))
     }
 }
 
@@ -99,8 +98,6 @@ pin_project! {
     pub struct RouteFuture<E> {
         #[pin]
         inner: Oneshot<BoxCloneSyncService<JobCall, JobResult, E>, JobCall>,
-        allow_header: Option<Bytes>,
-        top_level: bool,
     }
 }
 
@@ -108,19 +105,11 @@ impl<E> RouteFuture<E> {
     fn new(inner: Oneshot<BoxCloneSyncService<JobCall, JobResult, E>, JobCall>) -> Self {
         Self {
             inner,
-            allow_header: None,
-            top_level: true,
         }
     }
 
-    pub(crate) fn allow_header(mut self, allow_header: Bytes) -> Self {
-        self.allow_header = Some(allow_header);
-        self
-    }
-
-    pub(crate) fn not_top_level(mut self) -> Self {
-        self.top_level = false;
-        self
+    pub(crate) fn join(&mut self, other: RouteFuture<E>) -> Self {
+        todo!()
     }
 }
 
@@ -133,31 +122,6 @@ impl<E> Future for RouteFuture<E> {
         let res = ready!(this.inner.poll(cx))?;
 
         Poll::Ready(Ok(res))
-    }
-}
-
-pin_project! {
-    /// A [`RouteFuture`] that always yields a [`Response`].
-    pub struct InfallibleRouteFuture {
-        #[pin]
-        future: RouteFuture<Infallible>,
-    }
-}
-
-impl InfallibleRouteFuture {
-    pub(crate) fn new(future: RouteFuture<Infallible>) -> Self {
-        Self { future }
-    }
-}
-
-impl Future for InfallibleRouteFuture {
-    type Output = JobResult;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match futures_util::ready!(self.project().future.poll(cx)) {
-            Ok(response) => Poll::Ready(response),
-            Err(err) => match err {},
-        }
     }
 }
 

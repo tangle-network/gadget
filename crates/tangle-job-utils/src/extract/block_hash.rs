@@ -1,7 +1,7 @@
-use blueprint_sdk::{
+use blueprint_job_router::{
     __composite_rejection as composite_rejection, __define_rejection as define_rejection,
 };
-use blueprint_sdk::{job_call::Parts as JobCallParts, FromJobCallParts};
+use blueprint_job_router::{job_call::Parts as JobCallParts, FromJobCallParts};
 use tangle_subxt::subxt::utils::H256;
 
 /// Extracts the current block hash from the job call.
@@ -12,8 +12,8 @@ impl BlockHash {
     pub const METADATA_KEY: &'static str = "X-TANGLE-BLOCK-HASH";
 }
 
-blueprint_sdk::__impl_deref!(BlockHash: H256);
-blueprint_sdk::__impl_from!(H256, BlockHash);
+blueprint_job_router::__impl_deref!(BlockHash: H256);
+blueprint_job_router::__impl_from!(H256, BlockHash);
 
 define_rejection! {
   #[body = "No BlockHash found in the metadata"]

@@ -53,21 +53,7 @@ pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
     routes: HashMap<RouteId, Handler<Ctx>>,
     node: Arc<Node>,
     prev_route_id: RouteId,
-}
-
-impl<Ctx> JobIdRouter<Ctx, true>
-where
-    Ctx: Clone + Send + Sync + 'static,
-{
-    pub(super) fn new_fallback() -> Self {
-        let mut this = Self::default();
-        // this.set_fallback(Route::new(NoOp));
-        this
-    }
-
-    pub(super) fn set_fallback(&mut self, endpoint: Route) {
-        todo!("remove, there's no need for a fallback handler. we know all the job IDs (routes)")
-    }
+    catch_all_routes: Vec<Handler<Ctx>>,
 }
 
 impl<Ctx, const IS_FALLBACK: bool> JobIdRouter<Ctx, IS_FALLBACK>
@@ -80,7 +66,7 @@ where
         T: 'static,
     {
         let id = self.next_route_id();
-        self.set_node(job_id, id)?;
+        self.set_node(job_id, id);
         self.routes
             .insert(id, Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
@@ -98,16 +84,25 @@ where
         T::Future: Send + 'static,
     {
         let id = self.next_route_id();
-        self.set_node(job_id, id)?;
+        self.set_node(job_id, id);
         self.routes.insert(id, Handler::Route(Route::new(service)));
         Ok(())
     }
 
-    fn set_node(&mut self, job_id: u32, id: RouteId) -> Result<(), String> {
-        let node = Arc::make_mut(&mut self.node);
+    pub(super) fn catch_all<J, T>(&mut self,job: J) -> Result<(), Cow<'static, str>>
+    where
+        J: Job<T, Ctx>,
+        T: 'static,
+    {
+        self.catch_all_routes
+            .push(Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
-        node.insert(job_id, id)
-            .map_err(|err| format!("Invalid route {job_id:?}: {err}"))
+        Ok(())
+    }
+
+    fn set_node(&mut self, job_id: u32, id: RouteId) {
+        let node = Arc::make_mut(&mut self.node);
+        node.insert(job_id, id);
     }
 
     pub(super) fn merge(
@@ -134,10 +129,19 @@ where
             })
             .collect();
 
+        let catch_all_routes = self
+            .catch_all_routes
+            .into_iter()
+            .map(|h| {
+                h.layer(layer.clone())
+            })
+            .collect();
+
         JobIdRouter {
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
+            catch_all_routes
         }
     }
 
@@ -167,19 +171,27 @@ where
             })
             .collect();
 
+        let catch_all_routes = self.catch_all_routes.into_iter().map(|endpoint| {
+            match endpoint {
+                Handler::Route(route) => Handler::Route(route),
+                Handler::Boxed(boxed) => Handler::Route(boxed.into_route(context.clone())),
+            }
+        }).collect();
+
         JobIdRouter {
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
+            catch_all_routes,
         }
     }
 
     pub(super) fn call_with_context(
         &self,
-        mut call: JobCall,
+        call: JobCall,
         context: Ctx,
     ) -> Result<RouteFuture<BoxError>, (JobCall, Ctx)> {
-        let (mut parts, body) = call.into_parts();
+        let (parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
             return Err((JobCall::from_parts(parts, body), context));
         };
@@ -196,8 +208,17 @@ where
         }
     }
 
-    pub(super) fn replace_route(&mut self, job_id: u32, route: Route) {
-        todo!("this can probably be removed, there's no need to replace jobs?");
+    pub(super) fn catch_all_call(&self, call: JobCall, context: Ctx) -> Result<Vec<RouteFuture<BoxError>>, (JobCall, Ctx)> {
+        if self.catch_all_routes.is_empty() {
+            return Err((call, context));
+        }
+
+        Ok(self.catch_all_routes.iter().map(|handler| {
+            match handler {
+                Handler::Route(route) => route.clone().call_owned(call.clone()),
+                Handler::Boxed(boxed) => boxed.clone().into_route(context.clone()).call(call.clone()),
+            }
+        }).collect::<Vec<_>>())
     }
 
     fn next_route_id(&mut self) -> RouteId {
@@ -217,6 +238,7 @@ impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
             routes: Default::default(),
             node: Default::default(),
             prev_route_id: RouteId(0),
+            catch_all_routes: Vec::new()
         }
     }
 }
@@ -239,11 +261,11 @@ where
             routes: self.routes.clone(),
             node: self.node.clone(),
             prev_route_id: self.prev_route_id,
+            catch_all_routes: self.catch_all_routes.clone(),
         }
     }
 }
 
-/// Wrapper around `matchit::Router` that supports merging two `Router`s.
 #[derive(Clone, Default)]
 struct Node {
     route_id_to_job: HashMap<RouteId, u32>,
@@ -251,11 +273,9 @@ struct Node {
 }
 
 impl Node {
-    fn insert(&mut self, job_id: u32, val: RouteId) -> Result<(), matchit::InsertError> {
+    fn insert(&mut self, job_id: u32, val: RouteId) {
         self.route_id_to_job.insert(val, job_id);
         self.job_to_route_id.insert(job_id, val);
-
-        Ok(())
     }
 
     fn get(&self, job_id: u32) -> Option<RouteId> {
@@ -268,32 +288,5 @@ impl fmt::Debug for Node {
         f.debug_struct("Node")
             .field("paths", &self.route_id_to_job)
             .finish()
-    }
-}
-
-#[track_caller]
-fn validate_nest_path(path: &str) -> &str {
-    assert!(path.starts_with('/'));
-    assert!(path.len() > 1);
-
-    if path.split('/').any(|segment| {
-        segment.starts_with("{*") && segment.ends_with('}') && !segment.ends_with("}}")
-    }) {
-        panic!("Invalid route: nested routes cannot contain wildcards (*)");
-    }
-
-    path
-}
-
-pub(crate) fn path_for_nested_route<'a>(prefix: &'a str, path: &'a str) -> Cow<'a, str> {
-    debug_assert!(prefix.starts_with('/'));
-    debug_assert!(path.starts_with('/'));
-
-    if prefix.ends_with('/') {
-        format!("{prefix}{}", path.trim_start_matches('/')).into()
-    } else if path == "/" {
-        prefix.into()
-    } else {
-        format!("{prefix}{path}").into()
     }
 }

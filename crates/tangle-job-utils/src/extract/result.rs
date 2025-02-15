@@ -1,15 +1,15 @@
-use blueprint_sdk::IntoJobResult;
-use blueprint_sdk::JobResult;
+use blueprint_job_router::IntoJobResult;
+use blueprint_job_router::JobResult;
 use bytes::Bytes;
 use gadget_blueprint_serde::to_field;
 use tangle_subxt::parity_scale_codec::Encode;
 
-use blueprint_sdk::__define_rejection as define_rejection;
+use blueprint_job_router::__define_rejection as define_rejection;
 
 /// A simple wrapper that converts the result of a job call into a tangle specific result.
 pub struct TangleResult<T>(pub T);
 
-blueprint_sdk::__impl_deref!(TangleResult);
+blueprint_job_router::__impl_deref!(TangleResult);
 
 define_rejection! {
   #[body = "Failed to convert the job result into a tangle result"]
