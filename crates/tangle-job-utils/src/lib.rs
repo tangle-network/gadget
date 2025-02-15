@@ -1,4 +1,6 @@
-use blueprint_sdk::{BoxError, JobCall};
+extern crate alloc;
+
+use blueprint_job_router::{BoxError, JobCall};
 use bytes::Bytes;
 use gadget_blueprint_serde::Field;
 use tangle_subxt::parity_scale_codec::Encode;

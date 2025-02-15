@@ -1,7 +1,7 @@
-use blueprint_sdk::{
+use blueprint_job_router::{
     __composite_rejection as composite_rejection, __define_rejection as define_rejection,
 };
-use blueprint_sdk::{job_call::Parts as JobCallParts, FromJobCallParts};
+use blueprint_job_router::{job_call::Parts as JobCallParts, FromJobCallParts};
 
 /// Extracts the current service id from the job call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,8 +11,8 @@ impl ServiceId {
     pub const METADATA_KEY: &'static str = "X-TANGLE-SERVICE-ID";
 }
 
-blueprint_sdk::__impl_deref!(ServiceId: u64);
-blueprint_sdk::__impl_from!(u64, ServiceId);
+blueprint_job_router::__impl_deref!(ServiceId: u64);
+blueprint_job_router::__impl_from!(u64, ServiceId);
 
 define_rejection! {
   #[body = "No ServiceId found in the metadata"]

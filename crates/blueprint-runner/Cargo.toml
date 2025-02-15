@@ -1,0 +1,21 @@
+[package]
+name = "blueprint-runner"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+blueprint-job-router.workspace = true
+bytes.workspace = true
+futures-core.workspace = true
+futures-util.workspace = true
+pin-project-lite.workspace = true
+tower.workspace = true
+tokio = { workspace = true, features = ["full"] }
+serde.workspace = true
+tangle-subxt.workspace = true
+tracing.workspace = true
+clap = { workspace = true, features = ["derive"] }
+async-trait.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+url.workspace = true

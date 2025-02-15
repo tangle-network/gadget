@@ -1,7 +1,7 @@
-use blueprint_sdk::{
+use blueprint_job_router::{
     __composite_rejection as composite_rejection, __define_rejection as define_rejection,
 };
-use blueprint_sdk::{job_call::Parts as JobCallParts, FromJobCallParts};
+use blueprint_job_router::{job_call::Parts as JobCallParts, FromJobCallParts};
 
 /// Extracts the current block number from the job call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,8 +11,8 @@ impl BlockNumber {
     pub const METADATA_KEY: &'static str = "X-TANGLE-BLOCK-NUMBER";
 }
 
-blueprint_sdk::__impl_deref!(BlockNumber: u32);
-blueprint_sdk::__impl_from!(u32, BlockNumber);
+blueprint_job_router::__impl_deref!(BlockNumber: u32);
+blueprint_job_router::__impl_from!(u32, BlockNumber);
 
 define_rejection! {
   #[body = "No BlockNumber found in the metadata"]

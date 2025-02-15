@@ -1,7 +1,7 @@
-use blueprint_sdk::{
+use blueprint_job_router::{
     __composite_rejection as composite_rejection, __define_rejection as define_rejection,
 };
-use blueprint_sdk::{job_call::Parts as JobCallParts, FromJobCallParts};
+use blueprint_job_router::{job_call::Parts as JobCallParts, FromJobCallParts};
 
 /// Extracts the current call id from the job call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,8 +11,8 @@ impl CallId {
     pub const METADATA_KEY: &'static str = "X-TANGLE-CALL-ID";
 }
 
-blueprint_sdk::__impl_deref!(CallId: u64);
-blueprint_sdk::__impl_from!(u64, CallId);
+blueprint_job_router::__impl_deref!(CallId: u64);
+blueprint_job_router::__impl_from!(u64, CallId);
 
 define_rejection! {
   #[body = "No CallId found in the metadata"]

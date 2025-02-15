@@ -1,4 +1,4 @@
-use blueprint_sdk::{BoxError, JobCall};
+use blueprint_job_router::{BoxError, JobCall};
 use tower::filter::Predicate;
 
 use super::extract::ServiceId;

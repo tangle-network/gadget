@@ -1,0 +1,26 @@
+[package]
+name = "experimental-blueprint"
+version = "0.1.1"
+description = "An experimental blueprint"
+edition = "2021"
+
+[package.metadata.blueprint]
+manager = { Evm = "ExperimentalBlueprint" }
+master_revision = "Latest"
+
+[dependencies]
+tangle-job-utils.workspace = true
+blueprint-job-router.workspace = true
+blueprint-runner.workspace = true
+tokio.workspace = true
+tower = { version = "0.5.2", features = ["util"] }
+async-trait = "0.1.86"
+tangle-subxt.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+gadget-tangle-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
+gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
+tempfile = "3.13.0"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"

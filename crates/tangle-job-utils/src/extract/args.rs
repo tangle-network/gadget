@@ -1,6 +1,6 @@
-use blueprint_sdk::{FromJobCall, JobCall};
+use blueprint_job_router::{FromJobCall, JobCall};
 
-use blueprint_sdk::__define_rejection as define_rejection;
+use blueprint_job_router::__define_rejection as define_rejection;
 use gadget_blueprint_serde::{from_field, Field};
 use tangle_subxt::parity_scale_codec::Decode;
 
@@ -13,7 +13,7 @@ define_rejection! {
 /// An extractor for the arguments of a job call that deserializes the arguments from the job call body.
 pub struct TangleArgs<T>(pub T);
 
-blueprint_sdk::__impl_deref!(TangleArgs);
+blueprint_job_router::__impl_deref!(TangleArgs);
 
 impl<T, Ctx> FromJobCall<Ctx> for TangleArgs<T>
 where
