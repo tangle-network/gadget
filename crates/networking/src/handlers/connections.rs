@@ -1,6 +1,7 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
-use crate::gossip::{MyBehaviourRequest, NetworkService};
+use crate::behaviours::MyBehaviourRequest;
+use crate::gossip::NetworkService;
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
 use gadget_std as std;

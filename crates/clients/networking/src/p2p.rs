@@ -96,7 +96,7 @@ impl P2PClient {
     }
 
     /// Creates a network delivery wrapper
-    pub fn create_network_delivery_wrapper<M>(
+    pub fn create_network_delivery_wrapper<M, const N: usize>(
         &self,
         mux: Arc<NetworkMultiplexer>,
         party_index: PartyIndex,
@@ -112,6 +112,6 @@ impl P2PClient {
             + serde::de::DeserializeOwned
             + round_based::ProtocolMessage,
     {
-        NetworkDeliveryWrapper::new(mux, party_index, task_hash, parties)
+        NetworkDeliveryWrapper::new::<N>(mux, party_index, task_hash, parties)
     }
 }

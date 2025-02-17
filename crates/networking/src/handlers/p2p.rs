@@ -1,6 +1,7 @@
 #![allow(unused_results)]
 
-use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
+use crate::behaviours::{MyBehaviourRequest, MyBehaviourResponse};
+use crate::gossip::NetworkService;
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
 use gadget_std::string::ToString;
@@ -91,9 +92,8 @@ impl NetworkService<'_> {
         req: MyBehaviourRequest,
         channel: request_response::ResponseChannel<MyBehaviourResponse>,
     ) {
-        use crate::gossip::MyBehaviourRequest::{Handshake, Message};
         let result = match req {
-            Handshake {
+            MyBehaviourRequest::Handshake {
                 public_key,
                 signature,
             } => {
@@ -132,7 +132,7 @@ impl NetworkService<'_> {
                     }
                 }
             }
-            Message { topic, raw_payload } => {
+            MyBehaviourRequest::Message { topic, raw_payload } => {
                 // Reject messages from self
                 if peer == self.my_id {
                     return;
@@ -168,9 +168,8 @@ impl NetworkService<'_> {
         request_id: request_response::OutboundRequestId,
         message: MyBehaviourResponse,
     ) {
-        use crate::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
         match message {
-            Handshaked {
+            MyBehaviourResponse::Handshaked {
                 public_key,
                 signature,
             } => {
@@ -199,7 +198,7 @@ impl NetworkService<'_> {
                     let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);
                 }
             }
-            MessageHandled => {}
+            MyBehaviourResponse::MessageHandled => {}
         }
     }
 }

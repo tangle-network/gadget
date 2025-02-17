@@ -1,6 +1,7 @@
 #![allow(unused_results)]
 
-use crate::gossip::{GossipMessage, NetworkService};
+use crate::behaviours::GossipMessage;
+use crate::gossip::NetworkService;
 use gadget_std::string::ToString;
 use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;

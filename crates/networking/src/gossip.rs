@@ -9,7 +9,7 @@ use crate::behaviours::{
     GossipMessage, GossipOrRequestResponse, MyBehaviour, MyBehaviourEvent, MyBehaviourRequest,
 };
 use crate::error::Error;
-use crate::key_types::{GossipMsgKeyPair, GossipMsgPublicKey, GossipSignedMsgSignature};
+use crate::key_types::{GossipMsgKeyPair, GossipMsgPublicKey};
 use crate::types::{IntraNodePayload, MessageType, ParticipantInfo, ProtocolMessage};
 use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
@@ -18,10 +18,7 @@ use gadget_std::string::ToString;
 use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
 use libp2p::gossipsub::IdentTopic;
-use libp2p::kad::store::MemoryStore;
-use libp2p::{
-    gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
-};
+use libp2p::{swarm::SwarmEvent, PeerId};
 use lru_mem::LruCache;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};

@@ -68,7 +68,7 @@ fn main() {
         parties.insert(0, pair.public());
 
         // Test network delivery wrapper creation
-        let _network_wrapper = p2p_client.create_network_delivery_wrapper::<StubMessage>(
+        let _network_wrapper = p2p_client.create_network_delivery_wrapper::<StubMessage, 10>(
             mux.clone(),
             party_index,
             task_hash,
