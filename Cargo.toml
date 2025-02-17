@@ -147,7 +147,7 @@ tokio-cron-scheduler = "0.13.0"
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }
-clap = { version = "4.5.16" }
+clap = { version = "4.5.29" }
 clap-cargo = { version = "0.14", default-features = false }
 toml = { version = "0.8.19", default-features = false }
 
