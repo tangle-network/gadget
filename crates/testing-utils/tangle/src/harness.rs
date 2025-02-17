@@ -262,10 +262,7 @@ impl TangleTestHarness {
 
     pub fn get_default_operator_preferences(&self) -> Preferences {
         Preferences {
-            key: gadget_runners::tangle::tangle::decompress_pubkey(
-                &self.ecdsa_signer.signer().public().0,
-            )
-            .unwrap(),
+            key: self.ecdsa_signer.signer().public().0,
             price_targets: PriceTargets::default().0,
         }
     }
