@@ -5,6 +5,7 @@ use alloy_transport::BoxTransport;
 use color_eyre::Result;
 use gadget_logging::info;
 use gadget_std::env;
+use gadget_std::fs;
 use gadget_std::path::Path;
 use gadget_std::process::Command;
 use gadget_std::str::FromStr;
@@ -28,6 +29,14 @@ pub struct EigenlayerDeployOpts {
 }
 
 impl EigenlayerDeployOpts {
+    pub fn new(network: NetworkTarget, rpc_url: String) -> Self {
+        Self {
+            network,
+            rpc_url,
+            contracts_path: "./contracts".to_string(),
+        }
+    }
+
     fn get_private_key(&self) -> Result<String> {
         match self.network {
             NetworkTarget::Local => Ok(
@@ -46,87 +55,6 @@ impl EigenlayerDeployOpts {
                 color_eyre::eyre::eyre!("ETHERSCAN_API_KEY environment variable not set")
             }),
         }
-    }
-}
-
-pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Address> {
-    info!("Deploying contracts using Forge...");
-
-    // let network_arg = match opts.network {
-    //     NetworkTarget::Testnet => "--network testnet",
-    //     NetworkTarget::Mainnet => "--network mainnet",
-    //     NetworkTarget::Local => "--network testnet",
-    // };
-
-    // let etherscan_key = opts
-    //     .get_etherscan_key()?
-    //     .map(|key| format!("--etherscan-api-key {}", key))
-    //     .unwrap_or_default();
-
-    let private_key = opts.get_private_key()?;
-
-    let contract_path = parse_contract_path(&opts.contracts_path)?;
-    info!("Contract path: {}", contract_path);
-
-    // Construct the forge create command
-    let mut cmd = Command::new("forge");
-    cmd.arg("create")
-        .arg(contract_path)
-        .arg("--rpc-url")
-        .arg(&opts.rpc_url)
-        .arg("--private-key")
-        .arg(&private_key);
-    // .arg("--etherscan-api-key").arg("$ETHERSCAN_API_KEY")
-    // .arg(network_arg)
-    // .arg("--verify");
-
-    info!("Running command: {:?}", cmd);
-
-    // if !etherscan_key.is_empty() {
-    //     cmd.arg(&etherscan_key);
-    // }
-
-    // Execute the command
-    info!("Executing forge create command...");
-    let output = cmd.output().unwrap();
-
-    // info!("Standard Output: {}", String::from_utf8_lossy(&output.stdout));
-    // info!("Standard Error: {}", String::from_utf8_lossy(&output.stderr));
-
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        info!("Contract deployed successfully. Output:\n{}", stdout);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let address_line = stdout
-            .lines()
-            .find(|line| line.starts_with("Deployed to: "))
-            .ok_or_else(|| {
-                color_eyre::eyre::eyre!(
-                    "Deployment failed. No address found in stdout:\n{}",
-                    stdout
-                )
-            })?;
-
-        let address_str = address_line
-            .rsplit_once('x')
-            .map(|(_, address)| address.trim())
-            .ok_or_else(|| {
-                color_eyre::eyre::eyre!(
-                    "Deployment failed. No address found in stdout:\n{}",
-                    stdout
-                )
-            })?;
-
-        let address = Address::from_str(address_str).map_err(|e| {
-            color_eyre::eyre::eyre!(e.to_string())
-        })?;
-        Ok(address)
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(color_eyre::eyre::eyre!(
-            "Deployment failed. Error:\n{}",
-            stderr
-        ))
     }
 }
 
@@ -158,23 +86,99 @@ fn parse_contract_path(contract_path: &str) -> Result<String> {
     Ok(format!("{}:{}", formatted_path, contract_name))
 }
 
-pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
-    info!("Starting Eigenlayer deployment process...");
+fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
+    let path = Path::new(contracts_path);
+    if !path.exists() {
+        return Err(color_eyre::eyre::eyre!("Contracts path does not exist: {}", contracts_path));
+    }
 
-    match opts.network {
-        NetworkTarget::Local => {
-            let provider = ProviderBuilder::new()
-                .on_http((opts.rpc_url).parse()?)
-                .boxed();
-
-            let wallet = PrivateKeySigner::from_str(&opts.get_private_key()?)?;
-            deploy_local(&opts, provider, wallet).await?;
-        }
-        NetworkTarget::Testnet | NetworkTarget::Mainnet => {
-            deploy_avs_contracts(&opts).await?;
+    let mut contract_files = Vec::new();
+    let src_path = path.join("src");
+    
+    if src_path.exists() {
+        for entry in fs::read_dir(src_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "sol") {
+                if let Some(path_str) = path.to_str() {
+                    contract_files.push(path_str.to_string());
+                }
+            }
         }
     }
 
-    info!("Deployment completed successfully!");
+    if contract_files.is_empty() {
+        return Err(color_eyre::eyre::eyre!("No Solidity contract files found in {}/src", contracts_path));
+    }
+
+    Ok(contract_files)
+}
+
+pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Address>> {
+    info!("Finding contracts to deploy...");
+    
+    let contract_files = find_contract_files(&opts.contracts_path)?;
+    let private_key = opts.get_private_key()?;
+    let mut deployed_addresses = Vec::new();
+
+    for contract_path in contract_files {
+        info!("Deploying contract: {}", contract_path);
+
+        let contract_name = parse_contract_path(&contract_path)?;
+
+        // Construct the forge create command
+        let mut cmd = Command::new("forge");
+        cmd.arg("create")
+            .arg(&contract_name)
+            .arg("--rpc-url")
+            .arg(&opts.rpc_url)
+            .arg("--private-key")
+            .arg(&private_key);
+
+        info!("Running command: {:?}", cmd);
+
+        // Execute the command
+        let output = cmd.output()?;
+        
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            info!("Contract deployed successfully. Output:\n{}", stdout);
+            
+            // Extract deployed address from output
+            if let Some(address) = stdout
+                .lines()
+                .find(|line| line.contains("Deployed to:"))
+                .and_then(|line| line.split_whitespace().last())
+                .and_then(|addr_str| Address::from_str(addr_str).ok())
+            {
+                deployed_addresses.push(address);
+                info!("Contract deployed to: {}", address);
+            }
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(color_eyre::eyre::eyre!(
+                "Failed to deploy contract {}: {}",
+                contract_path,
+                stderr
+            ));
+        }
+    }
+
+    Ok(deployed_addresses)
+}
+
+pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
+    info!("Deploying contracts to EigenLayer...");
+    let addresses = deploy_avs_contracts(&opts).await?;
+    
+    if addresses.is_empty() {
+        info!("No contracts were deployed");
+    } else {
+        info!("Successfully deployed {} contracts:", addresses.len());
+        for (i, address) in addresses.iter().enumerate() {
+            info!("Contract {}: {}", i + 1, address);
+        }
+    }
+    
     Ok(())
 }

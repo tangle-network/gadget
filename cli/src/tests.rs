@@ -153,8 +153,9 @@ async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
 
     // Create a temporary directory for our test contract
     let temp_dir = TempDir::new()?;
-    let contract_dir = temp_dir.path().join("src");
-    fs::create_dir_all(&contract_dir)?;
+    let contract_src_dir = temp_dir.path().join("src");
+    let contract_dir = temp_dir.path();
+    fs::create_dir_all(&contract_src_dir)?;
 
     // Write the test contract
     let contract_content = r#"// SPDX-License-Identifier: MIT
@@ -173,7 +174,7 @@ contract TestContract {
 }
 "#;
 
-    fs::write(contract_dir.join("TestContract.sol"), contract_content)?;
+    fs::write(contract_src_dir.join("TestContract.sol"), contract_content)?;
 
     // Create foundry.toml
     let foundry_content = r#"[profile.default]
@@ -187,10 +188,7 @@ libs = ['lib']"#;
     // Set up deployment options with temporary directory path
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
-        contracts_path: contract_dir
-            .join("TestContract.sol")
-            .to_string_lossy()
-            .to_string(),
+        contracts_path: contract_dir.to_string_lossy().to_string(),
         network: NetworkTarget::Local,
     };
 
@@ -216,7 +214,7 @@ libs = ['lib']"#;
 
     // Create a contract instance
     let contract = alloy_contract::ContractInstance::<alloy_transport::BoxTransport, RootProvider<BoxTransport>, alloy_network::Ethereum>::new(
-        contract_address,
+        contract_address[0],
         provider.clone(),
         alloy_contract::Interface::new(abi)
     );
