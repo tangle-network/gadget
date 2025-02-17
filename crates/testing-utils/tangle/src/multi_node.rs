@@ -14,6 +14,7 @@ use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::SpSr25519;
 use gadget_runners::core::error::RunnerError;
+use gadget_runners::core::runner::BackgroundService;
 use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
@@ -22,7 +23,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
-use gadget_runners::core::runner::BackgroundService;
 
 #[derive(Clone, Debug)]
 enum NodeSlot {

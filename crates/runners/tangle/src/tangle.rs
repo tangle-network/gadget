@@ -179,7 +179,7 @@ pub async fn register_impl(
     let xt = api::tx().services().register(
         blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa_key.0.0,
+            key: ecdsa_key.0 .0,
             price_targets: price_targets.clone().0,
         },
         registration_args,
