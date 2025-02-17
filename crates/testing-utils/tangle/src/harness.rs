@@ -265,7 +265,7 @@ impl TangleTestHarness {
             key: gadget_runners::tangle::tangle::decompress_pubkey(
                 &self.ecdsa_signer.signer().public().0,
             )
-                .unwrap(),
+            .unwrap(),
             price_targets: PriceTargets::default().0,
         }
     }

@@ -1,7 +1,6 @@
 use crate::key_types::GossipMsgPublicKey;
-use crate::networking::{
-    IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
-};
+use crate::networking::{NetworkMultiplexer, StreamKey, SubNetwork};
+use crate::types::{IdentifierInfo, ParticipantInfo, ProtocolMessage};
 use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
 use core::task::{ready, Context, Poll};
@@ -12,8 +11,6 @@ use gadget_std::sync::Arc;
 use round_based::{Delivery, Incoming, MessageType, Outgoing};
 use round_based::{MessageDestination, MsgId, PartyIndex};
 use stream::{SplitSink, SplitStream};
-
-use crate::networking::ParticipantInfo;
 
 pub struct NetworkDeliveryWrapper<M> {
     /// The wrapped network implementation.
@@ -27,7 +24,7 @@ where
 {
     /// Create a new `NetworkDeliveryWrapper` over a network implementation with the given party index.
     #[must_use]
-    pub fn new(
+    pub fn new<const N: usize>(
         mux: Arc<NetworkMultiplexer>,
         i: PartyIndex,
         task_hash: [u8; 32],
@@ -36,10 +33,10 @@ where
         let (tx_forward, rx) = tokio::sync::mpsc::unbounded_channel();
         // By default, we create 10 substreams for each party.
         let mut sub_streams = HashMap::new();
-        for x in 0..10 {
+        for x in 0..N {
             let key = StreamKey {
                 task_hash,
-                round_id: x,
+                round_id: x as i32,
             };
             // Creates a multiplexed subnetwork, and also forwards all messages to the given channel
             let _ = sub_streams.insert(key, mux.multiplex_with_forwarding(key, tx_forward.clone()));
@@ -48,13 +45,14 @@ where
         let network = NetworkWrapper {
             me: i,
             mux,
-            incoming_queue: VecDeque::new(),
+            message_hashes: HashMap::new(),
             sub_streams,
             participants: parties,
             task_hash,
             tx_forward,
             rx,
             next_msg_id: Arc::new(NextMessageId::default()),
+            _phantom: std::marker::PhantomData,
         };
 
         NetworkDeliveryWrapper { network }
@@ -70,16 +68,22 @@ pub struct NetworkWrapper<M> {
     mux: Arc<NetworkMultiplexer>,
     /// A Map of substreams for each round.
     sub_streams: HashMap<StreamKey, SubNetwork>,
-    /// A queue of incoming messages.
-    #[allow(dead_code)]
-    incoming_queue: VecDeque<Incoming<M>>,
+    /// A map of message hashes to their corresponding message id.
+    /// This is used to deduplicate messages.
+    message_hashes: HashMap<blake3::Hash, MsgId>,
     /// Participants in the network with their corresponding public keys.
     /// Note: This is a `BTreeMap` to ensure that the participants are sorted by their party index.
     participants: BTreeMap<PartyIndex, GossipMsgPublicKey>,
+    /// The next message id to use.
     next_msg_id: Arc<NextMessageId>,
+    /// A channel for forwarding messages to the network.
     tx_forward: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
+    /// A channel for receiving messages from the network.
     rx: tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage>,
+    /// The task hash of the current task.
     task_hash: [u8; 32],
+    /// A phantom data type to ensure that the network wrapper is generic over the message type.
+    _phantom: std::marker::PhantomData<M>,
 }
 
 impl<M> Delivery<M> for NetworkDeliveryWrapper<M>
@@ -107,7 +111,8 @@ where
     type Item = Result<Incoming<M>, crate::error::Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let res = ready!(self.get_mut().rx.poll_recv(cx));
+        let this = self.get_mut();
+        let res = ready!(this.rx.poll_recv(cx));
         if let Some(res) = res {
             let msg_type = if res.recipient.is_some() {
                 MessageType::P2P
@@ -117,13 +122,32 @@ where
 
             let id = res.identifier_info.message_id;
 
-            let msg = match serde_json::from_slice(&res.payload) {
+            let msg: M = match serde_json::from_slice(&res.payload) {
                 Ok(msg) => msg,
                 Err(err) => {
                     gadget_logging::error!(%err, "Failed to deserialize message (round_based_compat)");
                     return Poll::Ready(Some(Err(crate::error::Error::Other(err.to_string()))));
                 }
             };
+
+            let message_hash = blake3::hash(&res.payload);
+            gadget_logging::debug!(
+                "Received message with hash {} from {} in round {}",
+                hex::encode(message_hash.as_bytes()),
+                res.sender.user_id,
+                res.identifier_info.round_id
+            );
+
+            if this.message_hashes.contains_key(&message_hash) {
+                gadget_logging::warn!(
+                    "Received duplicate message with hash {} (id: {})",
+                    hex::encode(message_hash.as_bytes()),
+                    id
+                );
+                return Poll::Ready(None);
+            }
+
+            this.message_hashes.insert(message_hash, id);
 
             Poll::Ready(Some(Ok(Incoming {
                 msg,

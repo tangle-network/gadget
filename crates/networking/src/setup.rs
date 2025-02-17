@@ -1,9 +1,7 @@
 #![allow(unused_results, missing_docs)]
 
 use crate::error::Error;
-use crate::gossip::{
-    GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
-};
+use crate::gossip::{GossipHandle, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE};
 pub use crate::key_types::GossipMsgKeyPair;
 use futures::StreamExt;
 use gadget_std as std;

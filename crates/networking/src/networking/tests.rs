@@ -12,7 +12,7 @@ use tokio::time::sleep;
 
 const TOPIC: &str = "/gadget/test/1.0.0";
 
-fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, crate::Error>
+fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, crate::error::Error>
 where
     T: Deserialize<'a>,
 {
@@ -122,7 +122,7 @@ async fn run_protocol<N: Network>(
     node: N,
     i: u16,
     mapping: BTreeMap<u16, crate::GossipMsgPublicKey>,
-) -> Result<(), crate::Error> {
+) -> Result<(), crate::error::Error> {
     let task_hash = [0u8; 32];
     // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
     // used throughout the program must also use the multiplexer to prevent mixed messages.
@@ -167,7 +167,7 @@ async fn run_protocol<N: Network>(
     gadget_logging::debug!("Broadcast Message");
     round1_network
         .send(msg)
-        .map_err(|_| crate::Error::Other("Failed to send message".into()))?;
+        .map_err(|_| crate::error::Error::Other("Failed to send message".into()))?;
 
     // Wait for all other nodes to send their messages
     let mut msgs = BTreeMap::new();

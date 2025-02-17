@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod tests;
 
+use crate::error::Error;
 use crate::key_types::GossipMsgPublicKey;
-use crate::Error;
+use crate::types::{IdentifierInfo, ParticipantInfo, ProtocolMessage, UserID};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
@@ -11,8 +12,6 @@ use gadget_std as std;
 use gadget_std::boxed::Box;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
-use gadget_std::fmt::Display;
-use gadget_std::format;
 use gadget_std::ops::{Deref, DerefMut};
 use gadget_std::pin::Pin;
 use gadget_std::string::ToString;
@@ -22,56 +21,6 @@ use gadget_std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
-
-pub type UserID = u16;
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
-pub struct IdentifierInfo {
-    pub message_id: u64,
-    pub round_id: u16,
-}
-
-impl Display for IdentifierInfo {
-    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        let message_id = format!("message_id: {}", self.message_id);
-        let round_id = format!("round_id: {}", self.round_id);
-        write!(f, "{} {}", message_id, round_id)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct ParticipantInfo {
-    pub user_id: u16,
-    pub public_key: Option<GossipMsgPublicKey>,
-}
-
-impl Display for ParticipantInfo {
-    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        let public_key = self
-            .public_key
-            .map(|key| format!("public_key: {:?}", key))
-            .unwrap_or_default();
-        write!(f, "user_id: {}, {}", self.user_id, public_key)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ProtocolMessage {
-    pub identifier_info: IdentifierInfo,
-    pub sender: ParticipantInfo,
-    pub recipient: Option<ParticipantInfo>,
-    pub payload: Vec<u8>,
-}
-
-impl Display for ProtocolMessage {
-    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        write!(
-            f,
-            "identifier_info: {}, sender: {}, recipient: {:?}, payload: {:?}",
-            self.identifier_info, self.sender, self.recipient, self.payload
-        )
-    }
-}
 
 #[async_trait]
 #[auto_impl::auto_impl(&, Box, Arc)]

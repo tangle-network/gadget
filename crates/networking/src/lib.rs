@@ -2,18 +2,16 @@
 
 pub mod gossip;
 pub mod handlers;
-pub mod messaging;
 pub mod networking;
 #[cfg(feature = "round-based-compat")]
 pub mod round_based_compat;
 #[cfg(feature = "round-based-compat")]
 pub use round_based;
 
+pub mod behaviours;
 pub mod error;
 pub mod setup;
-
-/// Unique identifier for a party
-pub type UserID = u16;
+pub mod types;
 
 pub use key_types::*;
 

@@ -5,8 +5,12 @@
     clippy::exhaustive_enums
 )]
 
+use crate::behaviours::{
+    GossipMessage, GossipOrRequestResponse, MyBehaviour, MyBehaviourEvent, MyBehaviourRequest,
+};
 use crate::error::Error;
 use crate::key_types::{GossipMsgKeyPair, GossipMsgPublicKey, GossipSignedMsgSignature};
+use crate::types::{IntraNodePayload, MessageType, ParticipantInfo, ProtocolMessage};
 use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
 use gadget_std::collections::BTreeMap;
@@ -19,30 +23,11 @@ use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
 };
 use lru_mem::LruCache;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::networking::{Network, ParticipantInfo, ProtocolMessage};
-use gadget_std as std;
-use gadget_std::{boxed::Box, format, string::String, vec::Vec};
-use std::vec;
-
-/// Maximum allowed size for a Signed Message.
-pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
-
-// We create a custom network behaviour that combines Gossipsub and Mdns.
-#[derive(NetworkBehaviour)]
-pub struct MyBehaviour {
-    pub gossipsub: gossipsub::Behaviour,
-    pub mdns: mdns::tokio::Behaviour,
-    pub p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
-    pub identify: libp2p::identify::Behaviour,
-    pub kadmelia: libp2p::kad::Behaviour<MemoryStore>,
-    pub dcutr: libp2p::dcutr::Behaviour,
-    pub relay: libp2p::relay::Behaviour,
-    pub ping: libp2p::ping::Behaviour,
-}
+use crate::networking::Network;
+use gadget_std::{boxed::Box, format, vec::Vec};
 
 pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicUsize>);
 
@@ -288,62 +273,6 @@ impl GossipHandle {
             .copied()
             .collect()
     }
-}
-
-pub struct IntraNodePayload {
-    topic: IdentTopic,
-    payload: GossipOrRequestResponse,
-    message_type: MessageType,
-}
-
-impl gadget_std::fmt::Debug for IntraNodePayload {
-    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        f.debug_struct("IntraNodePayload")
-            .field("topic", &self.topic)
-            .finish_non_exhaustive()
-    }
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum GossipOrRequestResponse {
-    Gossip(GossipMessage),
-    Request(MyBehaviourRequest),
-    Response(MyBehaviourResponse),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GossipMessage {
-    pub topic: String,
-    pub raw_payload: Vec<u8>,
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourRequest {
-    Handshake {
-        public_key: GossipMsgPublicKey,
-        signature: GossipSignedMsgSignature,
-    },
-    Message {
-        topic: String,
-        raw_payload: Vec<u8>,
-    },
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourResponse {
-    Handshaked {
-        public_key: GossipMsgPublicKey,
-        signature: GossipSignedMsgSignature,
-    },
-    MessageHandled,
-}
-
-enum MessageType {
-    Broadcast,
-    P2P(PeerId),
 }
 
 #[async_trait]
