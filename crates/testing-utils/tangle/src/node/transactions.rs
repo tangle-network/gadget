@@ -238,7 +238,6 @@ pub async fn request_service<T: Signer<TangleConfig>>(
 ) -> Result<(), TransactionError> {
     info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
     let call = api::tx().services().request(
-        None, // TODO: Ensure this is okay for testing
         blueprint_id,
         Vec::new(),
         test_nodes,

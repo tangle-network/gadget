@@ -243,6 +243,7 @@ impl SerializeSeq<'_> {
             Field::Array(_),
             Field::List(_),
             Field::AccountId(_),
+            Field::Bytes(_)
         )
     }
 }
