@@ -41,7 +41,6 @@ pub struct MyBehaviour {
     pub kadmelia: libp2p::kad::Behaviour<MemoryStore>,
     pub dcutr: libp2p::dcutr::Behaviour,
     pub relay: libp2p::relay::Behaviour,
-    pub relay_client: libp2p::relay::client::Behaviour,
     pub ping: libp2p::ping::Behaviour,
 }
 
@@ -124,9 +123,7 @@ impl NetworkService<'_> {
     /// Handle inbound events from the networking layer
     #[allow(clippy::too_many_lines)]
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<MyBehaviourEvent>) {
-        use MyBehaviourEvent::{
-            Dcutr, Gossipsub, Identify, Kadmelia, Mdns, P2p, Ping, Relay, RelayClient,
-        };
+        use MyBehaviourEvent::{Dcutr, Gossipsub, Identify, Kadmelia, Mdns, P2p, Ping, Relay};
         use SwarmEvent::{
             Behaviour, ConnectionClosed, ConnectionEstablished, Dialing, ExpiredListenAddr,
             ExternalAddrConfirmed, ExternalAddrExpired, IncomingConnection,
@@ -155,9 +152,6 @@ impl NetworkService<'_> {
             }
             Behaviour(Relay(event)) => {
                 self.handle_relay_event(event).await;
-            }
-            Behaviour(RelayClient(event)) => {
-                self.handle_relay_client_event(event).await;
             }
             Behaviour(Ping(event)) => {
                 self.handle_ping_event(event).await;

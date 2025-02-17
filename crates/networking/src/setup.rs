@@ -176,8 +176,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             config
         })
         .with_dns()?
-        .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
-        .with_behaviour(|key, relay_client| {
+        .with_behaviour(|key| {
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
                 .protocol_id_prefix("/tangle/gadget-binary-sdk/meshsub")
@@ -243,7 +242,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 kadmelia,
                 dcutr,
                 relay,
-                relay_client,
                 ping,
             })
         })?
