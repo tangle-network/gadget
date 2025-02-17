@@ -4487,7 +4487,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1145d32e826a7748b69ee8fc62d3e6355ff7f1051df53141e7048162fc90481b"
 dependencies = [
  "data-encoding",
- "syn 2.0.98",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -7160,7 +7160,7 @@ dependencies = [
  "gadget-runner-core",
  "gadget-std",
  "gadget-utils",
- "rand 0.8.5",
+ "rand 0.9.0",
  "thiserror 2.0.11",
 ]
 
@@ -7201,7 +7201,7 @@ dependencies = [
  "async-trait",
  "colored",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.9.0",
  "rayon",
  "thiserror 2.0.11",
  "tokio",
@@ -19113,7 +19113,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.7",
  "rand 0.8.5",
  "static_assertions",
