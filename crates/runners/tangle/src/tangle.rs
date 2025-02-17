@@ -176,10 +176,13 @@ pub async fn register_impl(
 
     let blueprint_id = blueprint_settings.blueprint_id;
 
+    let uncompressed_pk = decompress_pubkey(&ecdsa_key.0 .0).ok_or_else(|| {
+        RunnerError::Other("Unable to convert compressed ECDSA key to uncompressed key".to_string())
+    })?;
     let xt = api::tx().services().register(
         blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa_key.0 .0,
+            key: uncompressed_pk,
             price_targets: price_targets.clone().0,
         },
         registration_args,
