@@ -1,5 +1,7 @@
 #![allow(unused_results, missing_docs)]
 
+use ::std::net::{Ipv4Addr, Ipv6Addr};
+
 use crate::behaviours::MyBehaviour;
 use crate::error::Error;
 use crate::gossip::{GossipHandle, NetworkServiceWithoutSwarm};
@@ -8,16 +10,14 @@ use crate::types::{IntraNodePayload, MAX_MESSAGE_SIZE};
 use futures::StreamExt;
 use gadget_std as std;
 use gadget_std::collections::BTreeMap;
-use gadget_std::format;
 use gadget_std::io;
-use gadget_std::net::IpAddr;
-use gadget_std::str::FromStr;
 use gadget_std::string::String;
 use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
 use gadget_std::vec;
 use gadget_std::vec::Vec;
+use libp2p::multiaddr::Protocol;
 use libp2p::Multiaddr;
 use libp2p::{
     gossipsub, gossipsub::IdentTopic, kad::store::MemoryStore, mdns, request_response,
@@ -235,6 +235,12 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             // Setup ping for liveness checks between connections
             let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::default());
 
+            // Setup autonat for NAT traversal
+            let autonat = libp2p::autonat::Behaviour::new(
+                key.public().to_peer_id(),
+                libp2p::autonat::Config::default(),
+            );
+
             Ok(MyBehaviour {
                 gossipsub,
                 mdns,
@@ -244,6 +250,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 dcutr,
                 relay,
                 ping,
+                autonat,
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -281,18 +288,22 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
 
     gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 2 ~~~");
 
-    let ips_to_bind_to = [
-        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
-        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
-    ];
+    // Listen on all interfaces UDP
+    swarm.listen_on(
+        Multiaddr::empty()
+            .with(Protocol::from(Ipv4Addr::UNSPECIFIED))
+            .with(Protocol::from(Ipv6Addr::UNSPECIFIED))
+            .with(Protocol::Udp(bind_port))
+            .with(Protocol::QuicV1),
+    )?;
 
-    for addr in ips_to_bind_to {
-        let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
-        // Bind to both UDP and TCP to increase probability of successful NAT traversal.
-        // Use QUIC over UDP to have reliable ordered transport like TCP.
-        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
-        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
-    }
+    // Listen on all interfaces TCP
+    swarm.listen_on(
+        Multiaddr::empty()
+            .with(Protocol::from(Ipv4Addr::UNSPECIFIED))
+            .with(Protocol::from(Ipv6Addr::UNSPECIFIED))
+            .with(Protocol::Tcp(bind_port)),
+    )?;
 
     gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 3 ~~~");
     // Dial all bootnodes

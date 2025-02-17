@@ -51,4 +51,5 @@ pub struct MyBehaviour {
     pub dcutr: libp2p::dcutr::Behaviour,
     pub relay: libp2p::relay::Behaviour,
     pub ping: libp2p::ping::Behaviour,
+    pub autonat: libp2p::autonat::Behaviour,
 }
