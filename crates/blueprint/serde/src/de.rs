@@ -41,7 +41,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
             Field::Struct(_, fields) => visit_struct(*fields, visitor),
             Field::AccountId(a) => visitor.visit_string(a.to_string()),
-            Field::Bytes(b) => visitor.visit_byte_buf(b.0)
+            Field::Bytes(b) => visitor.visit_byte_buf(b.0),
         }
     }
 
@@ -212,7 +212,7 @@ impl Deserializer {
             Field::Array(_) | Field::List(_) => de::Unexpected::Seq,
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),
-            Field::Bytes(b) => de::Unexpected::Bytes(b.0.as_slice())
+            Field::Bytes(b) => de::Unexpected::Bytes(b.0.as_slice()),
         }
     }
 }
