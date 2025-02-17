@@ -116,9 +116,6 @@ pub enum DeployTarget {
         /// Deploy to mainnet with given RPC URL
         #[arg(long, value_name = "URL", group = "network")]
         mainnet: Option<String>,
-        /// Path to the configuration file
-        #[arg(long, value_name = "PATH")]
-        config: PathBuf,
     },
 }
 

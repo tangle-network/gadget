@@ -50,22 +50,25 @@ gadget-keystore = { workspace = true }
 tnt-bls = { workspace = true, optional = true }
 
 # Optional dependencies based on features
-tangle-subxt = { workspace = true, features = ["std"], optional = true }
+tangle-subxt = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 
 # EVM dependencies
-alloy-json-abi = { workspace = true, optional = true }
+alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 alloy-provider = { workspace = true, optional = true }
 alloy-network = { workspace = true, optional = true }
 alloy-rpc-types-eth = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true }
 alloy-transport = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, optional = true }
 
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
 gadget-utils = { workspace = true, features = ["std", "evm", "eigenlayer"] }
+alloy-contract = { workspace = true }
+alloy-dyn-abi = { workspace = true }
 
 [features]
 default = ["std", "tangle"]
@@ -76,6 +79,7 @@ std = [
     "gadget-logging/std",
     "gadget-std/std",
     "gadget-utils-tangle/std",
+    "tangle-subxt/std",
 ]
 
 # Main features
@@ -102,4 +106,5 @@ evm = [
     "alloy-rpc-types-eth",
     "alloy-signer-local",
     "alloy-transport",
+    "alloy-primitives",
 ]

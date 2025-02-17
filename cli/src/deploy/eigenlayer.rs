@@ -1,13 +1,11 @@
-use alloy_network::Network;
+use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::{BlockNumberOrTag, TransactionRequest};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
 use color_eyre::Result;
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::path::Path;
-use gadget_std::path::PathBuf;
 use gadget_std::process::Command;
 use gadget_std::str::FromStr;
 use serde::{Deserialize, Serialize};
@@ -25,8 +23,8 @@ pub struct EigenlayerDeployOpts {
     pub network: NetworkTarget,
     /// The RPC URL to connect to
     pub rpc_url: String,
-    /// Path to the contract to deploy (e.g., "path/to/MyContract.sol")
-    pub contract_path: String,
+    /// Path to the contracts, defaults to `"./contracts"`
+    pub contracts_path: String,
 }
 
 impl EigenlayerDeployOpts {
@@ -51,22 +49,7 @@ impl EigenlayerDeployOpts {
     }
 }
 
-pub async fn deploy_local(
-    opts: &EigenlayerDeployOpts,
-    provider: RootProvider<BoxTransport>,
-    wallet: PrivateKeySigner,
-) -> Result<()> {
-    info!("Deploying contracts to local network using Alloy...");
-
-    // Get deployment parameters
-    let nonce = provider.get_transaction_count(wallet.address()).await?;
-
-    // TODO: local deployment logic
-
-    Ok(())
-}
-
-pub async fn deploy_nonlocal(opts: &EigenlayerDeployOpts) -> Result<()> {
+pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Address> {
     info!("Deploying contracts using Forge...");
 
     // let network_arg = match opts.network {
@@ -82,7 +65,7 @@ pub async fn deploy_nonlocal(opts: &EigenlayerDeployOpts) -> Result<()> {
 
     let private_key = opts.get_private_key()?;
 
-    let contract_path = parse_contract_path(&opts.contract_path)?;
+    let contract_path = parse_contract_path(&opts.contracts_path)?;
     info!("Contract path: {}", contract_path);
 
     // Construct the forge create command
@@ -113,15 +96,38 @@ pub async fn deploy_nonlocal(opts: &EigenlayerDeployOpts) -> Result<()> {
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         info!("Contract deployed successfully. Output:\n{}", stdout);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let address_line = stdout
+            .lines()
+            .find(|line| line.starts_with("Deployed to: "))
+            .ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Deployment failed. No address found in stdout:\n{}",
+                    stdout
+                )
+            })?;
+
+        let address_str = address_line
+            .rsplit_once('x')
+            .map(|(_, address)| address.trim())
+            .ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Deployment failed. No address found in stdout:\n{}",
+                    stdout
+                )
+            })?;
+
+        let address = Address::from_str(address_str).map_err(|e| {
+            color_eyre::eyre::eyre!(e.to_string())
+        })?;
+        Ok(address)
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(color_eyre::eyre::eyre!(
+        Err(color_eyre::eyre::eyre!(
             "Deployment failed. Error:\n{}",
             stderr
-        ));
+        ))
     }
-
-    Ok(())
 }
 
 fn parse_contract_path(contract_path: &str) -> Result<String> {
@@ -158,14 +164,14 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
     match opts.network {
         NetworkTarget::Local => {
             let provider = ProviderBuilder::new()
-                .on_http((&opts.rpc_url).parse()?)
+                .on_http((opts.rpc_url).parse()?)
                 .boxed();
 
             let wallet = PrivateKeySigner::from_str(&opts.get_private_key()?)?;
             deploy_local(&opts, provider, wallet).await?;
         }
         NetworkTarget::Testnet | NetworkTarget::Mainnet => {
-            deploy_nonlocal(&opts).await?;
+            deploy_avs_contracts(&opts).await?;
         }
     }
 

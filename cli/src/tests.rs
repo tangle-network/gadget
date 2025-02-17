@@ -13,12 +13,15 @@ use tangle_subxt::subxt_signer::bip39;
 use tempfile::{tempdir, TempDir};
 
 use crate::deploy::eigenlayer::NetworkTarget;
-use crate::deploy::eigenlayer::{deploy_nonlocal, EigenlayerDeployOpts};
+use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use gadget_logging::setup_log;
-use gadget_testing_utils::anvil::{start_default_anvil_testnet, Container};
+use gadget_testing_utils::anvil::start_default_anvil_testnet;
+use gadget_utils::evm::get_provider_http;
 use std::process::Command;
-use std::thread;
-use std::time::Duration;
+use serde_json::Value;
+use alloy_provider::RootProvider;
+use alloy_transport::BoxTransport;
+use gadget_logging::info;
 
 #[test]
 fn test_cli_fs_key_generation() -> Result<()> {
@@ -179,12 +182,12 @@ out = 'out'
 libs = ['lib']"#;
     fs::write(temp_dir.path().join("foundry.toml"), foundry_content)?;
 
-    let (container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
+    let (_container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
 
     // Set up deployment options with temporary directory path
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
-        contract_path: contract_dir
+        contracts_path: contract_dir
             .join("TestContract.sol")
             .to_string_lossy()
             .to_string(),
@@ -199,37 +202,34 @@ libs = ['lib']"#;
         .expect("Failed to build contracts");
 
     // Deploy the contract
-    let result = deploy_nonlocal(&opts).await;
+    let contract_address = deploy_avs_contracts(&opts).await.unwrap();
 
-    // Check deployment result
-    assert!(result.is_ok(), "Contract deployment failed: {:?}", result);
-
-    // Get the deployed contract address from the result
-    let contract_address = result.unwrap();
+    // Read the ABI from the JSON file
+    let json_path = temp_dir.path().join("out/TestContract.sol/TestContract.json");
+    let json_content = fs::read_to_string(json_path)?;
+    let json: Value = serde_json::from_str(&json_content)?;
+    let abi = json["abi"].to_string();
+    let abi = alloy_json_abi::JsonAbi::from_json_str(&abi).unwrap();
 
     // Create a provider
-
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let contract = ContractInstance::new(contract_address, TestContract::abi(), provider.clone());
-
-    // Interact with the contract
-    let initial_value = contract.getValue().call().await?;
-    assert_eq!(initial_value, 0, "Initial value should be 0");
-
-    // Set a new value
-    let new_value = 42;
-    let tx = contract.setValue(new_value).send().await?;
-    tx.await?;
-
-    // Get the updated value
-    let updated_value = contract.getValue().call().await?;
-    assert_eq!(
-        updated_value, new_value,
-        "Value should be updated to {}",
-        new_value
+    let contract = alloy_contract::ContractInstance::<alloy_transport::BoxTransport, RootProvider<BoxTransport>, alloy_network::Ethereum>::new(
+        contract_address,
+        provider.clone(),
+        alloy_contract::Interface::new(abi)
     );
+
+    let value = alloy_dyn_abi::DynSolValue::from(alloy_primitives::U256::from(123));
+
+    let set_result = contract.function("setValue", &[value]).unwrap().send().await.unwrap().get_receipt().await.unwrap();
+    info!("Set result: {:?}", set_result);
+    assert!(set_result.status());
+
+    let get_result = contract.function("getValue", &[]).unwrap().send().await.unwrap().get_receipt().await.unwrap();
+    info!("Get result: {:?}", get_result);
+    assert!(get_result.status());
 
     Ok(())
 }

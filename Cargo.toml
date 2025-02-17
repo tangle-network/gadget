@@ -220,6 +220,7 @@ alloy = { version = "0.9", default-features = false }
 alloy-primitives = { version = "0.8", default-features = false }
 alloy-json-abi = { version = "0.8", default-features = false }
 alloy-json-rpc = { version = "0.9", default-features = false }
+alloy-dyn-abi = { version = "0.8", default-features = false }
 alloy-sol-types = { version = "0.8", default-features = false }
 alloy-rlp = { version = "0.3", default-features = false }
 alloy-rpc-client = { version = "0.9", default-features = false }

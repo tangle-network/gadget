@@ -9,16 +9,16 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-std = { workspace = true }
+gadget-std = { workspace = true, features = ["std"] }
 gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
-gadget-config = { workspace = true, features = ["eigenlayer"] }
+gadget-config = { workspace = true, features = ["eigenlayer", "std"] }
 gadget-logging = { workspace = true }
-gadget-utils = { workspace = true, features = ["eigenlayer", "evm"] }
-gadget-macros = { workspace = true, features = ["evm"] }
-gadget-runners = { workspace = true, features = ["eigenlayer"] }
+gadget-utils = { workspace = true, features = ["eigenlayer", "evm", "std"] }
+gadget-macros = { workspace = true, features = ["evm", "std"] }
+gadget-runners = { workspace = true, features = ["eigenlayer", "std"] }
 gadget-eigenlayer-bindings = { workspace = true }
-gadget-event-listeners = { workspace = true, features = ["evm"] }
+gadget-event-listeners = { workspace = true, features = ["evm", "std"] }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 alloy-primitives = { workspace = true }
