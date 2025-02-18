@@ -107,12 +107,15 @@ pub enum DeployTarget {
     /// Deploy to Eigenlayer
     #[cfg(feature = "eigenlayer")]
     Eigenlayer {
-        /// The RPC URL to connect to
-        #[arg(long, value_name = "URL")]
+        /// HTTP RPC URL to use
+        #[arg(long, value_name = "URL", env)]
         rpc_url: String,
-        /// Path to the contracts directory
+        /// Path to the contracts
         #[arg(long)]
         contracts_path: Option<String>,
+        /// Whether to deploy contracts in an interactive ordered manner
+        #[arg(long)]
+        ordered_deployment: bool,
     },
 }
 
@@ -169,9 +172,14 @@ async fn main() -> color_eyre::Result<()> {
                 DeployTarget::Eigenlayer {
                     rpc_url,
                     contracts_path,
+                    ordered_deployment,
                 } => {
-                    deploy_to_eigenlayer(EigenlayerDeployOpts::new(rpc_url, contracts_path))
-                        .await?;
+                    deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                        rpc_url,
+                        contracts_path,
+                        ordered_deployment,
+                    ))
+                    .await?;
                 }
             },
             GadgetCommands::Keygen {

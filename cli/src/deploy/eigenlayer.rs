@@ -19,14 +19,17 @@ pub struct EigenlayerDeployOpts {
     pub(crate) contracts_path: String,
     /// Optional constructor arguments for contracts, keyed by contract name
     pub(crate) constructor_args: Option<HashMap<String, Vec<String>>>,
+    /// Whether to deploy contracts in an interactive ordered manner
+    pub(crate) ordered_deployment: bool,
 }
 
 impl EigenlayerDeployOpts {
-    pub fn new(rpc_url: String, contracts_path: Option<String>) -> Self {
+    pub fn new(rpc_url: String, contracts_path: Option<String>, ordered_deployment: bool) -> Self {
         Self {
             rpc_url,
             contracts_path: contracts_path.unwrap_or_else(|| "./contracts".to_string()),
             constructor_args: None,
+            ordered_deployment,
         }
     }
 
@@ -115,6 +118,30 @@ fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
     Ok(contract_files)
 }
 
+fn select_next_contract(available_contracts: &[String]) -> Result<String> {
+    if available_contracts.is_empty() {
+        return Err(color_eyre::eyre::eyre!("No contracts available to deploy"));
+    }
+
+    println!("\nAvailable contracts to deploy:");
+    for (i, contract) in available_contracts.iter().enumerate() {
+        println!("{}: {}", i + 1, contract);
+    }
+
+    let selection: usize = Input::new()
+        .with_prompt("Select the contract to deploy (enter the number)")
+        .validate_with(|input: &usize| {
+            if *input > 0 && *input <= available_contracts.len() {
+                Ok(())
+            } else {
+                Err("Invalid selection")
+            }
+        })
+        .interact()?;
+
+    Ok(available_contracts[selection - 1].clone())
+}
+
 fn get_constructor_args(
     contract_json: &Value,
     contract_name: &str,
@@ -167,98 +194,178 @@ fn get_constructor_args(
     Some(args)
 }
 
+fn get_constructor_args_as_cli_args(
+    contract_path: &str,
+    contract_name: &str,
+    provided_args: &Option<HashMap<String, Vec<String>>>,
+) -> Result<Vec<String>> {
+    if let Some(args) = get_constructor_args(
+        &serde_json::from_str(contract_path)?,
+        contract_name,
+        provided_args,
+    ) {
+        Ok(args
+            .into_iter()
+            .map(|arg| format!("\"{}\"", arg))
+            .collect::<Vec<_>>())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
 pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Address>> {
-    info!("Finding contracts to deploy...");
-
-    let contract_files = find_contract_files(&opts.contracts_path)?;
-    let private_key = opts.get_private_key()?;
     let mut deployed_addresses = Vec::new();
+    let mut contract_files = find_contract_files(&opts.contracts_path)?;
 
-    for contract_path in contract_files {
-        let contract_name = parse_contract_path(&contract_path)?;
-        info!("Deploying contract: {}", contract_name);
+    if opts.ordered_deployment {
+        info!("Starting ordered deployment of contracts...");
 
-        let contract_output = contract_name.rsplit('/').next().ok_or_else(|| {
-            color_eyre::eyre::eyre!("Failed to get contract output from path: {}", contract_name)
-        })?;
-        let contract_output = contract_output.replace(':', "/");
+        let mut remaining_contracts = contract_files.clone();
+        while !remaining_contracts.is_empty() {
+            let selected_contract = select_next_contract(&remaining_contracts)?;
+            info!("Selected contract: {}", selected_contract);
 
-        // Read the contract's JSON artifact to check for constructor args
-        let out_dir = Path::new(&opts.contracts_path).join("out");
-        info!("Out directory: {}", out_dir.display());
-        let json_path = out_dir.join(format!("{}.json", contract_output));
-        info!("Contract JSON path: {}", json_path.display());
+            // Deploy the selected contract
+            let contract_path = selected_contract.clone();
+            let contract_name = parse_contract_path(&contract_path)?;
 
-        // Build the contract first
-        let build_output = Command::new("forge")
-            .arg("build")
-            .current_dir(&opts.contracts_path)
-            .output()?;
+            let contract_output = contract_name.rsplit('/').next().ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Failed to get contract output from path: {}",
+                    contract_name
+                )
+            })?;
+            let contract_output = contract_output.replace(':', "/");
+            info!("Contract output: {}", contract_output);
 
-        if !build_output.status.success() {
-            let stderr = String::from_utf8_lossy(&build_output.stderr);
-            return Err(color_eyre::eyre::eyre!(
-                "Failed to build contract {}: {}",
-                contract_path,
-                stderr
-            ));
-        }
+            // Read the contract's JSON artifact to check for constructor args
+            let out_dir = Path::new(&opts.contracts_path).join("out");
+            info!("Out directory: {}", out_dir.display());
+            let json_path = out_dir.join(format!("{}.json", contract_output));
+            info!("Contract JSON path: {}", json_path.display());
 
-        // Read and parse the contract JSON
-        let json_content = fs::read_to_string(&json_path)?;
-        let contract_json: Value = serde_json::from_str(&json_content)?;
+            // Read and parse the contract JSON
+            let json_content = fs::read_to_string(&json_path)?;
+            let contract_json: Value = serde_json::from_str(&json_content)?;
 
-        // Construct the forge create command
-        let mut cmd = Command::new("forge");
-        cmd.arg("create")
-            .arg(&contract_name)
-            .arg("--rpc-url")
-            .arg(&opts.rpc_url)
-            .arg("--private-key")
-            .arg(&private_key);
+            info!("Deploying {}", contract_name);
 
-        // If the contract has constructor args, get them from the user or use provided args
-        if let Some(args) =
-            get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
-        {
-            if !args.is_empty() {
-                cmd.arg("--constructor-args");
-                for value in args {
-                    cmd.arg(value);
+            let mut cmd = Command::new("forge");
+            cmd.args([
+                "create",
+                &contract_name,
+                "--rpc-url",
+                &opts.rpc_url,
+                "--private-key",
+                &opts.get_private_key()?,
+            ]);
+
+            if let Some(args) =
+                get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
+            {
+                if !args.is_empty() {
+                    cmd.arg("--constructor-args");
+                    for value in args {
+                        cmd.arg(value);
+                    }
                 }
             }
-        }
+            let output = cmd.output()?;
 
-        info!("Running command: {:?}", cmd);
-
-        // Execute the command
-        let output = cmd.output()?;
-
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            info!("Contract deployed successfully. Output:\n{}", stdout);
-
-            // Extract deployed address from output
-            if let Some(address) = stdout
-                .lines()
-                .find(|line| line.contains("Deployed to:"))
-                .and_then(|line| line.split_whitespace().last())
-                .and_then(|addr_str| Address::from_str(addr_str).ok())
-            {
-                deployed_addresses.push(address);
-                info!("Contract deployed to: {}", address);
+            if !output.status.success() {
+                return Err(color_eyre::eyre::eyre!(
+                    "Failed to deploy contract: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(color_eyre::eyre::eyre!(
-                "Failed to deploy contract {}: {}",
-                contract_path,
-                stderr
-            ));
+
+            let address = extract_address_from_output(output.stdout)?;
+            deployed_addresses.push(address);
+
+            // Remove the deployed contract from remaining contracts
+            remaining_contracts.retain(|c| c != &selected_contract);
+
+            info!("Successfully deployed {} at {}", contract_name, address);
         }
+    } else {
+        info!("Finding contracts to deploy...");
+
+        for contract_path in contract_files {
+            let contract_name = parse_contract_path(&contract_path)?;
+            info!("Deploying contract: {}", contract_name);
+
+            let contract_output = contract_name.rsplit('/').next().ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Failed to get contract output from path: {}",
+                    contract_name
+                )
+            })?;
+            let contract_output = contract_output.replace(':', "/");
+
+            // Read the contract's JSON artifact to check for constructor args
+            let out_dir = Path::new(&opts.contracts_path).join("out");
+            info!("Out directory: {}", out_dir.display());
+            let json_path = out_dir.join(format!("{}.json", contract_output));
+            info!("Contract JSON path: {}", json_path.display());
+
+            // Read and parse the contract JSON
+            let json_content = fs::read_to_string(&json_path)?;
+            let contract_json: Value = serde_json::from_str(&json_content)?;
+
+            // Construct the forge create command
+            let mut cmd = Command::new("forge");
+            cmd.arg("create")
+                .arg(&contract_name)
+                .arg("--rpc-url")
+                .arg(&opts.rpc_url)
+                .arg("--private-key")
+                .arg(&opts.get_private_key()?);
+
+            // If the contract has constructor args, get them from the user or use provided args
+            if let Some(args) =
+                get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
+            {
+                if !args.is_empty() {
+                    cmd.arg("--constructor-args");
+                    for value in args {
+                        cmd.arg(value);
+                    }
+                }
+            }
+
+            info!("Running command: {:?}", cmd);
+
+            // Execute the command
+            let output = cmd.output()?;
+
+            if output.status.success() {
+                let address = extract_address_from_output(output.stdout)?;
+                info!("Successfully deployed {} at {}", contract_name, address);
+                deployed_addresses.push(address);
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(color_eyre::eyre::eyre!(
+                    "Failed to deploy contract {}: {}",
+                    contract_path,
+                    stderr
+                ));
+            }
+        }
+
+        return Ok(deployed_addresses);
     }
 
     Ok(deployed_addresses)
+}
+
+pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
+    let output = String::from_utf8_lossy(&output);
+    output
+        .lines()
+        .find(|line| line.contains("Deployed to:"))
+        .and_then(|line| line.split_whitespace().last())
+        .and_then(|addr_str| Address::from_str(addr_str).ok())
+        .ok_or_else(|| color_eyre::eyre::eyre!("Failed to parse contract address"))
 }
 
 pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
