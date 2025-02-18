@@ -1,6 +1,7 @@
 #![allow(unused_results, missing_docs)]
 
-use ::std::net::{Ipv4Addr, Ipv6Addr};
+use ::std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use ::std::str::FromStr;
 
 use crate::behaviours::MyBehaviour;
 use crate::error::Error;
@@ -288,24 +289,19 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
 
     gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 2 ~~~");
 
-    // Listen on all interfaces UDP
-    swarm.listen_on(
-        Multiaddr::empty()
-            .with(Protocol::from(Ipv4Addr::UNSPECIFIED))
-            .with(Protocol::from(Ipv6Addr::UNSPECIFIED))
-            .with(Protocol::Udp(bind_port))
-            .with(Protocol::QuicV1),
-    )?;
+    let ips_to_bind_to = [
+        IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
+        IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
+    ];
 
-    // Listen on all interfaces TCP
-    swarm.listen_on(
-        Multiaddr::empty()
-            .with(Protocol::from(Ipv4Addr::UNSPECIFIED))
-            .with(Protocol::from(Ipv6Addr::UNSPECIFIED))
-            .with(Protocol::Tcp(bind_port)),
-    )?;
+    for addr in ips_to_bind_to {
+        let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
+        // Bind to both UDP and TCP to increase probability of successful NAT traversal.
+        // Use QUIC over UDP to have reliable ordered transport like TCP.
+        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
+    }
 
-    gadget_logging::trace!("~~~ Starting P2P Network Setup Phase 3 ~~~");
     // Dial all bootnodes
     for bootnode in &bootnodes {
         swarm.dial(
