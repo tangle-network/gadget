@@ -257,14 +257,20 @@ impl NetworkService {
                 swarm_event = swarm_stream.next() => match swarm_event {
                     // outbound events
                     Some(SwarmEvent::Behaviour(event)) => {
-                        handle_behaviour_event(
+                        match handle_behaviour_event(
                             swarm_stream.get_mut(),
                             &self.peer_manager,
                             event,
                             &self.event_sender,
                             &self.network_sender,
                         )
-                        .await;
+                        .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!("Failed to handle swarm event: {}", e);
+                            }
+                        }
                     },
                     None => { break; },
                     _ => { },

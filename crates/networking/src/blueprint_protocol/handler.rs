@@ -32,18 +32,11 @@ impl BlueprintProtocolBehaviour {
             } => {
                 debug!(%peer, "Received handshake request");
 
-                // Check if we already have a pending outbound handshake
-                if let Some(outbound_time) = self.outbound_handshakes.get(&peer) {
-                    // If we have an outbound handshake and their peer_id is less than ours,
-                    // we should wait for their response instead of responding to their request
-                    // TODO: Fix
-                    // if peer < &self.local_peer_id {
-                    //     debug!(%peer, "Deferring inbound handshake - waiting for outbound response");
-                    //     return;
-                    // }
-                    // If we have an outbound handshake and their peer_id is greater than ours,
-                    // we should handle their request and cancel our outbound attempt
-                    self.outbound_handshakes.remove(&peer);
+                // Check if we already sent a handshake request to this peer
+                if self.outbound_handshakes.contains_key(&peer) {
+                    // If we have an outbound handshake pending, we should still respond to their request
+                    // This ensures both sides complete their handshakes even if messages cross on the wire
+                    debug!(%peer, "Responding to inbound handshake request while outbound is pending");
                 }
 
                 // Verify the handshake
@@ -60,12 +53,8 @@ impl BlueprintProtocolBehaviour {
 
                         if let Err(e) = self.send_response(channel, response) {
                             warn!(%peer, "Failed to send handshake response: {:?}", e);
-                            self.handle_handshake_failure(&peer, "Failed to send response");
                             return;
                         }
-
-                        // Mark handshake as completed
-                        self.complete_handshake(&peer, &public_key);
                     }
                     Err(e) => {
                         warn!(%peer, "Invalid handshake request: {:?}", e);

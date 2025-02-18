@@ -51,6 +51,12 @@ impl Ord for K256VerifyingKey {
     }
 }
 
+impl gadget_std::hash::Hash for K256VerifyingKey {
+    fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_sec1_bytes().hash(state);
+    }
+}
+
 macro_rules! impl_serde_bytes {
     ($wrapper:ident, $inner:path) => {
         #[derive(Clone, PartialEq, Eq, Debug)]

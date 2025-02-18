@@ -3,7 +3,7 @@ use crate::{
 };
 use dashmap::{DashMap, DashSet};
 use gadget_crypto::{hashing::blake3_256, KeyType};
-use gadget_logging::{debug, trace, warn};
+use gadget_logging::{debug, info, trace, warn};
 use libp2p::{
     core::transport::PortUse,
     gossipsub::{self, IdentTopic, MessageAuthenticity, MessageId, Sha256Topic},
@@ -304,10 +304,54 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
-        if let FromSwarm::ConnectionEstablished(e) = &event {
-            if e.other_established == 0 {
-                self.inbound_handshakes.insert(e.peer_id, Instant::now());
+        match &event {
+            FromSwarm::ConnectionEstablished(e) if e.other_established == 0 => {
+                // Start handshake if this peer is not verified
+                if !self.peer_manager.is_peer_verified(&e.peer_id) {
+                    debug!(
+                        "Established connection with unverified peer {:?}, sending handshake",
+                        e.peer_id
+                    );
+                    self.send_request(
+                        &e.peer_id,
+                        InstanceMessageRequest::Handshake {
+                            public_key: self.instance_public_key,
+                            signature: self.sign_handshake(&e.peer_id),
+                        },
+                    );
+                    self.outbound_handshakes.insert(e.peer_id, Instant::now());
+                    info!(
+                        "Established connection to {:?}, sending handshake",
+                        e.peer_id
+                    );
+                }
+
+                self.blueprint_protocol
+                    .gossipsub
+                    .add_explicit_peer(&e.peer_id);
             }
+            FromSwarm::ConnectionClosed(e) if e.remaining_established == 0 => {
+                if self.inbound_handshakes.contains_key(&e.peer_id) {
+                    self.inbound_handshakes.remove(&e.peer_id);
+                }
+
+                if self.outbound_handshakes.contains_key(&e.peer_id) {
+                    self.outbound_handshakes.remove(&e.peer_id);
+                }
+
+                if self.peer_manager.is_peer_verified(&e.peer_id) {
+                    self.peer_manager
+                        .remove_peer(&e.peer_id, "connection closed");
+                }
+
+                self.blueprint_protocol
+                    .gossipsub
+                    .remove_explicit_peer(&e.peer_id);
+
+                self.peer_manager.remove_peer_id_from_public_key(&e.peer_id);
+            }
+
+            _ => {}
         }
 
         self.blueprint_protocol.on_swarm_event(event)

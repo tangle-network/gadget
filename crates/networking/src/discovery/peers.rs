@@ -65,7 +65,7 @@ pub struct PeerManager {
     /// Verified peers from completed handshakes
     verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
-    public_keys_to_peer_ids: Arc<RwLock<BTreeMap<InstanceMsgPublicKey, PeerId>>>,
+    public_keys_to_peer_ids: DashMap<InstanceMsgPublicKey, PeerId>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
     /// Event sender for peer updates
@@ -79,7 +79,7 @@ impl Default for PeerManager {
             peers: Default::default(),
             banned_peers: Default::default(),
             verified_peers: Default::default(),
-            public_keys_to_peer_ids: Arc::new(RwLock::new(BTreeMap::new())),
+            public_keys_to_peer_ids: Default::default(),
             event_tx,
         }
     }
@@ -224,15 +224,14 @@ impl PeerManager {
     }
 
     /// Add a peer id to the public key to peer id map after verifying handshake
-    pub async fn add_peer_id_to_public_key(
-        &self,
-        peer_id: &PeerId,
-        public_key: &InstanceMsgPublicKey,
-    ) {
+    pub fn add_peer_id_to_public_key(&self, peer_id: &PeerId, public_key: &InstanceMsgPublicKey) {
         self.public_keys_to_peer_ids
-            .write()
-            .await
             .insert(public_key.clone(), *peer_id);
+    }
+
+    /// Remove a peer id from the public key to peer id map
+    pub fn remove_peer_id_from_public_key(&self, peer_id: &PeerId) {
+        self.public_keys_to_peer_ids.retain(|_, id| id != peer_id);
     }
 }
 

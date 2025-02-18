@@ -77,6 +77,12 @@ macro_rules! impl_sp_core_pair_public {
             #[derive(Clone, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
 
+            impl gadget_std::hash::Hash for [<Sp $key_type Public>] {
+                fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                    self.0.to_raw_vec().hash(state);
+                }
+            }
+
             impl KeyEncoding for [<Sp $key_type Public>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.0.to_raw_vec()
