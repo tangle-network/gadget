@@ -187,7 +187,7 @@ tracing-subscriber = { version = "0.3", default-features = false }
 # Networking & HTTP
 jsonrpc-core = { version = "18.0.0", default-features = false }
 jsonrpc-http-server = { version = "18.0.0", default-features = false }
-libp2p = { version = "0.54", default-features = false }
+libp2p = { version = "0.55.0", default-features = false }
 reqwest = { version = "0.12.7", default-features = false }
 url = { version = "2.5.2", default-features = false }
 
@@ -258,7 +258,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { version = "0.1.3", default-features = false }
+eigensdk = { version = "0.2.0", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 

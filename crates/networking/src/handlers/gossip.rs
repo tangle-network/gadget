@@ -4,13 +4,12 @@ use crate::gossip::{GossipMessage, NetworkService};
 use gadget_std::string::ToString;
 use gadget_std::sync::atomic::AtomicUsize;
 use gadget_std::sync::Arc;
-use libp2p::gossipsub::TopicHash;
+use libp2p::gossipsub::{Event, TopicHash};
 use libp2p::{gossipsub, PeerId};
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_gossip(&mut self, event: gossipsub::Event) {
-        use gossipsub::Event::{GossipsubNotSupported, Message, Subscribed, Unsubscribed};
         let with_connected_peers = |topic: &TopicHash, f: fn(&Arc<AtomicUsize>)| {
             let maybe_mapping = self
                 .inbound_mapping
@@ -25,7 +24,7 @@ impl NetworkService<'_> {
             }
         };
         match event {
-            Message {
+            Event::Message {
                 propagation_source,
                 message_id,
                 message,
@@ -33,7 +32,7 @@ impl NetworkService<'_> {
                 self.handle_gossip_message(propagation_source, message_id, message)
                     .await;
             }
-            Subscribed { peer_id, topic } => {
+            Event::Subscribed { peer_id, topic } => {
                 let added = with_connected_peers(&topic, |_connected_peers| {
                     // Code commented out because each peer needs to do a request-response
                     // direct P2P handshake, which is where the connected_peers counter is
@@ -46,7 +45,7 @@ impl NetworkService<'_> {
                     gadget_logging::error!("{peer_id} subscribed to unknown topic: {topic}");
                 }
             }
-            Unsubscribed { peer_id, topic } => {
+            Event::Unsubscribed { peer_id, topic } => {
                 let removed = with_connected_peers(&topic, |_connected_peers| {
                     // Code commented out because each peer needs to do a request-response
                     // direct P2P handshake, which is where the connected_peers counter is
@@ -59,8 +58,14 @@ impl NetworkService<'_> {
                     gadget_logging::error!("{peer_id} unsubscribed from unknown topic: {topic}");
                 }
             }
-            GossipsubNotSupported { peer_id } => {
+            Event::GossipsubNotSupported { peer_id } => {
                 gadget_logging::trace!("{peer_id} does not support gossipsub!");
+            }
+            Event::SlowPeer {
+                peer_id,
+                failed_messages: _,
+            } => {
+                gadget_logging::error!("{peer_id} wasn't able to download messages in time!");
             }
         }
     }

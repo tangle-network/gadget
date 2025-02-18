@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use blueprint_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::p2p::P2pContext as _;
@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 struct MyContext {
     foo: String,
     #[config]
-    config: StdGadgetConfiguration,
+    config: GadgetConfiguration,
     store: Arc<LocalDatabase<u64>>,
     #[call_id]
     call_id: Option<u64>,
@@ -112,7 +112,7 @@ impl Network for StubNetwork {
     async fn send_message(
         &self,
         message: ProtocolMessage,
-    ) -> Result<(), blueprint_sdk::networking::Error> {
+    ) -> Result<(), blueprint_sdk::networking::error::Error> {
         drop(message);
         Ok(())
     }

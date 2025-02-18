@@ -1,14 +1,13 @@
 #![allow(unused_results, missing_docs)]
 
+use crate::error::Error;
 use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 pub use crate::key_types::GossipMsgKeyPair;
 use futures::StreamExt;
 use gadget_std as std;
-use gadget_std::boxed::Box;
 use gadget_std::collections::BTreeMap;
-use gadget_std::error::Error;
 use gadget_std::format;
 use gadget_std::io;
 use gadget_std::net::IpAddr;
@@ -110,17 +109,17 @@ impl NetworkConfig {
 /// # Errors
 ///
 /// Returns an error if the network setup fails.
-pub fn start_p2p_network(config: NetworkConfig) -> Result<GossipHandle, Box<dyn Error>> {
+pub fn start_p2p_network(config: NetworkConfig) -> Result<GossipHandle, Error> {
     if config.topics.len() != 1 {
-        return Err("Only one network topic is allowed when running this function".into());
+        return Err(Error::TooManyTopics(config.topics.len()));
     }
 
     let (networks, _) = multiplexed_libp2p_network(config)?;
-    let network = networks.into_iter().next().ok_or("No network found")?.1;
+    let network = networks.into_iter().next().ok_or(Error::NoNetworkFound)?.1;
     Ok(network)
 }
 
-pub type NetworkResult = Result<(BTreeMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>>;
+pub type NetworkResult = Result<(BTreeMap<String, GossipHandle>, JoinHandle<()>), Error>;
 
 #[allow(clippy::collapsible_else_if, clippy::too_many_lines)]
 /// Starts the multiplexed libp2p network with the given configuration.
@@ -157,7 +156,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         .collect::<Vec<_>>();
 
     if topics_unique.len() != topics.len() {
-        return Err("All topics must be unique".into());
+        return Err(Error::DuplicateTopics);
     }
 
     let networks = topics;
@@ -177,8 +176,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             config
         })
         .with_dns()?
-        .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
-        .with_behaviour(|key, relay_client| {
+        .with_behaviour(|key| {
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
                 .protocol_id_prefix("/tangle/gadget-binary-sdk/meshsub")
@@ -244,7 +242,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 kadmelia,
                 dcutr,
                 relay,
-                relay_client,
                 ping,
             })
         })?

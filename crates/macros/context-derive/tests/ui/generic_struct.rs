@@ -1,4 +1,4 @@
-use blueprint_sdk::config::{GadgetConfiguration, StdGadgetConfiguration};
+use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
@@ -13,7 +13,7 @@ struct MyContext<T: Send + Sync, U: Send + Sync> {
     foo: T,
     bar: U,
     #[config]
-    sdk_config: StdGadgetConfiguration,
+    sdk_config: GadgetConfiguration,
     #[call_id]
     call_id: Option<u64>,
 }
