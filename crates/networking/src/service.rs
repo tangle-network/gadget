@@ -227,7 +227,14 @@ impl NetworkService {
             tokio::select! {
                 message = network_stream.next() => {
                     match message {
-                        Some(msg) => match self.handle_network_message(msg, &event_sender).await {
+                        Some(msg) => match handle_network_message(
+                            swarm_stream.get_mut(),
+                            msg,
+                            &self.peer_manager,
+                            &self.event_sender,
+                        )
+                        .await
+                        {
                             Ok(_) => {}
                             Err(e) => {
                                 warn!("Failed to handle network message: {}", e);
@@ -236,192 +243,232 @@ impl NetworkService {
                         None => break,
                     }
                 }
-                event = swarm_stream.next() => {
-                    match event {
-                        Some(event) => match self.handle_swarm_event(event, &event_sender).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                warn!("Failed to handle swarm event: {}", e);
-                            }
-                        },
-                        None => break,
-                    }
-                }
+                swarm_event = swarm_stream.next() => match swarm_event {
+                    // outbound events
+                    Some(SwarmEvent::Behaviour(event)) => {
+                        handle_behaviour_event(
+                            swarm_stream.get_mut(),
+                            &self.peer_manager,
+                            event,
+                            &self.event_sender,
+                            &self.network_sender,
+                        )
+                        .await;
+                    },
+                    None => { break; },
+                    _ => { },
+                },
             }
         }
 
         info!("Network service stopped");
     }
+}
 
-    /// Handle a network message
-    async fn handle_network_message(
-        &mut self,
-        msg: NetworkMessage,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        match msg {
-            NetworkMessage::InstanceRequest { peer, request } => {
-                event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?
-            }
-            NetworkMessage::InstanceResponse { peer, response } => {
-                event_sender.send(NetworkEvent::InstanceResponseOutbound { peer, response })?
-            }
-            NetworkMessage::GossipMessage {
-                source,
-                topic,
-                message,
-            } => event_sender.send(NetworkEvent::GossipSent { topic, message })?,
-            NetworkMessage::HandshakeRequest {
-                peer,
-                public_key,
-                signature,
-            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
-            NetworkMessage::HandshakeResponse {
-                peer,
-                public_key,
-                signature,
-            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
+/// Handle a swarm event
+async fn handle_swarm_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_manager: &Arc<PeerManager>,
+    event: SwarmEvent<GadgetBehaviourEvent>,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+) -> Result<(), Error> {
+    match event {
+        SwarmEvent::Behaviour(behaviour_event) => {
+            handle_behaviour_event(
+                swarm,
+                peer_manager,
+                behaviour_event,
+                event_sender,
+                network_sender,
+            )
+            .await?
         }
-
-        Ok(())
+        _ => {}
     }
 
-    /// Handle a swarm event
-    async fn handle_swarm_event(
-        &mut self,
-        event: SwarmEvent<crate::behaviours::GadgetBehaviourEvent>,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        match event {
-            SwarmEvent::Behaviour(behaviour_event) => {
-                self.handle_behaviour_event(behaviour_event, event_sender)
-                    .await?
-            }
-            _ => {}
-        }
+    Ok(())
+}
 
-        Ok(())
+/// Handle a behaviour event
+async fn handle_behaviour_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_manager: &Arc<PeerManager>,
+    event: GadgetBehaviourEvent,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+) -> Result<(), Error> {
+    match event {
+        GadgetBehaviourEvent::ConnectionLimits(_) => {}
+        GadgetBehaviourEvent::Discovery(discovery_event) => match discovery_event {
+            DiscoveryEvent::Discovery(derived_event) => {
+                handle_discovery_event(
+                    swarm,
+                    peer_manager,
+                    derived_event,
+                    event_sender,
+                    network_sender,
+                )
+                .await?
+            }
+            DiscoveryEvent::PeerConnected(peer) => {
+                event_sender.send(NetworkEvent::PeerConnected(peer))?
+            }
+            DiscoveryEvent::PeerDisconnected(peer) => {
+                event_sender.send(NetworkEvent::PeerDisconnected(peer))?
+            }
+        },
+        GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
+            handle_blueprint_protocol_event(
+                swarm,
+                peer_manager,
+                blueprint_event,
+                event_sender,
+                network_sender,
+            )
+            .await?
+        }
+        GadgetBehaviourEvent::Ping(ping_event) => {
+            handle_ping_event(
+                swarm,
+                peer_manager,
+                ping_event,
+                event_sender,
+                network_sender,
+            )
+            .await?
+        }
     }
 
-    /// Handle a behaviour event
-    async fn handle_behaviour_event(
-        &mut self,
-        event: GadgetBehaviourEvent,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        match event {
-            GadgetBehaviourEvent::ConnectionLimits(_) => {}
-            GadgetBehaviourEvent::Discovery(discovery_event) => match discovery_event {
-                DiscoveryEvent::Discovery(derived_event) => {
-                    self.handle_discovery_event(derived_event, event_sender)
-                        .await?
-                }
-                DiscoveryEvent::PeerConnected(peer) => {
-                    event_sender.send(NetworkEvent::PeerConnected(peer))?
-                }
-                DiscoveryEvent::PeerDisconnected(peer) => {
-                    event_sender.send(NetworkEvent::PeerDisconnected(peer))?
-                }
-            },
-            GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
-                self.handle_blueprint_protocol_event(blueprint_event, event_sender)
-                    .await?
-            }
-            GadgetBehaviourEvent::Ping(ping_event) => {
-                self.handle_ping_event(ping_event, event_sender).await?
-            }
-        }
+    Ok(())
+}
 
-        Ok(())
+/// Handle a discovery event
+async fn handle_discovery_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_manager: &Arc<PeerManager>,
+    event: Box<DerivedDiscoveryBehaviourEvent>,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+) -> Result<(), Error> {
+    let event = event.as_ref();
+    match event {
+        DerivedDiscoveryBehaviourEvent::Kademlia(event) => {
+            // Handle Kademlia discovery events
+        }
+        DerivedDiscoveryBehaviourEvent::Mdns(event) => {
+            // Handle mDNS discovery events
+        }
+        DerivedDiscoveryBehaviourEvent::Identify(event) => {
+            // Handle Identify protocol events
+        }
+        DerivedDiscoveryBehaviourEvent::Autonat(event) => {
+            // Handle AutoNAT events
+        }
+        DerivedDiscoveryBehaviourEvent::Upnp(event) => {
+            // Handle UPnP events
+        }
+        DerivedDiscoveryBehaviourEvent::Relay(event) => {
+            // Handle relay events
+        }
     }
 
-    /// Handle a discovery event
-    async fn handle_discovery_event(
-        &mut self,
-        event: Box<DerivedDiscoveryBehaviourEvent>,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        let event = event.as_ref();
-        match event {
-            DerivedDiscoveryBehaviourEvent::Kademlia(event) => {
-                // Handle Kademlia discovery events
-            }
-            DerivedDiscoveryBehaviourEvent::Mdns(event) => {
-                // Handle mDNS discovery events
-            }
-            DerivedDiscoveryBehaviourEvent::Identify(event) => {
-                // Handle Identify protocol events
-            }
-            DerivedDiscoveryBehaviourEvent::Autonat(event) => {
-                // Handle AutoNAT events
-            }
-            DerivedDiscoveryBehaviourEvent::Upnp(event) => {
-                // Handle UPnP events
-            }
-            DerivedDiscoveryBehaviourEvent::Relay(event) => {
-                // Handle relay events
-            }
-        }
+    Ok(())
+}
 
-        Ok(())
+/// Handle a blueprint event
+async fn handle_blueprint_protocol_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_manager: &Arc<PeerManager>,
+    event: BlueprintProtocolEvent,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+) -> Result<(), Error> {
+    match event {
+        BlueprintProtocolEvent::Request {
+            peer,
+            request,
+            channel,
+        } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
+        BlueprintProtocolEvent::Response {
+            peer,
+            response,
+            request_id,
+        } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
+        BlueprintProtocolEvent::GossipMessage {
+            source,
+            topic,
+            message,
+        } => event_sender.send(NetworkEvent::GossipReceived {
+            source,
+            topic: topic.to_string(),
+            message,
+        })?,
     }
 
-    /// Handle a blueprint event
-    async fn handle_blueprint_protocol_event(
-        &mut self,
-        event: BlueprintProtocolEvent,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        match event {
-            BlueprintProtocolEvent::Request {
-                peer,
-                request,
-                channel,
-            } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
-            BlueprintProtocolEvent::Response {
-                peer,
-                response,
-                request_id,
-            } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
-            BlueprintProtocolEvent::GossipMessage {
-                source,
-                topic,
-                message,
-            } => event_sender.send(NetworkEvent::GossipReceived {
-                source,
-                topic: topic.to_string(),
-                message,
-            })?,
-        }
+    Ok(())
+}
 
-        Ok(())
+/// Handle a ping event
+async fn handle_ping_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_manager: &Arc<PeerManager>,
+    event: ping::Event,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+) -> Result<(), Error> {
+    match event.result {
+        Ok(rtt) => {
+            trace!(
+                "PingSuccess::Ping rtt to {} is {} ms",
+                event.peer,
+                rtt.as_millis()
+            );
+        }
+        Err(ping::Failure::Unsupported) => {
+            debug!(peer=%event.peer, "Ping protocol unsupported");
+        }
+        Err(ping::Failure::Timeout) => {
+            debug!("Ping timeout: {}", event.peer);
+        }
+        Err(ping::Failure::Other { error }) => {
+            debug!("Ping failure: {error}");
+        }
     }
 
-    /// Handle a ping event
-    async fn handle_ping_event(
-        &mut self,
-        event: ping::Event,
-        event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) -> Result<(), Error> {
-        match event.result {
-            Ok(rtt) => {
-                trace!(
-                    "PingSuccess::Ping rtt to {} is {} ms",
-                    event.peer,
-                    rtt.as_millis()
-                );
-            }
-            Err(ping::Failure::Unsupported) => {
-                debug!(peer=%event.peer, "Ping protocol unsupported");
-            }
-            Err(ping::Failure::Timeout) => {
-                debug!("Ping timeout: {}", event.peer);
-            }
-            Err(ping::Failure::Other { error }) => {
-                debug!("Ping failure: {error}");
-            }
-        }
+    Ok(())
+}
 
-        Ok(())
+/// Handle a network message
+async fn handle_network_message(
+    swarm: &mut Swarm<GadgetBehaviour>,
+    msg: NetworkMessage,
+    peer_manager: &Arc<PeerManager>,
+    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+) -> Result<(), Error> {
+    match msg {
+        NetworkMessage::InstanceRequest { peer, request } => {
+            event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?
+        }
+        NetworkMessage::InstanceResponse { peer, response } => {
+            event_sender.send(NetworkEvent::InstanceResponseOutbound { peer, response })?
+        }
+        NetworkMessage::GossipMessage {
+            source,
+            topic,
+            message,
+        } => event_sender.send(NetworkEvent::GossipSent { topic, message })?,
+        NetworkMessage::HandshakeRequest {
+            peer,
+            public_key,
+            signature,
+        } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
+        NetworkMessage::HandshakeResponse {
+            peer,
+            public_key,
+            signature,
+        } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
     }
+
+    Ok(())
 }
