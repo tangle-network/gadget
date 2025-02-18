@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
-use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts, NetworkTarget};
+use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use gadget_crypto::KeyTypeId;
@@ -107,15 +107,12 @@ pub enum DeployTarget {
     /// Deploy to Eigenlayer
     #[cfg(feature = "eigenlayer")]
     Eigenlayer {
-        /// Deploy to local network with given RPC URL
-        #[arg(long, value_name = "URL", group = "network")]
-        local: Option<String>,
-        /// Deploy to testnet with given RPC URL
-        #[arg(long, value_name = "URL", group = "network")]
-        testnet: Option<String>,
-        /// Deploy to mainnet with given RPC URL
-        #[arg(long, value_name = "URL", group = "network")]
-        mainnet: Option<String>,
+        /// The RPC URL to connect to
+        #[arg(long, value_name = "URL")]
+        rpc_url: String,
+        /// Path to the contracts directory
+        #[arg(long)]
+        contracts_path: Option<String>,
     },
 }
 
@@ -170,24 +167,11 @@ async fn main() -> color_eyre::Result<()> {
                 }
                 #[cfg(feature = "eigenlayer")]
                 DeployTarget::Eigenlayer {
-                    local,
-                    testnet,
-                    mainnet,
-                    config,
+                    rpc_url,
+                    contracts_path,
                 } => {
-                    let (network, rpc_url) = match (local, testnet, mainnet) {
-                        (Some(url), None, None) => (NetworkTarget::Local, url),
-                        (None, Some(url), None) => (NetworkTarget::Testnet, url),
-                        (None, None, Some(url)) => (NetworkTarget::Mainnet, url),
-                        _ => return Err(color_eyre::eyre::eyre!("Must specify exactly one network target (--local, --testnet, or --mainnet)")),
-                    };
-
-                    deploy_to_eigenlayer(EigenlayerDeployOpts {
-                        network,
-                        rpc_url,
-                        config_path: config,
-                    })
-                    .await?;
+                    deploy_to_eigenlayer(EigenlayerDeployOpts::new(rpc_url, contracts_path))
+                        .await?;
                 }
             },
             GadgetCommands::Keygen {

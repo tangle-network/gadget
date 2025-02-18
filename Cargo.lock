@@ -3174,6 +3174,7 @@ dependencies = [
  "clap",
  "clap-cargo",
  "color-eyre",
+ "dialoguer",
  "escargot",
  "gadget-blueprint-proc-macro-core",
  "gadget-clients",

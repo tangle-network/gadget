@@ -1,27 +1,25 @@
+use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use crate::keys::generate_key;
 use crate::signer::{load_evm_signer_from_env, load_signer_from_env, EVM_SIGNER_ENV, SIGNER_ENV};
+use alloy_provider::RootProvider;
+use alloy_transport::BoxTransport;
 use color_eyre::eyre::Result;
 use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_crypto::sp_core::{SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto_core::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use std::env;
-use std::fs;
-use std::path::PathBuf;
-use tangle_subxt::subxt_signer::bip39;
-use tempfile::{tempdir, TempDir};
-
-use crate::deploy::eigenlayer::NetworkTarget;
-use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use gadget_logging::setup_log;
 use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use gadget_utils::evm::get_provider_http;
-use std::process::Command;
 use serde_json::Value;
-use alloy_provider::RootProvider;
-use alloy_transport::BoxTransport;
-use gadget_logging::info;
+use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
+use tangle_subxt::subxt_signer::bip39;
+use tempfile::{tempdir, TempDir};
 
 #[test]
 fn test_cli_fs_key_generation() -> Result<()> {
@@ -163,9 +161,15 @@ pragma solidity ^0.8.0;
 
 contract TestContract {
     uint256 private value;
+    event ValueSet(uint256 newValue);
+
+    constructor(uint256 a, uint256 b) {
+        value = a * b;
+    }
 
     function setValue(uint256 _value) public {
         value = _value;
+        emit ValueSet(_value);
     }
 
     function getValue() public view returns (uint256) {
@@ -185,16 +189,27 @@ libs = ['lib']"#;
 
     let (_container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
 
-    // Set up deployment options with temporary directory path
+    // Set up deployment options with temporary directory path and constructor arguments
+    let mut constructor_args = HashMap::new();
+    let init_a_value = 2;
+    let init_b_value = 3;
+    let init_get_value = init_a_value * init_b_value;
+    constructor_args.insert(
+        "TestContract".to_string(),
+        vec![init_a_value.to_string(), init_b_value.to_string()],
+    );
+
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
         contracts_path: contract_dir.to_string_lossy().to_string(),
-        network: NetworkTarget::Local,
+        constructor_args: Some(constructor_args),
     };
 
     // Build the contracts in temporary directory
-    Command::new("forge")
+    let _build_output = Command::new("forge")
         .arg("build")
+        .arg("--out")
+        .arg(temp_dir.path().join("out"))
         .current_dir(temp_dir.path())
         .output()
         .expect("Failed to build contracts");
@@ -203,7 +218,9 @@ libs = ['lib']"#;
     let contract_address = deploy_avs_contracts(&opts).await.unwrap();
 
     // Read the ABI from the JSON file
-    let json_path = temp_dir.path().join("out/TestContract.sol/TestContract.json");
+    let json_path = temp_dir
+        .path()
+        .join("out/TestContract.sol/TestContract.json");
     let json_content = fs::read_to_string(json_path)?;
     let json: Value = serde_json::from_str(&json_content)?;
     let abi = json["abi"].to_string();
@@ -213,21 +230,59 @@ libs = ['lib']"#;
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let contract = alloy_contract::ContractInstance::<alloy_transport::BoxTransport, RootProvider<BoxTransport>, alloy_network::Ethereum>::new(
+    let contract = alloy_contract::ContractInstance::<
+        alloy_transport::BoxTransport,
+        RootProvider<BoxTransport>,
+        alloy_network::Ethereum,
+    >::new(
         contract_address[0],
         provider.clone(),
-        alloy_contract::Interface::new(abi)
+        alloy_contract::Interface::new(abi),
     );
 
     let value = alloy_dyn_abi::DynSolValue::from(alloy_primitives::U256::from(123));
 
-    let set_result = contract.function("setValue", &[value]).unwrap().send().await.unwrap().get_receipt().await.unwrap();
-    info!("Set result: {:?}", set_result);
+    let get_result = contract
+        .function("getValue", &[])
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    let get_result_value: alloy_primitives::U256 =
+        if let alloy_dyn_abi::DynSolValue::Uint(val, 256) = get_result[0] {
+            val
+        } else {
+            panic!("Expected Uint256, but did not receive correct type")
+        };
+    assert_eq!(
+        get_result_value,
+        alloy_primitives::U256::from(init_get_value)
+    );
+
+    let set_result = contract
+        .function("setValue", &[value])
+        .unwrap()
+        .send()
+        .await
+        .unwrap()
+        .get_receipt()
+        .await
+        .unwrap();
     assert!(set_result.status());
 
-    let get_result = contract.function("getValue", &[]).unwrap().send().await.unwrap().get_receipt().await.unwrap();
-    info!("Get result: {:?}", get_result);
-    assert!(get_result.status());
+    let get_result = contract
+        .function("getValue", &[])
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    let get_result_value: alloy_primitives::U256 =
+        if let alloy_dyn_abi::DynSolValue::Uint(val, 256) = get_result[0] {
+            val
+        } else {
+            panic!("Expected Uint256, but did not receive correct type")
+        };
+    assert_eq!(get_result_value, alloy_primitives::U256::from(123));
 
     Ok(())
 }

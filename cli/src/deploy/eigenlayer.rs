@@ -1,8 +1,6 @@
 use alloy_primitives::Address;
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::BoxTransport;
 use color_eyre::Result;
+use dialoguer::Input;
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::fs;
@@ -10,52 +8,49 @@ use gadget_std::path::Path;
 use gadget_std::process::Command;
 use gadget_std::str::FromStr;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NetworkTarget {
-    Local,
-    Testnet,
-    Mainnet,
-}
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EigenlayerDeployOpts {
-    /// The target network for deployment
-    pub network: NetworkTarget,
     /// The RPC URL to connect to
-    pub rpc_url: String,
+    pub(crate) rpc_url: String,
     /// Path to the contracts, defaults to `"./contracts"`
-    pub contracts_path: String,
+    pub(crate) contracts_path: String,
+    /// Optional constructor arguments for contracts, keyed by contract name
+    pub(crate) constructor_args: Option<HashMap<String, Vec<String>>>,
 }
 
 impl EigenlayerDeployOpts {
-    pub fn new(network: NetworkTarget, rpc_url: String) -> Self {
+    pub fn new(rpc_url: String, contracts_path: Option<String>) -> Self {
         Self {
-            network,
             rpc_url,
-            contracts_path: "./contracts".to_string(),
+            contracts_path: contracts_path.unwrap_or_else(|| "./contracts".to_string()),
+            constructor_args: None,
         }
     }
 
     fn get_private_key(&self) -> Result<String> {
-        match self.network {
-            NetworkTarget::Local => Ok(
-                "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string(),
-            ), // Default Anvil private key
-            _ => env::var("EIGENLAYER_PRIVATE_KEY").map_err(|_| {
+        if self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost") {
+            Ok("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string())
+        // Default Anvil private key
+        } else {
+            env::var("EIGENLAYER_PRIVATE_KEY").map_err(|_| {
                 color_eyre::eyre::eyre!("EIGENLAYER_PRIVATE_KEY environment variable not set")
-            }),
+            })
         }
     }
 
-    fn get_etherscan_key(&self) -> Result<Option<String>> {
-        match self.network {
-            NetworkTarget::Local => Ok(None),
-            _ => env::var("ETHERSCAN_API_KEY").map(Some).map_err(|_| {
-                color_eyre::eyre::eyre!("ETHERSCAN_API_KEY environment variable not set")
-            }),
-        }
-    }
+    // TODO: Implement verification flow using etherscan
+    // fn get_etherscan_key(&self) -> Result<Option<String>> {
+    //     if self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost") {
+    //         Ok(None)
+    //     } else {
+    //         env::var("ETHERSCAN_API_KEY").map(Some).map_err(|_| {
+    //             color_eyre::eyre::eyre!("ETHERSCAN_API_KEY environment variable not set")
+    //         })
+    //     }
+    // }
 }
 
 fn parse_contract_path(contract_path: &str) -> Result<String> {
@@ -89,17 +84,20 @@ fn parse_contract_path(contract_path: &str) -> Result<String> {
 fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
     let path = Path::new(contracts_path);
     if !path.exists() {
-        return Err(color_eyre::eyre::eyre!("Contracts path does not exist: {}", contracts_path));
+        return Err(color_eyre::eyre::eyre!(
+            "Contracts path does not exist: {}",
+            contracts_path
+        ));
     }
 
     let mut contract_files = Vec::new();
     let src_path = path.join("src");
-    
+
     if src_path.exists() {
         for entry in fs::read_dir(src_path)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && path.extension().map_or(false, |ext| ext == "sol") {
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
                 if let Some(path_str) = path.to_str() {
                     contract_files.push(path_str.to_string());
                 }
@@ -108,23 +106,107 @@ fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
     }
 
     if contract_files.is_empty() {
-        return Err(color_eyre::eyre::eyre!("No Solidity contract files found in {}/src", contracts_path));
+        return Err(color_eyre::eyre::eyre!(
+            "No Solidity contract files found in {}/src",
+            contracts_path
+        ));
     }
 
     Ok(contract_files)
 }
 
+fn get_constructor_args(
+    contract_json: &Value,
+    contract_name: &str,
+    provided_args: &Option<HashMap<String, Vec<String>>>,
+) -> Option<Vec<String>> {
+    // Find the constructor in the ABI
+    let abi = contract_json.get("abi")?.as_array()?;
+    let constructor = abi
+        .iter()
+        .find(|item| item.get("type").and_then(|t| t.as_str()) == Some("constructor"))?;
+
+    // Get constructor inputs
+    let inputs = constructor.get("inputs")?.as_array()?;
+    if inputs.is_empty() {
+        return None;
+    }
+
+    let contract_map_name = contract_name.rsplit(':').next().unwrap_or_default();
+
+    // If we have pre-provided arguments for this contract, use those
+    if let Some(args_map) = provided_args {
+        if let Some(args) = args_map.get(contract_map_name) {
+            if args.len() == inputs.len() {
+                return Some(args.clone());
+            }
+        }
+    }
+
+    info!(
+        "Contract '{}' requires constructor arguments:",
+        contract_name
+    );
+
+    // For each input parameter, prompt the user for a value
+    let mut args = Vec::new();
+    for input in inputs {
+        let name = input.get("name")?.as_str()?;
+        let type_str = input.get("type")?.as_str()?;
+
+        info!("Parameter '{}' of type '{}'", name, type_str);
+
+        let value: String = Input::new()
+            .with_prompt(format!("Enter value for {} ({})", name, type_str))
+            .interact()
+            .ok()?;
+
+        args.push(value);
+    }
+
+    Some(args)
+}
+
 pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Address>> {
     info!("Finding contracts to deploy...");
-    
+
     let contract_files = find_contract_files(&opts.contracts_path)?;
     let private_key = opts.get_private_key()?;
     let mut deployed_addresses = Vec::new();
 
     for contract_path in contract_files {
-        info!("Deploying contract: {}", contract_path);
-
         let contract_name = parse_contract_path(&contract_path)?;
+        info!("Deploying contract: {}", contract_name);
+
+        let contract_output = contract_name.rsplit('/').next().ok_or_else(|| {
+            color_eyre::eyre::eyre!("Failed to get contract output from path: {}", contract_name)
+        })?;
+        let contract_output = contract_output.replace(':', "/");
+
+        // Read the contract's JSON artifact to check for constructor args
+        let out_dir = Path::new(&opts.contracts_path).join("out");
+        info!("Out directory: {}", out_dir.display());
+        let json_path = out_dir.join(format!("{}.json", contract_output));
+        info!("Contract JSON path: {}", json_path.display());
+
+        // Build the contract first
+        let build_output = Command::new("forge")
+            .arg("build")
+            .current_dir(&opts.contracts_path)
+            .output()?;
+
+        if !build_output.status.success() {
+            let stderr = String::from_utf8_lossy(&build_output.stderr);
+            return Err(color_eyre::eyre::eyre!(
+                "Failed to build contract {}: {}",
+                contract_path,
+                stderr
+            ));
+        }
+
+        // Read and parse the contract JSON
+        let json_content = fs::read_to_string(&json_path)?;
+        let contract_json: Value = serde_json::from_str(&json_content)?;
 
         // Construct the forge create command
         let mut cmd = Command::new("forge");
@@ -135,15 +217,27 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
             .arg("--private-key")
             .arg(&private_key);
 
+        // If the contract has constructor args, get them from the user or use provided args
+        if let Some(args) =
+            get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
+        {
+            if !args.is_empty() {
+                cmd.arg("--constructor-args");
+                for value in args {
+                    cmd.arg(value);
+                }
+            }
+        }
+
         info!("Running command: {:?}", cmd);
 
         // Execute the command
         let output = cmd.output()?;
-        
+
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             info!("Contract deployed successfully. Output:\n{}", stdout);
-            
+
             // Extract deployed address from output
             if let Some(address) = stdout
                 .lines()
@@ -170,7 +264,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
 pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
     info!("Deploying contracts to EigenLayer...");
     let addresses = deploy_avs_contracts(&opts).await?;
-    
+
     if addresses.is_empty() {
         info!("No contracts were deployed");
     } else {
@@ -179,6 +273,6 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
             info!("Contract {}: {}", i + 1, address);
         }
     }
-    
+
     Ok(())
 }
