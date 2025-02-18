@@ -19,7 +19,7 @@ blake3 = { workspace = true }
 dashmap = { workspace = true }
 libp2p = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-tokio-stream = { workspace = true }
+tokio-stream = { workspace = true, features = ["time"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 bincode = { workspace = true }

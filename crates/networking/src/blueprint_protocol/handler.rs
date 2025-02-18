@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use gadget_crypto::tangle_pair_signer::sp_core::offchain::Duration as GadgetDuration;
 use libp2p::{gossipsub, request_response, PeerId};
 use tracing::{debug, warn};
 

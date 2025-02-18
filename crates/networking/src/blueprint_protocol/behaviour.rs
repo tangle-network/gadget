@@ -1,4 +1,4 @@
-use crate::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature};
+use crate::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature, KeySignExt};
 use dashmap::{DashMap, DashSet};
 use gadget_crypto::{hashing::blake3_256, KeyType};
 use gadget_logging::{debug, trace, warn};
@@ -129,8 +129,7 @@ impl BlueprintProtocolBehaviour {
     pub(crate) fn sign_handshake(&self, peer: &PeerId) -> InstanceSignedMsgSignature {
         let msg = peer.to_bytes();
         let msg_hash = blake3_256(&msg);
-        let signature = self.instance_secret_key.sign_prehashed(&msg_hash);
-        InstanceSignedMsgSignature(signature)
+        self.instance_secret_key.sign_prehash(&msg_hash)
     }
 
     /// Send a request to a peer
