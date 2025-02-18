@@ -80,11 +80,12 @@ pub struct DiscoveryBehaviour {
 }
 
 impl DiscoveryBehaviour {
+    /// Bootstrap Kademlia network
     pub fn bootstrap(&mut self) -> Result<kad::QueryId, String> {
-        if let Some(kademlia) = self.discovery.kademlia.as_mut() {
-            kademlia.bootstrap().map_err(|e| e.to_string())
+        if let Some(active_kad) = self.discovery.kademlia.as_mut() {
+            active_kad.bootstrap().map_err(|e| e.to_string())
         } else {
-            Err("Kademlia is not enabled".to_string())
+            Err("Kademlia is not activated".to_string())
         }
     }
 

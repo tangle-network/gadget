@@ -62,14 +62,12 @@ pub enum PeerEvent {
 pub struct PeerManager {
     /// Active peers and their information
     peers: DashMap<PeerId, PeerInfo>,
-    /// Completed handshakes
-    completed_handshakes: DashSet<PeerId>,
+    /// Verified peers from completed handshakes
+    verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
     public_keys_to_peer_ids: Arc<RwLock<BTreeMap<InstanceMsgPublicKey, PeerId>>>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
-    /// Protected peers that won't be banned
-    protected_peers: DashSet<PeerId>,
     /// Event sender for peer updates
     event_tx: broadcast::Sender<PeerEvent>,
 }
@@ -80,8 +78,7 @@ impl Default for PeerManager {
         Self {
             peers: Default::default(),
             banned_peers: Default::default(),
-            protected_peers: Default::default(),
-            completed_handshakes: Default::default(),
+            verified_peers: Default::default(),
             public_keys_to_peer_ids: Arc::new(RwLock::new(BTreeMap::new())),
             event_tx,
         }
@@ -118,13 +115,18 @@ impl PeerManager {
         }
     }
 
+    /// Verify a peer
+    pub fn verify_peer(&self, peer_id: &PeerId) {
+        self.verified_peers.insert(*peer_id);
+    }
+
+    /// Check if a peer is verified
+    pub fn is_peer_verified(&self, peer_id: &PeerId) -> bool {
+        self.verified_peers.contains(peer_id)
+    }
+
     /// Ban a peer with optional expiration
     pub fn ban_peer(&self, peer_id: PeerId, reason: impl Into<String>, duration: Option<Duration>) {
-        // Don't ban protected peers
-        if self.protected_peers.contains(&peer_id) {
-            return;
-        }
-
         let expires_at = duration.map(|d| Instant::now() + d);
 
         // Remove from active peers
@@ -173,16 +175,6 @@ impl PeerManager {
             update_average_time(&mut info, duration);
             self.update_peer(*peer_id, info.clone());
         }
-    }
-
-    /// Protect a peer from being banned
-    pub fn protect_peer(&self, peer_id: PeerId) {
-        self.protected_peers.insert(peer_id);
-    }
-
-    /// Remove protection from a peer
-    pub fn unprotect_peer(&self, peer_id: &PeerId) {
-        self.protected_peers.remove(peer_id);
     }
 
     /// Get peer information

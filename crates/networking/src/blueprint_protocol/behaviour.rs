@@ -25,7 +25,7 @@ use super::{InstanceMessageRequest, InstanceMessageResponse};
 
 #[derive(NetworkBehaviour)]
 pub struct DerivedBlueprintProtocolBehaviour {
-    /// Request/response protocol for direct messaging
+    /// Request/response protocol for p2p messaging
     request_response:
         request_response::cbor::Behaviour<InstanceMessageRequest, InstanceMessageResponse>,
     /// Gossipsub for broadcast messaging
@@ -35,17 +35,17 @@ pub struct DerivedBlueprintProtocolBehaviour {
 /// Events emitted by the BlueprintProtocolBehaviour
 #[derive(Debug)]
 pub enum BlueprintProtocolEvent {
-    /// Response received from a peer
-    Response {
-        peer: PeerId,
-        request_id: OutboundRequestId,
-        response: InstanceMessageResponse,
-    },
     /// Request received from a peer
     Request {
         peer: PeerId,
         request: InstanceMessageRequest,
         channel: ResponseChannel<InstanceMessageResponse>,
+    },
+    /// Response received from a peer
+    Response {
+        peer: PeerId,
+        request_id: OutboundRequestId,
+        response: InstanceMessageResponse,
     },
     /// Gossip message received
     GossipMessage {
@@ -71,8 +71,6 @@ pub struct BlueprintProtocolBehaviour {
     pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,
     /// Peers with pending outbound handshakes
     pub(crate) outbound_handshakes: DashMap<PeerId, Instant>,
-    /// Peers that have completed handshake verification
-    pub(crate) verified_peers: DashSet<PeerId>,
     /// Active response channels
     pub(crate) response_channels:
         DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
@@ -123,7 +121,6 @@ impl BlueprintProtocolBehaviour {
             instance_secret_key: instance_secret_key.clone(),
             inbound_handshakes: DashMap::new(),
             outbound_handshakes: DashMap::new(),
-            verified_peers: DashSet::new(),
             response_channels: DashMap::new(),
         }
     }

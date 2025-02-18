@@ -37,10 +37,11 @@ impl BlueprintProtocolBehaviour {
                 if let Some(outbound_time) = self.outbound_handshakes.get(&peer) {
                     // If we have an outbound handshake and their peer_id is less than ours,
                     // we should wait for their response instead of responding to their request
-                    if peer < &self.local_peer_id {
-                        debug!(%peer, "Deferring inbound handshake - waiting for outbound response");
-                        return;
-                    }
+                    // TODO: Fix
+                    // if peer < &self.local_peer_id {
+                    //     debug!(%peer, "Deferring inbound handshake - waiting for outbound response");
+                    //     return;
+                    // }
                     // If we have an outbound handshake and their peer_id is greater than ours,
                     // we should handle their request and cancel our outbound attempt
                     self.outbound_handshakes.remove(&peer);
@@ -144,7 +145,7 @@ impl BlueprintProtocolBehaviour {
                 ..
             } => {
                 // Only accept protocol messages from peers we've completed handshakes with
-                if !self.is_peer_verified(&peer) {
+                if !self.peer_manager.is_peer_verified(&peer) {
                     warn!(%peer, "Received protocol message from unverified peer");
                     let response = InstanceMessageResponse::Error {
                         code: 403,
@@ -210,16 +211,11 @@ impl BlueprintProtocolBehaviour {
         self.outbound_handshakes.remove(peer);
 
         // Add to verified peers
-        self.verified_peers.insert(*peer);
+        self.peer_manager.verify_peer(peer);
 
         // Update peer manager
         self.peer_manager
             .add_peer_id_to_public_key(peer, public_key);
-    }
-
-    /// Check if a peer has completed handshake verification
-    fn is_peer_verified(&self, peer: &PeerId) -> bool {
-        self.verified_peers.contains(peer)
     }
 
     pub fn handle_gossipsub_event(&mut self, event: gossipsub::Event) {
@@ -230,7 +226,7 @@ impl BlueprintProtocolBehaviour {
                 message,
             } => {
                 // Only accept gossip from verified peers
-                if !self.is_peer_verified(&propagation_source) {
+                if !self.peer_manager.is_peer_verified(&propagation_source) {
                     warn!(%propagation_source, "Received gossip from unverified peer");
                     return;
                 }

@@ -93,7 +93,7 @@ pub enum NetworkMessage {
 }
 
 /// Configuration for the network service
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NetworkConfig {
     /// Network name/namespace
     pub network_name: String,
@@ -196,9 +196,6 @@ impl NetworkService {
             bootstrap_peers,
         };
 
-        // Spawn network task
-        tokio::spawn(service.run(event_sender));
-
         Ok(service)
     }
 
@@ -230,13 +227,23 @@ impl NetworkService {
             tokio::select! {
                 message = network_stream.next() => {
                     match message {
-                        Some(msg) => self.handle_network_message(msg, &event_sender).await,
+                        Some(msg) => match self.handle_network_message(msg, &event_sender).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!("Failed to handle network message: {}", e);
+                            }
+                        },
                         None => break,
                     }
                 }
                 event = swarm_stream.next() => {
                     match event {
-                        Some(event) => self.handle_swarm_event(event, &event_sender).await,
+                        Some(event) => match self.handle_swarm_event(event, &event_sender).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!("Failed to handle swarm event: {}", e);
+                            }
+                        },
                         None => break,
                     }
                 }
@@ -263,20 +270,17 @@ impl NetworkService {
                 source,
                 topic,
                 message,
-            } => event_sender.send(NetworkEvent::GossipSent { topic, message }),
+            } => event_sender.send(NetworkEvent::GossipSent { topic, message })?,
             NetworkMessage::HandshakeRequest {
                 peer,
                 public_key,
                 signature,
-            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer }),
+            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
             NetworkMessage::HandshakeResponse {
                 peer,
                 public_key,
                 signature,
-            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer }),
-            NetworkMessage::HandshakeFailed { peer, reason } => {
-                event_sender.send(NetworkEvent::HandshakeFailed { peer, reason })?
-            }
+            } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
         }
 
         Ok(())
@@ -287,14 +291,16 @@ impl NetworkService {
         &mut self,
         event: SwarmEvent<crate::behaviours::GadgetBehaviourEvent>,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) {
+    ) -> Result<(), Error> {
         match event {
             SwarmEvent::Behaviour(behaviour_event) => {
                 self.handle_behaviour_event(behaviour_event, event_sender)
-                    .await
+                    .await?
             }
             _ => {}
         }
+
+        Ok(())
     }
 
     /// Handle a behaviour event
@@ -302,13 +308,21 @@ impl NetworkService {
         &mut self,
         event: GadgetBehaviourEvent,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) {
+    ) -> Result<(), Error> {
         match event {
             GadgetBehaviourEvent::ConnectionLimits(_) => {}
-            GadgetBehaviourEvent::Discovery(discovery_event) => {
-                self.handle_discovery_event(discovery_event, event_sender)
-                    .await?
-            }
+            GadgetBehaviourEvent::Discovery(discovery_event) => match discovery_event {
+                DiscoveryEvent::Discovery(derived_event) => {
+                    self.handle_discovery_event(derived_event, event_sender)
+                        .await?
+                }
+                DiscoveryEvent::PeerConnected(peer) => {
+                    event_sender.send(NetworkEvent::PeerConnected(peer))?
+                }
+                DiscoveryEvent::PeerDisconnected(peer) => {
+                    event_sender.send(NetworkEvent::PeerDisconnected(peer))?
+                }
+            },
             GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
                 self.handle_blueprint_protocol_event(blueprint_event, event_sender)
                     .await?
