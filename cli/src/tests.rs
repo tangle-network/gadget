@@ -85,7 +85,7 @@ fn test_cli_mem_key_generation() -> Result<()> {
 }
 
 #[test]
-fn test_load_signer_from_env() -> color_eyre::Result<()> {
+fn test_load_signer_from_env() -> Result<()> {
     color_eyre::install().unwrap_or(());
     let s = [1u8; 32];
     let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
@@ -115,7 +115,7 @@ fn test_load_signer_from_env() -> color_eyre::Result<()> {
 }
 
 #[test]
-fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
+fn test_load_evm_signer_from_env() -> Result<()> {
     color_eyre::install().unwrap_or(());
     let s = [1u8; 32];
     let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
@@ -231,7 +231,7 @@ libs = ['lib']"#;
 
     // Create a contract instance
     let contract = alloy_contract::ContractInstance::<
-        alloy_transport::BoxTransport,
+        BoxTransport,
         RootProvider<BoxTransport>,
         alloy_network::Ethereum,
     >::new(
