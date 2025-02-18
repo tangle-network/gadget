@@ -44,6 +44,8 @@ impl BlueprintProtocolBehaviour {
                     Ok(()) => {
                         // Store the handshake request
                         self.inbound_handshakes.insert(peer, Instant::now());
+                        self.peer_manager
+                            .add_peer_id_to_public_key(&peer, &public_key);
 
                         // Send handshake response
                         let response = InstanceMessageResponse::Handshake {
@@ -198,12 +200,12 @@ impl BlueprintProtocolBehaviour {
         self.inbound_handshakes.remove(peer);
         self.outbound_handshakes.remove(peer);
 
-        // Add to verified peers
-        self.peer_manager.verify_peer(peer);
-
         // Update peer manager
         self.peer_manager
             .add_peer_id_to_public_key(peer, public_key);
+
+        // Add to verified peers
+        self.peer_manager.verify_peer(peer);
     }
 
     pub fn handle_gossipsub_event(&mut self, event: gossipsub::Event) {

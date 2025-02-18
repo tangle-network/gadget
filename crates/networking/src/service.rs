@@ -216,7 +216,7 @@ impl NetworkService {
     }
 
     /// Run the network service
-    async fn run(mut self, event_sender: mpsc::UnboundedSender<NetworkEvent>) {
+    async fn run(mut self) {
         info!("Starting network service");
 
         // Bootstrap with Kademlia
