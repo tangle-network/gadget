@@ -1,4 +1,4 @@
-use blueprint_examples::{eigen_context, periodic_web_poller, raw_tangle_events, services_context};
+use blueprint_examples::{eigen_context, periodic_web_poller, services_context};
 use blueprint_sdk::alloy::primitives::Address;
 use blueprint_sdk::logging::info;
 use blueprint_sdk::runners::core::runner::BlueprintRunner;
@@ -19,7 +19,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "tangle" => {
             info!("Running Tangle examples");
             BlueprintRunner::new(TangleConfig::default(), env.clone())
-                .job(raw_tangle_events::constructor(env.clone()).await?)
                 .job(periodic_web_poller::constructor("1/2 * * * * *"))
                 .job(services_context::constructor(env.clone()).await?)
                 .run()

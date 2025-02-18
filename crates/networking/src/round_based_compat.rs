@@ -5,7 +5,7 @@ use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
 use core::task::{ready, Context, Poll};
 use futures::prelude::*;
-use gadget_std::collections::{BTreeMap, HashMap, VecDeque};
+use gadget_std::collections::{BTreeMap, HashMap};
 use gadget_std::string::ToString;
 use gadget_std::sync::Arc;
 use round_based::{Delivery, Incoming, MessageType, Outgoing};
