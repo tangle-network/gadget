@@ -1,6 +1,6 @@
 #![allow(unused_results)]
 
-use crate::behaviours::{MyBehaviourRequest, MyBehaviourResponse};
+use crate::behaviours::{Peer2PeerRequest, Peer2PeerResponse};
 use crate::gossip::NetworkService;
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
@@ -13,7 +13,7 @@ impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_p2p(
         &mut self,
-        event: request_response::Event<MyBehaviourRequest, MyBehaviourResponse>,
+        event: request_response::Event<Peer2PeerRequest, Peer2PeerResponse>,
     ) {
         use request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
         match event {
@@ -57,7 +57,7 @@ impl NetworkService<'_> {
     async fn handle_p2p_message(
         &mut self,
         peer: PeerId,
-        message: request_response::Message<MyBehaviourRequest, MyBehaviourResponse>,
+        message: request_response::Message<Peer2PeerRequest, Peer2PeerResponse>,
     ) {
         use request_response::Message::{Request, Response};
         match message {
@@ -89,11 +89,11 @@ impl NetworkService<'_> {
         &mut self,
         peer: PeerId,
         request_id: request_response::InboundRequestId,
-        req: MyBehaviourRequest,
-        channel: request_response::ResponseChannel<MyBehaviourResponse>,
+        req: Peer2PeerRequest,
+        channel: request_response::ResponseChannel<Peer2PeerResponse>,
     ) {
         let result = match req {
-            MyBehaviourRequest::Handshake {
+            Peer2PeerRequest::Handshake {
                 public_key,
                 signature,
             } => {
@@ -121,7 +121,7 @@ impl NetworkService<'_> {
                 match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                     Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
                         channel,
-                        MyBehaviourResponse::Handshaked {
+                        Peer2PeerResponse::Handshaked {
                             public_key: self.secret_key.public(),
                             signature,
                         },
@@ -132,7 +132,7 @@ impl NetworkService<'_> {
                     }
                 }
             }
-            MyBehaviourRequest::Message { topic, raw_payload } => {
+            Peer2PeerRequest::Message { topic, raw_payload } => {
                 // Reject messages from self
                 if peer == self.my_id {
                     return;
@@ -153,7 +153,7 @@ impl NetworkService<'_> {
                 self.swarm
                     .behaviour_mut()
                     .p2p
-                    .send_response(channel, MyBehaviourResponse::MessageHandled)
+                    .send_response(channel, Peer2PeerResponse::MessageHandled)
             }
         };
         if result.is_err() {
@@ -166,10 +166,10 @@ impl NetworkService<'_> {
         &mut self,
         peer: PeerId,
         request_id: request_response::OutboundRequestId,
-        message: MyBehaviourResponse,
+        message: Peer2PeerResponse,
     ) {
         match message {
-            MyBehaviourResponse::Handshaked {
+            Peer2PeerResponse::Handshaked {
                 public_key,
                 signature,
             } => {
@@ -198,7 +198,7 @@ impl NetworkService<'_> {
                     let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);
                 }
             }
-            MyBehaviourResponse::MessageHandled => {}
+            Peer2PeerResponse::MessageHandled => {}
         }
     }
 }

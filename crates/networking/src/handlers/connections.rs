@@ -1,6 +1,6 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
-use crate::behaviours::MyBehaviourRequest;
+use crate::behaviours::Peer2PeerRequest;
 use crate::gossip::NetworkService;
 use crate::key_types::Curve;
 use gadget_crypto::KeyType;
@@ -27,7 +27,7 @@ impl NetworkService<'_> {
             let msg = my_peer_id.to_bytes();
             match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                 Ok(signature) => {
-                    let handshake = MyBehaviourRequest::Handshake {
+                    let handshake = Peer2PeerRequest::Handshake {
                         public_key: self.secret_key.public(),
                         signature,
                     };

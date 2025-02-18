@@ -104,8 +104,11 @@ gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbioti
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
-gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
+
+# P2P
+gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
+gadget-networking-behaviours = { version = "0.1.0", path = "./crates/networking/behaviours", default-features = false }
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
@@ -145,6 +148,7 @@ futures-util = { version = "0.3.31", default-features = false }
 tokio = { version = "1.40", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 tokio-cron-scheduler = "0.13.0"
+tokio-stream = { version = "0.1.17", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }

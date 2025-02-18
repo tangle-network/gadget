@@ -1,3 +1,5 @@
+use crate::{service::NetworkMessage, NetworkEvent};
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Network error: {0}")]
@@ -42,14 +44,22 @@ pub enum Error {
     // libp2p compat
     #[error(transparent)]
     Dial(#[from] libp2p::swarm::DialError),
+
     #[error(transparent)]
     Noise(#[from] libp2p::noise::Error),
+
     #[error(transparent)]
     Behaviour(#[from] libp2p::BehaviourBuilderError),
+
     #[error(transparent)]
     Subscription(#[from] libp2p::gossipsub::SubscriptionError),
+
     #[error(transparent)]
     TransportIo(#[from] libp2p::TransportError<std::io::Error>),
+
     #[error(transparent)]
     Multiaddr(#[from] libp2p::multiaddr::Error),
+
+    #[error(transparent)]
+    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent>),
 }
