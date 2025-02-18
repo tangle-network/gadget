@@ -81,7 +81,12 @@ impl GadgetBehaviour {
             .build()
             .unwrap();
 
-        let blueprint_protocol = BlueprintProtocolBehaviour::new(local_key, peer_manager);
+        let blueprint_protocol = BlueprintProtocolBehaviour::new(
+            local_key,
+            instance_secret_key,
+            instance_public_key,
+            peer_manager,
+        );
 
         Self {
             connection_limits,

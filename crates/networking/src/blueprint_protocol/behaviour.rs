@@ -315,7 +315,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         while let Poll::Ready(ev) = self.blueprint_protocol.poll(cx) {
             match ev {
-                ToSwarm::GenerateEvent(ev) => match &ev {
+                ToSwarm::GenerateEvent(ev) => match ev {
                     DerivedBlueprintProtocolBehaviourEvent::RequestResponse(
                         blueprint_protocol_event,
                     ) => self.handle_request_response_event(blueprint_protocol_event),

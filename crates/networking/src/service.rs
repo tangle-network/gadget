@@ -136,9 +136,7 @@ pub struct NetworkService {
 
 impl NetworkService {
     /// Create a new network service
-    pub async fn new(
-        config: NetworkConfig,
-    ) -> Result<(Self, impl Stream<Item = NetworkEvent>), Error> {
+    pub async fn new(config: NetworkConfig) -> Result<Self, Error> {
         let NetworkConfig {
             network_name,
             instance_secret_key,
@@ -192,7 +190,7 @@ impl NetworkService {
             peer_manager,
             network_sender,
             network_receiver: UnboundedReceiverStream::new(network_receiver),
-            event_sender,
+            event_sender: event_sender.clone(),
             event_receiver: UnboundedReceiverStream::new(event_receiver),
             network_name,
             bootstrap_peers,
@@ -201,7 +199,7 @@ impl NetworkService {
         // Spawn network task
         tokio::spawn(service.run(event_sender));
 
-        Ok((service, UnboundedReceiverStream::new(event_receiver)))
+        Ok(service)
     }
 
     /// Get a sender to send messages to the network service

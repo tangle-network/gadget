@@ -222,7 +222,7 @@ impl BlueprintProtocolBehaviour {
         self.verified_peers.contains(peer)
     }
 
-    pub fn handle_gossipsub_event(&mut self, event: &gossipsub::Event) {
+    pub fn handle_gossipsub_event(&mut self, event: gossipsub::Event) {
         match event {
             gossipsub::Event::Message {
                 propagation_source,
@@ -230,7 +230,7 @@ impl BlueprintProtocolBehaviour {
                 message,
             } => {
                 // Only accept gossip from verified peers
-                if !self.is_peer_verified(propagation_source) {
+                if !self.is_peer_verified(&propagation_source) {
                     warn!(%propagation_source, "Received gossip from unverified peer");
                     return;
                 }
