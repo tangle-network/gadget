@@ -39,7 +39,7 @@ pub struct GadgetBehaviour {
     connection_limits: connection_limits::Behaviour,
     /// Discovery mechanisms (Kademlia, mDNS, etc)
     discovery: DiscoveryBehaviour,
-    /// Direct P2P messaging
+    /// Direct P2P messaging and gossip
     blueprint_protocol: BlueprintProtocolBehaviour,
     /// Connection liveness checks
     ping: ping::Behaviour,

@@ -353,7 +353,7 @@ impl NetworkService {
                 message,
             } => event_sender.send(NetworkEvent::GossipReceived {
                 source,
-                topic,
+                topic: topic.to_string(),
                 message,
             }),
         }
@@ -371,6 +371,7 @@ impl NetworkService {
             }
             PingEvent::Pong(pong_event) => {
                 event_sender.send(NetworkEvent::PongReceived { peer, response })
-            }   
+            }
+        }
     }
 }
