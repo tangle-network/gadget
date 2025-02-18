@@ -39,9 +39,9 @@ pub struct GadgetBehaviour {
     /// Connection limits to prevent DoS
     connection_limits: connection_limits::Behaviour,
     /// Discovery mechanisms (Kademlia, mDNS, etc)
-    discovery: DiscoveryBehaviour,
+    pub(super) discovery: DiscoveryBehaviour,
     /// Direct P2P messaging and gossip
-    blueprint_protocol: BlueprintProtocolBehaviour,
+    pub(super) blueprint_protocol: BlueprintProtocolBehaviour,
     /// Connection liveness checks
     ping: ping::Behaviour,
 }
@@ -49,6 +49,7 @@ pub struct GadgetBehaviour {
 impl GadgetBehaviour {
     pub fn new(
         network_name: &str,
+        blueprint_protocol_name: &str,
         local_key: &Keypair,
         instance_secret_key: &InstanceMsgKeyPair,
         instance_public_key: &InstanceMsgPublicKey,
@@ -86,6 +87,7 @@ impl GadgetBehaviour {
             instance_secret_key,
             instance_public_key,
             peer_manager,
+            blueprint_protocol_name,
         );
 
         Self {

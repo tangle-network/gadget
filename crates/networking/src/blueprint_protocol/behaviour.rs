@@ -1,4 +1,6 @@
-use crate::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature, KeySignExt};
+use crate::{
+    Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature, KeySignExt,
+};
 use dashmap::{DashMap, DashSet};
 use gadget_crypto::{hashing::blake3_256, KeyType};
 use gadget_logging::{debug, trace, warn};
@@ -59,6 +61,8 @@ pub enum BlueprintProtocolEvent {
 pub struct BlueprintProtocolBehaviour {
     /// Request/response protocol for direct messaging
     blueprint_protocol: DerivedBlueprintProtocolBehaviour,
+    /// Name of the blueprint protocol
+    pub(crate) blueprint_protocol_name: String,
     /// Peer manager for tracking peer states
     pub(crate) peer_manager: Arc<PeerManager>,
     /// Libp2p peer ID
@@ -83,9 +87,12 @@ impl BlueprintProtocolBehaviour {
         instance_secret_key: &InstanceMsgKeyPair,
         instance_public_key: &InstanceMsgPublicKey,
         peer_manager: Arc<PeerManager>,
+        blueprint_protocol_name: &str,
     ) -> Self {
+        let blueprint_protocol_name = blueprint_protocol_name.to_string();
         let protocols = vec![(
-            StreamProtocol::new("/gadget/blueprint_protocol/1.0.0"),
+            StreamProtocol::try_from_owned(blueprint_protocol_name.to_string())
+                .unwrap_or_else(|_| StreamProtocol::new("/blueprint_protocol/1.0.0")),
             request_response::ProtocolSupport::Full,
         )];
 
@@ -115,6 +122,7 @@ impl BlueprintProtocolBehaviour {
 
         Self {
             blueprint_protocol,
+            blueprint_protocol_name,
             peer_manager,
             local_peer_id,
             instance_public_key: instance_public_key.clone(),

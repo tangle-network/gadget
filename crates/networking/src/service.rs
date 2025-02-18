@@ -1,11 +1,15 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
     discovery::{
         behaviour::{DerivedDiscoveryBehaviour, DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
-        PeerManager,
+        PeerInfo, PeerManager,
     },
     error::Error,
     key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature},
@@ -15,6 +19,7 @@ use gadget_logging::trace;
 use libp2p::{
     core::{transport::Boxed, upgrade},
     gossipsub::{IdentTopic, Topic},
+    identify,
     identity::Keypair,
     noise, ping,
     swarm::{ConnectionId, SwarmEvent},
@@ -97,6 +102,8 @@ pub enum NetworkMessage {
 pub struct NetworkConfig {
     /// Network name/namespace
     pub network_name: String,
+    /// Instance id for blueprint protocol
+    pub instance_id: String,
     /// Instance secret key for blueprint protocol
     pub instance_secret_key: InstanceMsgKeyPair,
     /// Instance public key for blueprint protocol
@@ -139,6 +146,7 @@ impl NetworkService {
     pub async fn new(config: NetworkConfig) -> Result<Self, Error> {
         let NetworkConfig {
             network_name,
+            instance_id,
             instance_secret_key,
             instance_public_key,
             local_key,
@@ -151,9 +159,12 @@ impl NetworkService {
 
         let peer_manager = Arc::new(PeerManager::default());
 
+        let blueprint_protocol_name = format!("/blueprint_protocol/{}/1.0.0", instance_id);
+
         // Create the swarm
         let behaviour = GadgetBehaviour::new(
             &network_name,
+            &blueprint_protocol_name,
             &local_key,
             &instance_secret_key,
             &instance_public_key,
@@ -300,24 +311,17 @@ async fn handle_behaviour_event(
 ) -> Result<(), Error> {
     match event {
         GadgetBehaviourEvent::ConnectionLimits(_) => {}
-        GadgetBehaviourEvent::Discovery(discovery_event) => match discovery_event {
-            DiscoveryEvent::Discovery(derived_event) => {
-                handle_discovery_event(
-                    swarm,
-                    peer_manager,
-                    derived_event,
-                    event_sender,
-                    network_sender,
-                )
-                .await?
-            }
-            DiscoveryEvent::PeerConnected(peer) => {
-                event_sender.send(NetworkEvent::PeerConnected(peer))?
-            }
-            DiscoveryEvent::PeerDisconnected(peer) => {
-                event_sender.send(NetworkEvent::PeerDisconnected(peer))?
-            }
-        },
+        GadgetBehaviourEvent::Discovery(discovery_event) => {
+            handle_discovery_event(
+                &swarm.behaviour().discovery.peer_info,
+                peer_manager,
+                discovery_event,
+                event_sender,
+                network_sender,
+                &swarm.behaviour().blueprint_protocol.blueprint_protocol_name,
+            )
+            .await?
+        }
         GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
             handle_blueprint_protocol_event(
                 swarm,
@@ -345,33 +349,39 @@ async fn handle_behaviour_event(
 
 /// Handle a discovery event
 async fn handle_discovery_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
+    peer_info_map: &HashMap<PeerId, PeerInfo>,
     peer_manager: &Arc<PeerManager>,
-    event: Box<DerivedDiscoveryBehaviourEvent>,
+    event: DiscoveryEvent,
     event_sender: &mpsc::UnboundedSender<NetworkEvent>,
     network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+    blueprint_protocol_name: &str,
 ) -> Result<(), Error> {
-    let event = event.as_ref();
     match event {
-        DerivedDiscoveryBehaviourEvent::Kademlia(event) => {
-            // Handle Kademlia discovery events
+        DiscoveryEvent::PeerConnected(peer_id) => {
+            trace!("Peer connected, {peer_id}");
+            event_sender.send(NetworkEvent::PeerConnected(peer_id))?;
         }
-        DerivedDiscoveryBehaviourEvent::Mdns(event) => {
-            // Handle mDNS discovery events
+        DiscoveryEvent::PeerDisconnected(peer_id) => {
+            trace!("Peer disconnected, {peer_id}");
+            event_sender.send(NetworkEvent::PeerDisconnected(peer_id))?;
         }
-        DerivedDiscoveryBehaviourEvent::Identify(event) => {
-            // Handle Identify protocol events
-        }
-        DerivedDiscoveryBehaviourEvent::Autonat(event) => {
-            // Handle AutoNAT events
-        }
-        DerivedDiscoveryBehaviourEvent::Upnp(event) => {
-            // Handle UPnP events
-        }
-        DerivedDiscoveryBehaviourEvent::Relay(event) => {
-            // Handle relay events
-        }
-    }
+        DiscoveryEvent::Discovery(discovery_event) => match &*discovery_event {
+            DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Received {
+                peer_id,
+                info,
+                ..
+            }) => {
+                let protocols: HashSet<String> =
+                    HashSet::from_iter(info.protocols.iter().map(|p| p.to_string()));
+                if !protocols.contains(blueprint_protocol_name) {
+                    peer_manager
+                        .ban_peer_with_default_duration(*peer_id, "hello protocol unsupported");
+                }
+            }
+            DerivedDiscoveryBehaviourEvent::Identify(_) => {}
+            _ => {}
+        },
+    };
 
     Ok(())
 }
