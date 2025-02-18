@@ -235,7 +235,7 @@ libs = ['lib']"#;
         rpc_url: http_endpoint.clone(),
         contracts_path: contract_dir.to_string_lossy().to_string(),
         constructor_args: Some(constructor_args),
-        ordered_deployment: false,
+        ordered_deployment: true,
     };
 
     // Build the contracts in temporary directory
