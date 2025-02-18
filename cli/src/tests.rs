@@ -180,6 +180,31 @@ contract TestContract {
 
     fs::write(contract_src_dir.join("TestContract.sol"), contract_content)?;
 
+    // Write the second test contract
+    let second_contract_content = r#"// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SimpleStorage {
+    string private storedData;
+    event DataStored(string newData);
+
+    constructor(string memory initialData) {
+        storedData = initialData;
+    }
+
+    function set(string memory newData) public {
+        storedData = newData;
+        emit DataStored(newData);
+    }
+
+    function get() public view returns (string memory) {
+        return storedData;
+    }
+}
+"#;
+
+    fs::write(contract_src_dir.join("SimpleStorage.sol"), second_contract_content)?;
+
     // Create foundry.toml
     let foundry_content = r#"[profile.default]
 src = 'src'
@@ -198,12 +223,16 @@ libs = ['lib']"#;
         "TestContract".to_string(),
         vec![init_a_value.to_string(), init_b_value.to_string()],
     );
+    constructor_args.insert(
+        "SimpleStorage".to_string(),
+        vec!["\"Initial Data\"".to_string()],
+    );
 
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
         contracts_path: contract_dir.to_string_lossy().to_string(),
         constructor_args: Some(constructor_args),
-        ordered_deployment: true,
+        ordered_deployment: false,
     };
 
     // Build the contracts in temporary directory
@@ -216,7 +245,12 @@ libs = ['lib']"#;
         .expect("Failed to build contracts");
 
     // Deploy the contract
-    let contract_address = deploy_avs_contracts(&opts).await.unwrap();
+    let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
+    let contract_address = contract_addresses
+        .iter()
+        .find(|(key, _value)| key.contains("TestContract"))
+        .map(|(_key, value)| value.clone())
+        .expect("Could not find TestContract in deployed contracts");
 
     // Read the ABI from the JSON file
     let json_path = temp_dir
@@ -236,7 +270,7 @@ libs = ['lib']"#;
         RootProvider<BoxTransport>,
         alloy_network::Ethereum,
     >::new(
-        contract_address[0],
+        contract_address,
         provider.clone(),
         alloy_contract::Interface::new(abi),
     );

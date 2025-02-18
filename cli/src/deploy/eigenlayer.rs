@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use color_eyre::Result;
-use dialoguer::Input;
+use dialoguer::{Input, Select};
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::fs;
@@ -123,23 +123,18 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
         return Err(color_eyre::eyre::eyre!("No contracts available to deploy"));
     }
 
-    println!("\nAvailable contracts to deploy:");
-    for (i, contract) in available_contracts.iter().enumerate() {
-        println!("{}: {}", i + 1, contract);
+    if available_contracts.len() == 1 {
+        return Ok(available_contracts[0].clone());
     }
 
-    let selection: usize = Input::new()
-        .with_prompt("Select the contract to deploy (enter the number)")
-        .validate_with(|input: &usize| {
-            if *input > 0 && *input <= available_contracts.len() {
-                Ok(())
-            } else {
-                Err("Invalid selection")
-            }
-        })
+    println!("\nAvailable contracts to deploy:");
+    let selection = Select::new()
+        .with_prompt("Select the contract to deploy (use arrow keys ↑↓)")
+        .items(available_contracts)
+        .default(0)
         .interact()?;
 
-    Ok(available_contracts[selection - 1].clone())
+    Ok(available_contracts[selection].clone())
 }
 
 fn get_constructor_args(
@@ -213,8 +208,8 @@ fn get_constructor_args_as_cli_args(
     }
 }
 
-pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Address>> {
-    let mut deployed_addresses = Vec::new();
+pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap<String, Address>> {
+    let mut deployed_addresses = HashMap::new();
     let mut contract_files = find_contract_files(&opts.contracts_path)?;
 
     if opts.ordered_deployment {
@@ -280,7 +275,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
             }
 
             let address = extract_address_from_output(output.stdout)?;
-            deployed_addresses.push(address);
+            deployed_addresses.insert(contract_name.clone(), address);
 
             // Remove the deployed contract from remaining contracts
             remaining_contracts.retain(|c| c != &selected_contract);
@@ -312,16 +307,16 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
             let json_content = fs::read_to_string(&json_path)?;
             let contract_json: Value = serde_json::from_str(&json_content)?;
 
-            // Construct the forge create command
             let mut cmd = Command::new("forge");
-            cmd.arg("create")
-                .arg(&contract_name)
-                .arg("--rpc-url")
-                .arg(&opts.rpc_url)
-                .arg("--private-key")
-                .arg(&opts.get_private_key()?);
+            cmd.args([
+                "create",
+                &contract_name,
+                "--rpc-url",
+                &opts.rpc_url,
+                "--private-key",
+                &opts.get_private_key()?,
+            ]);
 
-            // If the contract has constructor args, get them from the user or use provided args
             if let Some(args) =
                 get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
             {
@@ -340,8 +335,8 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
 
             if output.status.success() {
                 let address = extract_address_from_output(output.stdout)?;
+                deployed_addresses.insert(contract_name.clone(), address);
                 info!("Successfully deployed {} at {}", contract_name, address);
-                deployed_addresses.push(address);
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(color_eyre::eyre::eyre!(
@@ -351,11 +346,19 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<Vec<Add
                 ));
             }
         }
-
-        return Ok(deployed_addresses);
     }
 
     Ok(deployed_addresses)
+}
+
+pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
+    info!("Deploying contracts to EigenLayer...");
+    let addresses = deploy_avs_contracts(&opts).await?;
+    info!("Successfully deployed contracts:");
+    for (contract, address) in addresses {
+        info!("{}: {}", contract, address);
+    }
+    Ok(())
 }
 
 pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
@@ -366,20 +369,4 @@ pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
         .and_then(|line| line.split_whitespace().last())
         .and_then(|addr_str| Address::from_str(addr_str).ok())
         .ok_or_else(|| color_eyre::eyre::eyre!("Failed to parse contract address"))
-}
-
-pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
-    info!("Deploying contracts to EigenLayer...");
-    let addresses = deploy_avs_contracts(&opts).await?;
-
-    if addresses.is_empty() {
-        info!("No contracts were deployed");
-    } else {
-        info!("Successfully deployed {} contracts:", addresses.len());
-        for (i, address) in addresses.iter().enumerate() {
-            info!("Contract {}: {}", i + 1, address);
-        }
-    }
-
-    Ok(())
 }
