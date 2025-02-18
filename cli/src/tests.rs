@@ -203,7 +203,10 @@ contract SimpleStorage {
 }
 "#;
 
-    fs::write(contract_src_dir.join("SimpleStorage.sol"), second_contract_content)?;
+    fs::write(
+        contract_src_dir.join("SimpleStorage.sol"),
+        second_contract_content,
+    )?;
 
     // Create foundry.toml
     let foundry_content = r#"[profile.default]
