@@ -4,6 +4,7 @@ pub mod behaviours;
 pub mod blueprint_protocol;
 pub mod discovery;
 pub mod error;
+pub mod handlers;
 pub mod service;
 pub mod types;
 

@@ -1,3 +1,4 @@
+use crate::key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey};
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
     discovery::{
@@ -49,6 +50,8 @@ impl GadgetBehaviour {
     pub fn new(
         network_name: &str,
         local_key: &Keypair,
+        instance_secret_key: &InstanceMsgKeyPair,
+        instance_public_key: &InstanceMsgPublicKey,
         target_peer_count: u64,
         peer_manager: Arc<PeerManager>,
     ) -> Self {

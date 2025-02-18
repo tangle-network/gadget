@@ -1,4 +1,5 @@
 mod behaviour;
+mod handler;
 
 pub use behaviour::{BlueprintProtocolBehaviour, BlueprintProtocolEvent};
 

@@ -3,16 +3,20 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
-    discovery::{behaviour::DiscoveryEvent, PeerManager},
+    discovery::{
+        behaviour::{DerivedDiscoveryBehaviour, DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
+        PeerManager,
+    },
     error::Error,
     key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature},
 };
 use futures::{Stream, StreamExt};
+use gadget_logging::trace;
 use libp2p::{
     core::{transport::Boxed, upgrade},
     gossipsub::{IdentTopic, Topic},
     identity::Keypair,
-    noise,
+    noise, ping,
     swarm::{ConnectionId, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder, Transport,
 };
@@ -93,10 +97,12 @@ pub enum NetworkMessage {
 pub struct NetworkConfig {
     /// Network name/namespace
     pub network_name: String,
+    /// Instance secret key for blueprint protocol
+    pub instance_secret_key: InstanceMsgKeyPair,
+    /// Instance public key for blueprint protocol
+    pub instance_public_key: InstanceMsgPublicKey,
     /// Local keypair for authentication
     pub local_key: Keypair,
-    /// Secret key for message signing
-    pub secret_key: InstanceMsgKeyPair,
     /// Address to listen on
     pub listen_addr: Multiaddr,
     /// Target number of peers to maintain
@@ -135,8 +141,9 @@ impl NetworkService {
     ) -> Result<(Self, impl Stream<Item = NetworkEvent>), Error> {
         let NetworkConfig {
             network_name,
+            instance_secret_key,
+            instance_public_key,
             local_key,
-            secret_key,
             listen_addr,
             target_peer_count,
             bootstrap_peers,
@@ -150,6 +157,8 @@ impl NetworkService {
         let behaviour = GadgetBehaviour::new(
             &network_name,
             &local_key,
+            &instance_secret_key,
+            &instance_public_key,
             target_peer_count,
             peer_manager.clone(),
         );
@@ -244,14 +253,14 @@ impl NetworkService {
         &mut self,
         msg: NetworkMessage,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) {
+    ) -> Result<(), Error> {
         match msg {
-            NetworkMessage::InstanceRequest { peer, request } => event_sender
-                .send(NetworkEvent::InstanceRequestOutbound { peer, request })
-                .unwrap(),
-            NetworkMessage::InstanceResponse { peer, response } => event_sender
-                .send(NetworkEvent::InstanceResponseOutbound { peer, response })
-                .unwrap(),
+            NetworkMessage::InstanceRequest { peer, request } => {
+                event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?
+            }
+            NetworkMessage::InstanceResponse { peer, response } => {
+                event_sender.send(NetworkEvent::InstanceResponseOutbound { peer, response })?
+            }
             NetworkMessage::GossipMessage {
                 source,
                 topic,
@@ -268,9 +277,11 @@ impl NetworkService {
                 signature,
             } => event_sender.send(NetworkEvent::HandshakeCompleted { peer }),
             NetworkMessage::HandshakeFailed { peer, reason } => {
-                event_sender.send(NetworkEvent::HandshakeFailed { peer, reason })
+                event_sender.send(NetworkEvent::HandshakeFailed { peer, reason })?
             }
         }
+
+        Ok(())
     }
 
     /// Handle a swarm event
@@ -298,40 +309,53 @@ impl NetworkService {
             GadgetBehaviourEvent::ConnectionLimits(_) => {}
             GadgetBehaviourEvent::Discovery(discovery_event) => {
                 self.handle_discovery_event(discovery_event, event_sender)
-                    .await
+                    .await?
             }
             GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
-                self.handle_blueprint_event(blueprint_event, event_sender)
-                    .await
+                self.handle_blueprint_protocol_event(blueprint_event, event_sender)
+                    .await?
             }
             GadgetBehaviourEvent::Ping(ping_event) => {
-                self.handle_ping_event(ping_event, event_sender).await
+                self.handle_ping_event(ping_event, event_sender).await?
             }
         }
+
+        Ok(())
     }
 
     /// Handle a discovery event
     async fn handle_discovery_event(
         &mut self,
-        event: DiscoveryEvent,
+        event: Box<DerivedDiscoveryBehaviourEvent>,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) {
+    ) -> Result<(), Error> {
+        let event = event.as_ref();
         match event {
-            DiscoveryEvent::PeerConnected(peer_id) => {
-                event_sender.send(NetworkEvent::PeerConnected(peer_id))
+            DerivedDiscoveryBehaviourEvent::Kademlia(event) => {
+                // Handle Kademlia discovery events
             }
-            DiscoveryEvent::PeerDisconnected(peer_id) => {
-                event_sender.send(NetworkEvent::PeerDisconnected(peer_id))
+            DerivedDiscoveryBehaviourEvent::Mdns(event) => {
+                // Handle mDNS discovery events
             }
-            DiscoveryEvent::Discovery(derived_discovery_event) => {
-                self.handle_discovery_event(derived_discovery_event, event_sender)
-                    .await
+            DerivedDiscoveryBehaviourEvent::Identify(event) => {
+                // Handle Identify protocol events
+            }
+            DerivedDiscoveryBehaviourEvent::Autonat(event) => {
+                // Handle AutoNAT events
+            }
+            DerivedDiscoveryBehaviourEvent::Upnp(event) => {
+                // Handle UPnP events
+            }
+            DerivedDiscoveryBehaviourEvent::Relay(event) => {
+                // Handle relay events
             }
         }
+
+        Ok(())
     }
 
     /// Handle a blueprint event
-    async fn handle_blueprint_event(
+    async fn handle_blueprint_protocol_event(
         &mut self,
         event: BlueprintProtocolEvent,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
@@ -341,12 +365,12 @@ impl NetworkService {
                 peer,
                 request,
                 channel,
-            } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request }),
+            } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
             BlueprintProtocolEvent::Response {
                 peer,
                 response,
                 request_id,
-            } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response }),
+            } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
             BlueprintProtocolEvent::GossipMessage {
                 source,
                 topic,
@@ -355,23 +379,37 @@ impl NetworkService {
                 source,
                 topic: topic.to_string(),
                 message,
-            }),
+            })?,
         }
+
+        Ok(())
     }
 
     /// Handle a ping event
     async fn handle_ping_event(
         &mut self,
-        event: PingEvent,
+        event: ping::Event,
         event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    ) {
-        match event {
-            PingEvent::Ping(ping_event) => {
-                event_sender.send(NetworkEvent::PingSent { peer, request })
+    ) -> Result<(), Error> {
+        match event.result {
+            Ok(rtt) => {
+                trace!(
+                    "PingSuccess::Ping rtt to {} is {} ms",
+                    event.peer,
+                    rtt.as_millis()
+                );
             }
-            PingEvent::Pong(pong_event) => {
-                event_sender.send(NetworkEvent::PongReceived { peer, response })
+            Err(ping::Failure::Unsupported) => {
+                debug!(peer=%event.peer, "Ping protocol unsupported");
+            }
+            Err(ping::Failure::Timeout) => {
+                debug!("Ping timeout: {}", event.peer);
+            }
+            Err(ping::Failure::Other { error }) => {
+                debug!("Ping failure: {error}");
             }
         }
+
+        Ok(())
     }
 }

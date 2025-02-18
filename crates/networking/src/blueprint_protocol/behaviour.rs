@@ -1,6 +1,6 @@
-use crate::{Curve, InstanceMsgPublicKey, InstanceSignedMsgSignature};
-use dashmap::DashMap;
-use gadget_crypto::KeyType;
+use crate::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature};
+use dashmap::{DashMap, DashSet};
+use gadget_crypto::{hashing::blake3_256, KeyType};
 use gadget_logging::{debug, trace, warn};
 use libp2p::{
     core::transport::PortUse,
@@ -22,6 +22,15 @@ use std::{
 use crate::discovery::PeerManager;
 
 use super::{InstanceMessageRequest, InstanceMessageResponse};
+
+#[derive(NetworkBehaviour)]
+pub struct DerivedBlueprintProtocolBehaviour {
+    /// Request/response protocol for direct messaging
+    request_response:
+        request_response::cbor::Behaviour<InstanceMessageRequest, InstanceMessageResponse>,
+    /// Gossipsub for broadcast messaging
+    gossipsub: gossipsub::Behaviour,
+}
 
 /// Events emitted by the BlueprintProtocolBehaviour
 #[derive(Debug)]
@@ -49,21 +58,34 @@ pub enum BlueprintProtocolEvent {
 /// Behaviour that handles the blueprint protocol request/response and gossip
 pub struct BlueprintProtocolBehaviour {
     /// Request/response protocol for direct messaging
-    request_response:
-        request_response::cbor::Behaviour<InstanceMessageRequest, InstanceMessageResponse>,
-    /// Gossipsub for broadcast messaging
-    gossipsub: gossipsub::Behaviour,
+    blueprint_protocol: DerivedBlueprintProtocolBehaviour,
     /// Peer manager for tracking peer states
-    peer_manager: Arc<PeerManager>,
-    /// Peers with outstanding handshake requests
-    pending_handshake_peers: DashMap<PeerId, Instant>,
+    pub(crate) peer_manager: Arc<PeerManager>,
+    /// Libp2p peer ID
+    pub(crate) local_peer_id: PeerId,
+    /// Instance public key for handshakes and blueprint_protocol
+    pub(crate) instance_public_key: InstanceMsgPublicKey,
+    /// Instance secret key for handshakes and blueprint_protocol
+    pub(crate) instance_secret_key: InstanceMsgKeyPair,
+    /// Peers with pending inbound handshakes
+    pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,
+    /// Peers with pending outbound handshakes
+    pub(crate) outbound_handshakes: DashMap<PeerId, Instant>,
+    /// Peers that have completed handshake verification
+    pub(crate) verified_peers: DashSet<PeerId>,
     /// Active response channels
-    response_channels: DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
+    pub(crate) response_channels:
+        DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
 }
 
 impl BlueprintProtocolBehaviour {
     /// Create a new blueprint protocol behaviour
-    pub fn new(local_key: &Keypair, peer_manager: Arc<PeerManager>) -> Self {
+    pub fn new(
+        local_key: &Keypair,
+        instance_secret_key: &InstanceMsgKeyPair,
+        instance_public_key: &InstanceMsgPublicKey,
+        peer_manager: Arc<PeerManager>,
+    ) -> Self {
         let protocols = vec![(
             StreamProtocol::new("/gadget/blueprint_protocol/1.0.0"),
             request_response::ProtocolSupport::Full,
@@ -82,17 +104,36 @@ impl BlueprintProtocolBehaviour {
         )
         .expect("Valid gossipsub behaviour");
 
-        let config = libp2p::request_response::Config::default()
+        let config = request_response::Config::default()
             .with_request_timeout(Duration::from_secs(30))
             .with_max_concurrent_streams(50);
 
-        Self {
+        let blueprint_protocol = DerivedBlueprintProtocolBehaviour {
             request_response: request_response::cbor::Behaviour::new(protocols, config),
             gossipsub,
+        };
+
+        let local_peer_id = local_key.public().to_peer_id();
+
+        Self {
+            blueprint_protocol,
             peer_manager,
-            pending_handshake_peers: DashMap::new(),
+            local_peer_id,
+            instance_public_key: instance_public_key.clone(),
+            instance_secret_key: instance_secret_key.clone(),
+            inbound_handshakes: DashMap::new(),
+            outbound_handshakes: DashMap::new(),
+            verified_peers: DashSet::new(),
             response_channels: DashMap::new(),
         }
+    }
+
+    /// Sign a handshake message for a peer
+    pub(crate) fn sign_handshake(&self, peer: &PeerId) -> InstanceSignedMsgSignature {
+        let msg = peer.to_bytes();
+        let msg_hash = blake3_256(&msg);
+        let signature = self.instance_secret_key.sign_prehashed(&msg_hash);
+        InstanceSignedMsgSignature(signature)
     }
 
     /// Send a request to a peer
@@ -102,7 +143,9 @@ impl BlueprintProtocolBehaviour {
         request: InstanceMessageRequest,
     ) -> OutboundRequestId {
         debug!(%peer, ?request, "sending request");
-        self.request_response.send_request(peer, request)
+        self.blueprint_protocol
+            .request_response
+            .send_request(peer, request)
     }
 
     /// Send a response through a response channel
@@ -112,13 +155,15 @@ impl BlueprintProtocolBehaviour {
         response: InstanceMessageResponse,
     ) -> Result<(), InstanceMessageResponse> {
         debug!(?response, "sending response");
-        self.request_response.send_response(channel, response)
+        self.blueprint_protocol
+            .request_response
+            .send_response(channel, response)
     }
 
     /// Subscribe to a gossip topic
     pub fn subscribe(&mut self, topic: &str) -> Result<bool, gossipsub::SubscriptionError> {
         let topic = Sha256Topic::new(topic);
-        self.gossipsub.subscribe(&topic)
+        self.blueprint_protocol.gossipsub.subscribe(&topic)
     }
 
     /// Publish a message to a gossip topic
@@ -128,7 +173,7 @@ impl BlueprintProtocolBehaviour {
         data: impl Into<Vec<u8>>,
     ) -> Result<MessageId, gossipsub::PublishError> {
         let topic = Sha256Topic::new(topic);
-        self.gossipsub.publish(topic, data)
+        self.blueprint_protocol.gossipsub.publish(topic, data)
     }
 
     /// Verify and handle a handshake with a peer
@@ -182,15 +227,10 @@ impl BlueprintProtocolBehaviour {
 }
 
 impl NetworkBehaviour for BlueprintProtocolBehaviour {
-    type ConnectionHandler = <request_response::cbor::Behaviour<
-        InstanceMessageRequest,
-        InstanceMessageResponse,
-    > as NetworkBehaviour>::ConnectionHandler;
+    type ConnectionHandler =
+        <DerivedBlueprintProtocolBehaviour as NetworkBehaviour>::ConnectionHandler;
 
-    type ToSwarm = <request_response::cbor::Behaviour<
-        InstanceMessageRequest,
-        InstanceMessageResponse,
-    > as NetworkBehaviour>::ToSwarm;
+    type ToSwarm = BlueprintProtocolEvent;
 
     fn handle_established_inbound_connection(
         &mut self,
@@ -199,12 +239,8 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         local_addr: &libp2p::Multiaddr,
         remote_addr: &libp2p::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        self.request_response.handle_established_inbound_connection(
-            connection_id,
-            peer,
-            local_addr,
-            remote_addr,
-        )
+        self.blueprint_protocol
+            .handle_established_inbound_connection(connection_id, peer, local_addr, remote_addr)
     }
 
     fn handle_established_outbound_connection(
@@ -215,7 +251,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         role_override: libp2p::core::Endpoint,
         port_use: PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        self.request_response
+        self.blueprint_protocol
             .handle_established_outbound_connection(
                 connection_id,
                 peer,
@@ -231,7 +267,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         local_addr: &libp2p::Multiaddr,
         remote_addr: &libp2p::Multiaddr,
     ) -> Result<(), ConnectionDenied> {
-        self.request_response.handle_pending_inbound_connection(
+        self.blueprint_protocol.handle_pending_inbound_connection(
             connection_id,
             local_addr,
             remote_addr,
@@ -245,7 +281,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         addresses: &[libp2p::Multiaddr],
         effective_role: libp2p::core::Endpoint,
     ) -> Result<Vec<libp2p::Multiaddr>, ConnectionDenied> {
-        self.request_response.handle_pending_outbound_connection(
+        self.blueprint_protocol.handle_pending_outbound_connection(
             connection_id,
             maybe_peer,
             addresses,
@@ -259,69 +295,72 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         connection_id: ConnectionId,
         event: THandlerOutEvent<Self>,
     ) {
-        self.request_response
+        self.blueprint_protocol
             .on_connection_handler_event(peer_id, connection_id, event)
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
         if let FromSwarm::ConnectionEstablished(e) = &event {
             if e.other_established == 0 {
-                self.pending_handshake_peers
-                    .insert(e.peer_id, Instant::now());
+                self.inbound_handshakes.insert(e.peer_id, Instant::now());
             }
         }
 
-        self.request_response.on_swarm_event(event)
+        self.blueprint_protocol.on_swarm_event(event)
     }
 
     fn poll(
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
-        if let Poll::Ready(ev) = self.request_response.poll(cx) {
-            // Remove a peer from `pending_handshake_peers` when its handshake request is received.
-            if let ToSwarm::GenerateEvent(request_response::Event::Message {
-                peer,
-                message:
-                    request_response::Message::Request {
-                        request:
-                            InstanceMessageRequest::Handshake {
-                                public_key,
-                                signature,
-                            },
-                        ..
-                    },
-                ..
-            }) = &ev
-            {
-                match self.handle_handshake(peer, public_key, signature) {
-                    Ok(_) => {
-                        self.pending_handshake_peers.remove(&peer);
+        while let Poll::Ready(ev) = self.blueprint_protocol.poll(cx) {
+            match ev {
+                ToSwarm::GenerateEvent(ev) => match &ev {
+                    DerivedBlueprintProtocolBehaviourEvent::RequestResponse(
+                        blueprint_protocol_event,
+                    ) => self.handle_request_response_event(blueprint_protocol_event),
+                    DerivedBlueprintProtocolBehaviourEvent::Gossipsub(gossip_event) => {
+                        self.handle_gossipsub_event(gossip_event)
                     }
-                    Err(e) => {
-                        self.handle_handshake_failure(peer, "Handshake request failed");
-                    }
+                },
+                ToSwarm::Dial { opts } => {
+                    return Poll::Ready(ToSwarm::Dial { opts });
                 }
+                ToSwarm::NotifyHandler {
+                    peer_id,
+                    handler,
+                    event,
+                } => {
+                    return Poll::Ready(ToSwarm::NotifyHandler {
+                        peer_id,
+                        handler,
+                        event,
+                    })
+                }
+                ToSwarm::CloseConnection {
+                    peer_id,
+                    connection,
+                } => {
+                    return Poll::Ready(ToSwarm::CloseConnection {
+                        peer_id,
+                        connection,
+                    })
+                }
+                ToSwarm::ListenOn { opts } => return Poll::Ready(ToSwarm::ListenOn { opts }),
+                ToSwarm::RemoveListener { id } => {
+                    return Poll::Ready(ToSwarm::RemoveListener { id })
+                }
+                ToSwarm::NewExternalAddrCandidate(addr) => {
+                    return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr))
+                }
+                ToSwarm::ExternalAddrConfirmed(addr) => {
+                    return Poll::Ready(ToSwarm::ExternalAddrConfirmed(addr))
+                }
+                ToSwarm::ExternalAddrExpired(addr) => {
+                    return Poll::Ready(ToSwarm::ExternalAddrExpired(addr))
+                }
+                _ => {}
             }
-
-            return Poll::Ready(ev);
-        }
-
-        // Track peers whose handshake requests have timed out
-        const INBOUND_HANDSHAKE_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
-        let now = Instant::now();
-        if let Some((&peer_id, _)) = self
-            .pending_handshake_peers
-            .clone()
-            .into_read_only()
-            .iter()
-            .find(|(_, &connected_instant)| {
-                now.duration_since(connected_instant) > INBOUND_HANDSHAKE_WAIT_TIMEOUT
-            })
-        {
-            self.pending_handshake_peers.remove(&peer_id);
-            self.handle_handshake_failure(&peer_id, "Handshake request timeout");
-            debug!(peer=%peer_id, "Handshake request timed out, marking failure");
         }
 
         Poll::Pending
