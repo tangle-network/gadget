@@ -1,9 +1,3 @@
-# This line needs to come before anything else in Cargo.toml
-cargo-features = ["codegen-backend"]
-
-[profile.dev]
-codegen-backend = "cranelift"
-
 [workspace]
 resolver = "2"
 members = ["cli", "blueprints/*", "crates/*"]
