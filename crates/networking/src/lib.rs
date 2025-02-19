@@ -65,12 +65,6 @@ pub mod key_types {
         K256Ecdsa as Curve, K256Signature as InstanceSignedMsgSignature,
         K256SigningKey as InstanceMsgKeyPair, K256VerifyingKey as InstanceMsgPublicKey,
     };
-
-    impl super::KeySignExt for InstanceMsgKeyPair {
-        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
-            self.sign_prehash(prehash)
-        }
-    }
 }
 
 // Compile-time assertion to ensure only one feature is enabled
