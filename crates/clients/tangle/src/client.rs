@@ -154,17 +154,17 @@ impl TangleClient {
         let parties = self.get_operators().await?;
         let my_id = self
             .keystore
-            .first_local::<SpEcdsa>()
+            .first_local::<SpSr25519>()
             .map_err(Error::Keystore)?;
 
         gadget_logging::trace!(
-            "Looking for {my_id:?} in parties: {:?}",
+            "Looking for {my_id} in parties: {:?}",
             parties.keys().collect::<Vec<_>>()
         );
 
         let index_of_my_id = parties
             .iter()
-            .position(|(_id, key)| key == &my_id.0)
+            .position(|(id, _key)| id.0 == my_id.0.to_raw())
             .ok_or(Error::PartyNotFound)?;
 
         Ok((index_of_my_id, parties))
