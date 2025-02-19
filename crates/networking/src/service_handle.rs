@@ -1,3 +1,4 @@
+use crate::types::{MessageRouting, ParticipantInfo};
 use crate::{
     blueprint_protocol::InstanceMessageRequest,
     discovery::{PeerInfo, PeerManager},
@@ -5,12 +6,11 @@ use crate::{
     types::ProtocolMessage,
 };
 use crossbeam_channel::{self, Receiver, Sender};
+use libp2p::gossipsub::Sha256Topic;
 use libp2p::{Multiaddr, PeerId};
 use std::sync::Arc;
-use libp2p::gossipsub::Sha256Topic;
 use tokio::task::JoinHandle;
 use tracing::{debug, info};
-use crate::types::{MessageRouting, ParticipantInfo};
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
@@ -114,9 +114,8 @@ impl NetworkServiceHandle {
 
     #[must_use]
     pub fn send(&self, routing: MessageRouting, message: impl Into<Vec<u8>>) -> Result<(), String> {
-        let protocol = Sha256Topic::new(&*self.blueprint_protocol_name).to_string();
         let protocol_message = ProtocolMessage {
-            protocol: protocol.clone(),
+            protocol: self.blueprint_protocol_name.clone().to_string(),
             routing,
             payload: message.into(),
         };
@@ -125,7 +124,7 @@ impl NetworkServiceHandle {
         match protocol_message.routing.recipient {
             Some(recipient) => {
                 let instance_message_request = InstanceMessageRequest::Protocol {
-                    protocol,
+                    protocol: self.blueprint_protocol_name.clone().to_string(),
                     payload: raw_payload,
                     metadata: None,
                 };
@@ -134,7 +133,8 @@ impl NetworkServiceHandle {
                     return Ok(());
                 };
 
-                let Some(peer_id) = self.peer_manager.get_peer_id_from_public_key(&public_key) else {
+                let Some(peer_id) = self.peer_manager.get_peer_id_from_public_key(&public_key)
+                else {
                     return Ok(());
                 };
 
@@ -143,11 +143,11 @@ impl NetworkServiceHandle {
                     request: instance_message_request,
                 })?;
                 debug!("Sent outbound p2p `NetworkMessage` to {:?}", peer_id);
-            },
+            }
             None => {
                 let gossip_message = NetworkMessage::GossipMessage {
                     source: self.local_peer_id,
-                    topic: protocol,
+                    topic: self.blueprint_protocol_name.clone().to_string(),
                     message: raw_payload,
                 };
                 self.send_network_message(gossip_message)?;

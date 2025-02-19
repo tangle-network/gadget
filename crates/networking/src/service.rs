@@ -182,7 +182,10 @@ impl NetworkService {
             .unwrap()
             .build();
 
-        swarm.behaviour_mut().blueprint_protocol.subscribe(&blueprint_protocol_name)?;
+        swarm
+            .behaviour_mut()
+            .blueprint_protocol
+            .subscribe(&blueprint_protocol_name)?;
 
         // Start listening
         swarm.listen_on(listen_addr)?;
@@ -215,7 +218,11 @@ impl NetworkService {
         // Create handle with new interface
         let handle = NetworkServiceHandle::new(
             local_peer_id,
-            self.swarm.behaviour().blueprint_protocol.blueprint_protocol_name.clone(),
+            self.swarm
+                .behaviour()
+                .blueprint_protocol
+                .blueprint_protocol_name
+                .clone(),
             self.peer_manager.clone(),
             network_sender,
             protocol_message_receiver,
