@@ -141,21 +141,19 @@ impl BlueprintProtocolBehaviour {
         key_pair: &mut InstanceMsgKeyPair,
         peer: &PeerId,
         handshake_msg: &HandshakeMessage,
-    ) -> InstanceSignedMsgSignature {
+    ) -> Option<InstanceSignedMsgSignature> {
         let msg = handshake_msg.to_bytes(peer);
         match <Curve as KeyType>::sign_with_secret(key_pair, &msg) {
             Ok(signature) => {
                 let public_key = key_pair.public();
                 let hex_msg = hex::encode(msg);
-                let hex_public_key = hex::encode(public_key.0.to_raw());
-                let hex_signature = hex::encode(signature.0.to_raw());
 
-                debug!(%peer, %hex_msg, %hex_public_key, %hex_signature, "signing handshake");
-                signature
+                debug!(%peer, ?hex_msg, %public_key, %signature, "signing handshake");
+                Some(signature)
             }
             Err(e) => {
                 warn!("Failed to sign handshake message: {e}");
-                InstanceSignedMsgSignature::default()
+                None
             }
         }
     }
@@ -346,8 +344,12 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                         e.peer_id
                     );
                     let mut key_pair = self.instance_key_pair.clone();
+
                     let handshake_msg = HandshakeMessage::new(self.local_peer_id);
-                    let signature = self.sign_handshake(&mut key_pair, &e.peer_id, &handshake_msg);
+                    let Some(signature) = self.sign_handshake(&mut key_pair, &e.peer_id) else {
+                        return;
+                    };
+
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {
