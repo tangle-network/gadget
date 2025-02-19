@@ -282,7 +282,8 @@ impl BlueprintProtocolBehaviour {
                 debug!(%propagation_source, "Received gossip message");
 
                 // Deserialize the protocol message
-                let Ok(protocol_message) = bincode::deserialize::<ProtocolMessage>(&message.data) else {
+                let Ok(protocol_message) = bincode::deserialize::<ProtocolMessage>(&message.data)
+                else {
                     warn!(%propagation_source, "Failed to deserialize gossip message");
                     return;
                 };
