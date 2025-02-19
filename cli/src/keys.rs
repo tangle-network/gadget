@@ -1,11 +1,15 @@
+use bip39::{Language, Mnemonic};
 use color_eyre::eyre::Result;
-use gadget_crypto::sp_core::{SpBls377, SpBls377Pair, SpBls377Public, SpBls381, SpBls381Pair, SpBls381Public, SpEcdsa, SpEcdsaPair, SpEcdsaPublic, SpEd25519, SpEd25519Pair, SpEd25519Public, SpSr25519, SpSr25519Pair, SpSr25519Public};
+use gadget_crypto::bn254::{ArkBlsBn254Public, ArkBlsBn254Secret};
+use gadget_crypto::sp_core::{
+    SpBls377, SpBls377Pair, SpBls377Public, SpBls381, SpBls381Pair, SpBls381Public, SpEcdsa,
+    SpEcdsaPair, SpEcdsaPublic, SpEd25519, SpEd25519Pair, SpEd25519Public, SpSr25519,
+    SpSr25519Pair, SpSr25519Public,
+};
 use gadget_crypto::{bn254::ArkBlsBn254, KeyTypeId};
 use gadget_crypto_core::{KeyEncoding, KeyType};
 use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
 use std::path::Path;
-use bip39::{Mnemonic, Language};
-use gadget_crypto::bn254::{ArkBlsBn254Public, ArkBlsBn254Secret};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -101,11 +105,7 @@ pub fn generate_mnemonic(word_count: Option<u32>) -> Result<String> {
     Ok(mnemonic.to_string())
 }
 
-pub fn import_key(
-    key_type: KeyTypeId,
-    secret: &str,
-    keystore_path: &Path,
-) -> Result<String> {
+pub fn import_key(key_type: KeyTypeId, secret: &str, keystore_path: &Path) -> Result<String> {
     let mut config = KeystoreConfig::new();
     config = config.fs_root(keystore_path);
     let keystore = Keystore::new(config)?;
@@ -149,11 +149,7 @@ pub fn import_key(
     Ok(public_key)
 }
 
-pub fn export_key(
-    key_type: KeyTypeId,
-    public: &str,
-    keystore_path: &Path,
-) -> Result<String> {
+pub fn export_key(key_type: KeyTypeId, public: &str, keystore_path: &Path) -> Result<String> {
     let mut config = KeystoreConfig::new();
     config = config.fs_root(keystore_path);
     let keystore = Keystore::new(config)?;

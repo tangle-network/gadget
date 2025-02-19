@@ -170,7 +170,6 @@ impl Backend for Keystore {
         Ok(public)
     }
 
-
     /// Insert a key pair
     fn insert<T: KeyType>(&self, secret: &T::Secret) -> Result<()>
     where
@@ -179,9 +178,11 @@ impl Backend for Keystore {
     {
         let backends = self.get_storage_backends::<T>()?;
         for entry in backends {
-            entry
-                .storage
-                .store_raw(T::key_type_id(), T::public_from_secret(secret).to_bytes(), secret.to_bytes())?;
+            entry.storage.store_raw(
+                T::key_type_id(),
+                T::public_from_secret(secret).to_bytes(),
+                secret.to_bytes(),
+            )?;
         }
         Ok(())
     }
