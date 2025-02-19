@@ -1,11 +1,12 @@
-use crate::service::NetworkMessage;
+use super::init_tracing;
+use super::NetworkServiceHandleExt;
 use super::TestNode;
+use super::{wait_for_peer_discovery, wait_for_peer_info};
+use crate::service::NetworkMessage;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::{debug, info};
 use tracing_subscriber::{fmt, EnvFilter};
-use super::init_tracing;
-use super::NetworkServiceHandleExt;
 
 #[tokio::test]
 async fn test_peer_discovery_mdns() {
@@ -23,24 +24,11 @@ async fn test_peer_discovery_mdns() {
     let handle1 = node1.start().await.expect("Failed to start node1");
     let handle2 = node2.start().await.expect("Failed to start node2");
 
-    // Wait for peer discovery (with timeout)
-    let discovery_timeout = Duration::from_secs(10);
-    match timeout(discovery_timeout, async {
-        loop {
-            let peers1 = handle1.peers();
-            let peers2 = handle2.peers();
-
-            if peers1.contains(&node2.peer_id) && peers2.contains(&node1.peer_id) {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    {
-        Ok(_) => println!("Peers discovered each other successfully"),
-        Err(_) => panic!("Peer discovery timed out"),
-    }
+    // First wait for basic peer discovery (they see each other)
+    let discovery_timeout = Duration::from_secs(20);
+    wait_for_peer_discovery(&[&handle1, &handle2], discovery_timeout)
+        .await
+        .expect("Basic peer discovery timed out");
 }
 
 #[tokio::test]
@@ -118,53 +106,15 @@ async fn test_peer_info_updates() {
     let mut handle1 = node1.start().await.expect("Failed to start node1");
     let handle2 = node2.start().await.expect("Failed to start node2");
 
-    info!("Waiting for peer discovery...");
     // First wait for basic peer discovery (they see each other)
     let discovery_timeout = Duration::from_secs(20);
-    timeout(discovery_timeout, async {
-        loop {
-            let peers1 = handle1.peers();
-            let peers2 = handle2.peers();
-
-            debug!("Node1 peers: {:?}, Node2 peers: {:?}", peers1, peers2);
-
-            if peers1.contains(&node2.peer_id) && peers2.contains(&node1.peer_id) {
-                info!("Basic peer discovery successful");
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    .expect("Basic peer discovery timed out");
+    wait_for_peer_discovery(&[&handle1, &handle2], discovery_timeout)
+        .await
+        .expect("Basic peer discovery timed out");
 
     handle1.dial(&handle2);
 
-    info!("Waiting for identify info...");
     // Now wait for identify info to be populated
     let identify_timeout = Duration::from_secs(20);
-    match timeout(identify_timeout, async {
-        loop {
-            let peer_info1 = handle1.peer_info(&node2.peer_id);
-            let peer_info2 = handle2.peer_info(&node1.peer_id);
-
-            if let Some(peer_info) = peer_info1 {
-                if peer_info.identify_info.is_some() {
-                    // Also verify reverse direction
-                    if let Some(peer_info) = peer_info2 {
-                        if peer_info.identify_info.is_some() {
-                            info!("Identify info populated in both directions");
-                            break;
-                        }
-                    }
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    {
-        Ok(_) => info!("Peer info updated successfully in both directions"),
-        Err(_) => panic!("Peer info update timed out"),
-    }
+    wait_for_peer_info(&handle1, &handle2, identify_timeout).await;
 }
