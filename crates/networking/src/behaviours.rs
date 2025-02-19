@@ -22,6 +22,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use tracing::{debug, info};
 
 const MAX_ESTABLISHED_PER_PEER: u32 = 4;
 
@@ -79,6 +80,10 @@ impl GadgetBehaviour {
 
         let ping = ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(30)));
 
+        info!(
+            "Setting up discovery behavior with network name: {}",
+            network_name
+        );
         let discovery = DiscoveryConfig::new(local_key.public(), network_name)
             .with_mdns(true)
             .with_kademlia(true)
@@ -86,6 +91,10 @@ impl GadgetBehaviour {
             .build()
             .unwrap();
 
+        info!(
+            "Setting up blueprint protocol with name: {}",
+            blueprint_protocol_name
+        );
         let blueprint_protocol = BlueprintProtocolBehaviour::new(
             local_key,
             instance_secret_key,
@@ -95,6 +104,7 @@ impl GadgetBehaviour {
             protocol_message_sender,
         );
 
+        debug!("Created GadgetBehaviour with all components initialized");
         Self {
             connection_limits,
             discovery,

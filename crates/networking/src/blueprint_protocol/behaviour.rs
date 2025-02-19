@@ -5,7 +5,6 @@ use crate::{
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
 use gadget_crypto::{hashing::blake3_256, KeyType};
-use gadget_logging::{debug, info, trace, warn};
 use libp2p::{
     core::transport::PortUse,
     gossipsub::{self, IdentTopic, MessageAuthenticity, MessageId, Sha256Topic},
@@ -22,6 +21,7 @@ use std::{
     task::Poll,
     time::{Duration, Instant},
 };
+use tracing::{debug, info, trace, warn};
 
 use crate::discovery::PeerManager;
 

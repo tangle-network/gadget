@@ -36,6 +36,7 @@ crossbeam-channel = { workspace = true }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
+gadget-crypto-core = { workspace = true, features = ["k256"] }
 k256 = { workspace = true }
 
 # Round-based protocol support
@@ -65,8 +66,12 @@ features = [
 ]
 
 [dev-dependencies]
+gadget-networking = { workspace = true, features = ["sp-core-ecdsa"] }
+gadget-crypto = { workspace = true, features = ["sp-core"] }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
 tracing-subscriber = { workspace = true }
 lazy_static = { workspace = true }
+fastrand = "2.0"
 
 [features]
 default = ["std"]

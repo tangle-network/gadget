@@ -2,7 +2,6 @@ use super::{
     behaviour::{DerivedDiscoveryBehaviour, DiscoveryBehaviour},
     new_kademlia,
 };
-use gadget_logging::warn;
 use libp2p::{
     autonat, identify, identity::PublicKey, mdns, relay, upnp, Multiaddr, PeerId, StreamProtocol,
 };
@@ -10,6 +9,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
 };
+use tracing::warn;
 
 pub struct DiscoveryConfig {
     /// The local peer ID.

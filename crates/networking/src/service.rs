@@ -17,13 +17,12 @@ use crate::{
     types::ProtocolMessage,
 };
 use crossbeam_channel::{self, Receiver, Sender};
-use dashmap::DashMap;
 use futures::StreamExt;
-use gadget_logging::trace;
 use libp2p::{
-    identify, identity::Keypair, ping, swarm::SwarmEvent, Multiaddr, PeerId, Swarm, SwarmBuilder,
-    Transport,
+    identify, identity::Keypair, kad, mdns, ping, swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
+    SwarmBuilder,
 };
+use tracing::trace;
 use tracing::{debug, info, warn};
 
 /// Events emitted by the network service
@@ -124,7 +123,7 @@ pub struct NetworkService {
     /// The libp2p swarm
     swarm: Swarm<GadgetBehaviour>,
     /// Peer manager for tracking peer states
-    peer_manager: Arc<PeerManager>,
+    pub(crate) peer_manager: Arc<PeerManager>,
     /// Channel for sending messages to the network service
     network_sender: Sender<NetworkMessage>,
     /// Channel for receiving messages from the network service
@@ -223,17 +222,23 @@ impl NetworkService {
 
     pub fn start(self) -> NetworkServiceHandle {
         let local_peer_id = *self.swarm.local_peer_id();
-        let public_keys_to_peer_ids = Arc::new(DashMap::new());
         let network_sender = self.network_sender.clone();
         let protocol_message_receiver = self.protocol_message_receiver.clone();
 
         // Create handle with new interface
         let handle = NetworkServiceHandle::new(
             local_peer_id,
-            public_keys_to_peer_ids.clone(),
+            self.peer_manager.clone(),
             network_sender,
             protocol_message_receiver,
         );
+
+        // Add our own peer ID to the peer manager with all listening addresses
+        let mut info = PeerInfo::default();
+        for addr in self.swarm.listeners() {
+            info.addresses.insert(addr.clone());
+        }
+        self.peer_manager.update_peer(local_peer_id, info);
 
         // Spawn background task
         tokio::spawn(async move {
@@ -294,6 +299,15 @@ impl NetworkService {
 
         info!("Network service stopped");
     }
+
+    /// Get the current listening address
+    pub async fn get_listen_addr(&self) -> Option<Multiaddr> {
+        if let Some(addr) = self.swarm.listeners().next() {
+            Some(addr.clone())
+        } else {
+            None
+        }
+    }
 }
 
 /// Handle a swarm event
@@ -351,11 +365,16 @@ async fn handle_discovery_event(
 ) -> Result<(), Error> {
     match event {
         DiscoveryEvent::PeerConnected(peer_id) => {
-            trace!("Peer connected, {peer_id}");
+            info!("Peer connected, {peer_id}");
+            // Update peer info when connected
+            if let Some(info) = peer_info_map.get(&peer_id) {
+                peer_manager.update_peer(peer_id, info.clone());
+            }
             event_sender.send(NetworkEvent::PeerConnected(peer_id))?;
         }
         DiscoveryEvent::PeerDisconnected(peer_id) => {
-            trace!("Peer disconnected, {peer_id}");
+            info!("Peer disconnected, {peer_id}");
+            peer_manager.remove_peer(&peer_id, "disconnected");
             event_sender.send(NetworkEvent::PeerDisconnected(peer_id))?;
         }
         DiscoveryEvent::Discovery(discovery_event) => match &*discovery_event {
@@ -364,14 +383,61 @@ async fn handle_discovery_event(
                 info,
                 ..
             }) => {
+                info!(%peer_id, "Received identify event");
                 let protocols: HashSet<String> =
                     HashSet::from_iter(info.protocols.iter().map(std::string::ToString::to_string));
+
+                debug!(%peer_id, ?protocols, "Supported protocols");
+
                 if !protocols.contains(blueprint_protocol_name) {
+                    warn!(%peer_id, %blueprint_protocol_name, "Peer does not support required protocol");
                     peer_manager
-                        .ban_peer_with_default_duration(*peer_id, "hello protocol unsupported");
+                        .ban_peer_with_default_duration(*peer_id, "protocol unsupported")
+                        .await;
+                    return Ok(());
+                }
+
+                // Get existing peer info or create new one
+                let mut peer_info = peer_manager.get_peer_info(peer_id).unwrap_or_default();
+
+                // Update identify info
+                peer_info.identify_info = Some(info.clone());
+
+                debug!(%peer_id, listen_addrs=?info.listen_addrs, "Adding identify addresses");
+                // Add all addresses from identify info
+                for addr in &info.listen_addrs {
+                    peer_info.addresses.insert(addr.clone());
+                }
+
+                debug!(%peer_id, "Updating peer info with identify information");
+                peer_manager.update_peer(*peer_id, peer_info);
+                info!(%peer_id, "Successfully processed identify information");
+            }
+            DerivedDiscoveryBehaviourEvent::Identify(_) => {
+                // Ignore other identify events
+            }
+            DerivedDiscoveryBehaviourEvent::Kademlia(kad::Event::OutboundQueryProgressed {
+                result: kad::QueryResult::GetClosestPeers(Ok(ok)),
+                ..
+            }) => {
+                // Process newly discovered peers
+                for peer_info in ok.peers.iter() {
+                    if !peer_manager.get_peers().contains_key(&peer_info.peer_id) {
+                        let info = PeerInfo::default();
+                        peer_manager.update_peer(peer_info.peer_id, info);
+                    }
                 }
             }
-            DerivedDiscoveryBehaviourEvent::Identify(_) => {}
+            DerivedDiscoveryBehaviourEvent::Mdns(mdns::Event::Discovered(list)) => {
+                // Add newly discovered peers from mDNS
+                for (peer_id, addr) in list {
+                    if !peer_manager.get_peers().contains_key(peer_id) {
+                        let mut info = PeerInfo::default();
+                        info.addresses.insert(addr.clone());
+                        peer_manager.update_peer(*peer_id, info);
+                    }
+                }
+            }
             _ => {}
         },
     }

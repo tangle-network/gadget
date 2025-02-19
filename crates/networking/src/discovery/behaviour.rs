@@ -5,14 +5,13 @@ use std::{
     time::Duration,
 };
 
-use gadget_logging::trace;
 use libp2p::{
     autonat,
     core::Multiaddr,
     identify,
     identity::PeerId,
-    kad::{self, store::MemoryStore},
-    mdns::{tokio::Behaviour as Mdns, Event as MdnsEvent},
+    kad::{self, store::MemoryStore, Event as KademliaEvent},
+    mdns::{self, Event as MdnsEvent},
     relay,
     swarm::{
         behaviour::toggle::Toggle, derive_prelude::*, dial_opts::DialOpts, NetworkBehaviour,
@@ -21,6 +20,7 @@ use libp2p::{
     upnp,
 };
 use tokio::time::Interval;
+use tracing::trace;
 use tracing::{debug, info};
 
 use super::PeerInfo;
@@ -30,7 +30,7 @@ pub struct DerivedDiscoveryBehaviour {
     /// Kademlia discovery
     pub kademlia: Toggle<kad::Behaviour<MemoryStore>>,
     /// Local network discovery via mDNS
-    pub mdns: Toggle<Mdns>,
+    pub mdns: Toggle<mdns::tokio::Behaviour>,
     /// Identify protocol for peer information exchange
     pub identify: identify::Behaviour,
     /// NAT traversal
@@ -124,6 +124,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         local_addr: &Multiaddr,
         remote_addr: &Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(%peer, "Handling inbound connection");
         self.discovery.handle_established_inbound_connection(
             connection_id,
             peer,
@@ -140,16 +141,20 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         role_override: libp2p::core::Endpoint,
         port_use: PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(%peer, "Handling outbound connection");
         self.peer_info
             .entry(peer)
-            .or_insert_with(|| PeerInfo {
-                addresses: HashSet::new(),
-                identify_info: None,
-                last_seen: std::time::SystemTime::now(),
-                ping_latency: None,
-                successes: 0,
-                failures: 0,
-                average_response_time: None,
+            .or_insert_with(|| {
+                debug!(%peer, "Creating new peer info for outbound connection");
+                PeerInfo {
+                    addresses: HashSet::new(),
+                    identify_info: None,
+                    last_seen: std::time::SystemTime::now(),
+                    ping_latency: None,
+                    successes: 0,
+                    failures: 0,
+                    average_response_time: None,
+                }
             })
             .addresses
             .insert(addr.clone());
@@ -168,6 +173,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         connection: ConnectionId,
         event: THandlerOutEvent<Self>,
     ) {
+        debug!(%peer_id, "Handling connection handler event");
         self.discovery
             .on_connection_handler_event(peer_id, connection, event);
     }
@@ -176,6 +182,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         match &event {
             FromSwarm::ConnectionEstablished(e) => {
                 if e.other_established == 0 {
+                    debug!(%e.peer_id, "First connection established with peer");
                     self.n_node_connected += 1;
                     self.peers.insert(e.peer_id);
                     self.pending_events
@@ -184,6 +191,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             }
             FromSwarm::ConnectionClosed(e) => {
                 if e.remaining_established == 0 {
+                    debug!(%e.peer_id, "Last connection closed with peer");
                     self.n_node_connected -= 1;
                     self.peers.remove(&e.peer_id);
                     self.peer_info.remove(&e.peer_id);
@@ -240,17 +248,46 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             match ev {
                 ToSwarm::GenerateEvent(ev) => {
                     match &ev {
-                        DerivedDiscoveryBehaviourEvent::Identify(ev) => {
-                            if let identify::Event::Received { peer_id, info, .. } = ev {
-                                self.peer_info.entry(*peer_id).or_default().identify_info =
-                                    Some(info.clone());
-                                if let Some(kademlia) = self.discovery.kademlia.as_mut() {
-                                    for address in &info.listen_addrs {
-                                        kademlia.add_address(peer_id, address.clone());
-                                    }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Received {
+                            peer_id,
+                            info,
+                            connection_id,
+                        }) => {
+                            debug!(%peer_id, "Received identify event in discovery behaviour");
+                            self.peer_info.entry(*peer_id).or_default().identify_info =
+                                Some(info.clone());
+                            if let Some(kademlia) = self.discovery.kademlia.as_mut() {
+                                for address in &info.listen_addrs {
+                                    kademlia.add_address(peer_id, address.clone());
                                 }
                             }
+                            self.pending_events
+                                .push_back(DiscoveryEvent::Discovery(Box::new(
+                                    DerivedDiscoveryBehaviourEvent::Identify(
+                                        identify::Event::Received {
+                                            peer_id: *peer_id,
+                                            info: info.clone(),
+                                            connection_id: *connection_id,
+                                        },
+                                    ),
+                                )));
                         }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Sent {
+                            ..
+                        }) => {
+                            debug!("Identify event sent");
+                        }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Pushed {
+                            ..
+                        }) => {
+                            debug!("Identify event pushed");
+                        }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Error {
+                            ..
+                        }) => {
+                            debug!("Identify event error");
+                        }
+
                         DerivedDiscoveryBehaviourEvent::Autonat(_) => {}
                         DerivedDiscoveryBehaviourEvent::Upnp(ev) => match ev {
                             upnp::Event::NewExternalAddr(addr) => {

@@ -1,13 +1,14 @@
 use crate::{
-    blueprint_protocol::InstanceMessageRequest, key_types::InstanceMsgPublicKey,
-    service::NetworkMessage, types::ProtocolMessage,
+    blueprint_protocol::InstanceMessageRequest,
+    discovery::{PeerInfo, PeerManager},
+    service::NetworkMessage,
+    types::ProtocolMessage,
 };
 use crossbeam_channel::{self, Receiver, Sender};
-use dashmap::DashMap;
-use gadget_logging::info;
-use libp2p::PeerId;
+use libp2p::{Multiaddr, PeerId};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
@@ -55,7 +56,7 @@ pub struct NetworkServiceHandle {
     pub local_peer_id: PeerId,
     pub sender: NetworkSender,
     pub receiver: NetworkReceiver,
-    pub public_keys_to_peer_ids: Arc<DashMap<InstanceMsgPublicKey, PeerId>>,
+    pub peer_manager: Arc<PeerManager>,
 }
 
 impl Clone for NetworkServiceHandle {
@@ -64,7 +65,7 @@ impl Clone for NetworkServiceHandle {
             local_peer_id: self.local_peer_id,
             sender: self.sender.clone(),
             receiver: NetworkReceiver::new(self.receiver.protocol_message_receiver.clone()),
-            public_keys_to_peer_ids: self.public_keys_to_peer_ids.clone(),
+            peer_manager: self.peer_manager.clone(),
         }
     }
 }
@@ -73,7 +74,7 @@ impl NetworkServiceHandle {
     #[must_use]
     pub fn new(
         local_peer_id: PeerId,
-        public_keys_to_peer_ids: Arc<DashMap<InstanceMsgPublicKey, PeerId>>,
+        peer_manager: Arc<PeerManager>,
         network_message_sender: Sender<NetworkMessage>,
         protocol_message_receiver: Receiver<ProtocolMessage>,
     ) -> Self {
@@ -81,12 +82,26 @@ impl NetworkServiceHandle {
             local_peer_id,
             sender: NetworkSender::new(network_message_sender),
             receiver: NetworkReceiver::new(protocol_message_receiver),
-            public_keys_to_peer_ids,
+            peer_manager,
         }
     }
 
     pub async fn next_protocol_message(&mut self) -> Option<ProtocolMessage> {
         self.receiver.try_recv().ok()
+    }
+
+    pub fn peers(&self) -> Vec<PeerId> {
+        self.peer_manager
+            .get_peers()
+            .clone()
+            .into_read_only()
+            .iter()
+            .map(|(peer_id, _)| *peer_id)
+            .collect()
+    }
+
+    pub fn peer_info(&self, peer_id: &PeerId) -> Option<PeerInfo> {
+        self.peer_manager.get_peer_info(peer_id)
     }
 
     pub fn send_protocol_message(&self, message: ProtocolMessage) -> Result<(), String> {
@@ -99,9 +114,9 @@ impl NetworkServiceHandle {
             };
             let recipient = message.routing.recipient.unwrap();
             if let Some(public_key) = recipient.public_key {
-                if let Some(peer_id) = self.public_keys_to_peer_ids.get(&public_key) {
+                if let Some(peer_id) = self.peer_manager.get_peer_id_from_public_key(&public_key) {
                     self.sender.send_message(NetworkMessage::InstanceRequest {
-                        peer: *peer_id,
+                        peer: peer_id,
                         request: instance_message_request,
                     })?;
                     info!("Sent outbound p2p `NetworkMessage` to {:?}", peer_id);
@@ -118,6 +133,16 @@ impl NetworkServiceHandle {
         }
 
         Ok(())
+    }
+
+    pub async fn get_listen_addr(&self) -> Option<Multiaddr> {
+        // Get the first peer info for our local peer ID
+        if let Some(peer_info) = self.peer_manager.get_peer_info(&self.local_peer_id) {
+            // Return the first address from our peer info
+            peer_info.addresses.iter().next().cloned()
+        } else {
+            None
+        }
     }
 
     /// Split the handle into separate sender and receiver
