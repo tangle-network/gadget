@@ -20,5 +20,29 @@ crossbeam = { workspace = true }
 crossbeam-channel = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+round-based = { workspace = true, features = ["derive"] }
+libp2p = { workspace = true, features = [
+    "tokio",
+    "gossipsub",
+    "mdns",
+    "noise",
+    "macros",
+    "yamux",
+    "tcp",
+    "quic",
+    "request-response",
+    "cbor",
+    "identify",
+    "kad",
+    "dcutr",
+    "relay",
+    "ping",
+    "dns",
+    "autonat",
+    "upnp",
+] }
+
+
 [lints]
 workspace = true

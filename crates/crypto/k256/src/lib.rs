@@ -5,6 +5,7 @@ pub mod error;
 #[cfg(test)]
 mod tests;
 
+use std::hash::{Hash, Hasher};
 use crate::error::{K256Error, Result};
 use alloy_signer_local::LocalSigner;
 use gadget_crypto_core::KeyEncoding;
@@ -13,49 +14,9 @@ use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
 use k256::ecdsa::{SigningKey, VerifyingKey};
-use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
 pub struct K256Ecdsa;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct K256VerifyingKey(pub VerifyingKey);
-
-impl From<K256VerifyingKey> for VerifyingKey {
-    fn from(key: K256VerifyingKey) -> Self {
-        key.0
-    }
-}
-
-impl KeyEncoding for K256VerifyingKey {
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_sec1_bytes().to_vec()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
-        let vk = VerifyingKey::from_sec1_bytes(bytes)
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-        Ok(K256VerifyingKey(vk))
-    }
-}
-
-impl PartialOrd for K256VerifyingKey {
-    fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for K256VerifyingKey {
-    fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
-        self.0.to_sec1_bytes().cmp(&other.0.to_sec1_bytes())
-    }
-}
-
-impl gadget_std::hash::Hash for K256VerifyingKey {
-    fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
-        self.0.to_sec1_bytes().hash(state);
-    }
-}
 
 macro_rules! impl_serde_bytes {
     ($wrapper:ident, $inner:path) => {
@@ -101,13 +62,41 @@ macro_rules! impl_serde_bytes {
                 D: serde::Deserializer<'de>,
             {
                 let bytes = Vec::<u8>::deserialize(deserializer)?;
-                let inner = <$inner>::from_slice(&bytes)
+                let ret = <$wrapper as KeyEncoding>::from_bytes(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-                Ok($wrapper(inner))
+                Ok(ret)
+            }
+        }
+
+        impl gadget_std::fmt::Display for $wrapper {
+            fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                write!(f, "{}", hex::encode(self.to_bytes()))
             }
         }
     };
 }
+
+impl_serde_bytes!(K256VerifyingKey, k256::ecdsa::VerifyingKey);
+
+impl K256VerifyingKey {
+    fn to_bytes_impl(&self) -> Vec<u8> {
+        self.0.to_sec1_bytes().to_vec()
+    }
+
+    fn from_bytes_impl(bytes: &[u8]) -> Result<Self> {
+        let vk = VerifyingKey::from_sec1_bytes(bytes)
+            .map_err(|e| K256Error::InvalidSigner(e.to_string()))?;
+        Ok(K256VerifyingKey(vk))
+    }
+}
+
+impl Hash for K256VerifyingKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(self.to_bytes().as_slice());
+    }
+}
+
+impl Copy for K256VerifyingKey {}
 
 impl_serde_bytes!(K256SigningKey, k256::ecdsa::SigningKey);
 

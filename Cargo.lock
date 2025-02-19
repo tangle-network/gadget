@@ -7178,6 +7178,7 @@ dependencies = [
  "dashmap",
  "futures",
  "gadget-networking",
+ "libp2p",
  "round-based",
  "serde",
  "serde_json",
