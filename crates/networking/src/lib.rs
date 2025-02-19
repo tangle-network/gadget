@@ -10,8 +10,6 @@ pub mod service_handle;
 pub mod types;
 
 #[cfg(test)]
-pub(crate) mod test_helpers;
-#[cfg(test)]
 mod tests;
 
 #[cfg(feature = "round-based-compat")]

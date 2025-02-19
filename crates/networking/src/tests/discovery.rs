@@ -1,19 +1,11 @@
 use crate::service::NetworkMessage;
-use crate::test_helpers::TestNode;
+use super::TestNode;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::{debug, info};
 use tracing_subscriber::{fmt, EnvFilter};
-
-fn init_tracing() {
-    let _ = fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_target(true)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .try_init();
-}
+use super::init_tracing;
+use super::NetworkServiceHandleExt;
 
 #[tokio::test]
 async fn test_peer_discovery_mdns() {
@@ -146,13 +138,7 @@ async fn test_peer_info_updates() {
     .await
     .expect("Basic peer discovery timed out");
 
-    let node2_listen_addr = node2
-        .listen_addr
-        .expect("Node2 did not return a listening address");
-
-    handle1
-        .send_network_message(NetworkMessage::Dial(node2_listen_addr.clone()))
-        .expect("Node1 failed to dial Node2");
+    handle1.dial(&handle2);
 
     info!("Waiting for identify info...");
     // Now wait for identify info to be populated
