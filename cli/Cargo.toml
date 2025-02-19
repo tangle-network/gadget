@@ -72,7 +72,7 @@ alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
 
 [features]
-default = ["std", "tangle"]
+default = ["std", "tangle", "eigenlayer"]
 std = [
     "gadget-blueprint-proc-macro-core/std",
     "gadget-clients/std",

@@ -4,6 +4,7 @@ use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
+use cargo_tangle::run::eigenlayer::{run_eigenlayer_avs, RunOpts};
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use gadget_crypto::KeyTypeId;
@@ -56,6 +57,30 @@ pub enum GadgetCommands {
     Deploy {
         #[command(subcommand)]
         target: DeployTarget,
+    },
+
+    /// Run an Eigenlayer AVS
+    #[command(visible_alias = "r")]
+    Run {
+        /// HTTP RPC endpoint for the Ethereum network
+        #[arg(long, value_name = "URL", env = "ETH_RPC_URL")]
+        http_rpc_url: String,
+
+        /// The private key for the aggregator (in hex format without 0x prefix)
+        #[arg(long, value_name = "KEY", env = "AGGREGATOR_KEY")]
+        aggregator_key: String,
+
+        /// The port to run the aggregator service on
+        #[arg(long, value_name = "PORT", default_value = "8081")]
+        port: u16,
+
+        /// The task manager contract address
+        #[arg(long, value_name = "ADDRESS")]
+        task_manager: String,
+
+        /// Path to the blueprint directory containing the AVS code
+        #[arg(long, value_name = "PATH")]
+        blueprint_path: PathBuf,
     },
 
     /// Generate a key
@@ -182,6 +207,22 @@ async fn main() -> color_eyre::Result<()> {
                     .await?;
                 }
             },
+            GadgetCommands::Run {
+                http_rpc_url,
+                aggregator_key,
+                port,
+                task_manager,
+                blueprint_path,
+            } => {
+                run_eigenlayer_avs(RunOpts {
+                    http_rpc_url,
+                    aggregator_key,
+                    port,
+                    task_manager,
+                    blueprint_path,
+                })
+                .await?;
+            }
             GadgetCommands::Keygen {
                 key_type,
                 path,
