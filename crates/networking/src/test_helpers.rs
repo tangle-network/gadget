@@ -27,11 +27,8 @@ impl TestNode {
         let local_key = identity::Keypair::generate_ed25519();
         let peer_id = local_key.public().to_peer_id();
 
-        let listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/0").parse().unwrap();
-        info!(
-            "Creating test node {} with TCP address: {}",
-            peer_id, listen_addr
-        );
+        let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/0".parse().unwrap();
+        info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
         let instance_secret_key = SpEcdsa::generate_with_seed(None).unwrap();
         let instance_public_key = instance_secret_key.public();
@@ -58,7 +55,7 @@ impl TestNode {
         Self {
             service: Some(service),
             peer_id,
-            listen_addr: Some(listen_addr),
+            listen_addr: None, // To be set later
         }
     }
 

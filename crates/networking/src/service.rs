@@ -268,17 +268,28 @@ impl NetworkService {
         loop {
             tokio::select! {
                 swarm_event = self.swarm.select_next_some() => {
-                    if let SwarmEvent::Behaviour(event) = swarm_event {
-                        if let Err(e) = handle_behaviour_event(
-                            &mut self.swarm,
-                            &self.peer_manager,
-                            event,
-                            &self.event_sender,
-                        )
-                        .await
-                        {
-                            warn!("Failed to handle swarm event: {}", e);
-                        }
+                    match swarm_event {
+                        SwarmEvent::NewListenAddr { address, .. } => {
+                            info!("New listen address: {}", address);
+                            let local_peer_id = *self.swarm.local_peer_id();
+                            let mut info = self.peer_manager.get_peer_info(&local_peer_id)
+                                .unwrap_or_default();
+                            info.addresses.insert(address.clone());
+                            self.peer_manager.update_peer(local_peer_id, info);
+                        },
+                        SwarmEvent::Behaviour(event) => {
+                            if let Err(e) = handle_behaviour_event(
+                                &mut self.swarm,
+                                &self.peer_manager,
+                                event,
+                                &self.event_sender,
+                            )
+                            .await
+                            {
+                                warn!("Failed to handle swarm event: {}", e);
+                            }
+                        },
+                        _ => {}
                     }
                 }
                 Ok(msg) = async { self.network_receiver.try_recv() } => {
@@ -446,8 +457,8 @@ async fn handle_discovery_event(
 
 /// Handle a blueprint event
 async fn handle_blueprint_protocol_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: BlueprintProtocolEvent,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
@@ -455,12 +466,12 @@ async fn handle_blueprint_protocol_event(
         BlueprintProtocolEvent::Request {
             peer,
             request,
-            channel,
+            channel: _,
         } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
         BlueprintProtocolEvent::Response {
             peer,
             response,
-            request_id,
+            request_id: _,
         } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
         BlueprintProtocolEvent::GossipMessage {
             source,
@@ -478,8 +489,8 @@ async fn handle_blueprint_protocol_event(
 
 /// Handle a ping event
 async fn handle_ping_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: ping::Event,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
