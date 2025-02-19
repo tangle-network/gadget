@@ -46,7 +46,7 @@ impl TangleProducer<()> {
             blocks_client,
             s,
             buffer: VecDeque::new(),
-            state: State::WaitingForBlock
+            state: State::WaitingForBlock,
         })
     }
 
@@ -59,7 +59,7 @@ impl TangleProducer<()> {
             blocks_client,
             s,
             buffer: VecDeque::new(),
-            state: State::WaitingForBlock
+            state: State::WaitingForBlock,
         })
     }
 
@@ -77,43 +77,39 @@ where
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             match &mut self.state {
-                State::WaitingForBlock => {
-                    match self.s.poll_next_unpin(cx) {
-                        Poll::Ready(Some(Ok(block))) => {
-                            self.state = State::ProcessingBlock(Box::pin(block_to_job_calls(block)));
-                            continue;
-                        }
-                        Poll::Ready(Some(Err(e))) => {
-                            return Poll::Ready(Some(Err(e)));
-                        }
-                        Poll::Ready(None) => {
-                            return Poll::Ready(None);
-                        }
-                        Poll::Pending => {
-                            return Poll::Pending;
-                        }
+                State::WaitingForBlock => match self.s.poll_next_unpin(cx) {
+                    Poll::Ready(Some(Ok(block))) => {
+                        self.state = State::ProcessingBlock(Box::pin(block_to_job_calls(block)));
+                        continue;
                     }
-                }
-                State::ProcessingBlock(fut) => {
-                    match fut.as_mut().poll(cx) {
-                        Poll::Ready(Ok(job_calls)) => {
-                            self.buffer.extend(job_calls);
-                            self.state = State::WaitingForBlock;
-                            if let Some(job) = self.buffer.pop_front() {
-                                return Poll::Ready(Some(Ok(job)));
-                            }
+                    Poll::Ready(Some(Err(e))) => {
+                        return Poll::Ready(Some(Err(e)));
+                    }
+                    Poll::Ready(None) => {
+                        return Poll::Ready(None);
+                    }
+                    Poll::Pending => {
+                        return Poll::Pending;
+                    }
+                },
+                State::ProcessingBlock(fut) => match fut.as_mut().poll(cx) {
+                    Poll::Ready(Ok(job_calls)) => {
+                        self.buffer.extend(job_calls);
+                        self.state = State::WaitingForBlock;
+                        if let Some(job) = self.buffer.pop_front() {
+                            return Poll::Ready(Some(Ok(job)));
+                        }
 
-                            continue;
-                        }
-                        Poll::Ready(Err(e)) => {
-                            self.state = State::WaitingForBlock;
-                            return Poll::Ready(Some(Err(e)));
-                        }
-                        Poll::Pending => {
-                            return Poll::Pending;
-                        }
+                        continue;
                     }
-                }
+                    Poll::Ready(Err(e)) => {
+                        self.state = State::WaitingForBlock;
+                        return Poll::Ready(Some(Err(e)));
+                    }
+                    Poll::Pending => {
+                        return Poll::Pending;
+                    }
+                },
             }
         }
     }
@@ -136,6 +132,7 @@ async fn block_to_job_calls(block: TangleBlock) -> Result<Vec<JobCall>, subxt::E
                 let mut metadata = metadata.clone();
                 metadata.insert(extract::CallId::METADATA_KEY, c.call_id);
                 metadata.insert(extract::ServiceId::METADATA_KEY, c.service_id);
+                metadata.insert(extract::Caller::METADATA_KEY, c.caller.0);
                 let parts = Parts::new(c.job.into())
                     .with_metadata(metadata)
                     .with_extensions(extensions.clone());
