@@ -1,10 +1,11 @@
+use super::{InstanceMessageRequest, InstanceMessageResponse};
+use crate::discovery::PeerManager;
 use crate::{
     types::ProtocolMessage, Curve, InstanceMsgKeyPair, InstanceMsgPublicKey,
-    InstanceSignedMsgSignature, KeySignExt,
+    InstanceSignedMsgSignature,
 };
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
-use gadget_crypto::tangle_pair_signer::sp_core::blake2_256;
 use gadget_crypto::KeyType;
 use libp2p::{
     core::transport::PortUse,
@@ -23,10 +24,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tracing::{debug, info, trace, warn};
-
-use crate::discovery::PeerManager;
-
-use super::{InstanceMessageRequest, InstanceMessageResponse};
 
 #[derive(NetworkBehaviour)]
 pub struct DerivedBlueprintProtocolBehaviour {
@@ -138,10 +135,19 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Sign a handshake message for a peer
-    pub(crate) fn sign_handshake(&self, peer: &PeerId) -> InstanceSignedMsgSignature {
+    pub(crate) fn sign_handshake(
+        &self,
+        key_pair: &mut InstanceMsgKeyPair,
+        peer: &PeerId,
+    ) -> InstanceSignedMsgSignature {
         let msg = peer.to_bytes();
-        let msg_hash = blake2_256(&msg);
-        self.instance_key_pair.sign_prehash(&msg_hash)
+        match <Curve as KeyType>::sign_with_secret(key_pair, &msg) {
+            Ok(signature) => signature,
+            Err(e) => {
+                warn!("Failed to sign handshake message: {e}");
+                InstanceSignedMsgSignature::default()
+            }
+        }
     }
 
     /// Send a request to a peer
@@ -316,11 +322,12 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                         "Established connection with unverified peer {:?}, sending handshake",
                         e.peer_id
                     );
+                    let mut key_pair = self.instance_key_pair.clone();
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {
-                            public_key: self.instance_key_pair.public(),
-                            signature: self.sign_handshake(&e.peer_id),
+                            public_key: key_pair.public(),
+                            signature: self.sign_handshake(&mut key_pair, &e.peer_id),
                         },
                     );
                     self.outbound_handshakes.insert(e.peer_id, Instant::now());

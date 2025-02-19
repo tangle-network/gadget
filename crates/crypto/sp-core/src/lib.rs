@@ -126,7 +126,7 @@ macro_rules! impl_sp_core_pair_public {
 macro_rules! impl_sp_core_signature {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
-            #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            #[derive(Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type Signature>](pub <$pair_type as sp_core::Pair>::Signature);
 
             impl PartialOrd for [<Sp $key_type Signature>] {

@@ -11,73 +11,84 @@ sequenceDiagram
     participant A as Peer A
     participant B as Peer B
 
-    Note over A,B: Connection Established
+    Note over A,B: Initial TCP/QUIC Connection Established
 
-    A->>B: HandshakeRequest {
+    Note over A: Generate signature of B's peer ID
+    A->>+B: HandshakeRequest {
         public_key: A_pub,
         signature: sign(B_peer_id)
     }
 
-    Note over B: Verify A's signature
-    Note over B: Store A's public key
+    Note over B: 1. Verify A's signature<br/>2. Store A's public key
 
-    B->>A: HandshakeResponse {
+    Note over B: Generate signature of A's peer ID
+    B-->>-A: HandshakeResponse {
         public_key: B_pub,
         signature: sign(A_peer_id)
     }
 
-    Note over A: Verify B's signature
-    Note over A: Store B's public key
+    Note over A: 1. Verify B's signature<br/>2. Store B's public key
 
-    Note over A,B: Both peers verified
-    Note over A,B: Protocol messages allowed
+    Note over A,B: ✓ Handshake Complete
+    Note over A,B: ✓ Protocol Messages Allowed
 ```
 
 ### Handshake States
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Connected: Connection Established
+    direction LR
+    [*] --> Connected: New Connection
+
     Connected --> OutboundPending: Send Handshake
     Connected --> InboundPending: Receive Handshake
 
     OutboundPending --> Verified: Valid Response
     OutboundPending --> Failed: Invalid/Timeout
 
-    InboundPending --> Verified: Valid Request
+    InboundPending --> Verified: Valid Request & Response
     InboundPending --> Failed: Invalid/Timeout
 
     Verified --> [*]: Connection Closed
     Failed --> [*]: Connection Closed
+
+    note right of Connected
+        Initial TCP/QUIC connection established
+    end note
+
+    note right of Verified
+        Both peers authenticated
+        Protocol messages allowed
+    end note
 ```
 
-## Blueprint Protocol Instance Request/Response
+## Protocol Message Exchange
 
-After handshake completion, peers can exchange protocol messages.
+After handshake completion, peers can exchange protocol messages through direct P2P or broadcast channels.
 
 ```mermaid
 sequenceDiagram
     participant A as Peer A (Verified)
     participant B as Peer B (Verified)
 
-    Note over A,B: Handshake Completed
+    Note over A,B: ✓ Handshake Completed
 
-    A->>B: InstanceMessageRequest::Protocol {
+    A->>+B: InstanceMessageRequest {
         protocol: String,
         payload: Vec<u8>,
         metadata: Option<Vec<u8>>
     }
 
-    alt Success Response
-        B->>A: InstanceMessageResponse::Success {
+    alt Success Case
+        B-->>-A: InstanceMessageResponse::Success {
             data: Option<Vec<u8>>
         }
     else Protocol Response
-        B->>A: InstanceMessageResponse::Protocol {
+        B-->>-A: InstanceMessageResponse::Protocol {
             data: Vec<u8>
         }
-    else Error Response
-        B->>A: InstanceMessageResponse::Error {
+    else Error Case
+        B-->>-A: InstanceMessageResponse::Error {
             code: u16,
             message: String
         }
@@ -88,6 +99,7 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     [*] --> Handshaked: Peers Verified
 
     Handshaked --> RequestPending: Send Request
@@ -100,6 +112,16 @@ stateDiagram-v2
     ErrorSent --> Handshaked: Complete
 
     Handshaked --> [*]: Connection Closed
+
+    note right of Handshaked
+        Peers authenticated
+        Ready for messages
+    end note
+
+    note right of Processing
+        Validating request
+        Processing payload
+    end note
 ```
 
 ## Protocol Details
@@ -112,13 +134,16 @@ stateDiagram-v2
 - Timeouts after 30 seconds
 - Handles concurrent handshakes gracefully
 
-### Blueprint Protocol
+### Protocol Message Types
 
-- Requires completed handshake
-- Supports protocol-specific messages
-- Includes metadata for routing/handling
-- Error responses for protocol violations
-- Supports both direct and broadcast messaging
+- Direct P2P messages:
+  - Targeted to specific peer
+  - Requires peer verification
+  - Guaranteed delivery attempt
+- Broadcast messages:
+  - Sent to all peers
+  - Uses gossipsub protocol
+  - Best-effort delivery
 
 ### Security Features
 

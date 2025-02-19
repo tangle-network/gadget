@@ -51,9 +51,10 @@ impl BlueprintProtocolBehaviour {
                             .add_peer_id_to_public_key(&peer, &public_key);
 
                         // Send handshake response
+                        let mut key_pair = self.instance_key_pair.clone();
                         let response = InstanceMessageResponse::Handshake {
-                            public_key: self.instance_key_pair.public().clone(),
-                            signature: self.sign_handshake(&peer),
+                            public_key: key_pair.public().clone(),
+                            signature: self.sign_handshake(&mut key_pair, &peer),
                         };
 
                         if let Err(e) = self.send_response(channel, response) {
