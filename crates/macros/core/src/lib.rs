@@ -1,4 +1,5 @@
 use gadget_std::borrow::Cow;
+use gadget_std::fmt::Write;
 
 pub type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
@@ -103,7 +104,7 @@ impl FieldType {
             FieldType::Tuple(tys) => {
                 let mut s = String::from("(");
                 for ty in tys {
-                    s.push_str(&format!("{},", ty.as_rust_type()));
+                    write!(s, "{},", ty.as_rust_type()).unwrap();
                 }
                 s.push(')');
                 Cow::Owned(s)

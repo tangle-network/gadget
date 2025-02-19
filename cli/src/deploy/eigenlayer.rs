@@ -189,25 +189,6 @@ fn get_constructor_args(
     Some(args)
 }
 
-fn get_constructor_args_as_cli_args(
-    contract_path: &str,
-    contract_name: &str,
-    provided_args: &Option<HashMap<String, Vec<String>>>,
-) -> Result<Vec<String>> {
-    if let Some(args) = get_constructor_args(
-        &serde_json::from_str(contract_path)?,
-        contract_name,
-        provided_args,
-    ) {
-        Ok(args
-            .into_iter()
-            .map(|arg| format!("\"{}\"", arg))
-            .collect::<Vec<_>>())
-    } else {
-        Ok(Vec::new())
-    }
-}
-
 fn get_function_args_from_abi(
     contract_json: &Value,
     function_name: &str,
@@ -244,14 +225,6 @@ fn build_function_signature(function_name: &str, args: &[(String, String)]) -> S
         .collect::<Vec<_>>()
         .join(",");
     format!("{}({})", function_name, args_str)
-}
-
-fn format_args_for_cast(args: &[String]) -> String {
-    if args.is_empty() {
-        return "()".to_string();
-    }
-
-    format!("{}", args.join(" "))
 }
 
 async fn initialize_contract_if_needed(
@@ -412,17 +385,11 @@ async fn deploy_single_contract(
         }
     }
 
-    info!("Command: {}", cmd_str);
-
     // Execute the command through sh -c
     let mut cmd = Command::new("sh");
     cmd.arg("-c").arg(&cmd_str);
 
     let output = cmd.output()?;
-
-    // Print both stdout and stderr for debugging
-    println!("Stdout:\n{}", String::from_utf8_lossy(&output.stdout));
-    println!("Stderr:\n{}", String::from_utf8_lossy(&output.stderr));
 
     if !output.status.success() {
         return Err(color_eyre::eyre::eyre!(
@@ -448,7 +415,7 @@ async fn deploy_single_contract(
 
 pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap<String, Address>> {
     let mut deployed_addresses = HashMap::new();
-    let mut contract_files = find_contract_files(&opts.contracts_path)?;
+    let contract_files = find_contract_files(&opts.contracts_path)?;
 
     if opts.ordered_deployment {
         info!("Starting ordered deployment of contracts...");
@@ -490,7 +457,7 @@ pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
     let output = String::from_utf8_lossy(&output);
     println!("Attempting to extract address from output:\n{}", output);
 
-    // Try different patterns that Forge might use
+    // Possible patterns to search for deployed address
     let patterns = [
         "Deployed to:",
         "Contract Address:",
@@ -502,11 +469,11 @@ pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
         if let Some(line) = output.lines().find(|line| line.contains(pattern)) {
             println!("Found matching line with pattern '{}': {}", pattern, line);
 
-            // Try to extract address - it might be the last word, or it might be after the pattern
+            // Try to extract address
             let addr_str = line
                 .split(pattern)
                 .last()
-                .and_then(|s| s.trim().split_whitespace().next())
+                .and_then(|s| s.split_whitespace().next())
                 .or_else(|| line.split_whitespace().last());
 
             if let Some(addr) = addr_str {
