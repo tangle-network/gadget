@@ -182,6 +182,8 @@ impl NetworkService {
             .unwrap()
             .build();
 
+        swarm.behaviour_mut().blueprint_protocol.subscribe(&blueprint_protocol_name)?;
+
         // Start listening
         swarm.listen_on(listen_addr)?;
         let bootstrap_peers = bootstrap_peers.into_iter().collect();
@@ -213,6 +215,7 @@ impl NetworkService {
         // Create handle with new interface
         let handle = NetworkServiceHandle::new(
             local_peer_id,
+            self.swarm.behaviour().blueprint_protocol.blueprint_protocol_name.clone(),
             self.peer_manager.clone(),
             network_sender,
             protocol_message_receiver,
@@ -249,12 +252,6 @@ impl NetworkService {
                 warn!("Failed to dial bootstrap peer: {}", e);
             }
         }
-
-        self.swarm
-            .behaviour_mut()
-            .blueprint_protocol
-            .subscribe(&self.network_name)
-            .unwrap();
 
         loop {
             tokio::select! {

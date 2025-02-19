@@ -11,7 +11,7 @@ use tokio::time::timeout;
 use tracing::info;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
-const PROTOCOL_NAME: &str = "test-gossip";
+const PROTOCOL_NAME: &str = "/blueprint_protocol/gossip-test/1.0.0";
 
 #[tokio::test]
 async fn test_gossip_between_verified_peers() {
@@ -45,24 +45,21 @@ async fn test_gossip_between_verified_peers() {
     wait_for_handshake_completion(&handle1, &handle2, TEST_TIMEOUT).await;
 
     // Create test message
+    info!("Sending gossip message from node1");
+
     let test_payload = b"Hello, gossip network!".to_vec();
-    let message = ProtocolMessage {
-        protocol: PROTOCOL_NAME.to_string(),
-        routing: MessageRouting {
-            message_id: 1,
-            round_id: 0,
-            sender: ParticipantInfo {
-                id: ParticipantId(1),
-                public_key: Some(node1.instance_key_pair.public()),
-            },
-            recipient: None, // No specific recipient for gossip
+    let routing = MessageRouting {
+        message_id: 1,
+        round_id: 0,
+        sender: ParticipantInfo {
+            id: ParticipantId(1),
+            public_key: Some(node1.instance_key_pair.public()),
         },
-        payload: test_payload.clone(),
+        recipient: None, // No specific recipient for gossip
     };
 
-    info!("Sending gossip message from node1");
     handle1
-        .send_protocol_message(message)
+        .send(routing, test_payload.clone())
         .expect("Failed to send gossip message");
 
     info!("Waiting for node2 to receive the message");
@@ -70,6 +67,7 @@ async fn test_gossip_between_verified_peers() {
     let received_message = timeout(TEST_TIMEOUT, async {
         loop {
             if let Some(msg) = handle2.next_protocol_message() {
+                dbg!(&msg);
                 if msg.protocol == PROTOCOL_NAME {
                     return msg;
                 }
@@ -114,23 +112,19 @@ async fn test_multi_node_gossip() {
 
     // Create test message
     let test_payload = b"Multi-node gossip test".to_vec();
-    let message = ProtocolMessage {
-        protocol: PROTOCOL_NAME.to_string(),
-        routing: MessageRouting {
-            message_id: 1,
-            round_id: 0,
-            sender: ParticipantInfo {
-                id: ParticipantId(0),
-                public_key: Some(nodes[0].instance_key_pair.public()),
-            },
-            recipient: None,
+    let routing = MessageRouting {
+        message_id: 1,
+        round_id: 0,
+        sender: ParticipantInfo {
+            id: ParticipantId(0),
+            public_key: Some(nodes[0].instance_key_pair.public()),
         },
-        payload: test_payload.clone(),
+        recipient: None,
     };
 
     info!("Sending gossip message from node 0");
     handles[0]
-        .send_protocol_message(message)
+        .send(routing, test_payload.clone())
         .expect("Failed to send gossip message");
 
     info!("Waiting for all nodes to receive the message");
@@ -180,23 +174,19 @@ async fn test_unverified_peer_gossip() {
 
     // Create test message
     let test_payload = b"This message should not be received".to_vec();
-    let message = ProtocolMessage {
-        protocol: PROTOCOL_NAME.to_string(),
-        routing: MessageRouting {
-            message_id: 1,
-            round_id: 0,
-            sender: ParticipantInfo {
-                id: ParticipantId(1),
-                public_key: Some(node1.instance_key_pair.public()),
-            },
-            recipient: None,
+    let routing = MessageRouting {
+        message_id: 1,
+        round_id: 0,
+        sender: ParticipantInfo {
+            id: ParticipantId(1),
+            public_key: Some(node1.instance_key_pair.public()),
         },
-        payload: test_payload,
+        recipient: None,
     };
 
     info!("Attempting to send gossip message from unverified node");
     handle1
-        .send_protocol_message(message)
+        .send(routing, test_payload.clone())
         .expect("Failed to send gossip message");
 
     // Wait a bit to ensure message is not received

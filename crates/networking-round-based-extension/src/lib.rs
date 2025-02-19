@@ -169,7 +169,7 @@ where
         };
 
         this.handle
-            .send_protocol_message(protocol_message)
+            .send(protocol_message)
             .map_err(|e| NetworkError::Send(e))
     }
 
