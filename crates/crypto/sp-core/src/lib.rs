@@ -152,6 +152,12 @@ macro_rules! impl_sp_core_signature {
                     write!(f, "{:?}", self.0.0)
                 }
             }
+
+            impl gadget_std::fmt::Display for [<Sp $key_type Signature>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{}", hex::encode(self.to_bytes()))
+                }
+            }
         }
     };
 }
