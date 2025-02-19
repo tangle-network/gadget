@@ -188,10 +188,17 @@ pragma solidity >=0.8.13;
 
 contract SimpleStorage {
     string private storedData;
+    string private extraData;
     event DataStored(string newData);
+    event Initialized(string extraData);
 
     constructor(string memory initialData) {
         storedData = initialData;
+    }
+
+    function initialize(string memory initExtraData) public {
+        extraData = initExtraData;
+        emit Initialized(initExtraData);
     }
 
     function set(string memory newData) public {
@@ -201,6 +208,10 @@ contract SimpleStorage {
 
     function get() public view returns (string memory) {
         return storedData;
+    }
+
+    function getExtraData() public view returns (string memory) {
+        return extraData;
     }
 }
 "#;

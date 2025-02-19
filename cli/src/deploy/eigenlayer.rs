@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use color_eyre::Result;
-use dialoguer::{Input, Select};
+use dialoguer::{Input, Select, Confirm};
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::fs;
@@ -208,6 +208,122 @@ fn get_constructor_args_as_cli_args(
     }
 }
 
+fn get_function_args_from_abi(
+    contract_json: &Value,
+    function_name: &str,
+) -> Option<Vec<(String, String)>> {
+    contract_json
+        .get("abi")
+        .and_then(|abi| abi.as_array())
+        .and_then(|abi_array| {
+            abi_array.iter().find(|func| {
+                func.get("type").and_then(|t| t.as_str()) == Some("function")
+                    && func.get("name").and_then(|n| n.as_str()) == Some(function_name)
+            })
+        })
+        .and_then(|function| {
+            function.get("inputs").and_then(|inputs| {
+                inputs.as_array().map(|input_array| {
+                    input_array
+                        .iter()
+                        .filter_map(|input| {
+                            let name = input.get("name").and_then(|n| n.as_str())?;
+                            let type_str = input.get("type").and_then(|t| t.as_str())?;
+                            Some((name.to_string(), type_str.to_string()))
+                        })
+                        .collect()
+                })
+            })
+        })
+}
+
+fn build_function_signature(function_name: &str, args: &[(String, String)]) -> String {
+    let args_str = args
+        .iter()
+        .map(|(_, type_str)| type_str.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{}({})", function_name, args_str)
+}
+
+fn format_args_for_cast(args: &[String]) -> String {
+    if args.is_empty() {
+        return "()".to_string();
+    }
+
+    format!("{}", args.join(" "))
+}
+
+async fn initialize_contract_if_needed(
+    opts: &EigenlayerDeployOpts,
+    contract_json: &Value,
+    contract_name: &str,
+    contract_address: Address,
+) -> Result<()> {
+    // Check if contract has an initialize function
+    if let Some(init_args) = get_function_args_from_abi(contract_json, "initialize") {
+        info!("Contract {} is initializable", contract_name);
+
+        let should_initialize = Confirm::new()
+            .with_prompt(format!("Do you want to initialize {}?", contract_name))
+            .default(false)
+            .interact()?;
+
+        if should_initialize {
+            info!("Collecting initialization arguments...");
+            let mut init_values = Vec::new();
+
+            for (arg_name, arg_type) in &init_args {
+                let prompt = format!("Enter value for {} (type: {})", arg_name, arg_type);
+                let value: String = Input::new().with_prompt(&prompt).interact()?;
+
+                // Format the value based on its type
+                let formatted_value = if arg_type == "string" || arg_type.contains("bytes") {
+                    format!("\"{}\"", value)
+                } else {
+                    value
+                };
+
+                init_values.push(formatted_value);
+            }
+
+            // Build the function signature
+            let function_sig = build_function_signature("initialize", &init_args);
+
+            info!("Initializing contract...");
+
+            // Build the command as a single string to maintain proper argument formatting
+            let command_str = format!(
+                "cast send --rpc-url {} --private-key {} {} \"{}\" {}",
+                opts.rpc_url,
+                opts.get_private_key()?,
+                contract_address.to_string(),
+                function_sig,
+                init_values.join(" ")
+            );
+
+            info!("Running command: {}", command_str);
+
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", &command_str]);
+
+            let output = cmd.output()?;
+            if !output.status.success() {
+                return Err(color_eyre::eyre::eyre!(
+                    "Failed to initialize contract: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
+
+            info!("Successfully initialized {}", contract_name);
+        } else {
+            info!("Skipping initialization of {}", contract_name);
+        }
+    }
+
+    Ok(())
+}
+
 async fn deploy_single_contract(
     opts: &EigenlayerDeployOpts,
     contract_path: &str,
@@ -282,6 +398,9 @@ async fn deploy_single_contract(
         })?;
 
     info!("Successfully deployed {} at {}", contract_name, address);
+
+    // Check for initialization
+    initialize_contract_if_needed(opts, &contract_json, &contract_name, address).await?;
 
     Ok((contract_name, address))
 }
