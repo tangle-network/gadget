@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use gadget_networking::{KeyType, NetworkConfig, NetworkService};
 use libp2p::Multiaddr;
 use round_based::ProtocolMessage;
 use serde::{Deserialize, Serialize};
-use gadget_networking::{KeyType, NetworkConfig, NetworkService};
+use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ProtocolMessage)]
 enum Msg {
@@ -51,7 +51,7 @@ fn node() -> NetworkService {
         enable_mdns: true,
         enable_kademlia: true,
     };
-    
+
     NetworkService::new(config, HashSet::default()).unwrap()
 }
 

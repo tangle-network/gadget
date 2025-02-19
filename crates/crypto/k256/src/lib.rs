@@ -5,7 +5,6 @@ pub mod error;
 #[cfg(test)]
 mod tests;
 
-use std::hash::{Hash, Hasher};
 use crate::error::{K256Error, Result};
 use alloy_signer_local::LocalSigner;
 use gadget_crypto_core::KeyEncoding;
@@ -14,6 +13,7 @@ use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
 use k256::ecdsa::{SigningKey, VerifyingKey};
+use std::hash::{Hash, Hasher};
 
 /// ECDSA key type
 pub struct K256Ecdsa;
