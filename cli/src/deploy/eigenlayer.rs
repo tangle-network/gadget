@@ -231,27 +231,41 @@ async fn deploy_single_contract(
     let json_content = fs::read_to_string(&json_path)?;
     let contract_json: Value = serde_json::from_str(&json_content)?;
 
-    let mut cmd = Command::new("forge");
-    cmd.args([
-        "create",
-        &contract_name,
-        "--rpc-url",
-        &opts.rpc_url,
-        "--private-key",
-        &opts.get_private_key()?,
-    ]);
+    // Build the forge create command as a single string
+    let mut cmd_str = format!(
+        "forge create {} --rpc-url {} --private-key {} --broadcast --evm-version shanghai",
+        contract_name,
+        opts.rpc_url,
+        opts.get_private_key()?
+    );
 
     if let Some(args) = get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
     {
         if !args.is_empty() {
-            cmd.arg("--constructor-args");
+            cmd_str.push_str(" --constructor-args");
             for value in args {
-                cmd.arg(value);
+                // Quote the value if it's not already quoted
+                let formatted_value = if !value.starts_with('"') {
+                    format!("\"{}\"", value)
+                } else {
+                    value
+                };
+                cmd_str.push_str(&format!(" {}", formatted_value));
             }
         }
     }
 
+    info!("Command: {}", cmd_str);
+
+    // Execute the command through sh -c
+    let mut cmd = Command::new("sh");
+    cmd.arg("-c").arg(&cmd_str);
+
     let output = cmd.output()?;
+
+    // Print both stdout and stderr for debugging
+    println!("Stdout:\n{}", String::from_utf8_lossy(&output.stdout));
+    println!("Stderr:\n{}", String::from_utf8_lossy(&output.stderr));
 
     if !output.status.success() {
         return Err(color_eyre::eyre::eyre!(
@@ -260,7 +274,13 @@ async fn deploy_single_contract(
         ));
     }
 
-    let address = extract_address_from_output(output.stdout)?;
+    // Try to find address in stdout first, then stderr if not found
+    let address = extract_address_from_output(output.stdout.clone())
+        .or_else(|_| extract_address_from_output(output.stderr.clone()))
+        .map_err(|_| {
+            color_eyre::eyre::eyre!("Failed to find contract address in deployment output")
+        })?;
+
     info!("Successfully deployed {} at {}", contract_name, address);
 
     Ok((contract_name, address))
@@ -308,10 +328,39 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
 
 pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
     let output = String::from_utf8_lossy(&output);
-    output
-        .lines()
-        .find(|line| line.contains("Deployed to:"))
-        .and_then(|line| line.split_whitespace().last())
-        .and_then(|addr_str| Address::from_str(addr_str).ok())
-        .ok_or_else(|| color_eyre::eyre::eyre!("Failed to parse contract address"))
+    println!("Attempting to extract address from output:\n{}", output);
+
+    // Try different patterns that Forge might use
+    let patterns = [
+        "Deployed to:",
+        "Contract Address:",
+        "Deployed at:",
+        "at address:",
+    ];
+
+    for pattern in patterns {
+        if let Some(line) = output.lines().find(|line| line.contains(pattern)) {
+            println!("Found matching line with pattern '{}': {}", pattern, line);
+
+            // Try to extract address - it might be the last word, or it might be after the pattern
+            let addr_str = line
+                .split(pattern)
+                .last()
+                .and_then(|s| s.trim().split_whitespace().next())
+                .or_else(|| line.split_whitespace().last());
+
+            if let Some(addr) = addr_str {
+                println!("Found potential address: {}", addr);
+                if let Ok(address) = Address::from_str(addr) {
+                    println!("Successfully parsed address: {}", address);
+                    return Ok(address);
+                }
+            }
+        }
+    }
+
+    // If we get here, we couldn't find a valid address
+    Err(color_eyre::eyre::eyre!(
+        "Failed to find or parse contract address in output"
+    ))
 }

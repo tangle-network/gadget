@@ -152,12 +152,14 @@ async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
     // Create a temporary directory for our test contract
     let temp_dir = TempDir::new()?;
     let contract_src_dir = temp_dir.path().join("src");
+    let contract_out_dir = temp_dir.path().join("out");
     let contract_dir = temp_dir.path();
     fs::create_dir_all(&contract_src_dir)?;
+    fs::create_dir_all(&contract_out_dir)?;
 
     // Write the test contract
     let contract_content = r#"// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.13;
 
 contract TestContract {
     uint256 private value;
@@ -182,7 +184,7 @@ contract TestContract {
 
     // Write the second test contract
     let second_contract_content = r#"// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.13;
 
 contract SimpleStorage {
     string private storedData;
@@ -212,9 +214,11 @@ contract SimpleStorage {
     let foundry_content = r#"[profile.default]
 src = 'src'
 out = 'out'
-libs = ['lib']"#;
+libs = ['lib']
+evm_version = 'shanghai'"#;
     fs::write(temp_dir.path().join("foundry.toml"), foundry_content)?;
 
+    // Start the local Anvil testnet
     let (_container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(false).await;
 
     // Set up deployment options with temporary directory path and constructor arguments
@@ -228,9 +232,10 @@ libs = ['lib']"#;
     );
     constructor_args.insert(
         "SimpleStorage".to_string(),
-        vec!["\"Initial Data\"".to_string()],
+        vec!["Initial Data".to_string()],
     );
 
+    // Create the deployment options for the test
     let opts = EigenlayerDeployOpts {
         rpc_url: http_endpoint.clone(),
         contracts_path: contract_dir.to_string_lossy().to_string(),
@@ -239,13 +244,21 @@ libs = ['lib']"#;
     };
 
     // Build the contracts in temporary directory
-    let _build_output = Command::new("forge")
+    let build_output = Command::new("forge")
         .arg("build")
+        .arg("--evm-version")
+        .arg("shanghai")
         .arg("--out")
-        .arg(temp_dir.path().join("out"))
+        .arg(&contract_out_dir)
         .current_dir(temp_dir.path())
         .output()
         .expect("Failed to build contracts");
+
+    // Ensure all contracts were correctly built
+    let test_contract_json = contract_out_dir.join("TestContract.sol/TestContract.json");
+    let simple_storage_json = contract_out_dir.join("SimpleStorage.sol/SimpleStorage.json");
+    assert!(test_contract_json.exists());
+    assert!(simple_storage_json.exists());
 
     // Deploy the contract
     let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
@@ -278,8 +291,10 @@ libs = ['lib']"#;
         alloy_contract::Interface::new(abi),
     );
 
+    // We will arbitrarily set the value to 123 for testing
     let value = alloy_dyn_abi::DynSolValue::from(alloy_primitives::U256::from(123));
 
+    // Test the getValue function and ensure it returns the correct value
     let get_result = contract
         .function("getValue", &[])
         .unwrap()
@@ -297,6 +312,7 @@ libs = ['lib']"#;
         alloy_primitives::U256::from(init_get_value)
     );
 
+    // Test the setValue function and ensure it returns successfully
     let set_result = contract
         .function("setValue", &[value])
         .unwrap()
@@ -308,6 +324,7 @@ libs = ['lib']"#;
         .unwrap();
     assert!(set_result.status());
 
+    // Test the getValue function and ensure it returns the newly set value
     let get_result = contract
         .function("getValue", &[])
         .unwrap()
