@@ -1,12 +1,8 @@
 //! Simple protocol in which parties cooperate to generate randomness
 
-#![no_std]
-#![forbid(unused_crate_dependencies, missing_docs)]
-
-#[cfg(test)]
-extern crate std;
-
 extern crate alloc;
+
+mod common;
 
 mod _unused_deps {
     // We don't use it directly, but we need to enable `serde` feature
@@ -56,7 +52,7 @@ pub async fn protocol_of_random_generation<R, M>(
 ) -> Result<[u8; 32], Error<M::ReceiveError, M::SendError>>
 where
     M: Mpc<ProtocolMessage = Msg>,
-    R: rand_core::RngCore,
+    R: rand::RngCore,
 {
     let MpcParty { delivery, .. } = party.into_party();
     let (incoming, mut outgoing) = delivery.split();
@@ -168,8 +164,15 @@ pub struct Blame {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::common::*;
+    use gadget_networking::{Curve, KeyType};
+    use gadget_networking_round_based_extension::RoundBasedNetworkAdapter;
     use rand::Rng;
+    use round_based::MpcParty;
     use sha2::{Digest, Sha256};
+    use tracing::{debug, info};
 
     use super::protocol_of_random_generation;
 
@@ -205,5 +208,80 @@ mod tests {
         .expect_eq();
 
         std::println!("Output randomness: {}", hex::encode(randomness));
+    }
+
+    #[tokio::test]
+    async fn p2p_networking() {
+        init_tracing();
+        let network_name = "rand-test-network";
+        let instance_id = "rand-test-instance";
+
+        // Generate node2's key pair first
+        let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
+        let mut allowed_keys1 = HashSet::new();
+        allowed_keys1.insert(instance_key_pair2.public());
+
+        // Create node1 with node2's key whitelisted
+        let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]).await;
+
+        // Create node2 with node1's key whitelisted and pre-generated key
+        let mut allowed_keys2 = HashSet::new();
+        allowed_keys2.insert(node1.instance_key_pair.public());
+        let mut node2 = TestNode::new_with_keys(
+            network_name,
+            instance_id,
+            allowed_keys2,
+            vec![],
+            Some(instance_key_pair2),
+            None,
+        )
+        .await;
+
+        info!("Starting nodes");
+        // Start both nodes - this should trigger automatic handshake
+        let handle1 = node1.start().await.expect("Failed to start node1");
+        let handle2 = node2.start().await.expect("Failed to start node2");
+
+        let parties = HashMap::from_iter([
+            (0, node1.instance_key_pair.public()),
+            (1, node2.instance_key_pair.public()),
+        ]);
+
+        let node1_network = RoundBasedNetworkAdapter::new(handle1, 0, parties.clone(), instance_id);
+        let node2_network = RoundBasedNetworkAdapter::new(handle2, 1, parties, instance_id);
+
+        let mut tasks = vec![];
+        tasks.push(tokio::spawn(async move {
+            let mut rng = rand_dev::DevRng::new();
+            let mpc_party = MpcParty::connected(node1_network);
+            let randomness = protocol_of_random_generation(mpc_party, 0, 2, &mut rng)
+                .await
+                .expect("Failed to generate randomness");
+            debug!("Node1 generated randomness: {:?}", randomness);
+            randomness
+        }));
+
+        tasks.push(tokio::spawn(async move {
+            let mut rng = rand_dev::DevRng::new();
+            let mpc_party = MpcParty::connected(node2_network);
+            let randomness = protocol_of_random_generation(mpc_party, 1, 2, &mut rng)
+                .await
+                .expect("Failed to generate randomness");
+            debug!("Node2 generated randomness: {:?}", randomness);
+            randomness
+        }));
+
+        let results = futures::future::join_all(tasks).await;
+
+        for result in results {
+            match result {
+                Ok(randomness) => {
+                    debug!("Randomness result: {:?}", randomness);
+                }
+                Err(e) => {
+                    panic!("Error in randomness generation: {:?}", e);
+                }
+            }
+        }
     }
 }

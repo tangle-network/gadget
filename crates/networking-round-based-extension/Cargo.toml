@@ -21,7 +21,7 @@ crossbeam-channel = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-round-based = { workspace = true, features = ["derive"] }
+round-based = { workspace = true, features = ["derive", "sim", "sim-async"] }
 libp2p = { workspace = true, features = [
   "tokio",
   "gossipsub",
@@ -42,6 +42,8 @@ libp2p = { workspace = true, features = [
   "autonat",
   "upnp",
 ] }
+gadget-crypto = { workspace = true, features = ["sp-core"] }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
 
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true }
@@ -49,6 +51,8 @@ sha2 = { workspace = true }
 rand_dev = "0.1"
 rand = { workspace = true }
 hex = { workspace = true }
+# We don't use it directly, but we need to enable `serde` feature
+generic-array = { version = "0.14", features = ["serde"] }
 
 [lints]
 workspace = true
