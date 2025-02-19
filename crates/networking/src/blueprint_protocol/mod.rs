@@ -39,6 +39,8 @@ pub enum InstanceMessageResponse {
     },
     /// Success response with optional data
     Success {
+        /// Protocol identifier (e.g., "consensus/1.0.0", "sync/1.0.0")
+        protocol: String,
         /// Response data specific to the protocol
         data: Option<Vec<u8>>,
     },
@@ -48,10 +50,5 @@ pub enum InstanceMessageResponse {
         code: u16,
         /// Error message
         message: String,
-    },
-    /// Protocol-specific response
-    Protocol {
-        /// Protocol-specific response data
-        data: Vec<u8>,
     },
 }

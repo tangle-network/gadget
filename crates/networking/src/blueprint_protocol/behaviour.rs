@@ -1,7 +1,9 @@
 use crate::{
-    Curve, InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature, KeySignExt,
+    types::ProtocolMessage, Curve, InstanceMsgKeyPair, InstanceMsgPublicKey,
+    InstanceSignedMsgSignature, KeySignExt,
 };
-use dashmap::{DashMap, DashSet};
+use crossbeam_channel::Sender;
+use dashmap::DashMap;
 use gadget_crypto::{hashing::blake3_256, KeyType};
 use gadget_logging::{debug, info, trace, warn};
 use libp2p::{
@@ -34,7 +36,7 @@ pub struct DerivedBlueprintProtocolBehaviour {
     gossipsub: gossipsub::Behaviour,
 }
 
-/// Events emitted by the BlueprintProtocolBehaviour
+/// Events emitted by the `BlueprintProtocolBehaviour`
 #[derive(Debug)]
 pub enum BlueprintProtocolEvent {
     /// Request received from a peer
@@ -67,9 +69,9 @@ pub struct BlueprintProtocolBehaviour {
     pub(crate) peer_manager: Arc<PeerManager>,
     /// Libp2p peer ID
     pub(crate) local_peer_id: PeerId,
-    /// Instance public key for handshakes and blueprint_protocol
+    /// Instance public key for handshakes and `blueprint_protocol`
     pub(crate) instance_public_key: InstanceMsgPublicKey,
-    /// Instance secret key for handshakes and blueprint_protocol
+    /// Instance secret key for handshakes and `blueprint_protocol`
     pub(crate) instance_secret_key: InstanceMsgKeyPair,
     /// Peers with pending inbound handshakes
     pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,
@@ -78,16 +80,20 @@ pub struct BlueprintProtocolBehaviour {
     /// Active response channels
     pub(crate) response_channels:
         DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
+    /// Protocol message sender
+    pub(crate) protocol_message_sender: Sender<ProtocolMessage>,
 }
 
 impl BlueprintProtocolBehaviour {
     /// Create a new blueprint protocol behaviour
+    #[must_use]
     pub fn new(
         local_key: &Keypair,
         instance_secret_key: &InstanceMsgKeyPair,
         instance_public_key: &InstanceMsgPublicKey,
         peer_manager: Arc<PeerManager>,
         blueprint_protocol_name: &str,
+        protocol_message_sender: Sender<ProtocolMessage>,
     ) -> Self {
         let blueprint_protocol_name = blueprint_protocol_name.to_string();
         let protocols = vec![(
@@ -125,11 +131,12 @@ impl BlueprintProtocolBehaviour {
             blueprint_protocol_name,
             peer_manager,
             local_peer_id,
-            instance_public_key: instance_public_key.clone(),
+            instance_public_key: *instance_public_key,
             instance_secret_key: instance_secret_key.clone(),
             inbound_handshakes: DashMap::new(),
             outbound_handshakes: DashMap::new(),
             response_channels: DashMap::new(),
+            protocol_message_sender,
         }
     }
 
@@ -300,7 +307,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
         event: THandlerOutEvent<Self>,
     ) {
         self.blueprint_protocol
-            .on_connection_handler_event(peer_id, connection_id, event)
+            .on_connection_handler_event(peer_id, connection_id, event);
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
@@ -354,7 +361,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
             _ => {}
         }
 
-        self.blueprint_protocol.on_swarm_event(event)
+        self.blueprint_protocol.on_swarm_event(event);
     }
 
     fn poll(
@@ -368,7 +375,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                         blueprint_protocol_event,
                     ) => self.handle_request_response_event(blueprint_protocol_event),
                     DerivedBlueprintProtocolBehaviourEvent::Gossipsub(gossip_event) => {
-                        self.handle_gossipsub_event(gossip_event)
+                        self.handle_gossipsub_event(gossip_event);
                     }
                 },
                 ToSwarm::Dial { opts } => {

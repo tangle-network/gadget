@@ -1,9 +1,12 @@
 use std::time::{Duration, Instant};
 
-use libp2p::{gossipsub, request_response, PeerId};
+use libp2p::{
+    gossipsub::{self},
+    request_response, PeerId,
+};
 use tracing::{debug, warn};
 
-use crate::key_types::InstanceMsgPublicKey;
+use crate::{key_types::InstanceMsgPublicKey, types::ProtocolMessage};
 
 use super::{BlueprintProtocolBehaviour, InstanceMessageRequest, InstanceMessageResponse};
 
@@ -49,7 +52,7 @@ impl BlueprintProtocolBehaviour {
 
                         // Send handshake response
                         let response = InstanceMessageResponse::Handshake {
-                            public_key: self.instance_public_key.clone(),
+                            public_key: self.instance_public_key,
                             signature: self.sign_handshake(&peer),
                         };
 
@@ -67,7 +70,6 @@ impl BlueprintProtocolBehaviour {
                         if let Err(e) = self.send_response(channel, response) {
                             warn!(%peer, "Failed to send error response: {:?}", e);
                         }
-                        self.handle_handshake_failure(&peer, "Invalid handshake");
                     }
                 }
             }
@@ -92,6 +94,12 @@ impl BlueprintProtocolBehaviour {
                     return;
                 }
 
+                if !self.peer_manager.is_key_whitelisted(&public_key) {
+                    warn!(%peer, "Received handshake response from unwhitelisted peer");
+                    self.peer_manager.handle_nonwhitelisted_peer(&peer);
+                    return;
+                }
+
                 // Verify the handshake
                 match self.verify_handshake(&peer, &public_key, &signature) {
                     Ok(()) => {
@@ -99,25 +107,11 @@ impl BlueprintProtocolBehaviour {
                         self.complete_handshake(&peer, &public_key);
                     }
                     Err(e) => {
-                        warn!(%peer, "Invalid handshake response: {:?}", e);
-                        self.handle_handshake_failure(&peer, "Invalid handshake response");
+                        warn!(%peer, "Invalid handshake verification: {:?}", e);
+                        self.outbound_handshakes.remove(&peer);
+                        self.handle_handshake_failure(&peer, "Invalid handshake verification");
                     }
                 }
-
-                // Remove the outbound handshake
-                self.outbound_handshakes.remove(&peer);
-            }
-            request_response::Event::Message {
-                peer,
-                message:
-                    request_response::Message::Response {
-                        response: InstanceMessageResponse::Error { code, message },
-                        ..
-                    },
-                ..
-            } => {
-                warn!(%peer, code, %message, "Received error response");
-                self.handle_handshake_failure(&peer, &message);
             }
             request_response::Event::Message {
                 peer,
@@ -134,6 +128,11 @@ impl BlueprintProtocolBehaviour {
                     },
                 ..
             } => {
+                // Reject messages from self
+                if peer == self.local_peer_id {
+                    return;
+                }
+
                 // Only accept protocol messages from peers we've completed handshakes with
                 if !self.peer_manager.is_peer_verified(&peer) {
                     warn!(%peer, "Received protocol message from unverified peer");
@@ -147,8 +146,48 @@ impl BlueprintProtocolBehaviour {
                     return;
                 }
 
-                debug!(%peer, %protocol, "Received protocol request");
-                // Handle protocol message...
+                let protocol_message: ProtocolMessage = match bincode::deserialize(&payload) {
+                    Ok(message) => message,
+                    Err(e) => {
+                        warn!(%peer, "Failed to deserialize protocol message: {:?}", e);
+                        let response = InstanceMessageResponse::Error {
+                            code: 400,
+                            message: format!("Invalid protocol message: {:?}", e),
+                        };
+                        if let Err(e) = self.send_response(channel, response) {
+                            warn!(%peer, "Failed to send error response: {:?}", e);
+                        }
+                        return;
+                    }
+                };
+
+                debug!(%peer, %protocol, %protocol_message, "Received protocol request");
+                self.protocol_message_sender.send(protocol_message);
+            }
+            request_response::Event::Message {
+                peer,
+                message:
+                    request_response::Message::Response {
+                        response: InstanceMessageResponse::Error { code, message },
+                        ..
+                    },
+                ..
+            } => {
+                if !self.peer_manager.is_peer_verified(&peer) {
+                    warn!(%peer, code, %message, "Received error response from unverified peer");
+                    return;
+                }
+            }
+            request_response::Event::Message {
+                peer,
+                message:
+                    request_response::Message::Response {
+                        response: InstanceMessageResponse::Success { protocol, data },
+                        ..
+                    },
+                ..
+            } => {
+                debug!(%peer, %protocol, "Received successful protocol response");
             }
             _ => {}
         }

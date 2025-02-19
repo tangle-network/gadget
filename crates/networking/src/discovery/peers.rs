@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::HashSet,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
 };
@@ -7,7 +7,7 @@ use std::{
 use crate::InstanceMsgPublicKey;
 use dashmap::{DashMap, DashSet};
 use libp2p::{core::Multiaddr, identify, PeerId};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::broadcast;
 use tracing::debug;
 
 /// Information about a peer's connection and behavior
@@ -65,9 +65,11 @@ pub struct PeerManager {
     /// Verified peers from completed handshakes
     verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
-    public_keys_to_peer_ids: DashMap<InstanceMsgPublicKey, PeerId>,
+    public_keys_to_peer_ids: Arc<DashMap<InstanceMsgPublicKey, PeerId>>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
+    /// Allowed public keys
+    whitelisted_keys: DashSet<InstanceMsgPublicKey>,
     /// Event sender for peer updates
     event_tx: broadcast::Sender<PeerEvent>,
 }
@@ -80,13 +82,45 @@ impl Default for PeerManager {
             banned_peers: Default::default(),
             verified_peers: Default::default(),
             public_keys_to_peer_ids: Default::default(),
+            whitelisted_keys: Default::default(),
             event_tx,
         }
     }
 }
 
 impl PeerManager {
+    #[must_use]
+    pub fn new(whitelisted_keys: HashSet<InstanceMsgPublicKey>) -> Self {
+        let (event_tx, _) = broadcast::channel(100);
+        Self {
+            peers: Default::default(),
+            banned_peers: Default::default(),
+            verified_peers: Default::default(),
+            public_keys_to_peer_ids: Default::default(),
+            whitelisted_keys: DashSet::from_iter(whitelisted_keys),
+            event_tx,
+        }
+    }
+
+    pub fn update_whitelisted_keys(&self, keys: HashSet<InstanceMsgPublicKey>) {
+        self.whitelisted_keys.clear();
+        for key in keys {
+            self.whitelisted_keys.insert(key);
+        }
+    }
+
+    #[must_use]
+    pub fn is_key_whitelisted(&self, key: &InstanceMsgPublicKey) -> bool {
+        self.whitelisted_keys.contains(key)
+    }
+
+    pub fn handle_nonwhitelisted_peer(&self, peer: &PeerId) {
+        self.remove_peer(peer, "non-whitelisted");
+        self.ban_peer(*peer, "non-whitelisted", None);
+    }
+
     /// Get a subscription to peer events
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<PeerEvent> {
         self.event_tx.subscribe()
     }
@@ -121,6 +155,7 @@ impl PeerManager {
     }
 
     /// Check if a peer is verified
+    #[must_use]
     pub fn is_peer_verified(&self, peer_id: &PeerId) -> bool {
         self.verified_peers.contains(peer_id)
     }
@@ -147,7 +182,7 @@ impl PeerManager {
     /// Bans a peer with the default duration(`1h`)
     pub async fn ban_peer_with_default_duration(&self, peer: PeerId, reason: impl Into<String>) {
         const BAN_PEER_DURATION: Duration = Duration::from_secs(60 * 60); //1h
-        self.ban_peer(peer, reason, Some(BAN_PEER_DURATION))
+        self.ban_peer(peer, reason, Some(BAN_PEER_DURATION));
     }
 
     /// Unban a peer
@@ -161,6 +196,7 @@ impl PeerManager {
     }
 
     /// Check if a peer is banned
+    #[must_use]
     pub fn is_banned(&self, peer_id: &PeerId) -> bool {
         self.banned_peers.contains_key(peer_id)
     }
@@ -184,16 +220,19 @@ impl PeerManager {
     }
 
     /// Get peer information
+    #[must_use]
     pub fn get_peer_info(&self, peer_id: &PeerId) -> Option<PeerInfo> {
         self.peers.get(peer_id).map(|info| info.value().clone())
     }
 
     /// Get all active peers
+    #[must_use]
     pub fn get_peers(&self) -> DashMap<PeerId, PeerInfo> {
         self.peers.clone()
     }
 
     /// Get number of active peers
+    #[must_use]
     pub fn peer_count(&self) -> usize {
         self.peers.len()
     }
@@ -225,13 +264,17 @@ impl PeerManager {
 
     /// Add a peer id to the public key to peer id map after verifying handshake
     pub fn add_peer_id_to_public_key(&self, peer_id: &PeerId, public_key: &InstanceMsgPublicKey) {
-        self.public_keys_to_peer_ids
-            .insert(public_key.clone(), *peer_id);
+        self.public_keys_to_peer_ids.insert(*public_key, *peer_id);
     }
 
     /// Remove a peer id from the public key to peer id map
     pub fn remove_peer_id_from_public_key(&self, peer_id: &PeerId) {
         self.public_keys_to_peer_ids.retain(|_, id| id != peer_id);
+    }
+
+    #[must_use]
+    pub fn get_peer_id_from_public_key(&self, public_key: &InstanceMsgPublicKey) -> Option<PeerId> {
+        self.public_keys_to_peer_ids.get(public_key).map(|id| *id)
     }
 }
 

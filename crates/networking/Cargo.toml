@@ -32,6 +32,7 @@ itertools = { workspace = true, features = ["use_alloc"] }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+crossbeam-channel = { workspace = true }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }

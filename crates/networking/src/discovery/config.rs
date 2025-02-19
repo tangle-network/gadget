@@ -26,7 +26,7 @@ pub struct DiscoveryConfig {
     enable_mdns: bool,
     /// Enable Kademlia discovery.
     enable_kademlia: bool,
-    /// Enable UPnP discovery.
+    /// Enable `UPnP` discovery.
     enable_upnp: bool,
     /// Enable relay nodes.
     enable_relay: bool,
@@ -64,36 +64,43 @@ impl DiscoveryConfig {
         self
     }
 
+    #[must_use]
     pub fn with_bootstrap_peers(mut self, peers: Vec<(PeerId, Multiaddr)>) -> Self {
         self.bootstrap_peers = peers;
         self
     }
 
+    #[must_use]
     pub fn with_relay_nodes(mut self, nodes: Vec<(PeerId, Multiaddr)>) -> Self {
         self.relay_nodes = nodes;
         self
     }
 
+    #[must_use]
     pub fn with_target_peer_count(mut self, count: u64) -> Self {
         self.target_peer_count = count;
         self
     }
 
+    #[must_use]
     pub fn with_mdns(mut self, enable: bool) -> Self {
         self.enable_mdns = enable;
         self
     }
 
+    #[must_use]
     pub fn with_kademlia(mut self, enable: bool) -> Self {
         self.enable_kademlia = enable;
         self
     }
 
+    #[must_use]
     pub fn with_upnp(mut self, enable: bool) -> Self {
         self.enable_upnp = enable;
         self
     }
 
+    #[must_use]
     pub fn with_relay(mut self, enable: bool) -> Self {
         self.enable_relay = enable;
         self

@@ -13,6 +13,7 @@ pub use peers::{PeerEvent, PeerInfo, PeerManager};
 
 const MAX_ESTABLISHED_PER_PEER: u32 = 4;
 
+#[must_use]
 pub fn new_kademlia(peer_id: PeerId, protocol: StreamProtocol) -> kad::Behaviour<MemoryStore> {
     let store = kad::store::MemoryStore::new(peer_id);
     let mut config = kad::Config::new(protocol);

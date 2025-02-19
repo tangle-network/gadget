@@ -1,4 +1,5 @@
 use crate::key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey};
+use crate::types::ProtocolMessage;
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
     discovery::{
@@ -7,6 +8,7 @@ use crate::{
         PeerInfo, PeerManager,
     },
 };
+use crossbeam_channel::Sender;
 use libp2p::{
     connection_limits::{self, ConnectionLimits},
     identity::Keypair,
@@ -23,7 +25,7 @@ use std::{
 
 const MAX_ESTABLISHED_PER_PEER: u32 = 4;
 
-/// Events that can be emitted by the GadgetBehavior
+/// Events that can be emitted by the `GadgetBehavior`
 #[derive(Debug)]
 pub enum GadgetEvent {
     /// Discovery-related events
@@ -36,7 +38,7 @@ pub enum GadgetEvent {
 
 #[derive(NetworkBehaviour)]
 pub struct GadgetBehaviour {
-    /// Connection limits to prevent DoS
+    /// Connection limits to prevent `DoS`
     connection_limits: connection_limits::Behaviour,
     /// Discovery mechanisms (Kademlia, mDNS, etc)
     pub(super) discovery: DiscoveryBehaviour,
@@ -47,6 +49,7 @@ pub struct GadgetBehaviour {
 }
 
 impl GadgetBehaviour {
+    #[must_use]
     pub fn new(
         network_name: &str,
         blueprint_protocol_name: &str,
@@ -55,6 +58,7 @@ impl GadgetBehaviour {
         instance_public_key: &InstanceMsgPublicKey,
         target_peer_count: u64,
         peer_manager: Arc<PeerManager>,
+        protocol_message_sender: Sender<ProtocolMessage>,
     ) -> Self {
         let connection_limits = connection_limits::Behaviour::new(
             ConnectionLimits::default()
@@ -88,6 +92,7 @@ impl GadgetBehaviour {
             instance_public_key,
             peer_manager,
             blueprint_protocol_name,
+            protocol_message_sender,
         );
 
         Self {
@@ -104,15 +109,18 @@ impl GadgetBehaviour {
     }
 
     /// Returns a set of peer ids
+    #[must_use]
     pub fn peers(&self) -> &HashSet<PeerId> {
         self.discovery.get_peers()
     }
 
     /// Returns a map of peer ids and their multi-addresses
+    #[must_use]
     pub fn peer_addresses(&self) -> HashMap<PeerId, HashSet<Multiaddr>> {
         self.discovery.get_peer_addresses()
     }
 
+    #[must_use]
     pub fn peer_info(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
         self.discovery.get_peer_info(peer_id)
     }

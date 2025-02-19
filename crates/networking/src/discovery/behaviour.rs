@@ -35,7 +35,7 @@ pub struct DerivedDiscoveryBehaviour {
     pub identify: identify::Behaviour,
     /// NAT traversal
     pub autonat: autonat::Behaviour,
-    /// UPnP port mapping
+    /// `UPnP` port mapping
     pub upnp: Toggle<upnp::tokio::Behaviour>,
     /// Circuit relay for NAT traversal
     pub relay: Toggle<relay::Behaviour>,
@@ -89,18 +89,22 @@ impl DiscoveryBehaviour {
         }
     }
 
+    #[must_use]
     pub fn get_peers(&self) -> &HashSet<PeerId> {
         &self.peers
     }
 
+    #[must_use]
     pub fn get_peer_info(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
         self.peer_info.get(peer_id)
     }
 
+    #[must_use]
     pub fn nat_status(&self) -> autonat::NatStatus {
         self.discovery.autonat.nat_status()
     }
 
+    #[must_use]
     pub fn get_peer_addresses(&self) -> HashMap<PeerId, HashSet<Multiaddr>> {
         self.peer_info
             .iter()
@@ -188,8 +192,8 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                 }
             }
             _ => {}
-        };
-        self.discovery.on_swarm_event(event)
+        }
+        self.discovery.on_swarm_event(event);
     }
 
     #[allow(clippy::type_complexity)]
@@ -271,7 +275,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                                 // Intentionally ignore
                             }
                             other => {
-                                trace!("Libp2p => Unhandled Kademlia event: {:?}", other)
+                                trace!("Libp2p => Unhandled Kademlia event: {:?}", other);
                             }
                         },
                         DerivedDiscoveryBehaviourEvent::Mdns(ev) => match ev {

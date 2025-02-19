@@ -64,4 +64,7 @@ pub enum Error {
 
     #[error(transparent)]
     TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent>),
+
+    #[error(transparent)]
+    CrossbeamSendError(#[from] crossbeam_channel::SendError<NetworkEvent>),
 }

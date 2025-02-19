@@ -6,13 +6,14 @@ pub mod discovery;
 pub mod error;
 pub mod handlers;
 pub mod service;
+pub mod service_handle;
 pub mod types;
 
 #[cfg(test)]
 mod tests;
 
 pub use key_types::*;
-pub use service::{NetworkConfig, NetworkEvent, NetworkMessage, NetworkService};
+pub use service::{NetworkConfig, NetworkEvent, NetworkService};
 
 #[cfg(all(
     feature = "sp-core-ecdsa",

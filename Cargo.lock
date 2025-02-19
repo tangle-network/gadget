@@ -3935,6 +3935,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7152,6 +7161,7 @@ dependencies = [
  "auto_impl",
  "bincode",
  "blake3",
+ "crossbeam-channel",
  "dashmap",
  "futures",
  "gadget-crypto",
@@ -7172,6 +7182,23 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber 0.3.19",
+]
+
+[[package]]
+name = "gadget-networking-round-based-extension"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "crossbeam-channel",
+ "dashmap",
+ "futures",
+ "gadget-networking",
+ "round-based",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
