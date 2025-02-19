@@ -46,6 +46,9 @@ tokio = { workspace = true, default-features = false }
 gadget-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
 gadget-context-derive = { workspace = true, optional = true }
+# Round-based protocol support
+gadget-networking-round-based-extension = { workspace = true, optional = true }
+
 
 # Optional dependencies for testing
 gadget-testing-utils = { workspace = true, optional = true }
@@ -138,6 +141,6 @@ networking-ed25519 = ["gadget-networking/sp-core-ed25519"]
 
 local-store = ["gadget-stores/local"]
 
-round-based-compat = ["gadget-networking/round-based-compat"]
+round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
 cronjob = ["gadget-event-listeners/cronjob"]

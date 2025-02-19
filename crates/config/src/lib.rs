@@ -132,10 +132,9 @@ impl GadgetConfiguration {
     #[cfg(feature = "networking")]
     pub fn libp2p_start_network(
         &self,
-        network_name: impl Into<String>,
+        network_config: gadget_networking::NetworkConfig,
     ) -> Result<gadget_networking::service_handle::NetworkServiceHandle, Error> {
-        let network_config = self.libp2p_network_config(network_name)?;
-        // TODO: Add allowed keys
+        // TODO: Add allowed keys or pass them.
         let allowed_keys = Default::default();
         let networking_service =
             gadget_networking::NetworkService::new(network_config, allowed_keys)?;

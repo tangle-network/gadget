@@ -39,8 +39,6 @@ gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
 gadget-crypto-core = { workspace = true, features = ["k256"] }
 k256 = { workspace = true }
 
-# Round-based protocol support
-round-based = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -85,8 +83,6 @@ std = [
 	"serde/std",
 	"serde_json/std",
 ]
-
-round-based-compat = ["dep:round-based"]
 
 # Only one of these features should be enabled at a time.
 # If none are enabled, k256 ECDSA will be used by default.

@@ -45,8 +45,6 @@ pub struct TangleClient {
     services_client: TangleServicesClient<TangleConfig>,
 }
 
-const KEY_ID: &str = "tangle-default";
-
 impl TangleClient {
     /// Create a new Tangle runtime client from an existing [`GadgetConfiguration`].
     pub async fn new(config: GadgetConfiguration) -> std::result::Result<Self, Error> {
@@ -154,7 +152,10 @@ impl TangleClient {
         Error,
     > {
         let parties = self.get_operators().await?;
-        let my_id = self.keystore.get_public_key_local::<SpEcdsa>(KEY_ID)?;
+        let my_id = self
+            .keystore
+            .first_local::<SpEcdsa>()
+            .map_err(Error::Keystore)?;
 
         gadget_logging::trace!(
             "Looking for {my_id:?} in parties: {:?}",
@@ -303,7 +304,7 @@ impl GadgetServicesClient for TangleClient {
     async fn operator_id(
         &self,
     ) -> std::result::Result<Self::PublicApplicationIdentity, Self::Error> {
-        Ok(self.keystore.get_public_key_local::<SpEcdsa>(KEY_ID)?.0)
+        Ok(self.keystore.first_local::<SpEcdsa>()?.0)
     }
 
     /// Retrieves the current blueprint ID from the configuration

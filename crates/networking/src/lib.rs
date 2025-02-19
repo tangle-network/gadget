@@ -9,6 +9,9 @@ pub mod service;
 pub mod service_handle;
 pub mod types;
 
+#[cfg(feature = "round-based-compat")]
+pub use gadget_networking_round_based_extension as round_based_compat;
+
 #[cfg(test)]
 mod tests;
 
