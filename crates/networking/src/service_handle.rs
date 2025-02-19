@@ -8,7 +8,7 @@ use crossbeam_channel::{self, Receiver, Sender};
 use libp2p::{Multiaddr, PeerId};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{debug, info};
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
@@ -122,7 +122,7 @@ impl NetworkServiceHandle {
                         peer: peer_id,
                         request: instance_message_request,
                     })?;
-                    info!("Sent outbound p2p `NetworkMessage` to {:?}", peer_id);
+                    debug!("Sent outbound p2p `NetworkMessage` to {:?}", peer_id);
                 }
             }
         } else {
@@ -132,7 +132,7 @@ impl NetworkServiceHandle {
                 message: raw_payload,
             };
             self.send_network_message(gossip_message)?;
-            info!("Sent outbound gossip `NetworkMessage`");
+            debug!("Sent outbound gossip `NetworkMessage`");
         }
 
         Ok(())

@@ -282,14 +282,14 @@ impl BlueprintProtocolBehaviour {
                 debug!(%propagation_source, "Received gossip message");
 
                 // Deserialize the protocol message
-                if let Ok(protocol_message) = bincode::deserialize::<ProtocolMessage>(&message.data)
-                {
-                    debug!(%propagation_source, %protocol_message, "Forwarding gossip message to protocol handler");
-                    if let Err(e) = self.protocol_message_sender.send(protocol_message) {
-                        warn!(%propagation_source, "Failed to forward gossip message: {}", e);
-                    }
-                } else {
+                let Ok(protocol_message) = bincode::deserialize::<ProtocolMessage>(&message.data) else {
                     warn!(%propagation_source, "Failed to deserialize gossip message");
+                    return;
+                };
+
+                debug!(%propagation_source, %protocol_message, "Forwarding gossip message to protocol handler");
+                if let Err(e) = self.protocol_message_sender.send(protocol_message) {
+                    warn!(%propagation_source, "Failed to forward gossip message: {e}");
                 }
             }
             gossipsub::Event::Subscribed { peer_id, topic } => {

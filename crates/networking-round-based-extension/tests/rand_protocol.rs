@@ -1,15 +1,6 @@
 //! Simple protocol in which parties cooperate to generate randomness
 
-extern crate alloc;
-
 mod common;
-
-mod _unused_deps {
-    // We don't use it directly, but we need to enable `serde` feature
-    use generic_array as _;
-}
-
-use alloc::{vec, vec::Vec};
 
 use serde::{Deserialize, Serialize};
 use sha2::{digest::Output, Digest, Sha256};

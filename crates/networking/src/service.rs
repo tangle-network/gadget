@@ -374,7 +374,7 @@ async fn handle_discovery_event(
                     .map(std::string::ToString::to_string)
                     .collect();
 
-                debug!(%peer_id, ?protocols, "Supported protocols");
+                trace!(%peer_id, ?protocols, "Supported protocols");
 
                 let blueprint_protocol_name =
                     &swarm.behaviour().blueprint_protocol.blueprint_protocol_name;
@@ -392,15 +392,15 @@ async fn handle_discovery_event(
                 // Update identify info
                 peer_info.identify_info = Some(info.clone());
 
-                debug!(%peer_id, listen_addrs=?info.listen_addrs, "Adding identify addresses");
+                trace!(%peer_id, listen_addrs=?info.listen_addrs, "Adding identify addresses");
                 // Add all addresses from identify info
                 for addr in &info.listen_addrs {
                     peer_info.addresses.insert(addr.clone());
                 }
 
-                debug!(%peer_id, "Updating peer info with identify information");
+                trace!(%peer_id, "Updating peer info with identify information");
                 peer_manager.update_peer(*peer_id, peer_info);
-                info!(%peer_id, "Successfully processed identify information");
+                debug!(%peer_id, "Successfully processed identify information");
             }
             DerivedDiscoveryBehaviourEvent::Identify(_) => {
                 // Ignore other identify events
