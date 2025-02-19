@@ -112,8 +112,6 @@ async fn test_peer_info_updates() {
         .await
         .expect("Basic peer discovery timed out");
 
-    handle1.dial(&handle2);
-
     // Now wait for identify info to be populated
     let identify_timeout = Duration::from_secs(20);
     wait_for_peer_info(&handle1, &handle2, identify_timeout).await;
