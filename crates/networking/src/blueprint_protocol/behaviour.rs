@@ -4,7 +4,8 @@ use crate::{
 };
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
-use gadget_crypto::{hashing::blake3_256, KeyType};
+use gadget_crypto::tangle_pair_signer::sp_core::blake2_256;
+use gadget_crypto::KeyType;
 use libp2p::{
     core::transport::PortUse,
     gossipsub::{self, IdentTopic, MessageAuthenticity, MessageId, Sha256Topic},
@@ -143,7 +144,7 @@ impl BlueprintProtocolBehaviour {
     /// Sign a handshake message for a peer
     pub(crate) fn sign_handshake(&self, peer: &PeerId) -> InstanceSignedMsgSignature {
         let msg = peer.to_bytes();
-        let msg_hash = blake3_256(&msg);
+        let msg_hash = blake2_256(&msg);
         self.instance_secret_key.sign_prehash(&msg_hash)
     }
 
