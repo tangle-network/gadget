@@ -42,6 +42,12 @@ impl BlueprintProtocolBehaviour {
                     debug!(%peer, "Responding to inbound handshake request while outbound is pending");
                 }
 
+                if !self.peer_manager.is_key_whitelisted(&public_key) {
+                    warn!(%peer, %public_key, "Received handshake response from unwhitelisted peer");
+                    self.peer_manager.handle_nonwhitelisted_peer(&peer);
+                    return;
+                }
+
                 // Verify the handshake
                 match self.verify_handshake(&peer, &public_key, &signature) {
                     Ok(()) => {

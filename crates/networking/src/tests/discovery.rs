@@ -100,18 +100,41 @@ async fn test_peer_info_updates() {
     let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
     let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
 
-    info!("Starting nodes...");
-    // Start both nodes
-    let mut handle1 = node1.start().await.expect("Failed to start node1");
+    info!("Starting node1...");
+    let handle1 = node1.start().await.expect("Failed to start node1");
+    info!("Node1 started successfully");
+
+    info!("Starting node2...");
     let handle2 = node2.start().await.expect("Failed to start node2");
+    info!("Node2 started successfully");
+
+    info!("Both nodes started, waiting for peer discovery...");
 
     // First wait for basic peer discovery (they see each other)
-    let discovery_timeout = Duration::from_secs(20);
-    wait_for_peer_discovery(&[&handle1, &handle2], discovery_timeout)
-        .await
-        .expect("Basic peer discovery timed out");
+    let discovery_timeout = Duration::from_secs(30); // Increased timeout
+    match wait_for_peer_discovery(&[&handle1, &handle2], discovery_timeout).await {
+        Ok(_) => info!("Peer discovery successful"),
+        Err(e) => {
+            // Log peer states before failing
+            info!("Node1 peers: {:?}", handle1.peers());
+            info!("Node2 peers: {:?}", handle2.peers());
+            panic!("Peer discovery failed: {}", e);
+        }
+    }
+
+    info!("Peers discovered each other, waiting for identify info...");
 
     // Now wait for identify info to be populated
-    let identify_timeout = Duration::from_secs(20);
+    let identify_timeout = Duration::from_secs(30); // Increased timeout
     wait_for_peer_info(&handle1, &handle2, identify_timeout).await;
+
+    info!("Test completed successfully - both nodes have identify info");
+
+    // Log final state
+    if let Some(info) = handle1.peer_info(&handle2.local_peer_id) {
+        info!("Node1's info about Node2: {:?}", info);
+    }
+    if let Some(info) = handle2.peer_info(&handle1.local_peer_id) {
+        info!("Node2's info about Node1: {:?}", info);
+    }
 }

@@ -30,11 +30,27 @@ async fn test_automatic_handshake() {
 
     let network_name = "test-network";
     let instance_id = "test-instance";
-    let allowed_keys = HashSet::new();
 
-    // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
+    // Generate node2's key pair first
+    let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
+    let mut allowed_keys1 = HashSet::new();
+    allowed_keys1.insert(instance_key_pair2.public());
+
+    // Create node1 with node2's key whitelisted
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]).await;
+
+    // Create node2 with node1's key whitelisted and pre-generated key
+    let mut allowed_keys2 = HashSet::new();
+    allowed_keys2.insert(node1.instance_key_pair.public());
+    let mut node2 = TestNode::new_with_keys(
+        network_name,
+        instance_id,
+        allowed_keys2,
+        vec![],
+        Some(instance_key_pair2),
+        None,
+    )
+    .await;
 
     info!("Starting nodes");
     // Start both nodes - this should trigger automatic handshake
@@ -87,8 +103,10 @@ async fn test_handshake_with_invalid_peer() {
     // Create node1 with empty whitelist
     let mut node1 = TestNode::new(network_name, instance_id, HashSet::new(), vec![]).await;
 
-    // Create node2 with non-whitelisted key
-    let mut node2 = TestNode::new(network_name, instance_id, HashSet::new(), vec![]).await;
+    // Create node2 with node1's key whitelisted (but node2's key is not whitelisted by node1)
+    let mut allowed_keys2 = HashSet::new();
+    allowed_keys2.insert(node1.instance_key_pair.public());
+    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys2, vec![]).await;
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -98,7 +116,7 @@ async fn test_handshake_with_invalid_peer() {
     info!("Waiting for automatic ban");
     timeout(TEST_TIMEOUT, async {
         loop {
-            if handle2.peer_manager.is_banned(&node1.peer_id) {
+            if handle1.peer_manager.is_banned(&node2.peer_id) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -121,11 +139,27 @@ async fn test_handshake_reconnection() {
 
     let network_name = "test-network";
     let instance_id = "test-instance";
-    let allowed_keys = HashSet::new();
 
-    // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
+    // Generate node2's key pair first
+    let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
+    let mut allowed_keys1 = HashSet::new();
+    allowed_keys1.insert(instance_key_pair2.public());
+
+    // Create node1 with node2's key whitelisted
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]).await;
+
+    // Create node2 with node1's key whitelisted and pre-generated key
+    let mut allowed_keys2 = HashSet::new();
+    allowed_keys2.insert(node1.instance_key_pair.public());
+    let mut node2 = TestNode::new_with_keys(
+        network_name,
+        instance_id,
+        allowed_keys2,
+        vec![],
+        Some(instance_key_pair2),
+        None,
+    )
+    .await;
 
     info!("Starting initial connection");
     // Start both nodes and wait for initial handshake

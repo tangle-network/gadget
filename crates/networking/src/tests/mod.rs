@@ -1,9 +1,10 @@
 use crate::service::NetworkMessage;
 use crate::{
-    key_types::InstanceMsgPublicKey, service_handle::NetworkServiceHandle, InstanceMsgKeyPair,
+    key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
+    service_handle::NetworkServiceHandle,
     NetworkConfig, NetworkService,
 };
-use gadget_crypto::{sp_core::SpEcdsa, KeyType};
+use gadget_crypto::KeyType;
 use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
@@ -26,7 +27,6 @@ fn init_tracing() {
 }
 
 /// Test node configuration for network tests
-/// Test node configuration for network tests
 pub struct TestNode {
     pub service: Option<NetworkService>,
     pub peer_id: PeerId,
@@ -36,19 +36,42 @@ pub struct TestNode {
 }
 
 impl TestNode {
+    /// Create a new test node with auto-generated keys
     pub async fn new(
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
         bootstrap_peers: Vec<Multiaddr>,
     ) -> Self {
-        let local_key = identity::Keypair::generate_ed25519();
+        Self::new_with_keys(
+            network_name,
+            instance_id,
+            allowed_keys,
+            bootstrap_peers,
+            None,
+            None,
+        )
+        .await
+    }
+
+    /// Create a new test node with specified keys
+    pub async fn new_with_keys(
+        network_name: &str,
+        instance_id: &str,
+        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        bootstrap_peers: Vec<Multiaddr>,
+        instance_key_pair: Option<InstanceMsgKeyPair>,
+        local_key: Option<Keypair>,
+    ) -> Self {
+        let local_key = local_key.unwrap_or_else(|| identity::Keypair::generate_ed25519());
         let peer_id = local_key.public().to_peer_id();
 
-        let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/0".parse().unwrap();
+        // Bind to all interfaces instead of just localhost
+        let listen_addr: Multiaddr = "/ip4/0.0.0.0/tcp/0".parse().unwrap();
         info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
-        let instance_key_pair = SpEcdsa::generate_with_seed(None).unwrap();
+        let instance_key_pair =
+            instance_key_pair.unwrap_or_else(|| Curve::generate_with_seed(None).unwrap());
 
         let config = NetworkConfig {
             network_name: network_name.to_string(),
@@ -62,10 +85,8 @@ impl TestNode {
             enable_kademlia: true,
         };
 
-        let (allowed_keys_tx, allowed_keys_rx) = crossbeam_channel::unbounded();
-        allowed_keys_tx.send(allowed_keys.clone()).unwrap();
-        let service = NetworkService::new(config, allowed_keys) // TODO: allowed_keys_rx
-            .expect("Failed to create network service");
+        let service =
+            NetworkService::new(config, allowed_keys).expect("Failed to create network service");
 
         Self {
             service: Some(service),
@@ -76,28 +97,69 @@ impl TestNode {
         }
     }
 
-    /// Start the node
+    /// Start the node and wait for it to be fully initialized
     pub async fn start(&mut self) -> Result<NetworkServiceHandle, &'static str> {
         // Take ownership of the service
         let service = self.service.take().ok_or("Service already started")?;
         let handle = service.start();
 
-        // Wait for the actual listening address
-        let timeout_duration = Duration::from_secs(5);
+        // Wait for the node to be fully initialized
+        let timeout_duration = Duration::from_secs(10); // Increased timeout
         match timeout(timeout_duration, async {
+            // First wait for the listening address
             while self.listen_addr.is_none() {
                 if let Some(addr) = handle.get_listen_addr() {
                     info!("Node {} listening on {}", self.peer_id, addr);
-                    self.listen_addr = Some(addr);
-                    break;
+                    self.listen_addr = Some(addr.clone());
+
+                    // Extract port from multiaddr
+                    let addr_str = addr.to_string();
+                    let port = addr_str.split("/").nth(4).unwrap_or("0").to_string();
+
+                    // Try localhost first
+                    let localhost_addr = format!("127.0.0.1:{}", port);
+                    match tokio::net::TcpStream::connect(&localhost_addr).await {
+                        Ok(_) => {
+                            info!("Successfully verified localhost port for {}", self.peer_id);
+                            break;
+                        }
+                        Err(e) => {
+                            info!("Localhost port not ready for {}: {}", self.peer_id, e);
+                            // Try external IP
+                            let external_addr = format!("10.0.1.142:{}", port);
+                            match tokio::net::TcpStream::connect(&external_addr).await {
+                                Ok(_) => {
+                                    info!(
+                                        "Successfully verified external port for {}",
+                                        self.peer_id
+                                    );
+                                    break;
+                                }
+                                Err(e) => {
+                                    info!("External port not ready for {}: {}", self.peer_id, e);
+                                    tokio::time::sleep(Duration::from_millis(100)).await;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
+
+            // Give the node a moment to initialize protocols
+            tokio::time::sleep(Duration::from_millis(500)).await;
+
+            Ok::<(), &'static str>(())
         })
         .await
         {
-            Ok(_) => Ok(handle),
-            Err(_) => Err("Timeout waiting for node to start listening"),
+            Ok(Ok(_)) => {
+                info!("Node {} fully initialized", self.peer_id);
+                Ok(handle)
+            }
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err("Timeout waiting for node to initialize"),
         }
     }
 

@@ -118,6 +118,12 @@ macro_rules! impl_sp_core_pair_public {
                     write!(f, "{:?}", self.to_bytes())
                 }
             }
+
+            impl gadget_std::fmt::Display for [<Sp $key_type Public>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{}", hex::encode(self.to_bytes()))
+                }
+            }
         }
     };
 }

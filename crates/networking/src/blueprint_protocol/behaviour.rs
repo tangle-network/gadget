@@ -142,7 +142,14 @@ impl BlueprintProtocolBehaviour {
     ) -> InstanceSignedMsgSignature {
         let msg = peer.to_bytes();
         match <Curve as KeyType>::sign_with_secret(key_pair, &msg) {
-            Ok(signature) => signature,
+            Ok(signature) => {
+                let public_key = key_pair.public();
+                let hex_msg = hex::encode(msg);
+                let hex_public_key = hex::encode(public_key.0.to_raw());
+                let hex_signature = hex::encode(signature.0.to_raw());
+                debug!(%peer, ?hex_msg, %hex_public_key, %hex_signature, "signing handshake");
+                signature
+            }
             Err(e) => {
                 warn!("Failed to sign handshake message: {e}");
                 InstanceSignedMsgSignature::default()
@@ -198,6 +205,10 @@ impl BlueprintProtocolBehaviour {
         signature: &InstanceSignedMsgSignature,
     ) -> Result<(), InstanceMessageResponse> {
         let msg = peer.to_bytes();
+        let hex_msg = hex::encode(msg.clone());
+        let hex_public_key = hex::encode(public_key.0.to_raw());
+        let hex_signature = hex::encode(signature.0.to_raw());
+        debug!(%peer, ?hex_msg, %hex_public_key, %hex_signature, "verifying handshake");
         let valid = <Curve as KeyType>::verify(public_key, &msg, signature);
         if !valid {
             warn!("Invalid initial handshake signature from peer: {peer}");
