@@ -13,7 +13,6 @@ tower = { workspace = true, features = ["filter"] }
 gadget-blueprint-serde.workspace = true
 tangle-subxt.workspace = true
 serde.workspace = true
-bon.workspace = true
 
 # optional dependencies
 tracing = { workspace = true, optional = true }

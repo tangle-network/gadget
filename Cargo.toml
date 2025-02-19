@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cli", "blueprints/*", "crates/*"]
+members = ["cli", "blueprints/*", "crates/*", "examples/*"]
 exclude = ["blueprints/incredible-squaring-symbiotic"]
 
 [workspace.package]

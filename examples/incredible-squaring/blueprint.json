@@ -20,12 +20,8 @@
         "name": "square",
         "description": "squares a number"
       },
-      "params": [
-        "Uint64"
-      ],
-      "result": [
-        "Uint64"
-      ]
+      "params": ["Uint64"],
+      "result": ["Uint64"]
     }
   ],
   "registration_params": [],
@@ -38,7 +34,7 @@
             "Testing": {
               "cargo_package": "experimental-blueprint",
               "cargo_bin": "main",
-              "base_path": "/home/alex/Projects/Contributions/experimental-blueprint"
+              "base_path": "/home/shady/github/webb-tools/gadget-sdk/examples/incredible-squaring"
             }
           }
         }
