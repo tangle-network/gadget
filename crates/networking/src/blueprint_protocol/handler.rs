@@ -268,29 +268,4 @@ impl BlueprintProtocolBehaviour {
         // Add to verified peers
         self.peer_manager.verify_peer(peer);
     }
-
-    pub fn handle_gossipsub_event(&mut self, event: gossipsub::Event) {
-        match event {
-            gossipsub::Event::Message {
-                propagation_source,
-                message_id,
-                message,
-            } => {
-                // Only accept gossip from verified peers
-                if !self.peer_manager.is_peer_verified(&propagation_source) {
-                    warn!(%propagation_source, "Received gossip from unverified peer");
-                    return;
-                }
-
-                debug!(%propagation_source, "Received gossip message");
-            }
-            gossipsub::Event::Subscribed { peer_id, topic } => {
-                debug!(%peer_id, %topic, "Peer subscribed to topic");
-            }
-            gossipsub::Event::Unsubscribed { peer_id, topic } => {
-                debug!(%peer_id, %topic, "Peer unsubscribed from topic");
-            }
-            _ => {}
-        }
-    }
 }

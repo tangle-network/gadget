@@ -60,19 +60,30 @@ fn create_protocol_message(
 }
 
 // Helper to wait for handshake completion between multiple nodes
-async fn wait_for_all_handshakes(handles: &[&NetworkServiceHandle]) {
+async fn wait_for_all_handshakes(handles: &[&mut NetworkServiceHandle]) {
+    info!("Starting handshake wait for {} nodes", handles.len());
     timeout(TEST_TIMEOUT, async {
         loop {
             let mut all_verified = true;
-            for (i, h1) in handles.iter().enumerate() {
-                for (j, h2) in handles.iter().enumerate() {
-                    if i != j && !h1.peer_manager.is_peer_verified(&h2.local_peer_id) {
-                        all_verified = false;
-                        break;
+            for (i, handle1) in handles.iter().enumerate() {
+                for (j, handle2) in handles.iter().enumerate() {
+                    if i != j {
+                        let verified = handle1
+                            .peer_manager
+                            .is_peer_verified(&handle2.local_peer_id);
+                        if !verified {
+                            info!("Node {} -> Node {}: handshake not verified yet", i, j);
+                            all_verified = false;
+                            break;
+                        }
                     }
+                }
+                if !all_verified {
+                    break;
                 }
             }
             if all_verified {
+                info!("All handshakes completed successfully");
                 break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -305,28 +316,45 @@ async fn test_summation_protocol_multi_node() {
     info!("Starting multi-node summation protocol test");
 
     // Create 3 nodes with whitelisted keys
+    info!("Creating whitelisted nodes");
     let mut nodes = create_whitelisted_nodes(3).await;
+    info!("Created {} nodes successfully", nodes.len());
 
     // Start all nodes
+    info!("Starting all nodes");
     let mut handles = Vec::new();
-    for node in nodes.iter_mut() {
+    for (i, node) in nodes.iter_mut().enumerate() {
+        info!("Starting node {}", i);
         handles.push(node.start().await.expect("Failed to start node"));
+        info!("Node {} started successfully", i);
     }
 
     // Convert handles to mutable references
-    let handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    info!("Converting handles to mutable references");
+    let mut handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let handles_len = handles.len();
+    info!("Converted {} handles", handles_len);
 
     // Wait for all handshakes to complete
-    info!("Waiting for handshake completion");
+    info!(
+        "Waiting for handshake completion between {} nodes",
+        handles_len
+    );
     wait_for_all_handshakes(&handles).await;
+    info!("All handshakes completed successfully");
 
     // Generate test numbers
     let numbers = vec![42, 58, 100];
     let expected_sum: u64 = numbers.iter().sum();
+    info!(
+        "Generated test numbers: {:?}, expected sum: {}",
+        numbers, expected_sum
+    );
 
     info!("Sending numbers via gossip");
     // Each node broadcasts its number
     for (i, handle) in handles.iter().enumerate() {
+        info!("Node {} broadcasting number {}", i, numbers[i]);
         handle
             .send_protocol_message(create_protocol_message(
                 PROTOCOL_NAME,
@@ -335,25 +363,40 @@ async fn test_summation_protocol_multi_node() {
                 None,
             ))
             .expect("Failed to send number");
+        info!("Node {} successfully broadcast its number", i);
+        // Add a small delay between broadcasts to avoid message collisions
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
     info!("Waiting for messages to be processed");
     // Wait for all nodes to receive all numbers
-    let mut sums = vec![0; handles.len()];
-    let mut received = vec![0; handles.len()];
+    let mut sums = vec![0; handles_len];
+    let mut received = vec![0; handles_len];
 
     timeout(TEST_TIMEOUT, async {
         loop {
-            for (i, handle) in handles.iter().enumerate() {
+            for (i, handle) in handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
-                    if received[i] < handles.len() - 1 {
-                        sums[i] += extract_number_from_message(&msg);
+                    if received[i] < handles_len - 1 {
+                        let num = extract_number_from_message(&msg);
+                        sums[i] += num;
                         received[i] += 1;
+                        info!(
+                            "Node {} received number {}, total sum: {}, received count: {}",
+                            i, num, sums[i], received[i]
+                        );
                     }
                 }
             }
 
-            if received.iter().all(|&r| r == handles.len() - 1) {
+            let all_received = received.iter().all(|&r| r == handles_len - 1);
+            info!(
+                "Current received counts: {:?}, target count: {}",
+                received,
+                handles_len - 1
+            );
+            if all_received {
+                info!("All nodes have received all numbers");
                 break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -363,10 +406,15 @@ async fn test_summation_protocol_multi_node() {
     .expect("Timeout waiting for summation completion");
 
     info!("Verifying sums via P2P messages");
+    info!("Final sums: {:?}", sums);
     // Each node verifies with every other node
     for (i, sender) in handles.iter().enumerate() {
         for (j, recipient) in handles.iter().enumerate() {
             if i != j {
+                info!(
+                    "Node {} sending verification sum {} to node {}",
+                    i, sums[i], j
+                );
                 sender
                     .send_protocol_message(create_protocol_message(
                         PROTOCOL_NAME,
@@ -382,18 +430,27 @@ async fn test_summation_protocol_multi_node() {
     info!("Waiting for verification messages");
     // Wait for all verifications
     timeout(TEST_TIMEOUT, async {
-        let mut verified = vec![0; handles.len()];
+        let mut verified = vec![0; handles_len];
         loop {
-            for (i, handle) in handles.iter().enumerate() {
+            for (i, handle) in handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
-                    if verified[i] < handles.len() - 1 {
-                        assert_eq!(extract_sum_from_verification(&msg), expected_sum);
+                    if verified[i] < handles_len - 1 {
+                        let sum = extract_sum_from_verification(&msg);
+                        info!(
+                            "Node {} received verification sum {}, expected {}",
+                            i, sum, expected_sum
+                        );
+                        assert_eq!(sum, expected_sum);
                         verified[i] += 1;
+                        info!("Node {} verification count: {}", i, verified[i]);
                     }
                 }
             }
 
-            if verified.iter().all(|&v| v == handles.len() - 1) {
+            let all_verified = verified.iter().all(|&v| v == handles_len - 1);
+            info!("Current verification counts: {:?}", verified);
+            if all_verified {
+                info!("All nodes have verified all sums");
                 break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -420,7 +477,7 @@ async fn test_summation_protocol_late_join() {
     }
 
     // Convert handles to mutable references
-    let mut handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Wait for initial handshakes
     info!("Waiting for initial handshake completion");
@@ -428,7 +485,7 @@ async fn test_summation_protocol_late_join() {
 
     // Initial nodes send their numbers
     let numbers = vec![42, 58, 100];
-    let expected_sum: u64 = numbers.iter().sum();
+    let _expected_sum: u64 = numbers.iter().sum();
 
     info!("Initial nodes sending numbers");
     for (i, handle) in handles.iter().enumerate() {
@@ -446,7 +503,7 @@ async fn test_summation_protocol_late_join() {
     timeout(TEST_TIMEOUT, async {
         let mut received = vec![false; 2];
         loop {
-            for (i, handle) in handles.iter().enumerate() {
+            for (i, handle) in handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
                     if !received[i] {
                         assert_eq!(extract_number_from_message(&msg), numbers[1 - i]);
@@ -466,7 +523,7 @@ async fn test_summation_protocol_late_join() {
     // Start the late joining node
     info!("Starting late joining node");
     handles.push(nodes[2].start().await.expect("Failed to start late node"));
-    let all_handles: Vec<&NetworkServiceHandle> = handles.iter().collect();
+    let all_handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Wait for the new node to complete handshakes
     wait_for_all_handshakes(&all_handles).await;
@@ -486,7 +543,7 @@ async fn test_summation_protocol_late_join() {
     timeout(TEST_TIMEOUT, async {
         let mut verified = vec![false; handles.len()];
         loop {
-            for (i, handle) in handles.iter().enumerate() {
+            for (i, handle) in handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
                     let num = extract_number_from_message(&msg);
                     if !verified[i] && (num == numbers[2] || numbers.contains(&num)) {
@@ -521,7 +578,7 @@ async fn test_summation_protocol_node_disconnect() {
     }
 
     // Convert handles to mutable references
-    let mut handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Wait for all handshakes
     wait_for_all_handshakes(&handles_refs).await;
@@ -543,7 +600,7 @@ async fn test_summation_protocol_node_disconnect() {
     timeout(TEST_TIMEOUT, async {
         let mut received = vec![0; handles.len()];
         loop {
-            for (i, handle) in handles.iter().enumerate() {
+            for (i, handle) in handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
                     if received[i] < 2 {
                         extract_number_from_message(&msg);
@@ -563,7 +620,7 @@ async fn test_summation_protocol_node_disconnect() {
     // Disconnect one node
     info!("Disconnecting node");
     drop(handles.pop());
-    let remaining_handles: Vec<&NetworkServiceHandle> = handles.iter().collect();
+    let mut remaining_handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Verify remaining nodes can still communicate
     info!("Verifying remaining nodes can communicate");
@@ -586,7 +643,7 @@ async fn test_summation_protocol_node_disconnect() {
     timeout(TEST_TIMEOUT, async {
         let mut verified = vec![false; remaining_handles.len()];
         loop {
-            for (i, handle) in remaining_handles.iter().enumerate() {
+            for (i, handle) in remaining_handles.iter_mut().enumerate() {
                 if let Some(msg) = handle.next_protocol_message() {
                     if !verified[i] {
                         extract_sum_from_verification(&msg);

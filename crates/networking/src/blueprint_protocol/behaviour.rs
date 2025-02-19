@@ -5,6 +5,7 @@ use crate::{
     types::ProtocolMessage, Curve, InstanceMsgKeyPair, InstanceMsgPublicKey,
     InstanceSignedMsgSignature,
 };
+use bincode;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
 use gadget_crypto::KeyType;
@@ -102,11 +103,18 @@ impl BlueprintProtocolBehaviour {
         let gossipsub_config = gossipsub::ConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(1))
             .validation_mode(gossipsub::ValidationMode::Strict)
+            .mesh_n_low(2)
+            .mesh_n(4)
+            .mesh_n_high(8)
+            .gossip_lazy(3)
+            .history_length(10)
+            .history_gossip(3)
+            .flood_publish(true)
             .build()
             .expect("Valid gossipsub config");
 
         let gossipsub = gossipsub::Behaviour::new(
-            MessageAuthenticity::Signed(local_key.clone()),
+            gossipsub::MessageAuthenticity::Signed(local_key.clone()),
             gossipsub_config,
         )
         .expect("Valid gossipsub behaviour");
@@ -255,6 +263,42 @@ impl BlueprintProtocolBehaviour {
                 self.peer_manager
                     .ban_peer(*peer, reason, Some(Duration::from_secs(300)));
             }
+        }
+    }
+
+    pub fn handle_gossipsub_event(&mut self, event: gossipsub::Event) {
+        match event {
+            gossipsub::Event::Message {
+                propagation_source,
+                message_id: _,
+                message,
+            } => {
+                // Only accept gossip from verified peers
+                if !self.peer_manager.is_peer_verified(&propagation_source) {
+                    warn!(%propagation_source, "Received gossip from unverified peer");
+                    return;
+                }
+
+                debug!(%propagation_source, "Received gossip message");
+
+                // Deserialize the protocol message
+                if let Ok(protocol_message) = bincode::deserialize::<ProtocolMessage>(&message.data)
+                {
+                    debug!(%propagation_source, %protocol_message, "Forwarding gossip message to protocol handler");
+                    if let Err(e) = self.protocol_message_sender.send(protocol_message) {
+                        warn!(%propagation_source, "Failed to forward gossip message: {}", e);
+                    }
+                } else {
+                    warn!(%propagation_source, "Failed to deserialize gossip message");
+                }
+            }
+            gossipsub::Event::Subscribed { peer_id, topic } => {
+                debug!(%peer_id, %topic, "Peer subscribed to topic");
+            }
+            gossipsub::Event::Unsubscribed { peer_id, topic } => {
+                debug!(%peer_id, %topic, "Peer unsubscribed from topic");
+            }
+            _ => {}
         }
     }
 }
@@ -449,7 +493,6 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                 _ => {}
             }
         }
-
         Poll::Pending
     }
 }
