@@ -1,15 +1,16 @@
 use crate::service::NetworkMessage;
-use std::{collections::HashSet, time::Duration};
-
+use crate::{
+    key_types::InstanceMsgPublicKey, service_handle::NetworkServiceHandle, InstanceMsgKeyPair,
+    NetworkConfig, NetworkService,
+};
 use gadget_crypto::{sp_core::SpEcdsa, KeyType};
-use libp2p::{identity, Multiaddr, PeerId};
+use libp2p::{
+    identity::{self, Keypair},
+    Multiaddr, PeerId,
+};
+use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
-
-use crate::{
-    key_types::InstanceMsgPublicKey, service_handle::NetworkServiceHandle, NetworkConfig,
-    NetworkService,
-};
 
 mod discovery;
 mod handshake;
@@ -25,10 +26,13 @@ fn init_tracing() {
 }
 
 /// Test node configuration for network tests
+/// Test node configuration for network tests
 pub struct TestNode {
     pub service: Option<NetworkService>,
     pub peer_id: PeerId,
     pub listen_addr: Option<Multiaddr>,
+    pub instance_key_pair: InstanceMsgKeyPair,
+    pub local_key: Keypair,
 }
 
 impl TestNode {
@@ -49,8 +53,8 @@ impl TestNode {
         let config = NetworkConfig {
             network_name: network_name.to_string(),
             instance_id: instance_id.to_string(),
-            instance_key_pair,
-            local_key,
+            instance_key_pair: instance_key_pair.clone(),
+            local_key: local_key.clone(),
             listen_addr: listen_addr.clone(),
             target_peer_count: 10,
             bootstrap_peers,
@@ -66,7 +70,9 @@ impl TestNode {
         Self {
             service: Some(service),
             peer_id,
-            listen_addr: None, // To be set later
+            listen_addr: None,
+            instance_key_pair,
+            local_key,
         }
     }
 
@@ -172,20 +178,5 @@ pub async fn wait_for_peer_info(
     {
         Ok(_) => info!("Peer info updated successfully in both directions"),
         Err(_) => panic!("Peer info update timed out"),
-    }
-}
-
-trait NetworkServiceHandleExt {
-    fn dial(&self, other: &NetworkServiceHandle);
-}
-
-impl NetworkServiceHandleExt for NetworkServiceHandle {
-    fn dial(&self, other: &NetworkServiceHandle) {
-        let listen_addr = other
-            .get_listen_addr()
-            .expect("Node2 did not return a listening address");
-
-        self.send_network_message(NetworkMessage::Dial(listen_addr.clone()))
-            .expect("Node1 failed to dial Node2");
     }
 }

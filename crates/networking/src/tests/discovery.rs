@@ -1,5 +1,4 @@
 use super::init_tracing;
-use super::NetworkServiceHandleExt;
 use super::TestNode;
 use super::{wait_for_peer_discovery, wait_for_peer_info};
 use crate::service::NetworkMessage;
