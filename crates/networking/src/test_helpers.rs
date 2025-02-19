@@ -22,7 +22,7 @@ impl TestNode {
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
-        bootstrap_peers: Vec<(PeerId, Multiaddr)>,
+        bootstrap_peers: Vec<Multiaddr>,
     ) -> Self {
         let local_key = identity::Keypair::generate_ed25519();
         let peer_id = local_key.public().to_peer_id();
@@ -46,8 +46,7 @@ impl TestNode {
 
         let (allowed_keys_tx, allowed_keys_rx) = crossbeam_channel::unbounded();
         allowed_keys_tx.send(allowed_keys.clone()).unwrap();
-        let service = NetworkService::new(config, allowed_keys, allowed_keys_rx)
-            .await
+        let service = NetworkService::new(config, allowed_keys) // TODO: allowed_keys_rx
             .expect("Failed to create network service");
 
         Self {
@@ -67,7 +66,7 @@ impl TestNode {
         let timeout_duration = Duration::from_secs(5);
         match timeout(timeout_duration, async {
             while self.listen_addr.is_none() {
-                if let Some(addr) = handle.get_listen_addr().await {
+                if let Some(addr) = handle.get_listen_addr() {
                     info!("Node {} listening on {}", self.peer_id, addr);
                     self.listen_addr = Some(addr);
                     break;

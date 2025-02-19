@@ -9,9 +9,6 @@ pub mod behaviour;
 pub mod config;
 pub mod peers;
 
-#[cfg(test)]
-mod tests;
-
 pub use peers::{PeerEvent, PeerInfo, PeerManager};
 
 const MAX_ESTABLISHED_PER_PEER: u32 = 4;

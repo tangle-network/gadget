@@ -67,7 +67,7 @@ async fn test_peer_discovery_kademlia() {
     let node1_addr = node1.get_listen_addr().expect("Node1 should be listening");
 
     // Create two more nodes that will bootstrap from node1
-    let bootstrap_peers = vec![(node1.peer_id, node1_addr.clone())];
+    let bootstrap_peers = vec![node1_addr.clone()];
     let mut node2 = TestNode::new(
         network_name,
         instance_id,
