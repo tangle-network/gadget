@@ -1,4 +1,5 @@
 use super::{InstanceMessageRequest, InstanceMessageResponse};
+use crate::blueprint_protocol::HandshakeMessage;
 use crate::discovery::PeerManager;
 use crate::{
     types::ProtocolMessage, Curve, InstanceMsgKeyPair, InstanceMsgPublicKey,
@@ -23,7 +24,7 @@ use std::{
     task::Poll,
     time::{Duration, Instant},
 };
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(NetworkBehaviour)]
 pub struct DerivedBlueprintProtocolBehaviour {
@@ -139,15 +140,17 @@ impl BlueprintProtocolBehaviour {
         &self,
         key_pair: &mut InstanceMsgKeyPair,
         peer: &PeerId,
+        handshake_msg: &HandshakeMessage,
     ) -> InstanceSignedMsgSignature {
-        let msg = peer.to_bytes();
+        let msg = handshake_msg.to_bytes(peer);
         match <Curve as KeyType>::sign_with_secret(key_pair, &msg) {
             Ok(signature) => {
                 let public_key = key_pair.public();
                 let hex_msg = hex::encode(msg);
                 let hex_public_key = hex::encode(public_key.0.to_raw());
                 let hex_signature = hex::encode(signature.0.to_raw());
-                debug!(%peer, ?hex_msg, %hex_public_key, %hex_signature, "signing handshake");
+
+                debug!(%peer, %hex_msg, %hex_public_key, %hex_signature, "signing handshake");
                 signature
             }
             Err(e) => {
@@ -200,38 +203,47 @@ impl BlueprintProtocolBehaviour {
     /// Verify and handle a handshake with a peer
     pub fn verify_handshake(
         &self,
-        peer: &PeerId,
+        msg: &HandshakeMessage,
         public_key: &InstanceMsgPublicKey,
         signature: &InstanceSignedMsgSignature,
     ) -> Result<(), InstanceMessageResponse> {
-        let msg = peer.to_bytes();
-        let hex_msg = hex::encode(msg.clone());
+        if msg.is_expired(HandshakeMessage::MAX_AGE) {
+            error!(%msg.sender, "Handshake message expired");
+            return Err(InstanceMessageResponse::Error {
+                code: 400,
+                message: "Handshake message expired".to_string(),
+            });
+        }
+        let msg_bytes = msg.to_bytes(&self.local_peer_id);
+        let hex_msg = hex::encode(msg_bytes.clone());
         let hex_public_key = hex::encode(public_key.0.to_raw());
         let hex_signature = hex::encode(signature.0.to_raw());
-        debug!(%peer, ?hex_msg, %hex_public_key, %hex_signature, "verifying handshake");
-        let valid = <Curve as KeyType>::verify(public_key, &msg, signature);
+        debug!(%hex_msg, %hex_public_key, %hex_signature, "verifying handshake");
+
+        debug!("Verifying handshake with public key: {:?}", hex_public_key);
+
+        let valid = <Curve as KeyType>::verify(public_key, &msg_bytes, signature);
         if !valid {
-            warn!("Invalid initial handshake signature from peer: {peer}");
+            warn!(%msg.sender, "Invalid handshake signature for peer");
             return Err(InstanceMessageResponse::Error {
                 code: 400,
                 message: "Invalid handshake signature".to_string(),
             });
         }
 
-        trace!("Received valid handshake from peer: {peer}");
-
+        trace!(%msg.sender, "Handshake signature verified successfully");
         Ok(())
     }
 
     pub fn handle_handshake(
         &self,
-        peer: &PeerId,
+        msg: &HandshakeMessage,
         public_key: &InstanceMsgPublicKey,
         signature: &InstanceSignedMsgSignature,
     ) -> Result<(), InstanceMessageResponse> {
-        self.verify_handshake(peer, public_key, signature)?;
+        self.verify_handshake(msg, public_key, signature)?;
         self.peer_manager
-            .add_peer_id_to_public_key(peer, public_key);
+            .add_peer_id_to_public_key(&msg.sender, public_key);
 
         Ok(())
     }
@@ -334,11 +346,14 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                         e.peer_id
                     );
                     let mut key_pair = self.instance_key_pair.clone();
+                    let handshake_msg = HandshakeMessage::new(self.local_peer_id);
+                    let signature = self.sign_handshake(&mut key_pair, &e.peer_id, &handshake_msg);
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {
                             public_key: key_pair.public(),
-                            signature: self.sign_handshake(&mut key_pair, &e.peer_id),
+                            signature,
+                            msg: handshake_msg,
                         },
                     );
                     self.outbound_handshakes.insert(e.peer_id, Instant::now());

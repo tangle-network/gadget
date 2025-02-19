@@ -61,6 +61,7 @@ features = [
 	"dns",
 	"autonat",
 	"upnp",
+	"serde",
 ]
 
 [dev-dependencies]

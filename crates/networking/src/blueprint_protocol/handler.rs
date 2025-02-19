@@ -6,6 +6,7 @@ use libp2p::{
 };
 use tracing::{debug, warn};
 
+use crate::blueprint_protocol::HandshakeMessage;
 use crate::{key_types::InstanceMsgPublicKey, types::ProtocolMessage};
 
 use super::{BlueprintProtocolBehaviour, InstanceMessageRequest, InstanceMessageResponse};
@@ -14,6 +15,7 @@ const INBOUND_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 const OUTBOUND_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl BlueprintProtocolBehaviour {
+    #[allow(clippy::too_many_lines)]
     pub fn handle_request_response_event(
         &mut self,
         event: request_response::Event<InstanceMessageRequest, InstanceMessageResponse>,
@@ -27,6 +29,7 @@ impl BlueprintProtocolBehaviour {
                             InstanceMessageRequest::Handshake {
                                 public_key,
                                 signature,
+                                msg,
                             },
                         channel,
                         ..
@@ -49,7 +52,7 @@ impl BlueprintProtocolBehaviour {
                 }
 
                 // Verify the handshake
-                match self.verify_handshake(&peer, &public_key, &signature) {
+                match self.verify_handshake(&msg, &public_key, &signature) {
                     Ok(()) => {
                         // Store the handshake request
                         self.inbound_handshakes.insert(peer, Instant::now());
@@ -58,9 +61,12 @@ impl BlueprintProtocolBehaviour {
 
                         // Send handshake response
                         let mut key_pair = self.instance_key_pair.clone();
+                        let handshake_msg = HandshakeMessage::new(self.local_peer_id);
+                        let signature = self.sign_handshake(&mut key_pair, &peer, &handshake_msg);
                         let response = InstanceMessageResponse::Handshake {
-                            public_key: key_pair.public().clone(),
-                            signature: self.sign_handshake(&mut key_pair, &peer),
+                            public_key: key_pair.public(),
+                            signature,
+                            msg: handshake_msg,
                         };
 
                         if let Err(e) = self.send_response(channel, response) {
@@ -88,6 +94,7 @@ impl BlueprintProtocolBehaviour {
                             InstanceMessageResponse::Handshake {
                                 public_key,
                                 signature,
+                                msg,
                             },
                         ..
                     },
@@ -108,7 +115,7 @@ impl BlueprintProtocolBehaviour {
                 }
 
                 // Verify the handshake
-                match self.verify_handshake(&peer, &public_key, &signature) {
+                match self.verify_handshake(&msg, &public_key, &signature) {
                     Ok(()) => {
                         // Mark handshake as completed
                         self.complete_handshake(&peer, &public_key);
@@ -169,7 +176,9 @@ impl BlueprintProtocolBehaviour {
                 };
 
                 debug!(%peer, %protocol, %protocol_message, "Received protocol request");
-                self.protocol_message_sender.send(protocol_message);
+                if let Err(e) = self.protocol_message_sender.send(protocol_message) {
+                    warn!(%peer, "Failed to send protocol message: {:?}", e);
+                }
             }
             request_response::Event::Message {
                 peer,

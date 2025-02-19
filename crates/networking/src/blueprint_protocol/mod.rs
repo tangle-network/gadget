@@ -2,6 +2,7 @@ mod behaviour;
 mod handler;
 
 pub use behaviour::{BlueprintProtocolBehaviour, BlueprintProtocolEvent};
+use libp2p::PeerId;
 
 use crate::key_types::{InstanceMsgPublicKey, InstanceSignedMsgSignature};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,8 @@ pub enum InstanceMessageRequest {
         public_key: InstanceMsgPublicKey,
         /// Signature for verification
         signature: InstanceSignedMsgSignature,
+        /// Handshake message
+        msg: HandshakeMessage,
     },
     /// Protocol-specific message with custom payload
     Protocol {
@@ -36,6 +39,8 @@ pub enum InstanceMessageResponse {
         public_key: InstanceMsgPublicKey,
         /// Signature for verification
         signature: InstanceSignedMsgSignature,
+        /// Handshake message
+        msg: HandshakeMessage,
     },
     /// Success response with optional data
     Success {
@@ -51,4 +56,59 @@ pub enum InstanceMessageResponse {
         /// Error message
         message: String,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HandshakeMessage {
+    /// Sender [`PeerId`]
+    pub sender: PeerId,
+    /// A Unix timestamp in milliseconds
+    pub timestamp: u128,
+}
+
+impl HandshakeMessage {
+    /// Maximum age for a handshake message in milliseconds
+    pub const MAX_AGE: u128 = 30_000;
+
+    /// Creates a new handshake message
+    ///
+    /// # Panics
+    /// - If the system time is before the Unix epoch
+    #[must_use]
+    pub fn new(sender: PeerId) -> Self {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_millis();
+        Self { sender, timestamp }
+    }
+
+    /// Checks if the handshake message is expired
+    ///
+    /// # Arguments
+    /// - `max_age`: Maximum age in milliseconds
+    ///
+    /// # Returns
+    /// - `true` if the message is expired, `false` otherwise
+    ///
+    /// # Panics
+    /// - If the system time is before the Unix epoch
+    #[must_use]
+    pub fn is_expired(&self, max_age: u128) -> bool {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_millis();
+        now.saturating_sub(self.timestamp) > max_age
+    }
+
+    /// Converts the handshake message to a byte array
+    #[must_use]
+    pub fn to_bytes(&self, other_peer_id: &PeerId) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend(&self.sender.to_bytes());
+        bytes.extend(other_peer_id.to_bytes());
+        bytes.extend(&self.timestamp.to_be_bytes());
+        bytes
+    }
 }
