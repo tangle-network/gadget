@@ -17,6 +17,7 @@ pub use gadget_networking_round_based_extension as round_based_compat;
 
 pub use key_types::*;
 pub use service::{NetworkConfig, NetworkEvent, NetworkService};
+pub use gadget_crypto::KeyType;
 
 #[cfg(all(
     feature = "sp-core-ecdsa",
