@@ -72,29 +72,14 @@ pub enum NetworkEvent {
 /// Network message types
 #[derive(Debug)]
 pub enum NetworkMessage {
-    Dial(Multiaddr),
     InstanceRequest {
         peer: PeerId,
         request: InstanceMessageRequest,
-    },
-    InstanceResponse {
-        peer: PeerId,
-        response: InstanceMessageResponse,
     },
     GossipMessage {
         source: PeerId,
         topic: String,
         message: Vec<u8>,
-    },
-    HandshakeRequest {
-        peer: PeerId,
-        public_key: InstanceMsgPublicKey,
-        signature: InstanceSignedMsgSignature,
-    },
-    HandshakeResponse {
-        peer: PeerId,
-        public_key: InstanceMsgPublicKey,
-        signature: InstanceSignedMsgSignature,
     },
 }
 
@@ -525,10 +510,43 @@ async fn handle_ping_event(
 
 /// Handle a network message
 async fn handle_network_message(
-    _swarm: &mut Swarm<GadgetBehaviour>,
-    _msg: NetworkMessage,
-    _peer_manager: &Arc<PeerManager>,
+    swarm: &mut Swarm<GadgetBehaviour>,
+    msg: NetworkMessage,
+    peer_manager: &Arc<PeerManager>,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
+    match msg {
+        NetworkMessage::InstanceRequest { peer, request } => {
+            // Only send requests to verified peers
+            if !peer_manager.is_peer_verified(&peer) {
+                warn!(%peer, "Attempted to send request to unverified peer");
+                return Ok(());
+            }
+
+            debug!(%peer, ?request, "Sending instance request");
+            swarm
+                .behaviour_mut()
+                .blueprint_protocol
+                .send_request(&peer, request.clone());
+            event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?;
+        }
+        NetworkMessage::GossipMessage {
+            source,
+            topic,
+            message,
+        } => {
+            debug!(%source, %topic, "Publishing gossip message");
+            if let Err(e) = swarm
+                .behaviour_mut()
+                .blueprint_protocol
+                .publish(&topic, message.clone())
+            {
+                warn!(%source, %topic, "Failed to publish gossip message: {:?}", e);
+                return Ok(());
+            }
+            event_sender.send(NetworkEvent::GossipSent { topic, message })?;
+        }
+    }
+
     Ok(())
 }
