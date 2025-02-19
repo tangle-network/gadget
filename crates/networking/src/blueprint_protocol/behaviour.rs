@@ -212,13 +212,11 @@ impl BlueprintProtocolBehaviour {
                 message: "Handshake message expired".to_string(),
             });
         }
+
         let msg_bytes = msg.to_bytes(&self.local_peer_id);
         let hex_msg = hex::encode(msg_bytes.clone());
-        let hex_public_key = hex::encode(public_key.0.to_raw());
-        let hex_signature = hex::encode(signature.0.to_raw());
-        debug!(%hex_msg, %hex_public_key, %hex_signature, "verifying handshake");
 
-        debug!("Verifying handshake with public key: {:?}", hex_public_key);
+        debug!(%hex_msg, %public_key, %signature, "verifying handshake");
 
         let valid = <Curve as KeyType>::verify(public_key, &msg_bytes, signature);
         if !valid {
