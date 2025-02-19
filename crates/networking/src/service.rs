@@ -69,6 +69,7 @@ pub enum NetworkEvent {
 /// Network message types
 #[derive(Debug)]
 pub enum NetworkMessage {
+    Dial(Multiaddr),
     InstanceRequest {
         peer: PeerId,
         request: InstanceMessageRequest,
@@ -102,9 +103,7 @@ pub struct NetworkConfig {
     /// Instance id for blueprint protocol
     pub instance_id: String,
     /// Instance secret key for blueprint protocol
-    pub instance_secret_key: InstanceMsgKeyPair,
-    /// Instance public key for blueprint protocol
-    pub instance_public_key: InstanceMsgPublicKey,
+    pub instance_key_pair: InstanceMsgKeyPair,
     /// Local keypair for authentication
     pub local_key: Keypair,
     /// Address to listen on
@@ -152,8 +151,7 @@ impl NetworkService {
         let NetworkConfig {
             network_name,
             instance_id,
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             local_key,
             listen_addr,
             target_peer_count,
@@ -174,8 +172,7 @@ impl NetworkService {
             &network_name,
             &blueprint_protocol_name,
             &local_key,
-            &instance_secret_key,
-            &instance_public_key,
+            &instance_key_pair,
             target_peer_count,
             peer_manager.clone(),
             protocol_message_sender.clone(),
@@ -268,17 +265,28 @@ impl NetworkService {
         loop {
             tokio::select! {
                 swarm_event = self.swarm.select_next_some() => {
-                    if let SwarmEvent::Behaviour(event) = swarm_event {
-                        if let Err(e) = handle_behaviour_event(
-                            &mut self.swarm,
-                            &self.peer_manager,
-                            event,
-                            &self.event_sender,
-                        )
-                        .await
-                        {
-                            warn!("Failed to handle swarm event: {}", e);
-                        }
+                    match swarm_event {
+                        SwarmEvent::NewListenAddr { address, .. } => {
+                            info!("New listen address: {}", address);
+                            let local_peer_id = *self.swarm.local_peer_id();
+                            let mut info = self.peer_manager.get_peer_info(&local_peer_id)
+                                .unwrap_or_default();
+                            info.addresses.insert(address.clone());
+                            self.peer_manager.update_peer(local_peer_id, info);
+                        },
+                        SwarmEvent::Behaviour(event) => {
+                            if let Err(e) = handle_behaviour_event(
+                                &mut self.swarm,
+                                &self.peer_manager,
+                                event,
+                                &self.event_sender,
+                            )
+                            .await
+                            {
+                                warn!("Failed to handle swarm event: {}", e);
+                            }
+                        },
+                        _ => {}
                     }
                 }
                 Ok(msg) = async { self.network_receiver.try_recv() } => {
@@ -446,8 +454,8 @@ async fn handle_discovery_event(
 
 /// Handle a blueprint event
 async fn handle_blueprint_protocol_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: BlueprintProtocolEvent,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
@@ -455,12 +463,12 @@ async fn handle_blueprint_protocol_event(
         BlueprintProtocolEvent::Request {
             peer,
             request,
-            channel,
+            channel: _,
         } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
         BlueprintProtocolEvent::Response {
             peer,
             response,
-            request_id,
+            request_id: _,
         } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
         BlueprintProtocolEvent::GossipMessage {
             source,
@@ -478,8 +486,8 @@ async fn handle_blueprint_protocol_event(
 
 /// Handle a ping event
 async fn handle_ping_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: ping::Event,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
@@ -509,8 +517,15 @@ async fn handle_ping_event(
 async fn handle_network_message(
     swarm: &mut Swarm<GadgetBehaviour>,
     msg: NetworkMessage,
-    peer_manager: &Arc<PeerManager>,
+    _peer_manager: &Arc<PeerManager>,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
+    match msg {
+        NetworkMessage::Dial(addr) => {
+            swarm.dial(addr)?;
+        }
+        _ => {}
+    }
+
     Ok(())
 }

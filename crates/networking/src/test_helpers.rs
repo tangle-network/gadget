@@ -22,25 +22,20 @@ impl TestNode {
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
-        bootstrap_peers: Vec<(PeerId, Multiaddr)>,
+        bootstrap_peers: Vec<Multiaddr>,
     ) -> Self {
         let local_key = identity::Keypair::generate_ed25519();
         let peer_id = local_key.public().to_peer_id();
 
-        let listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/0").parse().unwrap();
-        info!(
-            "Creating test node {} with TCP address: {}",
-            peer_id, listen_addr
-        );
+        let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/0".parse().unwrap();
+        info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
-        let instance_secret_key = SpEcdsa::generate_with_seed(None).unwrap();
-        let instance_public_key = instance_secret_key.public();
+        let instance_key_pair = SpEcdsa::generate_with_seed(None).unwrap();
 
         let config = NetworkConfig {
             network_name: network_name.to_string(),
             instance_id: instance_id.to_string(),
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             local_key,
             listen_addr: listen_addr.clone(),
             target_peer_count: 10,
@@ -51,14 +46,13 @@ impl TestNode {
 
         let (allowed_keys_tx, allowed_keys_rx) = crossbeam_channel::unbounded();
         allowed_keys_tx.send(allowed_keys.clone()).unwrap();
-        let service = NetworkService::new(config, allowed_keys, allowed_keys_rx)
-            .await
+        let service = NetworkService::new(config, allowed_keys) // TODO: allowed_keys_rx
             .expect("Failed to create network service");
 
         Self {
             service: Some(service),
             peer_id,
-            listen_addr: Some(listen_addr),
+            listen_addr: None, // To be set later
         }
     }
 
@@ -72,7 +66,7 @@ impl TestNode {
         let timeout_duration = Duration::from_secs(5);
         match timeout(timeout_duration, async {
             while self.listen_addr.is_none() {
-                if let Some(addr) = handle.get_listen_addr().await {
+                if let Some(addr) = handle.get_listen_addr() {
                     info!("Node {} listening on {}", self.peer_id, addr);
                     self.listen_addr = Some(addr);
                     break;

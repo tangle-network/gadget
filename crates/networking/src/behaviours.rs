@@ -1,4 +1,5 @@
-use crate::key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey};
+use crate::error::Result as NetworkingResult;
+use crate::key_types::InstanceMsgKeyPair;
 use crate::types::ProtocolMessage;
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
@@ -55,8 +56,7 @@ impl GadgetBehaviour {
         network_name: &str,
         blueprint_protocol_name: &str,
         local_key: &Keypair,
-        instance_secret_key: &InstanceMsgKeyPair,
-        instance_public_key: &InstanceMsgPublicKey,
+        instance_key_pair: &InstanceMsgKeyPair,
         target_peer_count: u64,
         peer_manager: Arc<PeerManager>,
         protocol_message_sender: Sender<ProtocolMessage>,
@@ -85,9 +85,9 @@ impl GadgetBehaviour {
             network_name
         );
         let discovery = DiscoveryConfig::new(local_key.public(), network_name)
-            .with_mdns(true)
-            .with_kademlia(true)
-            .with_target_peer_count(target_peer_count)
+            .mdns(true)
+            .kademlia(true)
+            .target_peer_count(target_peer_count)
             .build()
             .unwrap();
 
@@ -97,8 +97,7 @@ impl GadgetBehaviour {
         );
         let blueprint_protocol = BlueprintProtocolBehaviour::new(
             local_key,
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             peer_manager,
             blueprint_protocol_name,
             protocol_message_sender,
@@ -114,7 +113,7 @@ impl GadgetBehaviour {
     }
 
     /// Bootstrap Kademlia network
-    pub fn bootstrap(&mut self) -> Result<QueryId, String> {
+    pub fn bootstrap(&mut self) -> NetworkingResult<QueryId> {
         self.discovery.bootstrap()
     }
 

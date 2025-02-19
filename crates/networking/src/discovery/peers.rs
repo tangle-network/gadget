@@ -76,15 +76,7 @@ pub struct PeerManager {
 
 impl Default for PeerManager {
     fn default() -> Self {
-        let (event_tx, _) = broadcast::channel(100);
-        Self {
-            peers: Default::default(),
-            banned_peers: Default::default(),
-            verified_peers: Default::default(),
-            public_keys_to_peer_ids: Default::default(),
-            whitelisted_keys: Default::default(),
-            event_tx,
-        }
+        Self::new(Default::default())
     }
 }
 
