@@ -432,7 +432,7 @@ async fn handle_discovery_event(
                         peer_manager.update_peer(peer_info.peer_id, info);
                         let addrs: Vec<_> = peer_info.addrs.iter().cloned().collect();
                         for addr in addrs {
-                            debug!(%addr, "Dialing peer from Kademlia");
+                            debug!(%peer_info.peer_id, %addr, "Dialing peer from Kademlia");
                             if let Err(e) = swarm.dial(DialOpts::from(addr)) {
                                 warn!("Failed to dial address: {}", e);
                             }
@@ -448,6 +448,7 @@ async fn handle_discovery_event(
                         let mut info = PeerInfo::default();
                         info.addresses.insert(addr.clone());
                         peer_manager.update_peer(*peer_id, info);
+                        debug!(%peer_id, %addr, "Dialing peer from Mdns");
                         if let Err(e) = swarm.dial(DialOpts::from(addr.clone())) {
                             warn!("Failed to dial address: {}", e);
                         }
