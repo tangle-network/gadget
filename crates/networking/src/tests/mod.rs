@@ -88,7 +88,7 @@ impl TestNode {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
-            .await
+        .await
         {
             Ok(_) => Ok(handle),
             Err(_) => Err("Timeout waiting for node to start listening"),
@@ -118,19 +118,19 @@ where
 
 /// Wait for peers to discover each other
 pub async fn wait_for_peer_discovery(
-    nodes: &[&TestNode],
+    handles: &[&NetworkServiceHandle],
     timeout: Duration,
 ) -> Result<(), &'static str> {
+    info!("Waiting for peer discovery...");
+
     wait_for_condition(timeout, || {
-        for (i, node1) in nodes.iter().enumerate() {
-            for (j, node2) in nodes.iter().enumerate() {
+        for (i, handle1) in handles.iter().enumerate() {
+            for (j, handle2) in handles.iter().enumerate() {
                 if i != j
-                    && !node1
-                    .service
-                    .as_ref()
-                    .map(|s| s.peer_manager.get_peers())
-                    .unwrap_or_default()
-                    .contains_key(&node2.peer_id)
+                    && !handle1
+                        .peers()
+                        .iter()
+                        .any(|id| *id == handle2.local_peer_id)
                 {
                     return false;
                 }
@@ -138,23 +138,41 @@ pub async fn wait_for_peer_discovery(
         }
         true
     })
-        .await
+    .await
 }
 
 /// Wait for peer info to be updated
 pub async fn wait_for_peer_info(
-    node: &TestNode,
-    peer_id: &PeerId,
+    handle1: &NetworkServiceHandle,
+    handle2: &NetworkServiceHandle,
     timeout: Duration,
-) -> Result<(), &'static str> {
-    wait_for_condition(timeout, || {
-        node.service
-            .as_ref()
-            .map(|s| s.peer_manager.get_peer_info(peer_id))
-            .unwrap_or(None)
-            .map_or(false, |info| info.identify_info.is_some())
+) {
+    info!("Waiting for identify info...");
+
+    match tokio::time::timeout(timeout, async {
+        loop {
+            let peer_info1 = handle1.peer_info(&handle2.local_peer_id);
+            let peer_info2 = handle2.peer_info(&handle1.local_peer_id);
+
+            if let Some(peer_info) = peer_info1 {
+                if peer_info.identify_info.is_some() {
+                    // Also verify reverse direction
+                    if let Some(peer_info) = peer_info2 {
+                        if peer_info.identify_info.is_some() {
+                            info!("Identify info populated in both directions");
+                            break;
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     })
-        .await
+    .await
+    {
+        Ok(_) => info!("Peer info updated successfully in both directions"),
+        Err(_) => panic!("Peer info update timed out"),
+    }
 }
 
 trait NetworkServiceHandleExt {
@@ -163,11 +181,11 @@ trait NetworkServiceHandleExt {
 
 impl NetworkServiceHandleExt for NetworkServiceHandle {
     fn dial(&self, other: &NetworkServiceHandle) {
-        let listen_addr = other.get_listen_addr()
+        let listen_addr = other
+            .get_listen_addr()
             .expect("Node2 did not return a listening address");
 
-        self
-            .send_network_message(NetworkMessage::Dial(listen_addr.clone()))
+        self.send_network_message(NetworkMessage::Dial(listen_addr.clone()))
             .expect("Node1 failed to dial Node2");
     }
 }
