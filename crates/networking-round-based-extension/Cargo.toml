@@ -23,26 +23,32 @@ thiserror = { workspace = true }
 [dev-dependencies]
 round-based = { workspace = true, features = ["derive"] }
 libp2p = { workspace = true, features = [
-    "tokio",
-    "gossipsub",
-    "mdns",
-    "noise",
-    "macros",
-    "yamux",
-    "tcp",
-    "quic",
-    "request-response",
-    "cbor",
-    "identify",
-    "kad",
-    "dcutr",
-    "relay",
-    "ping",
-    "dns",
-    "autonat",
-    "upnp",
+  "tokio",
+  "gossipsub",
+  "mdns",
+  "noise",
+  "macros",
+  "yamux",
+  "tcp",
+  "quic",
+  "request-response",
+  "cbor",
+  "identify",
+  "kad",
+  "dcutr",
+  "relay",
+  "ping",
+  "dns",
+  "autonat",
+  "upnp",
 ] }
 
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+rand_dev = "0.1"
+rand = { workspace = true }
+hex = { workspace = true }
 
 [lints]
 workspace = true

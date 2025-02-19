@@ -7178,13 +7178,18 @@ dependencies = [
  "dashmap",
  "futures",
  "gadget-networking",
+ "hex",
  "libp2p",
+ "rand 0.8.5",
+ "rand_dev",
  "round-based",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "thiserror 2.0.11",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.3.19",
 ]
 
 [[package]]
@@ -14732,6 +14737,17 @@ checksum = "a88e0da7a2c97baa202165137c158d0a2e824ac465d13d81046727b34cb247d3"
 dependencies = [
  "getrandom 0.3.1",
  "zerocopy 0.8.18",
+]
+
+[[package]]
+name = "rand_dev"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbee97c27dada05f03db49ffe6516872f6c926e0fd525f9ce0cb3c051adf145c"
+dependencies = [
+ "hex",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
