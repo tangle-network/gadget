@@ -30,14 +30,12 @@ impl TestNode {
         let listen_addr: Multiaddr = "/ip4/127.0.0.1/tcp/0".parse().unwrap();
         info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
-        let instance_secret_key = SpEcdsa::generate_with_seed(None).unwrap();
-        let instance_public_key = instance_secret_key.public();
+        let instance_key_pair = SpEcdsa::generate_with_seed(None).unwrap();
 
         let config = NetworkConfig {
             network_name: network_name.to_string(),
             instance_id: instance_id.to_string(),
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             local_key,
             listen_addr: listen_addr.clone(),
             target_peer_count: 10,

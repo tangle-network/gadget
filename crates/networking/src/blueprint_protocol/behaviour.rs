@@ -70,10 +70,8 @@ pub struct BlueprintProtocolBehaviour {
     pub(crate) peer_manager: Arc<PeerManager>,
     /// Libp2p peer ID
     pub(crate) local_peer_id: PeerId,
-    /// Instance public key for handshakes and `blueprint_protocol`
-    pub(crate) instance_public_key: InstanceMsgPublicKey,
-    /// Instance secret key for handshakes and `blueprint_protocol`
-    pub(crate) instance_secret_key: InstanceMsgKeyPair,
+    /// Instance key pair for handshakes and blueprint_protocol
+    pub(crate) instance_key_pair: InstanceMsgKeyPair,
     /// Peers with pending inbound handshakes
     pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,
     /// Peers with pending outbound handshakes
@@ -90,8 +88,7 @@ impl BlueprintProtocolBehaviour {
     #[must_use]
     pub fn new(
         local_key: &Keypair,
-        instance_secret_key: &InstanceMsgKeyPair,
-        instance_public_key: &InstanceMsgPublicKey,
+        instance_key_pair: &InstanceMsgKeyPair,
         peer_manager: Arc<PeerManager>,
         blueprint_protocol_name: &str,
         protocol_message_sender: Sender<ProtocolMessage>,
@@ -132,8 +129,7 @@ impl BlueprintProtocolBehaviour {
             blueprint_protocol_name,
             peer_manager,
             local_peer_id,
-            instance_public_key: *instance_public_key,
-            instance_secret_key: instance_secret_key.clone(),
+            instance_key_pair: instance_key_pair.clone(),
             inbound_handshakes: DashMap::new(),
             outbound_handshakes: DashMap::new(),
             response_channels: DashMap::new(),
@@ -145,7 +141,7 @@ impl BlueprintProtocolBehaviour {
     pub(crate) fn sign_handshake(&self, peer: &PeerId) -> InstanceSignedMsgSignature {
         let msg = peer.to_bytes();
         let msg_hash = blake2_256(&msg);
-        self.instance_secret_key.sign_prehash(&msg_hash)
+        self.instance_key_pair.sign_prehash(&msg_hash)
     }
 
     /// Send a request to a peer
@@ -323,7 +319,7 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {
-                            public_key: self.instance_public_key,
+                            public_key: self.instance_key_pair.public(),
                             signature: self.sign_handshake(&e.peer_id),
                         },
                     );

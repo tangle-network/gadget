@@ -78,6 +78,10 @@ pub enum Error {
     BadRpcConnection(String),
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
+
+    #[cfg(feature = "networking")]
+    #[error("Failed to parse Multiaddr: {0}")]
+    Multiaddr(#[from] libp2p::multiaddr::Error),
 }
 
 #[cfg(feature = "networking")]
@@ -178,11 +182,10 @@ impl GadgetConfiguration {
             .expect("valid multiaddr; qed");
 
         let network_name: String = network_name.into();
-        let network_config = gadget_networking::NetworkConfig {
+        let network_config = NetworkConfig {
             instance_id: network_name.clone(),
             network_name,
-            instance_secret_key: ecdsa_pair,
-            instance_public_key: ecdsa_pub_key,
+            instance_key_pair: ecdsa_pair,
             local_key: network_identity,
             listen_addr,
             target_peer_count: self.target_peer_count,

@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 
+use crate::error::{Error, Result as NetworkingResult};
 use libp2p::{
     autonat,
     core::Multiaddr,
@@ -81,11 +82,11 @@ pub struct DiscoveryBehaviour {
 
 impl DiscoveryBehaviour {
     /// Bootstrap Kademlia network
-    pub fn bootstrap(&mut self) -> Result<kad::QueryId, String> {
+    pub fn bootstrap(&mut self) -> NetworkingResult<kad::QueryId> {
         if let Some(active_kad) = self.discovery.kademlia.as_mut() {
-            active_kad.bootstrap().map_err(|e| e.to_string())
+            active_kad.bootstrap().map_err(Into::into)
         } else {
-            Err("Kademlia is not activated".to_string())
+            Err(Error::KademliaNotActivated)
         }
     }
 
@@ -167,17 +168,6 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         )
     }
 
-    fn on_connection_handler_event(
-        &mut self,
-        peer_id: PeerId,
-        connection: ConnectionId,
-        event: THandlerOutEvent<Self>,
-    ) {
-        debug!(%peer_id, "Handling connection handler event");
-        self.discovery
-            .on_connection_handler_event(peer_id, connection, event);
-    }
-
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
         match &event {
             FromSwarm::ConnectionEstablished(e) => {
@@ -202,6 +192,16 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             _ => {}
         }
         self.discovery.on_swarm_event(event);
+    }
+
+    fn on_connection_handler_event(
+        &mut self,
+        peer_id: PeerId,
+        connection: ConnectionId,
+        event: THandlerOutEvent<Self>,
+    ) {
+        self.discovery
+            .on_connection_handler_event(peer_id, connection, event);
     }
 
     #[allow(clippy::type_complexity)]

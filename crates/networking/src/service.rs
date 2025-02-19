@@ -102,9 +102,7 @@ pub struct NetworkConfig {
     /// Instance id for blueprint protocol
     pub instance_id: String,
     /// Instance secret key for blueprint protocol
-    pub instance_secret_key: InstanceMsgKeyPair,
-    /// Instance public key for blueprint protocol
-    pub instance_public_key: InstanceMsgPublicKey,
+    pub instance_key_pair: InstanceMsgKeyPair,
     /// Local keypair for authentication
     pub local_key: Keypair,
     /// Address to listen on
@@ -152,8 +150,7 @@ impl NetworkService {
         let NetworkConfig {
             network_name,
             instance_id,
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             local_key,
             listen_addr,
             target_peer_count,
@@ -174,8 +171,7 @@ impl NetworkService {
             &network_name,
             &blueprint_protocol_name,
             &local_key,
-            &instance_secret_key,
-            &instance_public_key,
+            &instance_key_pair,
             target_peer_count,
             peer_manager.clone(),
             protocol_message_sender.clone(),
@@ -520,7 +516,7 @@ async fn handle_ping_event(
 async fn handle_network_message(
     swarm: &mut Swarm<GadgetBehaviour>,
     msg: NetworkMessage,
-    peer_manager: &Arc<PeerManager>,
+    _peer_manager: &Arc<PeerManager>,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     Ok(())
