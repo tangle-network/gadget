@@ -103,7 +103,7 @@ async fn test_peer_info_updates() {
 
     info!("Starting nodes...");
     // Start both nodes
-    let handle1 = node1.start().await.expect("Failed to start node1");
+    let mut handle1 = node1.start().await.expect("Failed to start node1");
     let handle2 = node2.start().await.expect("Failed to start node2");
 
     // First wait for basic peer discovery (they see each other)
