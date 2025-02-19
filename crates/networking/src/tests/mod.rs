@@ -13,6 +13,7 @@ use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
 
+mod blueprint_protocol;
 mod discovery;
 mod handshake;
 
@@ -166,6 +167,13 @@ impl TestNode {
     /// Get the actual listening address
     pub fn get_listen_addr(&self) -> Option<Multiaddr> {
         self.listen_addr.clone()
+    }
+
+    /// Update the allowed keys for this node
+    pub fn update_allowed_keys(&self, allowed_keys: HashSet<InstanceMsgPublicKey>) {
+        if let Some(service) = &self.service {
+            service.peer_manager.update_whitelisted_keys(allowed_keys);
+        }
     }
 }
 

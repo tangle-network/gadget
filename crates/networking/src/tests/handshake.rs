@@ -210,60 +210,60 @@ async fn test_handshake_reconnection() {
     info!("Handshake reconnection test completed successfully");
 }
 
-// #[tokio::test]
-// async fn test_concurrent_connections() {
-//     init_tracing();
-//     info!("Starting concurrent connections test");
+#[tokio::test]
+async fn test_concurrent_connections() {
+    init_tracing();
+    info!("Starting concurrent connections test");
 
-//     let network_name = "test-network";
-//     let instance_id = "test-instance";
-//     let allowed_keys = HashSet::new();
+    let network_name = "test-network";
+    let instance_id = "test-instance";
+    let allowed_keys = HashSet::new();
 
-//     // Create three nodes to test multiple concurrent handshakes
-//     let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-//     let mut node2 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-//     let mut node3 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
+    // Create three nodes to test multiple concurrent handshakes
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
+    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
+    let mut node3 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
 
-//     info!("Starting all nodes simultaneously");
-//     // Start all nodes simultaneously
-//     let (handle1, handle2, handle3) = tokio::join!(node1.start(), node2.start(), node3.start());
-//     let handle1 = handle1.expect("Failed to start node1");
-//     let handle2 = handle2.expect("Failed to start node2");
-//     let handle3 = handle3.expect("Failed to start node3");
+    info!("Starting all nodes simultaneously");
+    // Start all nodes simultaneously
+    let (handle1, handle2, handle3) = tokio::join!(node1.start(), node2.start(), node3.start());
+    let handle1 = handle1.expect("Failed to start node1");
+    let handle2 = handle2.expect("Failed to start node2");
+    let handle3 = handle3.expect("Failed to start node3");
 
-//     // Wait for all handshakes to complete
-//     info!("Waiting for all handshakes to complete");
-//     timeout(TEST_TIMEOUT, async {
-//         loop {
-//             let all_verified = handle1.peer_manager.is_peer_verified(&node2.peer_id)
-//                 && handle1.peer_manager.is_peer_verified(&node3.peer_id)
-//                 && handle2.peer_manager.is_peer_verified(&node1.peer_id)
-//                 && handle2.peer_manager.is_peer_verified(&node3.peer_id)
-//                 && handle3.peer_manager.is_peer_verified(&node1.peer_id)
-//                 && handle3.peer_manager.is_peer_verified(&node2.peer_id);
+    // Wait for all handshakes to complete
+    info!("Waiting for all handshakes to complete");
+    timeout(TEST_TIMEOUT, async {
+        loop {
+            let all_verified = handle1.peer_manager.is_peer_verified(&node2.peer_id)
+                && handle1.peer_manager.is_peer_verified(&node3.peer_id)
+                && handle2.peer_manager.is_peer_verified(&node1.peer_id)
+                && handle2.peer_manager.is_peer_verified(&node3.peer_id)
+                && handle3.peer_manager.is_peer_verified(&node1.peer_id)
+                && handle3.peer_manager.is_peer_verified(&node2.peer_id);
 
-//             if all_verified {
-//                 break;
-//             }
-//             tokio::time::sleep(Duration::from_millis(100)).await;
-//         }
-//     })
-//     .await
-//     .expect("Concurrent handshakes timed out");
+            if all_verified {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    })
+    .await
+    .expect("Concurrent handshakes timed out");
 
-//     // Verify all peer info is present
-//     for (handle, peers) in [
-//         (&handle1, vec![&node2.peer_id, &node3.peer_id]),
-//         (&handle2, vec![&node1.peer_id, &node3.peer_id]),
-//         (&handle3, vec![&node1.peer_id, &node2.peer_id]),
-//     ] {
-//         for peer_id in peers {
-//             assert!(
-//                 handle.peer_info(peer_id).unwrap().identify_info.is_some(),
-//                 "Missing identify info for peer {peer_id:?}"
-//             );
-//         }
-//     }
+    // Verify all peer info is present
+    for (handle, peers) in [
+        (&handle1, vec![&node2.peer_id, &node3.peer_id]),
+        (&handle2, vec![&node1.peer_id, &node3.peer_id]),
+        (&handle3, vec![&node1.peer_id, &node2.peer_id]),
+    ] {
+        for peer_id in peers {
+            assert!(
+                handle.peer_info(peer_id).unwrap().identify_info.is_some(),
+                "Missing identify info for peer {peer_id:?}"
+            );
+        }
+    }
 
-//     info!("Concurrent connections test completed successfully");
-// }
+    info!("Concurrent connections test completed successfully");
+}

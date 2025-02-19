@@ -13,21 +13,31 @@ sequenceDiagram
 
     Note over A,B: Initial TCP/QUIC Connection Established
 
-    Note over A: Generate signature of B's peer ID
+    Note over A: Create handshake message with:<br/>1. A's peer ID<br/>2. Current timestamp
+    Note over A: Sign(A_id | B_id | timestamp)
     A->>+B: HandshakeRequest {
         public_key: A_pub,
-        signature: sign(B_peer_id)
+        signature: sign(msg),
+        msg: HandshakeMessage {
+            sender: A_id,
+            timestamp: now
+        }
     }
 
-    Note over B: 1. Verify A's signature<br/>2. Store A's public key
+    Note over B: 1. Verify timestamp is fresh<br/>2. Verify A_pub derives to A_id<br/>3. Verify signature<br/>4. Store A's public key
 
-    Note over B: Generate signature of A's peer ID
+    Note over B: Create handshake message with:<br/>1. B's peer ID<br/>2. Current timestamp
+    Note over B: Sign(B_id | A_id | timestamp)
     B-->>-A: HandshakeResponse {
         public_key: B_pub,
-        signature: sign(A_peer_id)
+        signature: sign(msg),
+        msg: HandshakeMessage {
+            sender: B_id,
+            timestamp: now
+        }
     }
 
-    Note over A: 1. Verify B's signature<br/>2. Store B's public key
+    Note over A: 1. Verify timestamp is fresh<br/>2. Verify B_pub derives to B_id<br/>3. Verify signature<br/>4. Store B's public key
 
     Note over A,B: ✓ Handshake Complete
     Note over A,B: ✓ Protocol Messages Allowed
@@ -43,17 +53,28 @@ stateDiagram-v2
     Connected --> OutboundPending: Send Handshake
     Connected --> InboundPending: Receive Handshake
 
-    OutboundPending --> Verified: Valid Response
+    OutboundPending --> Verifying: Valid Response
     OutboundPending --> Failed: Invalid/Timeout
 
-    InboundPending --> Verified: Valid Request & Response
+    InboundPending --> Verifying: Valid Request
     InboundPending --> Failed: Invalid/Timeout
+
+    Verifying --> Verified: All Checks Pass
+    Verifying --> Failed: Checks Fail
 
     Verified --> [*]: Connection Closed
     Failed --> [*]: Connection Closed
 
     note right of Connected
         Initial TCP/QUIC connection established
+    end note
+
+    note right of Verifying
+        Checks:
+        1. Timestamp fresh
+        2. PubKey matches PeerId
+        3. Signature valid
+        4. Key whitelisted
     end note
 
     note right of Verified
@@ -130,7 +151,8 @@ stateDiagram-v2
 
 - Initiated on first connection
 - Mutual authentication using public key cryptography
-- Signatures verify peer identity
+- Signatures verify peer identity and ownership
+- Timestamps prevent replay attacks
 - Timeouts after 30 seconds
 - Handles concurrent handshakes gracefully
 
@@ -148,6 +170,8 @@ stateDiagram-v2
 ### Security Features
 
 - Peer verification before message acceptance
+- Public key to peer ID verification
+- Timestamp-based replay protection
 - Signature verification for handshakes
 - Banned peer tracking
 - Connection limits
