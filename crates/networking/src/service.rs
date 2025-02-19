@@ -19,8 +19,11 @@ use crate::{
 use crossbeam_channel::{self, Receiver, Sender};
 use futures::StreamExt;
 use libp2p::{
-    identify, identity::Keypair, kad, mdns, ping, swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
-    SwarmBuilder,
+    identify,
+    identity::Keypair,
+    kad, mdns, ping,
+    swarm::{dial_opts::DialOpts, SwarmEvent},
+    Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
 use tracing::trace;
 use tracing::{debug, info, warn};
@@ -338,14 +341,7 @@ async fn handle_behaviour_event(
     match event {
         GadgetBehaviourEvent::ConnectionLimits(_) => {}
         GadgetBehaviourEvent::Discovery(discovery_event) => {
-            handle_discovery_event(
-                &swarm.behaviour().discovery.peer_info,
-                peer_manager,
-                discovery_event,
-                event_sender,
-                &swarm.behaviour().blueprint_protocol.blueprint_protocol_name,
-            )
-            .await?;
+            handle_discovery_event(swarm, peer_manager, discovery_event, event_sender).await?;
         }
         GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
             handle_blueprint_protocol_event(swarm, peer_manager, blueprint_event, event_sender)
@@ -361,17 +357,16 @@ async fn handle_behaviour_event(
 
 /// Handle a discovery event
 async fn handle_discovery_event(
-    peer_info_map: &HashMap<PeerId, PeerInfo>,
+    swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: DiscoveryEvent,
     event_sender: &Sender<NetworkEvent>,
-    blueprint_protocol_name: &str,
 ) -> Result<(), Error> {
     match event {
         DiscoveryEvent::PeerConnected(peer_id) => {
             info!("Peer connected, {peer_id}");
             // Update peer info when connected
-            if let Some(info) = peer_info_map.get(&peer_id) {
+            if let Some(info) = swarm.behaviour().discovery.peer_info.get(&peer_id) {
                 peer_manager.update_peer(peer_id, info.clone());
             }
             event_sender.send(NetworkEvent::PeerConnected(peer_id))?;
@@ -396,6 +391,8 @@ async fn handle_discovery_event(
 
                 debug!(%peer_id, ?protocols, "Supported protocols");
 
+                let blueprint_protocol_name =
+                    &swarm.behaviour().blueprint_protocol.blueprint_protocol_name;
                 if !protocols.contains(blueprint_protocol_name) {
                     warn!(%peer_id, %blueprint_protocol_name, "Peer does not support required protocol");
                     peer_manager
@@ -430,8 +427,15 @@ async fn handle_discovery_event(
                 // Process newly discovered peers
                 for peer_info in &ok.peers {
                     if !peer_manager.get_peers().contains_key(&peer_info.peer_id) {
+                        info!(%peer_info.peer_id, "Newly discovered peer from Kademlia");
                         let info = PeerInfo::default();
                         peer_manager.update_peer(peer_info.peer_id, info);
+                        let addrs: Vec<_> = peer_info.addrs.iter().cloned().collect();
+                        for addr in addrs {
+                            if let Err(e) = swarm.dial(DialOpts::from(addr)) {
+                                warn!("Failed to dial address: {}", e);
+                            }
+                        }
                     }
                 }
             }
@@ -439,9 +443,13 @@ async fn handle_discovery_event(
                 // Add newly discovered peers from mDNS
                 for (peer_id, addr) in list {
                     if !peer_manager.get_peers().contains_key(peer_id) {
+                        info!(%peer_id, %addr, "Newly discovered peer from Mdns");
                         let mut info = PeerInfo::default();
                         info.addresses.insert(addr.clone());
                         peer_manager.update_peer(*peer_id, info);
+                        if let Err(e) = swarm.dial(DialOpts::from(addr.clone())) {
+                            warn!("Failed to dial address: {}", e);
+                        }
                     }
                 }
             }
@@ -515,17 +523,10 @@ async fn handle_ping_event(
 
 /// Handle a network message
 async fn handle_network_message(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    msg: NetworkMessage,
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _msg: NetworkMessage,
     _peer_manager: &Arc<PeerManager>,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
-    match msg {
-        NetworkMessage::Dial(addr) => {
-            swarm.dial(addr)?;
-        }
-        _ => {}
-    }
-
     Ok(())
 }

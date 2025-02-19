@@ -1,5 +1,5 @@
 use crate::service::NetworkMessage;
-use std::{collections::HashSet, mem, time::Duration};
+use std::{collections::HashSet, time::Duration};
 
 use gadget_crypto::{sp_core::SpEcdsa, KeyType};
 use libp2p::{identity, Multiaddr, PeerId};
