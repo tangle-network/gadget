@@ -146,7 +146,7 @@ fn test_load_evm_signer_from_env() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_deploy_nonlocal_on_anvil() -> Result<()> {
+async fn test_deploy_local_on_anvil() -> Result<()> {
     setup_log();
 
     // Create a temporary directory for our test contract
@@ -251,7 +251,7 @@ evm_version = 'shanghai'"#;
         rpc_url: http_endpoint.clone(),
         contracts_path: contract_dir.to_string_lossy().to_string(),
         constructor_args: Some(constructor_args),
-        ordered_deployment: true,
+        ordered_deployment: false,
     };
 
     // Build the contracts in temporary directory
