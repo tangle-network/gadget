@@ -86,10 +86,11 @@ impl NetworkServiceHandle {
         }
     }
 
-    pub async fn next_protocol_message(&mut self) -> Option<ProtocolMessage> {
+    pub fn next_protocol_message(&mut self) -> Option<ProtocolMessage> {
         self.receiver.try_recv().ok()
     }
 
+    #[must_use]
     pub fn peers(&self) -> Vec<PeerId> {
         self.peer_manager
             .get_peers()
@@ -100,10 +101,12 @@ impl NetworkServiceHandle {
             .collect()
     }
 
+    #[must_use]
     pub fn peer_info(&self, peer_id: &PeerId) -> Option<PeerInfo> {
         self.peer_manager.get_peer_info(peer_id)
     }
 
+    #[must_use]
     pub fn send_protocol_message(&self, message: ProtocolMessage) -> Result<(), String> {
         let raw_payload = bincode::serialize(&message).map_err(|err| err.to_string())?;
         if message.routing.recipient.is_some() {
@@ -135,7 +138,8 @@ impl NetworkServiceHandle {
         Ok(())
     }
 
-    pub async fn get_listen_addr(&self) -> Option<Multiaddr> {
+    #[must_use]
+    pub fn get_listen_addr(&self) -> Option<Multiaddr> {
         // Get the first peer info for our local peer ID
         if let Some(peer_info) = self.peer_manager.get_peer_info(&self.local_peer_id) {
             // Return the first address from our peer info

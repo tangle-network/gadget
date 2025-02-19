@@ -184,7 +184,6 @@ pub struct RoundBasedReceiver<M> {
     party_index: PartyIndex,
     forward_rx: Receiver<(PartyIndex, M)>,
     _phantom: std::marker::PhantomData<M>,
-    next_message_future: Option<Pin<Box<dyn Future<Output = Option<ProtocolMessage>> + Send>>>,
 }
 
 impl<M> RoundBasedReceiver<M> {
@@ -198,7 +197,6 @@ impl<M> RoundBasedReceiver<M> {
             party_index,
             forward_rx,
             _phantom: std::marker::PhantomData,
-            next_message_future: None,
         }
     }
 }
@@ -223,50 +221,29 @@ where
         // Get a mutable reference to self
         let this = self.get_mut();
 
-        // Create and store the future if we don't have one
-        if this.next_message_future.is_none() {
-            let mut handle = this.handle.clone();
-            this.next_message_future =
-                Some(Box::pin(
-                    async move { handle.next_protocol_message().await },
-                ));
-        }
+        let next_protocol_message = this.handle.next_protocol_message();
+        match next_protocol_message {
+            Some(protocol_message) => {
+                let msg_type = if protocol_message.routing.recipient.is_some() {
+                    MessageType::P2P
+                } else {
+                    MessageType::Broadcast
+                };
 
-        // Poll the stored future
-        if let Some(future) = &mut this.next_message_future {
-            match future.as_mut().poll(cx) {
-                Poll::Ready(Some(msg)) => {
-                    // Clear the future so we create a new one next time
-                    this.next_message_future = None;
+                let sender = protocol_message.routing.sender.id.0;
+                let id = protocol_message.routing.message_id;
 
-                    let msg_type = if msg.routing.recipient.is_some() {
-                        MessageType::P2P
-                    } else {
-                        MessageType::Broadcast
-                    };
-
-                    let sender = msg.routing.sender.id.0;
-                    let id = msg.routing.message_id;
-
-                    match serde_json::from_slice(&msg.payload) {
-                        Ok(msg) => Poll::Ready(Some(Ok(Incoming {
-                            msg,
-                            sender,
-                            id,
-                            msg_type,
-                        }))),
-                        Err(e) => Poll::Ready(Some(Err(NetworkError::Serialization(e)))),
-                    }
+                match serde_json::from_slice(&protocol_message.payload) {
+                    Ok(msg) => Poll::Ready(Some(Ok(Incoming {
+                        msg,
+                        sender,
+                        id,
+                        msg_type,
+                    }))),
+                    Err(e) => Poll::Ready(Some(Err(NetworkError::Serialization(e)))),
                 }
-                Poll::Ready(None) => {
-                    this.next_message_future = None;
-                    Poll::Ready(None)
-                }
-                Poll::Pending => Poll::Pending,
             }
-        } else {
-            // This shouldn't happen because we create the future above if it's None
-            Poll::Ready(None)
+            None => Poll::Pending,
         }
     }
 }

@@ -37,6 +37,18 @@ pub enum GadgetCLICoreSettings {
         #[arg(long, env)]
         #[serde(default)]
         network_bind_port: Option<u16>,
+        #[cfg(feature = "networking")]
+        #[arg(long, env)]
+        #[serde(default)]
+        enable_mdns: bool,
+        #[cfg(feature = "networking")]
+        #[arg(long, env)]
+        #[serde(default)]
+        enable_kademlia: bool,
+        #[cfg(feature = "networking")]
+        #[arg(long, env)]
+        #[serde(default)]
+        target_peer_count: Option<u64>,
         #[arg(long, short = 'd', env)]
         keystore_uri: String,
         #[arg(long, value_enum, env)]
@@ -218,6 +230,12 @@ impl Default for GadgetCLICoreSettings {
             bootnodes: None,
             #[cfg(feature = "networking")]
             network_bind_port: None,
+            #[cfg(feature = "networking")]
+            enable_mdns: false,
+            #[cfg(feature = "networking")]
+            enable_kademlia: false,
+            #[cfg(feature = "networking")]
+            target_peer_count: None,
             keystore_uri: String::new(),
             chain: SupportedChains::default(),
             verbose: 0,
@@ -342,6 +360,11 @@ impl ContextConfig {
         #[cfg(feature = "tangle")]
         let service_id = tangle_settings.and_then(|s| s.service_id);
 
+        #[cfg(feature = "networking")]
+        let enable_mdns = cfg!(debug_assertions);
+        #[cfg(feature = "networking")]
+        let enable_kademlia = !cfg!(debug_assertions);
+
         ContextConfig {
             gadget_core_settings: GadgetCLICoreSettings::Run {
                 test_mode: false,
@@ -350,6 +373,12 @@ impl ContextConfig {
                 bootnodes: None,
                 #[cfg(feature = "networking")]
                 network_bind_port: None,
+                #[cfg(feature = "networking")]
+                enable_mdns,
+                #[cfg(feature = "networking")]
+                enable_kademlia,
+                #[cfg(feature = "networking")]
+                target_peer_count: None,
                 keystore_uri,
                 chain,
                 verbose: 3,

@@ -2627,7 +2627,6 @@ dependencies = [
  "blueprint-build-utils",
  "blueprint-metadata",
  "eigensdk",
- "gadget-client-networking",
  "gadget-clients",
  "gadget-config",
  "gadget-context-derive",
@@ -6648,22 +6647,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-client-networking"
-version = "0.1.0"
-dependencies = [
- "gadget-client-core",
- "gadget-config",
- "gadget-crypto",
- "gadget-logging",
- "gadget-networking",
- "gadget-std",
- "libp2p",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
-]
-
-[[package]]
 name = "gadget-client-tangle"
 version = "0.1.0"
 dependencies = [
@@ -6692,7 +6675,6 @@ dependencies = [
  "gadget-client-core",
  "gadget-client-eigenlayer",
  "gadget-client-evm",
- "gadget-client-networking",
  "gadget-client-tangle",
  "gadget-std",
  "thiserror 2.0.11",

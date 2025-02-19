@@ -112,7 +112,7 @@ pub struct NetworkConfig {
     /// Target number of peers to maintain
     pub target_peer_count: u64,
     /// Bootstrap peers to connect to
-    pub bootstrap_peers: Vec<(PeerId, Multiaddr)>,
+    pub bootstrap_peers: Vec<Multiaddr>,
     /// Whether to enable mDNS discovery
     pub enable_mdns: bool,
     /// Whether to enable Kademlia DHT
@@ -139,15 +139,15 @@ pub struct NetworkService {
     /// Network name/namespace
     network_name: String,
     /// Bootstrap peers
-    bootstrap_peers: HashMap<PeerId, Multiaddr>,
+    bootstrap_peers: HashSet<Multiaddr>,
 }
 
 impl NetworkService {
     /// Create a new network service
-    pub async fn new(
+    pub fn new(
         config: NetworkConfig,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
-        allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
+        // allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
     ) -> Result<Self, Error> {
         let NetworkConfig {
             network_name,
@@ -242,7 +242,7 @@ impl NetworkService {
 
         // Spawn background task
         tokio::spawn(async move {
-            self.run().await;
+            Box::pin(self.run()).await;
         });
 
         handle
@@ -258,8 +258,8 @@ impl NetworkService {
         }
 
         // Connect to bootstrap peers
-        for (peer_id, addr) in &self.bootstrap_peers {
-            debug!("Dialing bootstrap peer {} at {}", peer_id, addr);
+        for addr in &self.bootstrap_peers {
+            debug!("Dialing bootstrap peer at {}", addr);
             if let Err(e) = self.swarm.dial(addr.clone()) {
                 warn!("Failed to dial bootstrap peer: {}", e);
             }
@@ -301,12 +301,8 @@ impl NetworkService {
     }
 
     /// Get the current listening address
-    pub async fn get_listen_addr(&self) -> Option<Multiaddr> {
-        if let Some(addr) = self.swarm.listeners().next() {
-            Some(addr.clone())
-        } else {
-            None
-        }
+    pub fn get_listen_addr(&self) -> Option<Multiaddr> {
+        self.swarm.listeners().next().cloned()
     }
 }
 
@@ -384,8 +380,11 @@ async fn handle_discovery_event(
                 ..
             }) => {
                 info!(%peer_id, "Received identify event");
-                let protocols: HashSet<String> =
-                    HashSet::from_iter(info.protocols.iter().map(std::string::ToString::to_string));
+                let protocols: HashSet<String> = info
+                    .protocols
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect();
 
                 debug!(%peer_id, ?protocols, "Supported protocols");
 
@@ -421,7 +420,7 @@ async fn handle_discovery_event(
                 ..
             }) => {
                 // Process newly discovered peers
-                for peer_info in ok.peers.iter() {
+                for peer_info in &ok.peers {
                     if !peer_manager.get_peers().contains_key(&peer_info.peer_id) {
                         let info = PeerInfo::default();
                         peer_manager.update_peer(peer_info.peer_id, info);

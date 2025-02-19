@@ -44,7 +44,6 @@ tokio = { workspace = true, default-features = false }
 
 # Networking-related dependencies
 gadget-networking = { workspace = true, optional = true }
-gadget-client-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
 gadget-context-derive = { workspace = true, optional = true }
 
@@ -82,10 +81,7 @@ web = [
 	"gadget-macros?/web",
 ]
 
-macros = [
-	"dep:gadget-macros",
-	"dep:gadget-context-derive",
-]
+macros = ["dep:gadget-macros", "dep:gadget-context-derive"]
 
 build = ["dep:blueprint-metadata", "dep:blueprint-build-utils"]
 
@@ -97,7 +93,7 @@ tangle = [
 	"gadget-macros?/tangle",
 	"gadget-testing-utils?/tangle",
 	"gadget-utils/tangle",
-	"gadget-event-listeners/tangle"
+	"gadget-event-listeners/tangle",
 ]
 
 evm = [
@@ -108,7 +104,7 @@ evm = [
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
 	"gadget-macros?/evm",
-	"gadget-event-listeners/evm"
+	"gadget-event-listeners/evm",
 ]
 
 eigenlayer = [
@@ -120,37 +116,25 @@ eigenlayer = [
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
 	"gadget-macros?/eigenlayer",
-	"gadget-event-listeners/evm"
+	"gadget-event-listeners/evm",
 ]
 
-testing = [
-	"dep:gadget-testing-utils",
-	"dep:tempfile",
-	"std",
-]
+testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]
 
 networking = [
 	"dep:gadget-networking",
-	"dep:gadget-client-networking",
 	"gadget-contexts/networking",
-	"gadget-clients/networking",
 	"gadget-keystore/std",
 	"gadget-config/networking",
 	"gadget-macros?/networking",
 	"gadget-context-derive?/networking",
 ]
 
-networking-sp-core-ecdsa = [
-	"gadget-networking/sp-core-ecdsa"
-]
+networking-sp-core-ecdsa = ["gadget-networking/sp-core-ecdsa"]
 
-networking-sr25519 = [
-	"gadget-networking/sp-core-sr25519"
-]
+networking-sr25519 = ["gadget-networking/sp-core-sr25519"]
 
-networking-ed25519 = [
-	"gadget-networking/sp-core-ed25519"
-]
+networking-ed25519 = ["gadget-networking/sp-core-ed25519"]
 
 local-store = ["gadget-stores/local"]
 

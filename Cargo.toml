@@ -1,13 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-	"cli",
-	"blueprints/*",
-	"crates/*",
-]
-exclude = [
-	"blueprints/incredible-squaring-symbiotic",
-]
+members = ["cli", "blueprints/*", "crates/*"]
+exclude = ["blueprints/incredible-squaring-symbiotic"]
 
 [workspace.package]
 authors = ["Tangle Network"]
@@ -68,7 +62,6 @@ gadget-clients = { version = "0.1.0", path = "./crates/clients", default-feature
 gadget-client-core = { version = "0.1.0", path = "./crates/clients/core", default-features = false }
 gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenlayer", default-features = false }
 gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
-gadget-client-networking = { version = "0.1.0", path = "./crates/clients/networking", default-features = false }
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
 gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
 

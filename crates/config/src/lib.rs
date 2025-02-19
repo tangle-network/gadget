@@ -69,6 +69,11 @@ pub enum Error {
     /// Missing `SymbioticContractAddresses`
     #[error("Missing SymbioticContractAddresses")]
     MissingSymbioticContractAddresses,
+
+    #[cfg(feature = "networking")]
+    #[error(transparent)]
+    Networking(#[from] gadget_networking::error::Error),
+
     #[error("Bad RPC Connection: {0}")]
     BadRpcConnection(String),
     #[error("Configuration error: {0}")]
@@ -79,8 +84,9 @@ pub enum Error {
 pub use networking_imports::*;
 #[cfg(feature = "networking")]
 mod networking_imports {
-    pub use gadget_networking::networking::NetworkMultiplexer;
-    pub use gadget_networking::setup::start_p2p_network;
+    // pub use gadget_networking::networking::NetworkMultiplexer;
+    // pub use gadget_networking::start_p2p_network;
+    pub use gadget_networking::NetworkConfig;
     pub use libp2p::Multiaddr;
     pub use std::sync::Arc;
 }
@@ -111,6 +117,15 @@ pub struct GadgetConfiguration {
     pub protocol_settings: ProtocolSettings,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
+    /// Whether to enable mDNS
+    #[cfg(feature = "networking")]
+    pub enable_mdns: bool,
+    /// Whether to enable Kademlia
+    #[cfg(feature = "networking")]
+    pub enable_kademlia: bool,
+    /// The target number of peers to connect to
+    #[cfg(feature = "networking")]
+    pub target_peer_count: u64,
 }
 
 impl GadgetConfiguration {
@@ -118,16 +133,16 @@ impl GadgetConfiguration {
     pub fn libp2p_start_network(
         &self,
         network_name: impl Into<String>,
-    ) -> Result<Arc<NetworkMultiplexer>, Error> {
-        tracing::info!(target: "gadget", "AB0");
-        let network_config = self
-            .libp2p_network_config(network_name)
-            .map_err(|err| Error::ConfigurationError(err.to_string()))?;
+    ) -> Result<gadget_networking::service_handle::NetworkServiceHandle, Error> {
+        let network_config = self.libp2p_network_config(network_name)?;
+        // TODO: Add allowed keys
+        let allowed_keys = Default::default();
+        let networking_service =
+            gadget_networking::NetworkService::new(network_config, allowed_keys)?;
 
-        tracing::info!(target: "gadget", "AB1");
-        start_p2p_network(network_config)
-            .map_err(|err| Error::ConfigurationError(err.to_string()))
-            .map(|net| Arc::new(NetworkMultiplexer::new(net)))
+        let handle = networking_service.start();
+
+        Ok(handle)
     }
 
     /// Returns a new `NetworkConfig` for the current environment.
@@ -135,7 +150,7 @@ impl GadgetConfiguration {
     pub fn libp2p_network_config(
         &self,
         network_name: impl Into<String>,
-    ) -> Result<gadget_networking::setup::NetworkConfig, Error> {
+    ) -> Result<gadget_networking::NetworkConfig, Error> {
         use gadget_keystore::backends::Backend;
         use gadget_keystore::crypto::sp_core::SpEd25519 as LibP2PKeyType;
         use gadget_networking::key_types::Curve as GossipMsgKeyPair;
@@ -159,13 +174,23 @@ impl GadgetConfiguration {
             .get_secret::<GossipMsgKeyPair>(&ecdsa_pub_key)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
-        let network_config = gadget_networking::setup::NetworkConfig::new_service_network(
-            network_identity,
-            ecdsa_pair,
-            self.bootnodes.clone(),
-            self.network_bind_port,
+        let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.network_bind_port)
+            .parse()
+            .expect("valid multiaddr; qed");
+
+        let network_name: String = network_name.into();
+        let network_config = gadget_networking::NetworkConfig {
+            instance_id: network_name.clone(),
             network_name,
-        );
+            instance_secret_key: ecdsa_pair,
+            instance_public_key: ecdsa_pub_key,
+            local_key: network_identity,
+            listen_addr,
+            target_peer_count: self.target_peer_count,
+            bootstrap_peers: self.bootnodes.clone(),
+            enable_mdns: self.enable_mdns,
+            enable_kademlia: self.enable_kademlia,
+        };
 
         Ok(network_config)
     }
@@ -191,6 +216,12 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 bootnodes,
                 #[cfg(feature = "networking")]
                 network_bind_port,
+                #[cfg(feature = "networking")]
+                enable_mdns,
+                #[cfg(feature = "networking")]
+                enable_kademlia,
+                #[cfg(feature = "networking")]
+                target_peer_count,
                 keystore_uri,
                 protocol,
                 #[cfg(feature = "tangle")]
@@ -310,6 +341,12 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         bootnodes: bootnodes.unwrap_or_default(),
         #[cfg(feature = "networking")]
         network_bind_port: network_bind_port.unwrap_or_default(),
+        #[cfg(feature = "networking")]
+        enable_mdns,
+        #[cfg(feature = "networking")]
+        enable_kademlia,
+        #[cfg(feature = "networking")]
+        target_peer_count: target_peer_count.unwrap_or(24),
         protocol,
         protocol_settings,
     })
