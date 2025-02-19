@@ -59,49 +59,42 @@ impl DiscoveryConfig {
     /// Set the protocol version that uniquely identifies your P2P service.
     /// This should be unique to your application to avoid conflicts with other P2P networks.
     /// Format recommendation: "<service-name>/<version>"
-    pub fn with_protocol_version(mut self, version: impl Into<String>) -> Self {
+    pub fn protocol_version(mut self, version: impl Into<String>) -> Self {
         self.protocol_version = version.into();
         self
     }
 
-    #[must_use]
-    pub fn with_bootstrap_peers(mut self, peers: Vec<(PeerId, Multiaddr)>) -> Self {
+    pub fn bootstrap_peers(mut self, peers: Vec<(PeerId, Multiaddr)>) -> Self {
         self.bootstrap_peers = peers;
         self
     }
 
-    #[must_use]
-    pub fn with_relay_nodes(mut self, nodes: Vec<(PeerId, Multiaddr)>) -> Self {
+    pub fn relay_nodes(mut self, nodes: Vec<(PeerId, Multiaddr)>) -> Self {
         self.relay_nodes = nodes;
         self
     }
 
-    #[must_use]
-    pub fn with_target_peer_count(mut self, count: u64) -> Self {
+    pub fn target_peer_count(mut self, count: u64) -> Self {
         self.target_peer_count = count;
         self
     }
 
-    #[must_use]
-    pub fn with_mdns(mut self, enable: bool) -> Self {
+    pub fn mdns(mut self, enable: bool) -> Self {
         self.enable_mdns = enable;
         self
     }
 
-    #[must_use]
-    pub fn with_kademlia(mut self, enable: bool) -> Self {
+    pub fn kademlia(mut self, enable: bool) -> Self {
         self.enable_kademlia = enable;
         self
     }
 
-    #[must_use]
-    pub fn with_upnp(mut self, enable: bool) -> Self {
+    pub fn upnp(mut self, enable: bool) -> Self {
         self.enable_upnp = enable;
         self
     }
 
-    #[must_use]
-    pub fn with_relay(mut self, enable: bool) -> Self {
+    pub fn relay(mut self, enable: bool) -> Self {
         self.enable_relay = enable;
         self
     }

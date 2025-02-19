@@ -85,9 +85,9 @@ impl GadgetBehaviour {
             network_name
         );
         let discovery = DiscoveryConfig::new(local_key.public(), network_name)
-            .with_mdns(true)
-            .with_kademlia(true)
-            .with_target_peer_count(target_peer_count)
+            .mdns(true)
+            .kademlia(true)
+            .target_peer_count(target_peer_count)
             .build()
             .unwrap();
 
