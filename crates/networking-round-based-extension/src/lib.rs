@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crossbeam_channel::{self, Receiver, Sender};
 use dashmap::DashMap;
 use futures::Future;
