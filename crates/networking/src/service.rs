@@ -250,6 +250,12 @@ impl NetworkService {
             }
         }
 
+        self.swarm
+            .behaviour_mut()
+            .blueprint_protocol
+            .subscribe(&self.network_name)
+            .unwrap();
+
         loop {
             tokio::select! {
                 swarm_event = self.swarm.select_next_some() => {

@@ -10,7 +10,9 @@ use crate::{
     key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
     service::NetworkMessage,
     service_handle::NetworkServiceHandle,
-    tests::TestNode,
+    tests::{
+        create_whitelisted_nodes, wait_for_all_handshakes, wait_for_handshake_completion, TestNode,
+    },
     types::{MessageRouting, ParticipantId, ParticipantInfo, ProtocolMessage},
 };
 
@@ -22,16 +24,6 @@ const PROTOCOL_NAME: &str = "summation/1.0.0";
 enum SummationMessage {
     Number(u64),
     Verification { sum: u64 },
-}
-
-// Helper to create a whitelisted test node
-async fn create_node_with_keys(
-    network: &str,
-    instance: &str,
-    allowed_keys: HashSet<InstanceMsgPublicKey>,
-    key_pair: Option<InstanceMsgKeyPair>,
-) -> TestNode {
-    TestNode::new_with_keys(network, instance, allowed_keys, vec![], key_pair, None).await
 }
 
 // Helper to create a protocol message
@@ -59,63 +51,6 @@ fn create_protocol_message(
     }
 }
 
-// Helper to wait for handshake completion between multiple nodes
-async fn wait_for_all_handshakes(handles: &[&mut NetworkServiceHandle]) {
-    info!("Starting handshake wait for {} nodes", handles.len());
-    timeout(TEST_TIMEOUT, async {
-        loop {
-            let mut all_verified = true;
-            for (i, handle1) in handles.iter().enumerate() {
-                for (j, handle2) in handles.iter().enumerate() {
-                    if i != j {
-                        let verified = handle1
-                            .peer_manager
-                            .is_peer_verified(&handle2.local_peer_id);
-                        if !verified {
-                            info!("Node {} -> Node {}: handshake not verified yet", i, j);
-                            all_verified = false;
-                            break;
-                        }
-                    }
-                }
-                if !all_verified {
-                    break;
-                }
-            }
-            if all_verified {
-                info!("All handshakes completed successfully");
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    .expect("Handshake verification timed out");
-}
-
-// Helper to wait for handshake completion between two nodes
-async fn wait_for_handshake_completion(
-    handle1: &NetworkServiceHandle,
-    handle2: &NetworkServiceHandle,
-) {
-    timeout(TEST_TIMEOUT, async {
-        loop {
-            if handle1
-                .peer_manager
-                .is_peer_verified(&handle2.local_peer_id)
-                && handle2
-                    .peer_manager
-                    .is_peer_verified(&handle1.local_peer_id)
-            {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    .expect("Handshake verification timed out");
-}
-
 // Helper to extract number from message
 fn extract_number_from_message(msg: &ProtocolMessage) -> u64 {
     match bincode::deserialize::<SummationMessage>(&msg.payload).expect("Failed to deserialize") {
@@ -130,42 +65,6 @@ fn extract_sum_from_verification(msg: &ProtocolMessage) -> u64 {
         SummationMessage::Verification { sum } => sum,
         _ => panic!("Expected verification message"),
     }
-}
-
-// Helper to create a set of nodes with whitelisted keys
-async fn create_whitelisted_nodes(count: usize) -> Vec<TestNode> {
-    let mut nodes = Vec::with_capacity(count);
-    let mut key_pairs = Vec::with_capacity(count);
-    let mut allowed_keys = vec![HashSet::new(); count];
-
-    // Generate all key pairs first
-    for _ in 0..count {
-        key_pairs.push(Curve::generate_with_seed(None).unwrap());
-    }
-
-    // Create allowed keys sets
-    for i in 0..count {
-        for j in 0..count {
-            if i != j {
-                allowed_keys[i].insert(key_pairs[j].public());
-            }
-        }
-    }
-
-    // Create nodes with whitelisted keys
-    for i in 0..count {
-        nodes.push(
-            create_node_with_keys(
-                "test-net",
-                "sum-test",
-                allowed_keys[i].clone(),
-                Some(key_pairs[i].clone()),
-            )
-            .await,
-        );
-    }
-
-    nodes
 }
 
 #[tokio::test]
@@ -197,7 +96,7 @@ async fn test_summation_protocol_basic() {
     let mut handle2 = node2.start().await.expect("Failed to start node2");
 
     info!("Waiting for handshake completion");
-    wait_for_handshake_completion(&handle1, &handle2).await;
+    wait_for_handshake_completion(&handle1, &handle2, TEST_TIMEOUT).await;
 
     // Generate test numbers
     let num1 = 42;
@@ -340,7 +239,7 @@ async fn test_summation_protocol_multi_node() {
         "Waiting for handshake completion between {} nodes",
         handles_len
     );
-    wait_for_all_handshakes(&handles).await;
+    wait_for_all_handshakes(&handles, TEST_TIMEOUT).await;
     info!("All handshakes completed successfully");
 
     // Generate test numbers
@@ -481,7 +380,7 @@ async fn test_summation_protocol_late_join() {
 
     // Wait for initial handshakes
     info!("Waiting for initial handshake completion");
-    wait_for_all_handshakes(&handles_refs).await;
+    wait_for_all_handshakes(&handles_refs, TEST_TIMEOUT).await;
 
     // Initial nodes send their numbers
     let numbers = vec![42, 58, 100];
@@ -526,7 +425,7 @@ async fn test_summation_protocol_late_join() {
     let all_handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Wait for the new node to complete handshakes
-    wait_for_all_handshakes(&all_handles).await;
+    wait_for_all_handshakes(&all_handles, TEST_TIMEOUT).await;
 
     // Late node sends its number and receives history
     info!("Late node sending number and receiving history");
@@ -581,7 +480,7 @@ async fn test_summation_protocol_node_disconnect() {
     let handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
 
     // Wait for all handshakes
-    wait_for_all_handshakes(&handles_refs).await;
+    wait_for_all_handshakes(&handles_refs, TEST_TIMEOUT).await;
 
     // Send initial numbers
     let numbers = vec![42, 58, 100];
