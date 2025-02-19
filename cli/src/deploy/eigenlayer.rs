@@ -124,6 +124,10 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
     }
 
     if available_contracts.len() == 1 {
+        println!(
+            "\nOnly one contract available to deploy: {}, deploying it now...\n",
+            available_contracts[0]
+        );
         return Ok(available_contracts[0].clone());
     }
 
@@ -133,6 +137,11 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
         .items(available_contracts)
         .default(0)
         .interact()?;
+
+    println!(
+        "\nNow deploying contract: {} Please wait...\n",
+        available_contracts[selection]
+    );
 
     Ok(available_contracts[selection].clone())
 }
@@ -455,7 +464,7 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
 
 pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
     let output = String::from_utf8_lossy(&output);
-    println!("Attempting to extract address from output:\n{}", output);
+    info!("Attempting to extract address from output:\n{}", output);
 
     // Possible patterns to search for deployed address
     let patterns = [
