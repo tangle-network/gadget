@@ -69,6 +69,7 @@ pub enum NetworkEvent {
 /// Network message types
 #[derive(Debug)]
 pub enum NetworkMessage {
+    Dial(Multiaddr),
     InstanceRequest {
         peer: PeerId,
         request: InstanceMessageRequest,
@@ -519,5 +520,12 @@ async fn handle_network_message(
     _peer_manager: &Arc<PeerManager>,
     event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
+    match msg {
+        NetworkMessage::Dial(addr) => {
+            swarm.dial(addr)?;
+        }
+        _ => {}
+    }
+
     Ok(())
 }

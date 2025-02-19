@@ -118,7 +118,7 @@ impl NetworkServiceHandle {
             let recipient = message.routing.recipient.unwrap();
             if let Some(public_key) = recipient.public_key {
                 if let Some(peer_id) = self.peer_manager.get_peer_id_from_public_key(&public_key) {
-                    self.sender.send_message(NetworkMessage::InstanceRequest {
+                    self.send_network_message(NetworkMessage::InstanceRequest {
                         peer: peer_id,
                         request: instance_message_request,
                     })?;
@@ -131,11 +131,15 @@ impl NetworkServiceHandle {
                 topic: message.protocol,
                 message: raw_payload,
             };
-            self.sender.send_message(gossip_message)?;
+            self.send_network_message(gossip_message)?;
             info!("Sent outbound gossip `NetworkMessage`");
         }
 
         Ok(())
+    }
+
+    pub(crate) fn send_network_message(&self, message: NetworkMessage) -> Result<(), String> {
+        self.sender.send_message(message)
     }
 
     #[must_use]
