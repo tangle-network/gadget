@@ -273,11 +273,16 @@ evm_version = 'shanghai'"#;
 
     // Deploy the contract
     let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
-    let contract_address = contract_addresses
+    let test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))
         .map(|(_key, value)| value.clone())
         .expect("Could not find TestContract in deployed contracts");
+    let simple_storage_address = contract_addresses
+        .iter()
+        .find(|(key, _value)| key.contains("SimpleStorage"))
+        .map(|(_key, value)| value.clone())
+        .expect("Could not find SimpleStorage in deployed contracts");
 
     // Read the ABI from the JSON file
     let json_path = temp_dir
@@ -292,12 +297,12 @@ evm_version = 'shanghai'"#;
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let contract = alloy_contract::ContractInstance::<
+    let test_contract = alloy_contract::ContractInstance::<
         BoxTransport,
         RootProvider<BoxTransport>,
         alloy_network::Ethereum,
     >::new(
-        contract_address,
+        test_contract_address,
         provider.clone(),
         alloy_contract::Interface::new(abi),
     );
@@ -306,7 +311,7 @@ evm_version = 'shanghai'"#;
     let value = alloy_dyn_abi::DynSolValue::from(alloy_primitives::U256::from(123));
 
     // Test the getValue function and ensure it returns the correct value
-    let get_result = contract
+    let get_result = test_contract
         .function("getValue", &[])
         .unwrap()
         .call()
@@ -324,7 +329,7 @@ evm_version = 'shanghai'"#;
     );
 
     // Test the setValue function and ensure it returns successfully
-    let set_result = contract
+    let set_result = test_contract
         .function("setValue", &[value])
         .unwrap()
         .send()
@@ -336,7 +341,7 @@ evm_version = 'shanghai'"#;
     assert!(set_result.status());
 
     // Test the getValue function and ensure it returns the newly set value
-    let get_result = contract
+    let get_result = test_contract
         .function("getValue", &[])
         .unwrap()
         .call()
@@ -349,6 +354,63 @@ evm_version = 'shanghai'"#;
             panic!("Expected Uint256, but did not receive correct type")
         };
     assert_eq!(get_result_value, alloy_primitives::U256::from(123));
+
+    // Read the ABI from the JSON file
+    let json_path = temp_dir
+        .path()
+        .join("out/SimpleStorage.sol/SimpleStorage.json");
+    let json_content = fs::read_to_string(json_path)?;
+    let json: Value = serde_json::from_str(&json_content)?;
+    let abi = json["abi"].to_string();
+    let abi = alloy_json_abi::JsonAbi::from_json_str(&abi).unwrap();
+
+    // Create a provider
+    let provider = get_provider_http(&http_endpoint);
+
+    // Create a contract instance
+    let simple_storage_contract = alloy_contract::ContractInstance::<
+        BoxTransport,
+        RootProvider<BoxTransport>,
+        alloy_network::Ethereum,
+    >::new(
+        simple_storage_address,
+        provider.clone(),
+        alloy_contract::Interface::new(abi),
+    );
+
+    // Verify the contract data using contract instance
+    let simple_storage_address = contract_addresses
+        .iter()
+        .find(|(key, _value)| key.contains("SimpleStorage"))
+        .map(|(_key, value)| value.clone())
+        .expect("Could not find SimpleStorage in deployed contracts");
+    let get_result = simple_storage_contract
+        .function("get", &[])
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    let get_result_value: String =
+        if let alloy_dyn_abi::DynSolValue::String(val) = get_result[0].clone() {
+            val
+        } else {
+            panic!("Expected String, but did not receive correct type")
+        };
+    assert_eq!(get_result_value, "Initial Data".to_string());
+
+    let get_result = simple_storage_contract
+        .function("getExtraData", &[])
+        .unwrap()
+        .call()
+        .await
+        .unwrap();
+    let get_result_value: String =
+        if let alloy_dyn_abi::DynSolValue::String(val) = get_result[0].clone() {
+            val
+        } else {
+            panic!("Expected String, but did not receive correct type")
+        };
+    println!("getExtraData: {}", get_result_value);
 
     Ok(())
 }

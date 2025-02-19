@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use color_eyre::Result;
-use dialoguer::{Input, Select, Confirm};
+use dialoguer::{Confirm, Input, Select};
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::fs;
@@ -287,25 +287,66 @@ async fn initialize_contract_if_needed(
                 init_values.push(formatted_value);
             }
 
-            // Build the function signature
             let function_sig = build_function_signature("initialize", &init_args);
 
-            info!("Initializing contract...");
-
-            // Build the command as a single string to maintain proper argument formatting
-            let command_str = format!(
-                "cast send --rpc-url {} --private-key {} {} \"{}\" {}",
-                opts.rpc_url,
-                opts.get_private_key()?,
-                contract_address.to_string(),
+            // First generate the calldata using cast calldata
+            let calldata_cmd = format!(
+                "cast calldata \"{}\" {}",
                 function_sig,
                 init_values.join(" ")
+            );
+
+            info!("Generating calldata: {}", calldata_cmd);
+
+            let calldata_output = Command::new("sh").arg("-c").arg(&calldata_cmd).output()?;
+
+            if !calldata_output.status.success() {
+                return Err(color_eyre::eyre::eyre!(
+                    "Failed to generate calldata: {}",
+                    String::from_utf8_lossy(&calldata_output.stderr)
+                ));
+            }
+
+            let calldata = String::from_utf8_lossy(&calldata_output.stdout)
+                .trim()
+                .to_string();
+            info!("Generated calldata: {}", calldata);
+
+            // Get the from address from the private key
+            let from_cmd = format!(
+                "cast wallet address --private-key {}",
+                opts.get_private_key()?
+            );
+
+            let from_output = Command::new("sh").arg("-c").arg(&from_cmd).output()?;
+
+            if !from_output.status.success() {
+                return Err(color_eyre::eyre::eyre!(
+                    "Failed to get from address: {}",
+                    String::from_utf8_lossy(&from_output.stderr)
+                ));
+            }
+
+            let from_address = String::from_utf8_lossy(&from_output.stdout)
+                .trim()
+                .to_string();
+
+            // Construct the transaction parameters
+            let tx_params = format!(
+                "{{\"from\":\"{}\",\"to\":\"{}\",\"data\":\"{}\"}}",
+                from_address, contract_address, calldata
+            );
+
+            // Send the transaction using eth_sendTransaction
+            let command_str = format!(
+                "cast rpc --rpc-url {} eth_sendTransaction '{}'",
+                opts.rpc_url, tx_params
             );
 
             info!("Running command: {}", command_str);
 
             let mut cmd = Command::new("sh");
-            cmd.args(["-c", &command_str]);
+            cmd.arg("-c").arg(&command_str);
 
             let output = cmd.output()?;
             if !output.status.success() {
