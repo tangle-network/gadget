@@ -39,6 +39,11 @@ pub trait Backend: Send + Sync {
         T::Secret: DeserializeOwned,
         T::Error: IntoCryptoError;
 
+    fn insert<T: KeyType>(&self, secret: &T::Secret) -> Result<()>
+    where
+        T::Public: DeserializeOwned,
+        T::Secret: DeserializeOwned;
+
     /// Generate a key pair from a string seed
     fn generate_from_string<T: KeyType>(&self, seed_str: &str) -> Result<T::Public>
     where

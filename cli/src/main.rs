@@ -32,12 +32,79 @@ enum Commands {
     #[command(visible_alias = "bp")]
     Blueprint {
         #[command(subcommand)]
-        subcommand: GadgetCommands,
+        command: BlueprintCommands,
+    },
+
+    /// Key management commands
+    #[command(visible_alias = "k")]
+    Key {
+        #[command(subcommand)]
+        command: KeyCommands,
     },
 }
 
 #[derive(Subcommand, Debug)]
-pub enum GadgetCommands {
+pub enum KeyCommands {
+    /// Generate a new key
+    #[command(visible_alias = "g")]
+    Generate {
+        /// The type of key to generate (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
+        #[arg(short, long, value_enum)]
+        key_type: KeyTypeId,
+        /// The path to save the key to
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// The seed to use for key generation (hex format without 0x prefix)
+        #[arg(long)]
+        seed: Option<Vec<u8>>,
+        /// Show the secret key in output
+        #[arg(short, long)]
+        show_secret: bool,
+    },
+    /// Import a key into the keystore
+    #[command(visible_alias = "i")]
+    Import {
+        /// The type of key to import (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
+        #[arg(short, long, value_enum)]
+        key_type: KeyTypeId,
+        /// The secret key to import (hex format without 0x prefix)
+        #[arg(short, long)]
+        secret: String,
+        /// The path to the keystore
+        #[arg(short, long)]
+        keystore_path: PathBuf,
+    },
+    /// Export a key from the keystore
+    #[command(visible_alias = "e")]
+    Export {
+        /// The type of key to export (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
+        #[arg(short, long, value_enum)]
+        key_type: KeyTypeId,
+        /// The public key to export (hex format without 0x prefix)
+        #[arg(short, long)]
+        public: String,
+        /// The path to the keystore
+        #[arg(short, long)]
+        keystore_path: PathBuf,
+    },
+    /// List all keys in the keystore
+    #[command(visible_alias = "l")]
+    List {
+        /// The path to the keystore
+        #[arg(short, long)]
+        keystore_path: PathBuf,
+    },
+    /// Generate a new mnemonic phrase
+    #[command(visible_alias = "m")]
+    GenerateMnemonic {
+        /// Number of words in the mnemonic (12, 15, 18, 21, or 24)
+        #[arg(short, long, value_parser = clap::value_parser!(u32).range(12..=24))]
+        word_count: Option<u32>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum BlueprintCommands {
     /// Create a new blueprint
     #[command(visible_alias = "c")]
     Create {
@@ -81,27 +148,6 @@ pub enum GadgetCommands {
         /// Path to the blueprint directory containing the AVS code
         #[arg(long, value_name = "PATH")]
         blueprint_path: PathBuf,
-    },
-
-    /// Generate a key
-    Keygen {
-        /// The type of key to generate
-        #[arg(short, long, value_enum)]
-        key_type: KeyTypeId,
-
-        /// The path to save the key to, if not provided, the key will be printed
-        /// to the console instead
-        #[arg(short, long)]
-        path: Option<PathBuf>,
-
-        /// The seed to use for the generation of the key in hex format without 0x prefix,
-        /// if not provided, a random seed will be generated
-        #[arg(short, long, value_name = "SEED_HEX", env = "SEED")]
-        seed: Option<String>,
-
-        /// If true, the secret key will be printed along with the public key
-        #[arg(long)]
-        show_secret: bool,
     },
 }
 
@@ -165,15 +211,15 @@ async fn main() -> color_eyre::Result<()> {
     let cli = Cli::parse_from(args);
 
     match cli.command {
-        Commands::Blueprint { subcommand } => match subcommand {
-            GadgetCommands::Create {
+        Commands::Blueprint { command } => match command {
+            BlueprintCommands::Create {
                 name,
                 source,
                 blueprint_type,
             } => {
                 create::new_blueprint(name, source, blueprint_type)?;
             }
-            GadgetCommands::Deploy { target } => match target {
+            BlueprintCommands::Deploy { target } => match target {
                 DeployTarget::Tangle {
                     http_rpc_url,
                     ws_rpc_url,
@@ -207,7 +253,7 @@ async fn main() -> color_eyre::Result<()> {
                     .await?;
                 }
             },
-            GadgetCommands::Run {
+            BlueprintCommands::Run {
                 http_rpc_url,
                 aggregator_key,
                 port,
@@ -223,21 +269,55 @@ async fn main() -> color_eyre::Result<()> {
                 })
                 .await?;
             }
-            GadgetCommands::Keygen {
+        },
+        Commands::Key { command } => match command {
+            KeyCommands::Generate {
                 key_type,
-                path,
+                output,
                 seed,
                 show_secret,
             } => {
                 let seed = seed.map(hex::decode).transpose()?;
                 let (public, secret) =
-                    keys::generate_key(key_type, path.as_ref(), seed.as_deref(), show_secret)?;
+                    keys::generate_key(key_type, output.as_ref(), seed.as_deref(), show_secret)?;
 
-                eprintln!("Generated {} key:", key_type.name());
+                eprintln!("Generated {:?} key:", key_type);
                 eprintln!("Public key: {}", public);
-                if show_secret || path.is_none() {
+                if show_secret || output.is_none() {
                     eprintln!("Private key: {}", secret.expect("Should exist"));
                 }
+            }
+            KeyCommands::Import {
+                key_type,
+                secret,
+                keystore_path,
+            } => {
+                let public = keys::import_key(key_type, &secret, &keystore_path)?;
+                eprintln!("Imported {:?} key:", key_type);
+                eprintln!("Public key: {}", public);
+            }
+            KeyCommands::Export {
+                key_type,
+                public,
+                keystore_path,
+            } => {
+                let secret = keys::export_key(key_type, &public, &keystore_path)?;
+                eprintln!("Exported {:?} key:", key_type);
+                eprintln!("Public key: {}", public);
+                eprintln!("Private key: {}", secret);
+            }
+            KeyCommands::List { keystore_path } => {
+                let keys = keys::list_keys(&keystore_path)?;
+                eprintln!("Keys in keystore:");
+                for (key_type, public) in keys {
+                    eprintln!("{:?}: {}", key_type, public);
+                }
+            }
+            KeyCommands::GenerateMnemonic { word_count } => {
+                let mnemonic = keys::generate_mnemonic(word_count)?;
+                eprintln!("Generated mnemonic phrase:");
+                eprintln!("{}", mnemonic);
+                eprintln!("\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys.");
             }
         },
     }

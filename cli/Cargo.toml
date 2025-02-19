@@ -24,6 +24,7 @@ tokio = { workspace = true, features = ["full"] }
 hex = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 thiserror = { workspace = true }
+bip39 = { workspace = true, features = ["rand_core", "rand"] }
 
 # Gadget dependencies
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }

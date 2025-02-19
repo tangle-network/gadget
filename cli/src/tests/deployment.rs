@@ -128,15 +128,15 @@ evm_version = 'shanghai'"#;
 
     // Deploy the contract
     let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
-    let test_contract_address = contract_addresses
+    let &test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))
-        .map(|(_key, value)| value.clone())
+        .map(|(_key, value)| value)
         .expect("Could not find TestContract in deployed contracts");
-    let simple_storage_address = contract_addresses
+    let &simple_storage_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("SimpleStorage"))
-        .map(|(_key, value)| value.clone())
+        .map(|(_key, value)| value)
         .expect("Could not find SimpleStorage in deployed contracts");
 
     // Read the ABI from the JSON file
