@@ -16,6 +16,8 @@ use gadget_config::{
 };
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
+use gadget_testing_utils::anvil::start_default_anvil_testnet;
+use tokio::signal;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -203,6 +205,12 @@ pub enum DeployTarget {
         /// Whether to deploy contracts in an interactive ordered manner
         #[arg(long)]
         ordered_deployment: bool,
+        /// Network to deploy to (local, testnet, mainnet)
+        #[arg(short, long, default_value = "testnet")]
+        network: String,
+        /// Start a local devnet using Anvil (only valid with network=local)
+        #[arg(long)]
+        devnet: bool,
     },
 }
 
@@ -260,13 +268,56 @@ async fn main() -> color_eyre::Result<()> {
                     rpc_url,
                     contracts_path,
                     ordered_deployment,
+                    network,
+                    devnet,
                 } => {
-                    deploy_to_eigenlayer(EigenlayerDeployOpts::new(
-                        rpc_url,
-                        contracts_path,
-                        ordered_deployment,
-                    ))
-                    .await?;
+                    let chain = match network.to_lowercase().as_str() {
+                        "local" => SupportedChains::LocalTestnet,
+                        "testnet" => SupportedChains::Testnet,
+                        "mainnet" => {
+                            if rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost") {
+                                SupportedChains::LocalMainnet
+                            } else {
+                                SupportedChains::Mainnet
+                            }
+                        }
+                        _ => {
+                            return Err(color_eyre::Report::msg(format!(
+                                "Invalid network: {}",
+                                network
+                            )));
+                        }
+                    };
+
+                    if chain == SupportedChains::LocalTestnet && devnet {
+                        // Start local Anvil testnet
+                        let (_container, http_endpoint, _ws_endpoint) =
+                            start_default_anvil_testnet(true).await;
+                        println!("Started local devnet:");
+                        println!("  HTTP endpoint: {}", http_endpoint);
+
+                        // Deploy to local devnet
+                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                            http_endpoint,
+                            contracts_path,
+                            ordered_deployment,
+                            chain,
+                        ))
+                        .await?;
+
+                        // Keep the process running for development
+                        println!("\nTestnet will now continue running. Press Ctrl+C to stop...");
+                        signal::ctrl_c().await?;
+                        println!("Shutting down devnet...");
+                    } else {
+                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                            rpc_url,
+                            contracts_path,
+                            ordered_deployment,
+                            chain,
+                        ))
+                        .await?;
+                    }
                 }
             },
             BlueprintCommands::Run {

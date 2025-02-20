@@ -21,23 +21,34 @@ pub struct EigenlayerDeployOpts {
     pub(crate) constructor_args: Option<HashMap<String, Vec<String>>>,
     /// Whether to deploy contracts in an interactive ordered manner
     pub(crate) ordered_deployment: bool,
+    /// The type of the target chain
+    pub(crate) chain: SupportedChains,
 }
 
 impl EigenlayerDeployOpts {
-    pub fn new(rpc_url: String, contracts_path: Option<String>, ordered_deployment: bool) -> Self {
+    pub fn new(
+        rpc_url: String,
+        contracts_path: Option<String>,
+        ordered_deployment: bool,
+        chain: SupportedChains,
+    ) -> Self {
         Self {
             rpc_url,
             contracts_path: contracts_path.unwrap_or_else(|| "./contracts".to_string()),
             constructor_args: None,
             ordered_deployment,
+            chain,
         }
     }
 
     fn get_private_key(&self) -> Result<String> {
-        if self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost") {
+        if (self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost"))
+            && self.chain == SupportedChains::LocalTestnet
+        {
             Ok("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string())
         // Default Anvil private key
         } else {
+            // TODO: Fetch the ECDSA key from the keystore
             env::var("EIGENLAYER_PRIVATE_KEY").map_err(|_| {
                 color_eyre::eyre::eyre!("EIGENLAYER_PRIVATE_KEY environment variable not set")
             })
