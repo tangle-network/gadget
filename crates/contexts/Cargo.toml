@@ -22,19 +22,11 @@ tangle-subxt = { workspace = true, optional = true }
 
 [features]
 default = ["std", "keystore"]
-std = [
-	"gadget-std/std",
-	"gadget-clients/std",
-	"gadget-keystore?/std",
-	"gadget-networking?/std",
-	"tangle-subxt?/std",
-]
-web = [
-	"tangle-subxt?/web",
-]
+std = ["gadget-std/std", "gadget-clients/std", "gadget-keystore?/std", "gadget-networking?/std", "tangle-subxt?/std"]
+web = ["tangle-subxt?/web"]
 
 evm = ["gadget-clients/evm"]
 eigenlayer = ["gadget-clients/eigenlayer"]
-networking = ["gadget-clients/networking", "dep:gadget-networking", "dep:proc-macro2"]
+networking = ["dep:gadget-networking", "dep:proc-macro2"]
 keystore = ["dep:gadget-config", "dep:gadget-keystore"]
 tangle = ["dep:tangle-subxt", "gadget-clients/tangle"]

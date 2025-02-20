@@ -422,8 +422,15 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 ctx_pos_in_ordered_inputs,
             )?,
             ListenerType::Custom => {
-                let job_processor_call = quote! {
-                    let res = #fn_name_ident(context, param0) #asyncness;
+                let has_job_params = !params.is_empty();
+                let job_processor_call = if has_job_params {
+                    quote! {
+                        let res = #fn_name_ident(context, param0) #asyncness;
+                    }
+                } else {
+                    quote! {
+                        let res = #fn_name_ident(context) #asyncness;
+                    }
                 };
                 let is_result = return_type.is_result_type();
                 let process_result = if is_result {

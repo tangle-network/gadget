@@ -20,9 +20,6 @@ mod eigenlayer;
 mod evm;
 /// Keystore context extension implementation.
 mod keystore;
-/// P2P context extension implementation.
-#[cfg(feature = "networking")]
-mod p2p;
 /// Tangle context extensions.
 #[cfg(feature = "tangle")]
 mod tangle;
@@ -110,21 +107,6 @@ pub fn derive_eigenlayer_context(input: TokenStream) -> TokenStream {
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
             .map(|config_field| eigenlayer::generate_context_impl(input, config_field));
-
-    match result {
-        Ok(expanded) => TokenStream::from(expanded),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
-}
-
-/// Derive macro for generating Context Extensions trait implementation for `P2pContext`.
-#[proc_macro_derive(P2pContext, attributes(config))]
-#[cfg(feature = "networking")]
-pub fn derive_p2p_context(input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    let result =
-        cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
-            .map(|config_field| p2p::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),

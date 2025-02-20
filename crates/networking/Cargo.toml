@@ -15,9 +15,11 @@ gadget-std = { workspace = true }
 
 # Core dependencies
 auto_impl = { workspace = true }
+blake3 = { workspace = true }
 dashmap = { workspace = true }
 libp2p = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
+tokio-stream = { workspace = true, features = ["time"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 bincode = { workspace = true }
@@ -29,13 +31,13 @@ hex = { workspace = true }
 itertools = { workspace = true, features = ["use_alloc"] }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
+crossbeam-channel = { workspace = true }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
+gadget-crypto-core = { workspace = true, features = ["k256"] }
 k256 = { workspace = true }
-
-# Round-based protocol support
-round-based = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -57,11 +59,17 @@ features = [
 	"ping",
 	"dns",
 	"autonat",
+	"upnp",
+	"serde",
 ]
 
 [dev-dependencies]
+gadget-networking = { workspace = true, features = ["sp-core-ecdsa"] }
+gadget-crypto = { workspace = true, features = ["sp-core"] }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
 tracing-subscriber = { workspace = true }
 lazy_static = { workspace = true }
+fastrand = "2.0"
 
 [features]
 default = ["std"]
@@ -75,8 +83,6 @@ std = [
 	"serde/std",
 	"serde_json/std",
 ]
-
-round-based-compat = ["dep:round-based"]
 
 # Only one of these features should be enabled at a time.
 # If none are enabled, k256 ECDSA will be used by default.
