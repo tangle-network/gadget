@@ -35,6 +35,7 @@ pub struct DecommitMsg {
 }
 
 /// Carries out the randomness generation protocol
+#[tracing::instrument(skip(party, rng))]
 pub async fn protocol_of_random_generation<R, M>(
     party: M,
     i: PartyIndex,
@@ -60,8 +61,11 @@ where
     let mut local_randomness = [0u8; 32];
     rng.fill_bytes(&mut local_randomness);
 
+    tracing::debug!(local_randomness = %hex::encode(&local_randomness), "Generated local randomness");
+
     // 2. Commit local randomness (broadcast m=sha256(randomness))
     let commitment = Sha256::digest(local_randomness);
+    tracing::debug!(commitment = %hex::encode(&commitment), "Committed local randomness");
     outgoing
         .send(Outgoing::broadcast(Msg::CommitMsg(CommitMsg {
             commitment,
@@ -69,13 +73,18 @@ where
         .await
         .map_err(Error::Round1Send)?;
 
+    tracing::debug!("Sent commitment and waiting for others to send theirs");
+
     // 3. Receive committed randomness from other parties
     let commitments = rounds
         .complete(round1)
         .await
         .map_err(Error::Round1Receive)?;
 
+    tracing::debug!("Received commitments from all parties");
+
     // 4. Open local randomness
+    tracing::debug!("Opening local randomness");
     outgoing
         .send(Outgoing::broadcast(Msg::DecommitMsg(DecommitMsg {
             randomness: local_randomness,
@@ -83,11 +92,15 @@ where
         .await
         .map_err(Error::Round2Send)?;
 
+    tracing::debug!("Sent decommitment and waiting for others to send theirs");
+
     // 5. Receive opened local randomness from other parties, verify them, and output protocol randomness
     let randomness = rounds
         .complete(round2)
         .await
         .map_err(Error::Round2Receive)?;
+
+    tracing::debug!("Received decommitments from all parties");
 
     let mut guilty_parties = vec![];
     let mut output = local_randomness;
@@ -112,8 +125,11 @@ where
     }
 
     if !guilty_parties.is_empty() {
+        tracing::error!(guilty_parties = ?guilty_parties, "Some parties cheated");
         Err(Error::PartiesOpenedRandomnessDoesntMatchCommitment { guilty_parties })
     } else {
+        tracing::debug!(output = %hex::encode(&output), "Generated randomness");
+        tracing::info!("Randomness generation protocol completed successfully.");
         Ok(output)
     }
 }
@@ -156,6 +172,7 @@ pub struct Blame {
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, HashSet};
+    use std::time::Duration;
 
     use super::common::*;
     use gadget_networking::{Curve, KeyType};
@@ -201,7 +218,7 @@ mod tests {
         std::println!("Output randomness: {}", hex::encode(randomness));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn p2p_networking() {
         init_tracing();
         let network_name = "rand-test-network";
@@ -232,6 +249,10 @@ mod tests {
         // Start both nodes - this should trigger automatic handshake
         let handle1 = node1.start().await.expect("Failed to start node1");
         let handle2 = node2.start().await.expect("Failed to start node2");
+
+        wait_for_peer_discovery(&[&handle1, &handle2], Duration::from_secs(5))
+            .await
+            .unwrap();
 
         let parties = HashMap::from_iter([
             (0, node1.instance_key_pair.public()),

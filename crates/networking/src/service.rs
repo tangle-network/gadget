@@ -425,7 +425,7 @@ async fn handle_discovery_event(
                         info!(%peer_info.peer_id, "Newly discovered peer from Kademlia");
                         let info = PeerInfo::default();
                         peer_manager.update_peer(peer_info.peer_id, info);
-                        let addrs: Vec<_> = peer_info.addrs.iter().cloned().collect();
+                        let addrs: Vec<_> = peer_info.addrs.to_vec();
                         for addr in addrs {
                             debug!(%peer_info.peer_id, %addr, "Dialing peer from Kademlia");
                             if let Err(e) = swarm.dial(DialOpts::from(addr)) {

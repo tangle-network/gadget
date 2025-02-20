@@ -34,10 +34,6 @@ pub struct RoundBasedNetworkAdapter<M> {
     parties: Arc<DashMap<PartyIndex, InstanceMsgPublicKey>>,
     /// Counter for message IDs
     next_msg_id: Arc<AtomicU64>,
-    /// Channel for forwarding messages
-    forward_tx: Sender<(PartyIndex, M)>,
-    /// Channel for receiving forwarded messages
-    forward_rx: Receiver<(PartyIndex, M)>,
     /// Protocol identifier
     protocol_id: String,
     _phantom: std::marker::PhantomData<M>,
@@ -55,15 +51,11 @@ where
         parties: HashMap<PartyIndex, InstanceMsgPublicKey>,
         protocol_id: impl Into<String>,
     ) -> Self {
-        let (forward_tx, forward_rx) = crossbeam_channel::unbounded();
-
         Self {
             handle,
             party_index,
             parties: Arc::new(DashMap::from_iter(parties)),
             next_msg_id: Arc::new(AtomicU64::new(0)),
-            forward_tx,
-            forward_rx,
             protocol_id: protocol_id.into(),
             _phantom: std::marker::PhantomData,
         }
@@ -87,8 +79,6 @@ where
             party_index,
             parties,
             next_msg_id,
-            forward_tx,
-            forward_rx,
             protocol_id,
             ..
         } = self;
@@ -99,11 +89,10 @@ where
             parties: parties.clone(),
             next_msg_id: next_msg_id.clone(),
             protocol_id: protocol_id.clone(),
-            forward_tx,
             _phantom: std::marker::PhantomData,
         };
 
-        let receiver = RoundBasedReceiver::new(handle, party_index, forward_rx);
+        let receiver = RoundBasedReceiver::new(handle, party_index);
 
         (receiver, sender)
     }
@@ -115,13 +104,12 @@ pub struct RoundBasedSender<M> {
     parties: Arc<DashMap<PartyIndex, InstanceMsgPublicKey>>,
     next_msg_id: Arc<AtomicU64>,
     protocol_id: String,
-    forward_tx: Sender<(PartyIndex, M)>,
     _phantom: std::marker::PhantomData<M>,
 }
 
 impl<M> Sink<Outgoing<M>> for RoundBasedSender<M>
 where
-    M: Serialize + round_based::ProtocolMessage + Clone,
+    M: Serialize + round_based::ProtocolMessage + Clone + Unpin,
 {
     type Error = NetworkError;
 
@@ -130,17 +118,18 @@ where
     }
 
     fn start_send(self: Pin<&mut Self>, outgoing: Outgoing<M>) -> Result<(), Self::Error> {
-        let this = unsafe { self.get_unchecked_mut() };
+        let this = self.get_mut();
         let msg_id = this.next_msg_id.fetch_add(1, Ordering::Relaxed);
         let round = outgoing.msg.round();
 
-        // Handle local message forwarding for self-messages
-        if outgoing.recipient == MessageDestination::OneParty(this.party_index) {
-            return this
-                .forward_tx
-                .send((this.party_index, outgoing.msg.clone()))
-                .map_err(|_| NetworkError::Send("Failed to forward local message".into()));
-        }
+        tracing::trace!(
+            i = %this.party_index,
+            recipient = ?outgoing.recipient,
+            %round,
+            %msg_id,
+            protocol_id = %this.protocol_id,
+            "Sending message",
+        );
 
         let (recipient, recipient_key) = match outgoing.recipient {
             MessageDestination::AllParties => (None, None),
@@ -168,8 +157,15 @@ where
                 .map_err(|e| NetworkError::Serialization(e))?,
         };
 
+        tracing::trace!(
+            %round,
+            %msg_id,
+            protocol_id = %this.protocol_id,
+            "Sending message to network",
+        );
+
         this.handle
-            .send(protocol_message)
+            .send(protocol_message.routing, protocol_message.payload)
             .map_err(|e| NetworkError::Send(e))
     }
 
@@ -185,20 +181,14 @@ where
 pub struct RoundBasedReceiver<M> {
     handle: NetworkServiceHandle,
     party_index: PartyIndex,
-    forward_rx: Receiver<(PartyIndex, M)>,
     _phantom: std::marker::PhantomData<M>,
 }
 
 impl<M> RoundBasedReceiver<M> {
-    fn new(
-        handle: NetworkServiceHandle,
-        party_index: PartyIndex,
-        forward_rx: Receiver<(PartyIndex, M)>,
-    ) -> Self {
+    fn new(handle: NetworkServiceHandle, party_index: PartyIndex) -> Self {
         Self {
             handle,
             party_index,
-            forward_rx,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -211,16 +201,6 @@ where
     type Item = Result<Incoming<M>, NetworkError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // First check forwarded messages
-        if let Ok((sender, msg)) = self.forward_rx.try_recv() {
-            return Poll::Ready(Some(Ok(Incoming {
-                msg,
-                sender,
-                id: 0,
-                msg_type: MessageType::P2P,
-            })));
-        }
-
         // Get a mutable reference to self
         let this = self.get_mut();
 
@@ -236,6 +216,15 @@ where
                 let sender = protocol_message.routing.sender.id.0;
                 let id = protocol_message.routing.message_id;
 
+                tracing::trace!(
+                    i = %this.party_index,
+                    sender = ?sender,
+                    %id,
+                    protocol_id = %protocol_message.protocol,
+                    ?msg_type,
+                    size = %protocol_message.payload.len(),
+                    "Received message",
+                );
                 match serde_json::from_slice(&protocol_message.payload) {
                     Ok(msg) => Poll::Ready(Some(Ok(Incoming {
                         msg,
@@ -246,7 +235,12 @@ where
                     Err(e) => Poll::Ready(Some(Err(NetworkError::Serialization(e)))),
                 }
             }
-            None => Poll::Pending,
+            None => {
+                tracing::trace!(i = %this.party_index, "No message received; the waker will wake us up when there is a new message");
+                // In this case, tell the waker to wake us up when there is a new message
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
         }
     }
 }

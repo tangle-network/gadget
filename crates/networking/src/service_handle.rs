@@ -1,4 +1,4 @@
-use crate::types::{MessageRouting, ParticipantInfo};
+use crate::types::MessageRouting;
 use crate::{
     blueprint_protocol::InstanceMessageRequest,
     discovery::{PeerInfo, PeerManager},
@@ -6,11 +6,10 @@ use crate::{
     types::ProtocolMessage,
 };
 use crossbeam_channel::{self, Receiver, Sender};
-use libp2p::gossipsub::Sha256Topic;
 use libp2p::{Multiaddr, PeerId};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
