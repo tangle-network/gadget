@@ -12,9 +12,6 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "round-based-compat")]
-pub use gadget_networking_round_based_extension as round_based_compat;
-
 pub use gadget_crypto::KeyType;
 pub use key_types::*;
 pub use service::{NetworkConfig, NetworkEvent, NetworkService};
