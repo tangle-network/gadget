@@ -34,9 +34,6 @@ pub struct DiscoveryConfig {
     /// The name of the network.
     network_name: String,
     /// Protocol version string that uniquely identifies your P2P service.
-    /// This should be unique to your application to avoid conflicts with other P2P networks.
-    /// Format recommendation: "<service-name>/<version>"
-    /// Example: "my-blockchain/1.0.0" or "my-chat-app/0.1.0"
     protocol_version: String,
 }
 
@@ -59,8 +56,11 @@ impl DiscoveryConfig {
     }
 
     /// Set the protocol version that uniquely identifies your P2P service.
+    ///
     /// This should be unique to your application to avoid conflicts with other P2P networks.
-    /// Format recommendation: "<service-name>/<version>"
+    ///
+    /// * Format recommendation: `<service-name>/<version>`
+    /// * Example: `my-blockchain/1.0.0` or `my-chat-app/0.1.0`
     #[must_use]
     pub fn protocol_version(mut self, version: impl Into<String>) -> Self {
         self.protocol_version = version.into();
