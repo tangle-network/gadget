@@ -111,16 +111,13 @@ pub struct NetworkService {
     network_sender: Sender<NetworkMessage>,
     /// Channel for receiving messages from the network service
     network_receiver: Receiver<NetworkMessage>,
-    /// Channel for sending messages to the network service
-    protocol_message_sender: Sender<ProtocolMessage>,
     /// Channel for receiving messages from the network service
     protocol_message_receiver: Receiver<ProtocolMessage>,
     /// Channel for sending events to the network service
     event_sender: Sender<NetworkEvent>,
     /// Channel for receiving events from the network service
+    #[expect(dead_code)] // For future use
     event_receiver: Receiver<NetworkEvent>,
-    /// Network name/namespace
-    network_name: String,
     /// Bootstrap peers
     bootstrap_peers: HashSet<Multiaddr>,
 }
@@ -198,11 +195,9 @@ impl NetworkService {
             peer_manager,
             network_sender,
             network_receiver,
-            protocol_message_sender,
             protocol_message_receiver,
             event_sender,
             event_receiver,
-            network_name,
             bootstrap_peers,
         })
     }
@@ -281,7 +276,6 @@ impl NetworkService {
                                 event,
                                 &self.event_sender,
                             )
-                            .await
                             {
                                 warn!("Failed to handle swarm event: {}", e);
                             }
@@ -313,22 +307,8 @@ impl NetworkService {
     }
 }
 
-/// Handle a swarm event
-async fn handle_swarm_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
-    event: SwarmEvent<GadgetBehaviourEvent>,
-    event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
-    if let SwarmEvent::Behaviour(behaviour_event) = event {
-        handle_behaviour_event(swarm, peer_manager, behaviour_event, event_sender).await?;
-    }
-
-    Ok(())
-}
-
 /// Handle a behaviour event
-async fn handle_behaviour_event(
+fn handle_behaviour_event(
     swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: GadgetBehaviourEvent,
@@ -410,9 +390,6 @@ fn handle_discovery_event(
                 peer_manager.update_peer(*peer_id, peer_info);
                 debug!(%peer_id, "Successfully processed identify information");
             }
-            DerivedDiscoveryBehaviourEvent::Identify(_) => {
-                // Ignore other identify events
-            }
             DerivedDiscoveryBehaviourEvent::Kademlia(kad::Event::OutboundQueryProgressed {
                 result: kad::QueryResult::GetClosestPeers(Ok(ok)),
                 ..
@@ -488,11 +465,12 @@ fn handle_blueprint_protocol_event(
 }
 
 /// Handle a ping event
+#[expect(clippy::unnecessary_wraps)]
 fn handle_ping_event(
     _swarm: &mut Swarm<GadgetBehaviour>,
     _peer_manager: &Arc<PeerManager>,
     event: ping::Event,
-    event_sender: &Sender<NetworkEvent>,
+    _event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match event.result {
         Ok(rtt) => {

@@ -23,6 +23,8 @@ single_match_else = "allow"
 uninlined_format_args = "allow"
 needless_late_init = "allow"
 struct_excessive_bools = "allow"
+large_enum_variant = "allow" # TODO: Fix instances of this
+result_large_err = "allow" # TODO: Fix instances of this
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

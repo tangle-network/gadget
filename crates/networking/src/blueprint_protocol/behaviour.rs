@@ -76,6 +76,7 @@ pub struct BlueprintProtocolBehaviour {
     /// Peers with pending outbound handshakes
     pub(crate) outbound_handshakes: DashMap<PeerId, Instant>,
     /// Active response channels
+    #[expect(dead_code)] // TODO
     pub(crate) response_channels:
         DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
     /// Protocol message sender
@@ -85,6 +86,7 @@ pub struct BlueprintProtocolBehaviour {
 impl BlueprintProtocolBehaviour {
     /// Create a new blueprint protocol behaviour
     #[must_use]
+    #[allow(clippy::missing_panics_doc)] // Known good gossipsub config
     pub fn new(
         local_key: &Keypair,
         instance_key_pair: &InstanceMsgKeyPair,
@@ -144,6 +146,7 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Sign a handshake message for a peer
+    #[allow(clippy::unused_self)]
     pub(crate) fn sign_handshake(
         &self,
         key_pair: &mut InstanceMsgKeyPair,
@@ -179,6 +182,10 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Send a response through a response channel
+    ///
+    /// # Errors
+    ///
+    /// See [`libp2p::request_response::Behaviour::send_response`]
     pub fn send_response(
         &mut self,
         channel: ResponseChannel<InstanceMessageResponse>,
@@ -191,12 +198,20 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Subscribe to a gossip topic
+    ///
+    /// # Errors
+    ///
+    /// See [`libp2p::gossipsub::SubscriptionError`]
     pub fn subscribe(&mut self, topic: &str) -> Result<bool, gossipsub::SubscriptionError> {
         let topic = Sha256Topic::new(topic);
         self.blueprint_protocol.gossipsub.subscribe(&topic)
     }
 
     /// Publish a message to a gossip topic
+    ///
+    /// # Errors
+    ///
+    /// See [`libp2p::gossipsub::PublishError`]
     pub fn publish(
         &mut self,
         topic: &str,
@@ -207,6 +222,10 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Verify and handle a handshake with a peer
+    ///
+    /// # Errors
+    ///
+    /// The handshake expired or has an invalid signature
     pub fn verify_handshake(
         &self,
         msg: &HandshakeMessage,
@@ -239,6 +258,11 @@ impl BlueprintProtocolBehaviour {
         Ok(())
     }
 
+    /// Handle a handshake message, verifying the peer on success
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::verify_handshake()`]
     pub fn handle_handshake(
         &self,
         msg: &HandshakeMessage,
@@ -251,6 +275,7 @@ impl BlueprintProtocolBehaviour {
 
         Ok(())
     }
+
     /// Handle a failed handshake with a peer
     pub fn handle_handshake_failure(&self, peer: &PeerId, reason: &str) {
         // Update peer info and potentially ban peer

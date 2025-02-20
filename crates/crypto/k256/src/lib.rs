@@ -79,6 +79,7 @@ macro_rules! impl_serde_bytes {
 impl_serde_bytes!(K256VerifyingKey, k256::ecdsa::VerifyingKey);
 
 impl K256VerifyingKey {
+    #[allow(clippy::wrong_self_convention)]
     fn to_bytes_impl(&self) -> Vec<u8> {
         self.0.to_sec1_bytes().to_vec()
     }

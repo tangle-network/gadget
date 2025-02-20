@@ -82,6 +82,10 @@ pub struct DiscoveryBehaviour {
 
 impl DiscoveryBehaviour {
     /// Bootstrap Kademlia network
+    ///
+    /// # Errors
+    ///
+    /// * If Kademlia is not activated
     pub fn bootstrap(&mut self) -> NetworkingResult<kad::QueryId> {
         if let Some(active_kad) = self.discovery.kademlia.as_mut() {
             active_kad.bootstrap().map_err(Into::into)
@@ -204,7 +208,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             .on_connection_handler_event(peer_id, connection, event);
     }
 
-    #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity, clippy::too_many_lines)]
     fn poll(
         &mut self,
         cx: &mut Context<'_>,

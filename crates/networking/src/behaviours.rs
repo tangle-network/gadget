@@ -49,7 +49,11 @@ pub struct GadgetBehaviour {
 }
 
 impl GadgetBehaviour {
-    #[must_use]
+    /// Create a new `GadgetBehaviour`
+    ///
+    /// # Errors
+    ///
+    /// See [`DiscoveryConfig::build()`]
     pub fn new(
         network_name: &str,
         blueprint_protocol_name: &str,
@@ -102,6 +106,10 @@ impl GadgetBehaviour {
     }
 
     /// Bootstrap Kademlia network
+    ///
+    /// # Errors
+    ///
+    /// See [`DiscoveryBehaviour::bootstrap()`]
     pub fn bootstrap(&mut self) -> NetworkingResult<QueryId> {
         self.discovery.bootstrap()
     }

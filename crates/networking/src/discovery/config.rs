@@ -113,7 +113,7 @@ impl DiscoveryConfig {
     ///
     /// # Errors
     ///
-    /// If `mdns` is enabled, see [mdns::Behaviour::new]
+    /// If `mdns` is enabled, see [`mdns::Behaviour::new`]
     pub fn build(self) -> Result<DiscoveryBehaviour> {
         let kademlia_opt = if self.enable_kademlia {
             let protocol = StreamProtocol::try_from_owned(format!(

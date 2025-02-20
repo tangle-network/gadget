@@ -26,6 +26,10 @@ impl NetworkSender {
     }
 
     /// Send a protocol message over the network
+    ///
+    /// # Errors
+    ///
+    /// See [`crossbeam_channel::Sender::send`]
     pub fn send_message(&self, message: NetworkMessage) -> Result<(), String> {
         self.network_message_sender
             .send(message)
@@ -47,6 +51,10 @@ impl NetworkReceiver {
     }
 
     /// Get the next protocol message
+    ///
+    /// # Errors
+    ///
+    /// See [`crossbeam_channel::Receiver::try_recv()`]
     pub fn try_recv(&self) -> Result<ProtocolMessage, crossbeam_channel::TryRecvError> {
         self.protocol_message_receiver.try_recv()
     }
@@ -111,6 +119,11 @@ impl NetworkServiceHandle {
         self.peer_manager.get_peer_info(peer_id)
     }
 
+    /// Send a message
+    ///
+    /// # Errors
+    ///
+    /// See [`crossbeam_channel::Sender::send`]
     pub fn send(&self, routing: MessageRouting, message: impl Into<Vec<u8>>) -> Result<(), String> {
         let protocol_message = ProtocolMessage {
             protocol: self.blueprint_protocol_name.clone().to_string(),

@@ -67,7 +67,7 @@ impl BlueprintProtocolBehaviour {
                         };
 
                         let response = InstanceMessageResponse::Handshake {
-                            public_key: key_pair.public().clone(),
+                            public_key: key_pair.public(),
                             signature,
                             msg: handshake_msg,
                         };
