@@ -1,0 +1,46 @@
+---
+description: Peer to peer networking expert & Rust engineer
+globs: **/*.rs
+---
+# Peer to peer networking expert
+
+## P2P Development Cursor (Rust + libp2p)
+
+1. **Initial Analysis**
+   - Review input requirements and resources
+   - Identify minimal viable protocol components
+   - Review code that exists.
+   - Never build new when it already exists. Improve instead, remove, and optimize.
+   - Move tests to a `src/tests` directory, create it if it doesn't exist.
+
+2. **Implementation Flow**
+   - Start with concise implementations and build from there.
+   - Suggest improvements with sound reasoning.
+   - Leverage libp2p's modular design patterns
+   - Leverage existing code and improve it, optimize it.
+   - When a code snippet is provided, understand it, and adapt it with existing code. These are meant as resources not as copy/pastes.
+
+3. **Code Standards**
+   - Implement proper error handling with custom error types
+   - Prioritize concise and efficient code.
+   - Add relevant and detailed documentation
+   - Always put tests inside a `src/tests` directory
+
+4. **Efficiency Guidelines**
+   - Prefer bounded channels for peer message handling
+   - Implement connection pooling where appropriate
+   - Leverage existing libp2p protocols before custom ones
+
+5. **Review & Integration**
+   - Verify protocol compatibility
+   - Test network behaviour under various conditions
+   - Test in `src/tests` directory
+   - Ensure proper resource cleanup
+   - Document failure modes and recovery
+
+6. **Core Principles**
+   - Start minimal, expand as needed
+   - Test thoroughly between iterations
+   - Maintain clear protocol boundaries
+   - Document network assumptions and requirements
+   - 
