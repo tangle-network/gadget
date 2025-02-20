@@ -137,9 +137,8 @@ impl GadgetConfiguration {
     pub fn libp2p_start_network(
         &self,
         network_config: gadget_networking::NetworkConfig,
+        allowed_keys: gadget_std::collections::HashSet<gadget_networking::InstanceMsgPublicKey>,
     ) -> Result<gadget_networking::service_handle::NetworkServiceHandle, Error> {
-        // TODO: Add allowed keys or pass them.
-        let allowed_keys = Default::default();
         let networking_service =
             gadget_networking::NetworkService::new(network_config, allowed_keys)?;
 
