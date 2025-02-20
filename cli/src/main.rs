@@ -286,7 +286,7 @@ async fn main() -> color_eyre::Result<()> {
                         "local" => SupportedChains::LocalTestnet,
                         "testnet" => SupportedChains::Testnet,
                         "mainnet" => {
-                            if rpc_url.as_ref().map_or(false, |url| {
+                            if rpc_url.as_ref().is_some_and(|url| {
                                 url.contains("127.0.0.1") || url.contains("localhost")
                             }) {
                                 SupportedChains::LocalMainnet
