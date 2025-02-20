@@ -1,5 +1,6 @@
 use bip39::{Language, Mnemonic};
 use color_eyre::eyre::Result;
+use dialoguer::{Input, Select};
 use gadget_crypto::bn254::{ArkBlsBn254Public, ArkBlsBn254Secret};
 use gadget_crypto::sp_core::{
     SpBls377, SpBls377Pair, SpBls377Public, SpBls381, SpBls381Pair, SpBls381Public, SpEcdsa,
@@ -9,7 +10,7 @@ use gadget_crypto::sp_core::{
 use gadget_crypto::{bn254::ArkBlsBn254, KeyTypeId};
 use gadget_crypto_core::{KeyEncoding, KeyType};
 use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
-use std::path::Path;
+use gadget_std::path::Path;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -21,6 +22,57 @@ pub enum Error {
     InvalidKeyFormat(String),
     #[error("Invalid mnemonic word count: {0}. Must be 12, 15, 18, 21, or 24")]
     InvalidWordCount(u32),
+}
+
+pub fn prompt_for_keys(key_types: Vec<KeyTypeId>) -> color_eyre::Result<Vec<(KeyTypeId, String)>> {
+    let mut collected_keys = Vec::new();
+    let all_key_types = [
+        KeyTypeId::Bn254,
+        KeyTypeId::Ecdsa,
+        KeyTypeId::Sr25519,
+        KeyTypeId::Ed25519,
+        KeyTypeId::Bls381,
+        KeyTypeId::Bls377,
+    ];
+
+    if key_types.is_empty() {
+        loop {
+            let mut options = all_key_types
+                .iter()
+                .map(|kt| format!("Enter key for {:?}", kt))
+                .collect::<Vec<_>>();
+            options.push("Continue".to_string());
+
+            let selection = Select::new()
+                .with_prompt("Select key type to enter (or Continue when done)")
+                .items(&options)
+                .default(0)
+                .interact()?;
+
+            if selection == options.len() - 1 {
+                // User selected "Continue"
+                break;
+            }
+
+            let key_type = all_key_types[selection];
+            let key: String = Input::new()
+                .with_prompt(format!("Enter private key for {:?}", key_type))
+                .interact_text()?;
+
+            collected_keys.push((key_type, key));
+        }
+    } else {
+        // When specific key types are provided, just prompt for each one
+        for key_type in key_types {
+            let key: String = Input::new()
+                .with_prompt(format!("Enter private key for {:?}", key_type))
+                .interact_text()?;
+
+            collected_keys.push((key_type, key));
+        }
+    }
+
+    Ok(collected_keys)
 }
 
 pub fn generate_key(

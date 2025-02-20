@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::deploy::tangle::{deploy_to_tangle, Opts};
-use alloy_primitives::Address;
+use crate::keys::prompt_for_keys;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
@@ -11,11 +11,11 @@ use clap::{Parser, Subcommand};
 use dotenv::from_path;
 use gadget_config::{
     protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
-    Error, GadgetConfiguration,
     supported_chains::SupportedChains,
+    Error, GadgetConfiguration,
 };
 use gadget_crypto::KeyTypeId;
-use std::env;
+use gadget_std::env;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -74,10 +74,10 @@ pub enum KeyCommands {
     Import {
         /// The type of key to import (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
         #[arg(short, long, value_enum)]
-        key_type: KeyTypeId,
+        key_type: Option<KeyTypeId>,
         /// The secret key to import (hex format without 0x prefix)
         #[arg(short, long)]
-        secret: String,
+        secret: Option<String>,
         /// The path to the keystore
         #[arg(short, long)]
         keystore_path: PathBuf,
@@ -289,7 +289,7 @@ async fn main() -> color_eyre::Result<()> {
                         } else {
                             SupportedChains::Mainnet
                         }
-                    },
+                    }
                     _ => {
                         return Err(color_eyre::Report::msg(format!(
                             "Invalid network: {}",
@@ -308,10 +308,20 @@ async fn main() -> color_eyre::Result<()> {
                 };
                 config.http_rpc_endpoint = rpc_url.clone();
                 config.ws_rpc_endpoint = ws_url;
-                config.keystore_uri = keystore_path
-                    .unwrap_or_else(|| PathBuf::from("./keystore"))
-                    .to_string_lossy()
-                    .to_string();
+                let keystore_path = keystore_path.unwrap_or_else(|| PathBuf::from("./keystore"));
+                if !keystore_path.exists() {
+                    println!(
+                        "Keystore not found at {}. Let's set up your keys.",
+                        keystore_path.display()
+                    );
+                    let keys = prompt_for_keys(vec![])?;
+                    std::fs::create_dir_all(&keystore_path)?;
+                    for (key_type, key) in keys {
+                        let key_path = keystore_path.join(format!("{:?}", key_type));
+                        std::fs::write(key_path, key)?;
+                    }
+                }
+                config.keystore_uri = keystore_path.to_string_lossy().to_string();
                 config.data_dir = data_dir.or_else(|| Some(PathBuf::from("./data")));
                 config.bootnodes = bootnodes
                     .unwrap_or_default()
@@ -358,9 +368,23 @@ async fn main() -> color_eyre::Result<()> {
                 secret,
                 keystore_path,
             } => {
-                let public = keys::import_key(key_type, &secret, &keystore_path)?;
-                eprintln!("Imported {:?} key:", key_type);
-                eprintln!("Public key: {}", public);
+                if let Some(key_type) = key_type {
+                    // If key_type is provided, require secret
+                    let secret = secret.ok_or_else(|| {
+                        color_eyre::eyre::eyre!("Secret key is required when key type is specified")
+                    })?;
+                    let public = keys::import_key(key_type, &secret, &keystore_path)?;
+                    eprintln!("Imported {:?} key:", key_type);
+                    eprintln!("Public key: {}", public);
+                } else {
+                    // If no key_type provided, use interactive prompt
+                    let key_pairs = keys::prompt_for_keys(vec![])?;
+                    for (key_type, secret) in key_pairs {
+                        let public = keys::import_key(key_type, &secret, &keystore_path)?;
+                        eprintln!("Imported {:?} key:", key_type);
+                        eprintln!("Public key: {}", public);
+                    }
+                }
             }
             KeyCommands::Export {
                 key_type,
