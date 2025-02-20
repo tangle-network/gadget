@@ -19,6 +19,7 @@ blake3 = { workspace = true }
 dashmap = { workspace = true }
 libp2p = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
+tokio-stream = { workspace = true, features = ["time"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 bincode = { workspace = true }
@@ -30,6 +31,7 @@ hex = { workspace = true }
 itertools = { workspace = true, features = ["use_alloc"] }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
@@ -58,6 +60,7 @@ features = [
 	"ping",
 	"dns",
 	"autonat",
+	"upnp",
 ]
 
 [dev-dependencies]

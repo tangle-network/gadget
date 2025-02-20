@@ -1,19 +1,18 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-pub mod gossip;
-pub mod handlers;
-pub mod networking;
-#[cfg(feature = "round-based-compat")]
-pub mod round_based_compat;
-#[cfg(feature = "round-based-compat")]
-pub use round_based;
-
 pub mod behaviours;
+pub mod blueprint_protocol;
+pub mod discovery;
 pub mod error;
-pub mod setup;
+pub mod handlers;
+pub mod service;
 pub mod types;
 
+#[cfg(test)]
+mod tests;
+
 pub use key_types::*;
+pub use service::{NetworkConfig, NetworkEvent, NetworkMessage, NetworkService};
 
 #[cfg(all(
     feature = "sp-core-ecdsa",
@@ -22,9 +21,15 @@ pub use key_types::*;
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
-        SpEcdsa as Curve, SpEcdsaPair as GossipMsgKeyPair, SpEcdsaPublic as GossipMsgPublicKey,
-        SpEcdsaSignature as GossipSignedMsgSignature,
+        SpEcdsa as Curve, SpEcdsaPair as InstanceMsgKeyPair, SpEcdsaPublic as InstanceMsgPublicKey,
+        SpEcdsaSignature as InstanceSignedMsgSignature,
     };
+
+    impl super::KeySignExt for InstanceMsgKeyPair {
+        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
+            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
+        }
+    }
 }
 
 #[cfg(all(
@@ -34,9 +39,15 @@ pub mod key_types {
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
-        SpSr25519 as Curve, SpSr25519Pair as GossipMsgKeyPair,
-        SpSr25519Public as GossipMsgPublicKey, SpSr25519Signature as GossipSignedMsgSignature,
+        SpSr25519 as Curve, SpSr25519Pair as InstanceMsgKeyPair,
+        SpSr25519Public as InstanceMsgPublicKey, SpSr25519Signature as InstanceSignedMsgSignature,
     };
+
+    impl super::KeySignExt for InstanceMsgKeyPair {
+        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
+            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
+        }
+    }
 }
 
 #[cfg(all(
@@ -46,9 +57,15 @@ pub mod key_types {
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
-        SpEd25519 as Curve, SpEd25519Pair as GossipMsgKeyPair,
-        SpEd25519Public as GossipMsgPublicKey, SpEd25519Signature as GossipSignedMsgSignature,
+        SpEd25519 as Curve, SpEd25519Pair as InstanceMsgKeyPair,
+        SpEd25519Public as InstanceMsgPublicKey, SpEd25519Signature as InstanceSignedMsgSignature,
     };
+
+    impl super::KeySignExt for InstanceMsgKeyPair {
+        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
+            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
+        }
+    }
 }
 
 #[cfg(all(
@@ -59,9 +76,15 @@ pub mod key_types {
 pub mod key_types {
     // Default to k256 ECDSA implementation
     pub use gadget_crypto::k256::{
-        K256Ecdsa as Curve, K256Signature as GossipSignedMsgSignature,
-        K256SigningKey as GossipMsgKeyPair, K256VerifyingKey as GossipMsgPublicKey,
+        K256Ecdsa as Curve, K256Signature as InstanceSignedMsgSignature,
+        K256SigningKey as InstanceMsgKeyPair, K256VerifyingKey as InstanceMsgPublicKey,
     };
+
+    impl super::KeySignExt for InstanceMsgKeyPair {
+        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
+            self.sign_prehash(prehash)
+        }
+    }
 }
 
 // Compile-time assertion to ensure only one feature is enabled
@@ -73,3 +96,7 @@ pub mod key_types {
 compile_error!(
     "Only one of 'sp-core-ecdsa', 'sp-core-sr25519', or 'sp-core-ed25519' features can be enabled at a time"
 );
+
+pub(crate) trait KeySignExt {
+    fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature;
+}

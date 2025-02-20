@@ -1,55 +1,119 @@
-use crate::key_types::{GossipMsgPublicKey, GossipSignedMsgSignature};
-use libp2p::{gossipsub, kad::store::MemoryStore, mdns, request_response, swarm::NetworkBehaviour};
-use serde::{Deserialize, Serialize};
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-// TODO: Needs better name
-pub enum GossipOrRequestResponse {
-    Gossip(GossipMessage),
-    Request(MyBehaviourRequest),
-    Response(MyBehaviourResponse),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GossipMessage {
-    pub topic: String,
-    pub raw_payload: Vec<u8>,
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourRequest {
-    Handshake {
-        public_key: GossipMsgPublicKey,
-        signature: GossipSignedMsgSignature,
+use crate::key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey};
+use crate::{
+    blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
+    discovery::{
+        behaviour::{DiscoveryBehaviour, DiscoveryEvent},
+        config::DiscoveryConfig,
+        PeerInfo, PeerManager,
     },
-    Message {
-        topic: String,
-        raw_payload: Vec<u8>,
-    },
+};
+use libp2p::{
+    connection_limits::{self, ConnectionLimits},
+    identity::Keypair,
+    kad::QueryId,
+    ping,
+    swarm::NetworkBehaviour,
+    Multiaddr, PeerId,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
+
+const MAX_ESTABLISHED_PER_PEER: u32 = 4;
+
+/// Events that can be emitted by the GadgetBehavior
+#[derive(Debug)]
+pub enum GadgetEvent {
+    /// Discovery-related events
+    Discovery(DiscoveryEvent),
+    /// Ping events for connection liveness
+    Ping(ping::Event),
+    /// Blueprint protocol events
+    Blueprint(BlueprintProtocolEvent),
 }
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourResponse {
-    Handshaked {
-        public_key: GossipMsgPublicKey,
-        signature: GossipSignedMsgSignature,
-    },
-    MessageHandled,
-}
-
-// We create a custom network behaviour that combines Gossipsub and Mdns.
 #[derive(NetworkBehaviour)]
-pub struct MyBehaviour {
-    pub gossipsub: gossipsub::Behaviour,
-    pub mdns: mdns::tokio::Behaviour,
-    pub p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
-    pub identify: libp2p::identify::Behaviour,
-    pub kadmelia: libp2p::kad::Behaviour<MemoryStore>,
-    pub dcutr: libp2p::dcutr::Behaviour,
-    pub relay: libp2p::relay::Behaviour,
-    pub ping: libp2p::ping::Behaviour,
-    pub autonat: libp2p::autonat::Behaviour,
+pub struct GadgetBehaviour {
+    /// Connection limits to prevent DoS
+    connection_limits: connection_limits::Behaviour,
+    /// Discovery mechanisms (Kademlia, mDNS, etc)
+    pub(super) discovery: DiscoveryBehaviour,
+    /// Direct P2P messaging and gossip
+    pub(super) blueprint_protocol: BlueprintProtocolBehaviour,
+    /// Connection liveness checks
+    ping: ping::Behaviour,
+}
+
+impl GadgetBehaviour {
+    pub fn new(
+        network_name: &str,
+        blueprint_protocol_name: &str,
+        local_key: &Keypair,
+        instance_secret_key: &InstanceMsgKeyPair,
+        instance_public_key: &InstanceMsgPublicKey,
+        target_peer_count: u64,
+        peer_manager: Arc<PeerManager>,
+    ) -> Self {
+        let connection_limits = connection_limits::Behaviour::new(
+            ConnectionLimits::default()
+                .with_max_pending_incoming(Some(
+                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
+                ))
+                .with_max_pending_outgoing(Some(
+                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
+                ))
+                .with_max_established_incoming(Some(
+                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
+                ))
+                .with_max_established_outgoing(Some(
+                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
+                ))
+                .with_max_established_per_peer(Some(MAX_ESTABLISHED_PER_PEER)),
+        );
+
+        let ping = ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(30)));
+
+        let discovery = DiscoveryConfig::new(local_key.public(), network_name)
+            .with_mdns(true)
+            .with_kademlia(true)
+            .with_target_peer_count(target_peer_count)
+            .build()
+            .unwrap();
+
+        let blueprint_protocol = BlueprintProtocolBehaviour::new(
+            local_key,
+            instance_secret_key,
+            instance_public_key,
+            peer_manager,
+            blueprint_protocol_name,
+        );
+
+        Self {
+            connection_limits,
+            discovery,
+            blueprint_protocol,
+            ping,
+        }
+    }
+
+    /// Bootstrap Kademlia network
+    pub fn bootstrap(&mut self) -> Result<QueryId, String> {
+        self.discovery.bootstrap()
+    }
+
+    /// Returns a set of peer ids
+    pub fn peers(&self) -> &HashSet<PeerId> {
+        self.discovery.get_peers()
+    }
+
+    /// Returns a map of peer ids and their multi-addresses
+    pub fn peer_addresses(&self) -> HashMap<PeerId, HashSet<Multiaddr>> {
+        self.discovery.get_peer_addresses()
+    }
+
+    pub fn peer_info(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
+        self.discovery.get_peer_info(peer_id)
+    }
 }
