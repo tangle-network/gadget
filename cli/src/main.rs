@@ -1,13 +1,21 @@
 use std::path::PathBuf;
 
 use crate::deploy::tangle::{deploy_to_tangle, Opts};
+use alloy_primitives::Address;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
-use cargo_tangle::run::eigenlayer::{run_eigenlayer_avs, RunOpts};
+use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
+use dotenv::from_path;
+use gadget_config::{
+    protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
+    Error, GadgetConfiguration,
+    supported_chains::SupportedChains,
+};
 use gadget_crypto::KeyTypeId;
+use std::env;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -126,28 +134,36 @@ pub enum BlueprintCommands {
         target: DeployTarget,
     },
 
-    /// Run an Eigenlayer AVS
+    /// Run a gadget
     #[command(visible_alias = "r")]
     Run {
-        /// HTTP RPC endpoint for the Ethereum network
-        #[arg(long, value_name = "URL", env = "ETH_RPC_URL")]
-        http_rpc_url: String,
+        /// The protocol to run (eigenlayer or tangle)
+        #[arg(short, long, value_enum)]
+        protocol: Protocol,
 
-        /// The private key for the aggregator (in hex format without 0x prefix)
-        #[arg(long, value_name = "KEY", env = "AGGREGATOR_KEY")]
-        aggregator_key: String,
+        /// The HTTP RPC endpoint URL (required)
+        #[arg(short = 'r', long)]
+        rpc_url: String,
 
-        /// The port to run the aggregator service on
-        #[arg(long, value_name = "PORT", default_value = "8081")]
-        port: u16,
+        /// The keystore path (defaults to ./keystore)
+        #[arg(short, long)]
+        keystore_path: Option<PathBuf>,
 
-        /// The task manager contract address
-        #[arg(long, value_name = "ADDRESS")]
-        task_manager: String,
+        /// The network to connect to (local, testnet, mainnet)
+        #[arg(short, long, default_value = "local")]
+        network: String,
 
-        /// Path to the blueprint directory containing the AVS code
-        #[arg(long, value_name = "PATH")]
-        blueprint_path: PathBuf,
+        /// The data directory path (defaults to ./data)
+        #[arg(short, long)]
+        data_dir: Option<PathBuf>,
+
+        /// Optional bootnodes to connect to
+        #[arg(short, long)]
+        bootnodes: Option<Vec<String>>,
+
+        /// Path to the protocol settings env file
+        #[arg(short = 's', long)]
+        settings_file: PathBuf,
     },
 }
 
@@ -254,20 +270,70 @@ async fn main() -> color_eyre::Result<()> {
                 }
             },
             BlueprintCommands::Run {
-                http_rpc_url,
-                aggregator_key,
-                port,
-                task_manager,
-                blueprint_path,
+                protocol,
+                rpc_url,
+                keystore_path,
+                network,
+                data_dir,
+                bootnodes,
+                settings_file,
             } => {
-                run_eigenlayer_avs(RunOpts {
-                    http_rpc_url,
-                    aggregator_key,
-                    port,
-                    task_manager,
-                    blueprint_path,
-                })
-                .await?;
+                let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
+
+                let chain = match network.to_lowercase().as_str() {
+                    "local" => SupportedChains::LocalTestnet,
+                    "testnet" => SupportedChains::Testnet,
+                    "mainnet" => {
+                        if rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost") {
+                            SupportedChains::LocalMainnet
+                        } else {
+                            SupportedChains::Mainnet
+                        }
+                    },
+                    _ => {
+                        return Err(color_eyre::Report::msg(format!(
+                            "Invalid network: {}",
+                            network
+                        )));
+                    }
+                };
+
+                let mut config = GadgetConfiguration::default();
+                let ws_url = if let Some(stripped) = rpc_url.strip_prefix("http://") {
+                    format!("ws://{}", stripped)
+                } else if let Some(stripped) = rpc_url.strip_prefix("https://") {
+                    format!("wss://{}", stripped)
+                } else {
+                    panic!("Invalid RPC URL format");
+                };
+                config.http_rpc_endpoint = rpc_url.clone();
+                config.ws_rpc_endpoint = ws_url;
+                config.keystore_uri = keystore_path
+                    .unwrap_or_else(|| PathBuf::from("./keystore"))
+                    .to_string_lossy()
+                    .to_string();
+                config.data_dir = data_dir.or_else(|| Some(PathBuf::from("./data")));
+                config.bootnodes = bootnodes
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(|addr| addr.parse().ok())
+                    .collect();
+                config.protocol = protocol;
+                config.protocol_settings = protocol_settings;
+                config.test_mode = network == "local";
+
+                match protocol {
+                    Protocol::Eigenlayer => {
+                        run_eigenlayer_avs(config, chain).await?;
+                    }
+                    Protocol::Tangle => {
+                        // Tangle implementation will go here
+                        unimplemented!("Tangle protocol implementation not yet available");
+                    }
+                    _ => {
+                        return Err(Error::UnsupportedProtocol(protocol.to_string()).into());
+                    }
+                }
             }
         },
         Commands::Key { command } => match command {
@@ -322,6 +388,102 @@ async fn main() -> color_eyre::Result<()> {
         },
     }
     Ok(())
+}
+
+fn load_protocol_settings(
+    protocol: Protocol,
+    settings_file: &PathBuf,
+) -> Result<ProtocolSettings, Error> {
+    // Load environment variables from the settings file
+    from_path(settings_file)
+        .map_err(|e| Error::ConfigurationError(format!("Failed to load settings file: {}", e)))?;
+
+    match protocol {
+        Protocol::Eigenlayer => {
+            let addresses = EigenlayerContractAddresses {
+                registry_coordinator_address: env::var("REGISTRY_COORDINATOR_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing REGISTRY_COORDINATOR_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid REGISTRY_COORDINATOR_ADDRESS".into())
+                    })?,
+                operator_state_retriever_address: env::var("OPERATOR_STATE_RETRIEVER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing OPERATOR_STATE_RETRIEVER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid OPERATOR_STATE_RETRIEVER_ADDRESS".into())
+                    })?,
+                delegation_manager_address: env::var("DELEGATION_MANAGER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing DELEGATION_MANAGER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid DELEGATION_MANAGER_ADDRESS".into())
+                    })?,
+                service_manager_address: env::var("SERVICE_MANAGER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing SERVICE_MANAGER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid SERVICE_MANAGER_ADDRESS".into())
+                    })?,
+                stake_registry_address: env::var("STAKE_REGISTRY_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing STAKE_REGISTRY_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid STAKE_REGISTRY_ADDRESS".into())
+                    })?,
+                strategy_manager_address: env::var("STRATEGY_MANAGER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing STRATEGY_MANAGER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid STRATEGY_MANAGER_ADDRESS".into())
+                    })?,
+                avs_directory_address: env::var("AVS_DIRECTORY_ADDRESS")
+                    .map_err(|_| Error::ConfigurationError("Missing AVS_DIRECTORY_ADDRESS".into()))?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid AVS_DIRECTORY_ADDRESS".into())
+                    })?,
+                rewards_coordinator_address: env::var("REWARDS_COORDINATOR_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing REWARDS_COORDINATOR_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid REWARDS_COORDINATOR_ADDRESS".into())
+                    })?,
+            };
+            Ok(ProtocolSettings::from_eigenlayer(addresses))
+        }
+        Protocol::Tangle => {
+            let settings = TangleInstanceSettings {
+                blueprint_id: env::var("BLUEPRINT_ID")
+                    .map_err(|_| Error::ConfigurationError("Missing BLUEPRINT_ID".into()))?
+                    .parse()
+                    .map_err(|_| Error::ConfigurationError("Invalid BLUEPRINT_ID".into()))?,
+                service_id: env::var("SERVICE_ID")
+                    .ok()
+                    .map(|id| {
+                        id.parse()
+                            .map_err(|_| Error::ConfigurationError("Invalid SERVICE_ID".into()))
+                    })
+                    .transpose()?,
+            };
+            Ok(ProtocolSettings::from_tangle(settings))
+        }
+        _ => Err(Error::UnsupportedProtocol(protocol.to_string())),
+    }
 }
 
 fn init_tracing_subscriber() {

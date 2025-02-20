@@ -37,7 +37,7 @@ use color_eyre::Result;
 async fn test_eigenlayer_context() {
     setup_log();
 
-    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
+    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
     let url = Url::parse(&http_endpoint).unwrap();
 
     let provider = get_provider_http(&http_endpoint);
@@ -111,6 +111,10 @@ async fn test_eigenlayer_context() {
             .with_exit_after_register(false),
         env.clone(),
     );
+
+    loop {
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+    }
 
     let result = timeout(Duration::from_secs(90), async {
         tokio::select! {
