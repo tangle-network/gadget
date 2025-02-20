@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use crate::keys::prompt_for_keys;
+use cargo_tangle::anvil::start_default_anvil_testnet;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
@@ -16,7 +17,6 @@ use gadget_config::{
 };
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
-use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use tokio::signal;
 
 /// Tangle CLI tool
@@ -59,56 +59,56 @@ pub enum KeyCommands {
     #[command(visible_alias = "g")]
     Generate {
         /// The type of key to generate (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
-        #[arg(short, long, value_enum)]
+        #[arg(short = 't', long, value_enum)]
         key_type: KeyTypeId,
         /// The path to save the key to
-        #[arg(short, long)]
+        #[arg(short = 'o', long)]
         output: Option<PathBuf>,
         /// The seed to use for key generation (hex format without 0x prefix)
         #[arg(long)]
         seed: Option<Vec<u8>>,
         /// Show the secret key in output
-        #[arg(short, long)]
+        #[arg(short = 'v', long)]
         show_secret: bool,
     },
     /// Import a key into the keystore
     #[command(visible_alias = "i")]
     Import {
         /// The type of key to import (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
-        #[arg(short, long, value_enum)]
+        #[arg(short = 't', long, value_enum)]
         key_type: Option<KeyTypeId>,
         /// The secret key to import (hex format without 0x prefix)
-        #[arg(short, long)]
+        #[arg(short = 'x', long)]
         secret: Option<String>,
         /// The path to the keystore
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         keystore_path: PathBuf,
     },
     /// Export a key from the keystore
     #[command(visible_alias = "e")]
     Export {
         /// The type of key to export (sr25519, ed25519, ecdsa, bls381, bls377, bn254)
-        #[arg(short, long, value_enum)]
+        #[arg(short = 't', long, value_enum)]
         key_type: KeyTypeId,
         /// The public key to export (hex format without 0x prefix)
-        #[arg(short, long)]
+        #[arg(short = 'p', long)]
         public: String,
         /// The path to the keystore
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         keystore_path: PathBuf,
     },
     /// List all keys in the keystore
     #[command(visible_alias = "l")]
     List {
         /// The path to the keystore
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         keystore_path: PathBuf,
     },
     /// Generate a new mnemonic phrase
     #[command(visible_alias = "m")]
     GenerateMnemonic {
         /// Number of words in the mnemonic (12, 15, 18, 21, or 24)
-        #[arg(short, long, value_parser = clap::value_parser!(u32).range(12..=24))]
+        #[arg(short = 'w', long, value_parser = clap::value_parser!(u32).range(12..=24))]
         word_count: Option<u32>,
     },
 }
@@ -119,7 +119,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "c")]
     Create {
         /// The name of the blueprint
-        #[arg(short, long, value_name = "NAME", env = "NAME")]
+        #[arg(short = 'n', long, value_name = "NAME", env = "NAME")]
         name: String,
 
         #[command(flatten)]
@@ -140,31 +140,31 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "r")]
     Run {
         /// The protocol to run (eigenlayer or tangle)
-        #[arg(short, long, value_enum)]
+        #[arg(short = 'p', long, value_enum)]
         protocol: Protocol,
 
         /// The HTTP RPC endpoint URL (required)
-        #[arg(short = 'r', long)]
+        #[arg(short = 'u', long)]
         rpc_url: String,
 
         /// The keystore path (defaults to ./keystore)
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         keystore_path: Option<PathBuf>,
 
         /// The network to connect to (local, testnet, mainnet)
-        #[arg(short, long, default_value = "local")]
+        #[arg(short = 'w', long, default_value = "local")]
         network: String,
 
         /// The data directory path (defaults to ./data)
-        #[arg(short, long)]
+        #[arg(short = 'd', long)]
         data_dir: Option<PathBuf>,
 
         /// Optional bootnodes to connect to
-        #[arg(short, long)]
+        #[arg(short = 'b', long)]
         bootnodes: Option<Vec<String>>,
 
         /// Path to the protocol settings env file
-        #[arg(short = 's', long)]
+        #[arg(short = 'f', long)]
         settings_file: PathBuf,
     },
 }
@@ -190,7 +190,7 @@ pub enum DeployTarget {
         )]
         ws_rpc_url: String,
         /// The package to deploy (if the workspace has multiple packages).
-        #[arg(short, long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
+        #[arg(short = 'p', long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
         package: Option<String>,
     },
     /// Deploy to Eigenlayer
@@ -206,13 +206,13 @@ pub enum DeployTarget {
         #[arg(long)]
         ordered_deployment: bool,
         /// Network to deploy to (local, testnet, mainnet)
-        #[arg(short, long, default_value = "testnet")]
+        #[arg(short = 'w', long, default_value = "testnet")]
         network: String,
         /// Start a local devnet using Anvil (only valid with network=local)
         #[arg(long)]
         devnet: bool,
         /// The keystore path (defaults to ./keystore)
-        #[arg(short, long)]
+        #[arg(short = 'k', long)]
         keystore_path: Option<PathBuf>,
     },
 }

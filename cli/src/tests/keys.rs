@@ -69,3 +69,85 @@ fn test_cli_mem_key_generation() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn test_generate_mnemonic() -> Result<()> {
+    use crate::keys::generate_mnemonic;
+
+    // Test default word count
+    let mnemonic = generate_mnemonic(None)?;
+    let words: Vec<&str> = mnemonic.split_whitespace().collect();
+    assert_eq!(words.len(), 12); // Default should be 12 words
+
+    // Test custom word count
+    let word_counts = [12, 15, 18, 21, 24];
+    for count in word_counts {
+        let mnemonic = generate_mnemonic(Some(count))?;
+        let words: Vec<&str> = mnemonic.split_whitespace().collect();
+        assert_eq!(words.len(), count as usize);
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_key_import_export() -> Result<()> {
+    use crate::keys::{export_key, import_key};
+    let temp_dir = tempdir()?;
+    let keystore_path = temp_dir.path();
+
+    // Test key import and export for each key type
+    for key_type in [
+        KeyTypeId::Sr25519,
+        KeyTypeId::Ed25519,
+        KeyTypeId::Ecdsa,
+        KeyTypeId::Bls381,
+        KeyTypeId::Bn254,
+    ] {
+        // First generate a key to get a valid secret
+        let (_public, secret) = generate_key(key_type, Some(&keystore_path), None, true)?;
+        let secret = secret.unwrap();
+
+        // Import the key
+        let imported_public = import_key(key_type, &secret, keystore_path)?;
+        assert!(!imported_public.is_empty());
+
+        // Export the key
+        let exported_secret = export_key(key_type, &imported_public, keystore_path)?;
+        assert!(!exported_secret.is_empty());
+
+        // Make sure the secrets match
+        assert_eq!(secret, exported_secret);
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_list_keys() -> Result<()> {
+    use crate::keys::list_keys;
+    let temp_dir = tempdir()?;
+    let keystore_path = temp_dir.path();
+
+    // Generate some keys first
+    let test_types = [KeyTypeId::Sr25519, KeyTypeId::Ed25519, KeyTypeId::Ecdsa];
+
+    let mut expected_keys = Vec::new();
+    for key_type in test_types {
+        let (public, _) = generate_key(key_type, Some(&keystore_path), None, true)?;
+        expected_keys.push((key_type, public));
+    }
+
+    // List keys and verify
+    let listed_keys = list_keys(keystore_path)?;
+    assert_eq!(listed_keys.len(), expected_keys.len());
+
+    // Verify each expected key is in the listed keys
+    for expected in expected_keys {
+        assert!(listed_keys
+            .iter()
+            .any(|k| k.0 == expected.0 && k.1 == expected.1));
+    }
+
+    Ok(())
+}

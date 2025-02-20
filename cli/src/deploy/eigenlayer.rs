@@ -39,20 +39,41 @@ impl EigenlayerDeployOpts {
         chain: SupportedChains,
         keystore_path: Option<impl AsRef<Path>>,
     ) -> Self {
+        let keystore_path = if keystore_path.is_none()
+            && chain == SupportedChains::LocalTestnet
+            && (rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost"))
+        {
+            // For local testnet with no specified keystore, use a temporary directory
+            let temp_dir = tempfile::tempdir()
+                .expect("Failed to create temporary directory")
+                .into_path();
+            temp_dir.to_string_lossy().to_string()
+        } else {
+            keystore_path
+                .map(|p| p.as_ref().to_string_lossy().to_string())
+                .unwrap_or_else(|| "./keystore".to_string())
+        };
+
         Self {
             rpc_url,
             contracts_path: contracts_path.unwrap_or_else(|| "./contracts".to_string()),
             constructor_args: None,
             ordered_deployment,
             chain,
-            keystore_path: keystore_path
-                .map(|p| p.as_ref().to_string_lossy().to_string())
-                .unwrap_or_else(|| "./keystore".to_string()),
+            keystore_path,
         }
     }
 
     fn get_private_key(&self) -> Result<String> {
         let mut config = KeystoreConfig::new();
+        // Check if keystore exists and create it if it doesn't
+        if !Path::new(&self.keystore_path).exists() {
+            println!(
+                "Keystore not found at {}. Let's set up your keys.",
+                self.keystore_path
+            );
+            std::fs::create_dir_all(&self.keystore_path)?;
+        }
         config = config.fs_root(&self.keystore_path);
         let keystore = Keystore::new(config)?;
 
@@ -61,23 +82,6 @@ impl EigenlayerDeployOpts {
         {
             Ok("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string())
         } else {
-            // Check if keystore exists and create it if it doesn't
-            if !Path::new(&self.keystore_path).exists() {
-                println!(
-                    "Keystore not found at {}. Let's set up your keys.",
-                    self.keystore_path
-                );
-                std::fs::create_dir_all(&self.keystore_path)?;
-                let keys = crate::keys::prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
-                let (key_type, secret) = keys
-                    .first()
-                    .ok_or(color_eyre::eyre::eyre!("No ECDSA key found in keystore."))?;
-                let private_key = secret.clone();
-                let _public =
-                    crate::keys::import_key(*key_type, secret, Path::new(&self.keystore_path))?;
-                return Ok(private_key);
-            }
-
             // Try to get the ECDSA key from the keystore
             let keys = keystore.list_local::<K256Ecdsa>()?;
             if keys.is_empty() {
