@@ -3,14 +3,16 @@ use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
-use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
+use gadget_blueprint_proc_macro_core::BlueprintServiceManager;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
+use serde_json::Value;
 use subxt::tx::Signer;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceBlueprint;
 
 #[derive(Clone)]
 pub struct Opts {
@@ -141,7 +143,7 @@ pub async fn deploy_to_tangle(
 
 pub fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
-) -> Result<ServiceBlueprint<'static>> {
+) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
     let blueprint_json_path = package
         .manifest_path
         .parent()
@@ -167,14 +169,14 @@ pub fn load_blueprint_metadata(
 async fn deploy_contracts_to_tangle(
     rpc_url: &str,
     package: &cargo_metadata::Package,
-    blueprint: &mut ServiceBlueprint<'_>,
+    blueprint: &mut gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
         Manager,
     }
     let contract_paths = match blueprint.manager {
-        BlueprintManager::Evm(ref path) => vec![(ContractKind::Manager, path)],
+        BlueprintServiceManager::Evm(ref path) => vec![(ContractKind::Manager, path)],
         _ => return Err(Error::UnsupportedBlueprintManager.into()),
     };
 
@@ -249,7 +251,7 @@ async fn deploy_contracts_to_tangle(
             tracing::info!("Contract {name} deployed at: {contract_address}");
             match kind {
                 ContractKind::Manager => {
-                    blueprint.manager = BlueprintManager::Evm(contract_address.to_string());
+                    blueprint.manager = BlueprintServiceManager::Evm(contract_address.to_string());
                 }
             }
         } else {
@@ -263,10 +265,10 @@ async fn deploy_contracts_to_tangle(
 /// Checks if the contracts need to be built and builds them if needed.
 fn build_contracts_if_needed(
     package: &cargo_metadata::Package,
-    blueprint: &ServiceBlueprint,
+    blueprint: &gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
 ) -> Result<()> {
     let pathes_to_check = match blueprint.manager {
-        BlueprintManager::Evm(ref path) => vec![path],
+        BlueprintServiceManager::Evm(ref path) => vec![path],
         _ => return Err(Error::UnsupportedBlueprintManager.into()),
     };
 
@@ -307,8 +309,8 @@ fn build_contracts_if_needed(
 
 /// Converts the ServiceBlueprint to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
-    blueprint: ServiceBlueprint,
-) -> Result<TangleApi::runtime_types::tangle_primitives::services::ServiceBlueprint> {
+    blueprint: gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+) -> Result<ServiceBlueprint> {
     let mut blueprint_json = serde_json::to_value(&blueprint)?;
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["name"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["description"]);
@@ -367,6 +369,10 @@ fn bake_blueprint(
             }
         }
     }
+
+    // TODO
+    blueprint_json["supported_membership_models"] =
+        Value::Array(vec![Value::String(String::from("Fixed"))]);
 
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)

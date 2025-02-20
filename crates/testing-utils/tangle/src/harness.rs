@@ -16,7 +16,6 @@ use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_logging::debug;
 use gadget_runners::core::error::RunnerError;
 use gadget_runners::tangle::tangle::PriceTargets;
-use sp_core::Pair;
 use std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
@@ -100,7 +99,7 @@ impl TestHarness for TangleTestHarness {
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false))
+        let node = run(NodeConfig::new(true).with_log_target("evm", "trace")) // TODO(cleanup): REMOVE WHEN DONE TESTING
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;

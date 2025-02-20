@@ -12,7 +12,7 @@ use gadget_std::string::ToString;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::PriceTargets as TanglePriceTargets;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::RegistrationArgs;
 
 /// Wrapper for `tangle_subxt`'s [`PriceTargets`]
@@ -181,7 +181,7 @@ pub async fn register_impl(
     })?;
     let xt = api::tx().services().register(
         blueprint_id,
-        services::OperatorPreferences {
+        services::types::OperatorPreferences {
             key: uncompressed_pk,
             price_targets: price_targets.clone().0,
         },

@@ -5,7 +5,7 @@ use gadget_std::process::{Command, Stdio};
 
 use cargo_metadata::{Metadata, Package};
 use gadget_blueprint_proc_macro_core::{
-    BlueprintManager, FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition,
+    BlueprintServiceManager, FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition,
     MasterBlueprintServiceManagerRevision, NativeGadget, ServiceBlueprint, ServiceMetadata,
     TestFetcher,
 };
@@ -305,7 +305,7 @@ fn extract_metadata() -> Result<Metadata, Error> {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct BlueprintMetadata {
-    manager: BlueprintManager,
+    manager: BlueprintServiceManager,
     #[serde(alias = "master_revision", default)]
     master_blueprint_service_manager_revision: MasterBlueprintServiceManagerRevision,
 }
@@ -320,7 +320,7 @@ fn extract_blueprint_metadata(package: &Package) -> Result<BlueprintMetadata, Er
     let mut metadata: BlueprintMetadata =
         serde_json::from_value(blueprint.clone()).map_err(Error::DeserializeGadget)?;
     match &mut metadata.manager {
-        BlueprintManager::Evm(manager) => {
+        BlueprintServiceManager::Evm(manager) => {
             let path = resolve_evm_contract_path_by_name(manager);
             *manager = path.display().to_string();
         }

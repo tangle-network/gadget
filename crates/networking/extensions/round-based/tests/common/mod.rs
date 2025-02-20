@@ -1,5 +1,5 @@
+#![allow(dead_code)]
 use gadget_crypto::KeyType;
-use gadget_networking::service::NetworkMessage;
 use gadget_networking::{
     key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
     service_handle::NetworkServiceHandle,
@@ -35,7 +35,7 @@ pub struct TestNode {
 
 impl TestNode {
     /// Create a new test node with auto-generated keys
-    pub async fn new(
+    pub fn new(
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
@@ -49,11 +49,10 @@ impl TestNode {
             None,
             None,
         )
-        .await
     }
 
     /// Create a new test node with specified keys
-    pub async fn new_with_keys(
+    pub fn new_with_keys(
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
@@ -61,7 +60,7 @@ impl TestNode {
         instance_key_pair: Option<InstanceMsgKeyPair>,
         local_key: Option<Keypair>,
     ) -> Self {
-        let local_key = local_key.unwrap_or_else(|| identity::Keypair::generate_ed25519());
+        let local_key = local_key.unwrap_or_else(identity::Keypair::generate_ed25519);
         let peer_id = local_key.public().to_peer_id();
 
         // Bind to all interfaces instead of just localhost
@@ -112,7 +111,7 @@ impl TestNode {
 
                     // Extract port from multiaddr
                     let addr_str = addr.to_string();
-                    let port = addr_str.split("/").nth(4).unwrap_or("0").to_string();
+                    let port = addr_str.split('/').nth(4).unwrap_or("0").to_string();
 
                     // Try localhost first
                     let localhost_addr = format!("127.0.0.1:{}", port);
@@ -152,7 +151,7 @@ impl TestNode {
         })
         .await
         {
-            Ok(Ok(_)) => {
+            Ok(Ok(())) => {
                 info!("Node {} fully initialized", self.peer_id);
                 Ok(handle)
             }
@@ -236,7 +235,7 @@ pub async fn wait_for_peer_info(
     })
     .await
     {
-        Ok(_) => info!("Peer info updated successfully in both directions"),
-        Err(_) => panic!("Peer info update timed out"),
+        Ok(()) => info!("Peer info updated successfully in both directions"),
+        Err(e) => panic!("Peer info update timed out: {e}"),
     }
 }

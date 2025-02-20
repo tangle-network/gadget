@@ -20,7 +20,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Ident, ItemFn, LitInt, Token, Type};
+use syn::{GenericArgument, Ident, ItemFn, LitInt, PathArguments, Token, Type};
 
 /// Defines custom keywords for defining Job arguments
 mod kw {
@@ -59,7 +59,6 @@ impl JobDef {
     fn generate(self) -> syn::Result<TokenStream> {
         let param_map = shared::param_types(&self.input.sig)?;
         let params_type = declared_params_to_field_types(&self.args.params, &param_map)?;
-
         let result = get_return_type(&self.input);
         let result_type = if let Type::Array(arr) = &result {
             let elem_type = &*arr.elem;
@@ -163,7 +162,6 @@ pub(crate) fn job_impl(args: JobArgs, input: ItemFn) -> syn::Result<TokenStream>
 
     let def = JobDef { args, input };
     let expanded = def.generate()?;
-    // eprintln!("Expanded job macro:\n{}", expanded.to_string());
     Ok(expanded)
 }
 
@@ -256,6 +254,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
     let (mut event_handler_args, event_handler_arg_types) =
         get_event_handler_args(param_types, params)?;
+
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     #[cfg(feature = "tangle")]
     let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
@@ -294,9 +293,35 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 let (ctx_pos, mut ordered_inputs) =
                     get_fn_call_ordered(param_types, params, is_raw)?;
 
-                // Replace the first parameter with param0
-                if !ordered_inputs.is_empty() {
-                    ordered_inputs[0] = quote! { param0 };
+                // For custom event listeners, we need to map event parameters to function parameters
+                if let Type::Path(path) = &listener_ty {
+                    if let Some(last_seg) = path.path.segments.last() {
+                        if let PathArguments::AngleBracketed(args) = &last_seg.arguments {
+                            // Find which generic parameter is the context type
+                            let mut event_param_pos = None;
+                            for (i, arg) in args.args.iter().enumerate() {
+                                if let GenericArgument::Type(Type::Path(p)) = arg {
+                                    if let Some(seg) = p.path.segments.last() {
+                                        if !seg.ident.to_string().ends_with("Context") {
+                                            event_param_pos = Some(i);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Map event parameter to function parameter
+                            if let Some(event_pos) = event_param_pos {
+                                for (pos, (ident, _)) in param_types.iter().enumerate() {
+                                    if pos != ctx_pos && !params.contains(ident) {
+                                        // This is the event parameter position
+                                        let param_ident = format_ident!("param{}", event_pos);
+                                        ordered_inputs[pos] = quote! { #param_ident };
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 (ctx_pos, ordered_inputs)
@@ -425,11 +450,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 let has_job_params = !params.is_empty();
                 let job_processor_call = if has_job_params {
                     quote! {
-                        let res = #fn_name_ident(context, param0) #asyncness;
+                        let res = #fn_name_ident(#(#ordered_inputs),*) #asyncness;
                     }
                 } else {
                     quote! {
-                        let res = #fn_name_ident(context) #asyncness;
+                        let res = #fn_name_ident(#(#ordered_inputs),*) #asyncness;
                     }
                 };
                 let is_result = return_type.is_result_type();
@@ -444,7 +469,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     quote! { Ok(res) }
                 };
                 quote! {
-                    move |(param0, context): (_, _)| {
+                    move |params| {
+                        let handler = handler.clone();
+                        let (event, _) = params;
+                        let param0 = event;
                         async move {
                             #job_processor_call
                             #process_result
@@ -490,9 +518,10 @@ pub(crate) fn generate_event_workflow_tokenstream(
 
         let next_listener = quote! {
             async fn #listener_function_name (handler: &#autogen_struct_name) -> Option<::blueprint_sdk::macros::ext::tokio::sync::oneshot::Receiver<Result<(), Box<dyn ::core::error::Error + Send>>>> {
+                let handler = handler.clone();
                 let (tx, rx) = ::blueprint_sdk::macros::ext::tokio::sync::oneshot::channel();
-
                 #context_declaration
+
                 let job_processor = #job_processor_tokens;
                 let listener = <#listener_ty as ::blueprint_sdk::macros::ext::event_listeners::core::EventListener<_, _, #event_listener_creator_param>>::new(#context_to_listener)
                     .await

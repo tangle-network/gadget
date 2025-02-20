@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::{
     GadgetBinary, GithubFetcher,
 };
 
