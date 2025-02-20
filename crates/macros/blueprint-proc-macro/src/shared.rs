@@ -237,7 +237,7 @@ pub(crate) trait MacroExt {
             ResultsKind::Types(types) => {
                 let xs = types
                     .iter()
-                    .map(|ty| type_to_field_type(ty))
+                    .map(type_to_field_type)
                     .collect::<syn::Result<Vec<_>>>()?;
                 Ok(xs)
             }

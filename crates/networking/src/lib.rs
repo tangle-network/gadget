@@ -6,13 +6,15 @@ pub mod discovery;
 pub mod error;
 pub mod handlers;
 pub mod service;
+pub mod service_handle;
 pub mod types;
 
 #[cfg(test)]
 mod tests;
 
+pub use gadget_crypto::KeyType;
 pub use key_types::*;
-pub use service::{NetworkConfig, NetworkEvent, NetworkMessage, NetworkService};
+pub use service::{NetworkConfig, NetworkEvent, NetworkService};
 
 #[cfg(all(
     feature = "sp-core-ecdsa",
@@ -24,12 +26,6 @@ pub mod key_types {
         SpEcdsa as Curve, SpEcdsaPair as InstanceMsgKeyPair, SpEcdsaPublic as InstanceMsgPublicKey,
         SpEcdsaSignature as InstanceSignedMsgSignature,
     };
-
-    impl super::KeySignExt for InstanceMsgKeyPair {
-        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
-            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
-        }
-    }
 }
 
 #[cfg(all(
@@ -42,12 +38,6 @@ pub mod key_types {
         SpSr25519 as Curve, SpSr25519Pair as InstanceMsgKeyPair,
         SpSr25519Public as InstanceMsgPublicKey, SpSr25519Signature as InstanceSignedMsgSignature,
     };
-
-    impl super::KeySignExt for InstanceMsgKeyPair {
-        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
-            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
-        }
-    }
 }
 
 #[cfg(all(
@@ -60,12 +50,6 @@ pub mod key_types {
         SpEd25519 as Curve, SpEd25519Pair as InstanceMsgKeyPair,
         SpEd25519Public as InstanceMsgPublicKey, SpEd25519Signature as InstanceSignedMsgSignature,
     };
-
-    impl super::KeySignExt for InstanceMsgKeyPair {
-        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
-            InstanceSignedMsgSignature(self.0.sign_prehashed(prehash))
-        }
-    }
 }
 
 #[cfg(all(
@@ -79,12 +63,6 @@ pub mod key_types {
         K256Ecdsa as Curve, K256Signature as InstanceSignedMsgSignature,
         K256SigningKey as InstanceMsgKeyPair, K256VerifyingKey as InstanceMsgPublicKey,
     };
-
-    impl super::KeySignExt for InstanceMsgKeyPair {
-        fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature {
-            self.sign_prehash(prehash)
-        }
-    }
 }
 
 // Compile-time assertion to ensure only one feature is enabled
@@ -96,7 +74,3 @@ pub mod key_types {
 compile_error!(
     "Only one of 'sp-core-ecdsa', 'sp-core-sr25519', or 'sp-core-ed25519' features can be enabled at a time"
 );
-
-pub(crate) trait KeySignExt {
-    fn sign_prehash(&self, prehash: &[u8; 32]) -> InstanceSignedMsgSignature;
-}

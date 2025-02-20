@@ -10,9 +10,9 @@ pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ParticipantId(pub u16);
 
-impl Into<u16> for ParticipantId {
-    fn into(self) -> u16 {
-        self.0
+impl From<ParticipantId> for u16 {
+    fn from(val: ParticipantId) -> Self {
+        val.0
     }
 }
 
@@ -56,6 +56,8 @@ pub struct ParticipantInfo {
 /// A protocol message that can be sent over the network
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolMessage {
+    /// The protocol name
+    pub protocol: String,
     /// Routing information for the message
     pub routing: MessageRouting,
     /// The actual message payload

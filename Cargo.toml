@@ -1,13 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-	"cli",
-	"blueprints/*",
-	"crates/*",
-]
-exclude = [
-	"blueprints/incredible-squaring-symbiotic",
-]
+members = ["cli", "blueprints/*", "crates/*"]
+exclude = ["blueprints/incredible-squaring-symbiotic"]
 
 [workspace.package]
 authors = ["Tangle Network"]
@@ -28,6 +22,7 @@ all = { level = "deny", priority = -1 }
 single_match_else = "allow"
 uninlined_format_args = "allow"
 needless_late_init = "allow"
+struct_excessive_bools = "allow"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
@@ -68,7 +63,6 @@ gadget-clients = { version = "0.1.0", path = "./crates/clients", default-feature
 gadget-client-core = { version = "0.1.0", path = "./crates/clients/core", default-features = false }
 gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenlayer", default-features = false }
 gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
-gadget-client-networking = { version = "0.1.0", path = "./crates/clients/networking", default-features = false }
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
 gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
 
@@ -108,7 +102,7 @@ gadget-std = { version = "0.1.0", path = "./crates/std", default-features = fals
 
 # P2P
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
-gadget-networking-behaviours = { version = "0.1.0", path = "./crates/networking/behaviours", default-features = false }
+gadget-networking-round-based-extension = { version = "0.1.0", path = "./crates/networking/extensions/round-based", default-features = false }
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
@@ -143,6 +137,8 @@ sp-runtime = { version = "39.0.0", default-features = false }
 
 # Async & Runtime
 async-trait = { version = "0.1.86", default-features = false }
+crossbeam = { version = "0.8", default-features = false }
+crossbeam-channel = { version = "0.5", default-features = false }
 futures = { version = "0.3.30", default-features = false }
 futures-util = { version = "0.3.31", default-features = false }
 tokio = { version = "1.40", default-features = false }

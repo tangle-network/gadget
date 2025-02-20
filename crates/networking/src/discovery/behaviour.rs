@@ -5,14 +5,14 @@ use std::{
     time::Duration,
 };
 
-use gadget_logging::trace;
+use crate::error::{Error, Result as NetworkingResult};
 use libp2p::{
     autonat,
     core::Multiaddr,
     identify,
     identity::PeerId,
     kad::{self, store::MemoryStore},
-    mdns::{tokio::Behaviour as Mdns, Event as MdnsEvent},
+    mdns::{self, Event as MdnsEvent},
     relay,
     swarm::{
         behaviour::toggle::Toggle, derive_prelude::*, dial_opts::DialOpts, NetworkBehaviour,
@@ -21,6 +21,7 @@ use libp2p::{
     upnp,
 };
 use tokio::time::Interval;
+use tracing::trace;
 use tracing::{debug, info};
 
 use super::PeerInfo;
@@ -30,12 +31,12 @@ pub struct DerivedDiscoveryBehaviour {
     /// Kademlia discovery
     pub kademlia: Toggle<kad::Behaviour<MemoryStore>>,
     /// Local network discovery via mDNS
-    pub mdns: Toggle<Mdns>,
+    pub mdns: Toggle<mdns::tokio::Behaviour>,
     /// Identify protocol for peer information exchange
     pub identify: identify::Behaviour,
     /// NAT traversal
     pub autonat: autonat::Behaviour,
-    /// UPnP port mapping
+    /// `UPnP` port mapping
     pub upnp: Toggle<upnp::tokio::Behaviour>,
     /// Circuit relay for NAT traversal
     pub relay: Toggle<relay::Behaviour>,
@@ -68,39 +69,43 @@ pub struct DiscoveryBehaviour {
     /// Events to return in priority when polled.
     pub pending_events: VecDeque<DiscoveryEvent>,
     /// Number of nodes we're currently connected to.
-    pub n_node_connected: u64,
+    pub n_node_connected: u32,
     /// Peers
     pub peers: HashSet<PeerId>,
     /// Peer info
     pub peer_info: HashMap<PeerId, PeerInfo>,
     /// Target peer count
-    pub target_peer_count: u64,
+    pub target_peer_count: u32,
     /// Options to configure dials to known peers.
     pub pending_dial_opts: VecDeque<DialOpts>,
 }
 
 impl DiscoveryBehaviour {
     /// Bootstrap Kademlia network
-    pub fn bootstrap(&mut self) -> Result<kad::QueryId, String> {
+    pub fn bootstrap(&mut self) -> NetworkingResult<kad::QueryId> {
         if let Some(active_kad) = self.discovery.kademlia.as_mut() {
-            active_kad.bootstrap().map_err(|e| e.to_string())
+            active_kad.bootstrap().map_err(Into::into)
         } else {
-            Err("Kademlia is not activated".to_string())
+            Err(Error::KademliaNotActivated)
         }
     }
 
+    #[must_use]
     pub fn get_peers(&self) -> &HashSet<PeerId> {
         &self.peers
     }
 
+    #[must_use]
     pub fn get_peer_info(&self, peer_id: &PeerId) -> Option<&PeerInfo> {
         self.peer_info.get(peer_id)
     }
 
+    #[must_use]
     pub fn nat_status(&self) -> autonat::NatStatus {
         self.discovery.autonat.nat_status()
     }
 
+    #[must_use]
     pub fn get_peer_addresses(&self) -> HashMap<PeerId, HashSet<Multiaddr>> {
         self.peer_info
             .iter()
@@ -120,6 +125,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         local_addr: &Multiaddr,
         remote_addr: &Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(%peer, "Handling inbound connection");
         self.discovery.handle_established_inbound_connection(
             connection_id,
             peer,
@@ -136,16 +142,20 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         role_override: libp2p::core::Endpoint,
         port_use: PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(%peer, "Handling outbound connection");
         self.peer_info
             .entry(peer)
-            .or_insert_with(|| PeerInfo {
-                addresses: HashSet::new(),
-                identify_info: None,
-                last_seen: std::time::SystemTime::now(),
-                ping_latency: None,
-                successes: 0,
-                failures: 0,
-                average_response_time: None,
+            .or_insert_with(|| {
+                debug!(%peer, "Creating new peer info for outbound connection");
+                PeerInfo {
+                    addresses: HashSet::new(),
+                    identify_info: None,
+                    last_seen: std::time::SystemTime::now(),
+                    ping_latency: None,
+                    successes: 0,
+                    failures: 0,
+                    average_response_time: None,
+                }
             })
             .addresses
             .insert(addr.clone());
@@ -158,20 +168,11 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         )
     }
 
-    fn on_connection_handler_event(
-        &mut self,
-        peer_id: PeerId,
-        connection: ConnectionId,
-        event: THandlerOutEvent<Self>,
-    ) {
-        self.discovery
-            .on_connection_handler_event(peer_id, connection, event);
-    }
-
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
         match &event {
             FromSwarm::ConnectionEstablished(e) => {
                 if e.other_established == 0 {
+                    debug!(%e.peer_id, "First connection established with peer");
                     self.n_node_connected += 1;
                     self.peers.insert(e.peer_id);
                     self.pending_events
@@ -180,6 +181,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             }
             FromSwarm::ConnectionClosed(e) => {
                 if e.remaining_established == 0 {
+                    debug!(%e.peer_id, "Last connection closed with peer");
                     self.n_node_connected -= 1;
                     self.peers.remove(&e.peer_id);
                     self.peer_info.remove(&e.peer_id);
@@ -188,8 +190,18 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                 }
             }
             _ => {}
-        };
-        self.discovery.on_swarm_event(event)
+        }
+        self.discovery.on_swarm_event(event);
+    }
+
+    fn on_connection_handler_event(
+        &mut self,
+        peer_id: PeerId,
+        connection: ConnectionId,
+        event: THandlerOutEvent<Self>,
+    ) {
+        self.discovery
+            .on_connection_handler_event(peer_id, connection, event);
     }
 
     #[allow(clippy::type_complexity)]
@@ -236,17 +248,46 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             match ev {
                 ToSwarm::GenerateEvent(ev) => {
                     match &ev {
-                        DerivedDiscoveryBehaviourEvent::Identify(ev) => {
-                            if let identify::Event::Received { peer_id, info, .. } = ev {
-                                self.peer_info.entry(*peer_id).or_default().identify_info =
-                                    Some(info.clone());
-                                if let Some(kademlia) = self.discovery.kademlia.as_mut() {
-                                    for address in &info.listen_addrs {
-                                        kademlia.add_address(peer_id, address.clone());
-                                    }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Received {
+                            peer_id,
+                            info,
+                            connection_id,
+                        }) => {
+                            debug!(%peer_id, "Received identify event in discovery behaviour");
+                            self.peer_info.entry(*peer_id).or_default().identify_info =
+                                Some(info.clone());
+                            if let Some(kademlia) = self.discovery.kademlia.as_mut() {
+                                for address in &info.listen_addrs {
+                                    kademlia.add_address(peer_id, address.clone());
                                 }
                             }
+                            self.pending_events
+                                .push_back(DiscoveryEvent::Discovery(Box::new(
+                                    DerivedDiscoveryBehaviourEvent::Identify(
+                                        identify::Event::Received {
+                                            peer_id: *peer_id,
+                                            info: info.clone(),
+                                            connection_id: *connection_id,
+                                        },
+                                    ),
+                                )));
                         }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Sent {
+                            ..
+                        }) => {
+                            debug!("Identify event sent");
+                        }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Pushed {
+                            ..
+                        }) => {
+                            debug!("Identify event pushed");
+                        }
+                        DerivedDiscoveryBehaviourEvent::Identify(identify::Event::Error {
+                            ..
+                        }) => {
+                            debug!("Identify event error");
+                        }
+
                         DerivedDiscoveryBehaviourEvent::Autonat(_) => {}
                         DerivedDiscoveryBehaviourEvent::Upnp(ev) => match ev {
                             upnp::Event::NewExternalAddr(addr) => {
@@ -265,13 +306,13 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                         DerivedDiscoveryBehaviourEvent::Kademlia(ev) => match ev {
                             // Adding to Kademlia buckets is automatic with our config,
                             // no need to do manually.
-                            kad::Event::RoutingUpdated { .. } => {}
-                            kad::Event::RoutablePeer { .. } => {}
-                            kad::Event::PendingRoutablePeer { .. } => {
+                            kad::Event::RoutingUpdated { .. }
+                            | kad::Event::RoutablePeer { .. }
+                            | kad::Event::PendingRoutablePeer { .. } => {
                                 // Intentionally ignore
                             }
                             other => {
-                                trace!("Libp2p => Unhandled Kademlia event: {:?}", other)
+                                trace!("Libp2p => Unhandled Kademlia event: {:?}", other);
                             }
                         },
                         DerivedDiscoveryBehaviourEvent::Mdns(ev) => match ev {

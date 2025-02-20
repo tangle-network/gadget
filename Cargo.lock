@@ -2627,7 +2627,6 @@ dependencies = [
  "blueprint-build-utils",
  "blueprint-metadata",
  "eigensdk",
- "gadget-client-networking",
  "gadget-clients",
  "gadget-config",
  "gadget-context-derive",
@@ -2639,6 +2638,7 @@ dependencies = [
  "gadget-logging",
  "gadget-macros",
  "gadget-networking",
+ "gadget-networking-round-based-extension",
  "gadget-runners",
  "gadget-std",
  "gadget-stores",
@@ -3935,6 +3935,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4388,9 +4397,9 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc49567e08c72902f4cbc7242ee8d874ec9cbe97fbabf77b4e0e1f447513e13a"
+checksum = "8bc580dceb395cae0efdde0a88f034cfd8a276897e40c693a7b87bed17971d33"
 dependencies = [
  "cc",
  "cxxbridge-cmd",
@@ -4402,9 +4411,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe46b5309c99e9775e7a338c98e4097455f52db5b684fd793ca22848fde6e371"
+checksum = "49d8c1baedad72a7efda12ad8d7ad687b3e7221dfb304a12443fd69e9de8bb30"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -4416,9 +4425,9 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4315c4ce8d23c26d87f2f83698725fd5718d8e6ace4a9093da2664d23294d372"
+checksum = "e43afb0e3b2ef293492a31ecd796af902112460d53e5f923f7804f348a769f9c"
 dependencies = [
  "clap",
  "codespan-reporting",
@@ -4429,15 +4438,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f55d69deb3a92f610a60ecc524a72c7374b6dc822f8fb7bb4e5d9473f10530c4"
+checksum = "0257ad2096a2474fe877e9e055ab69603851c3d6b394efcc7e0443899c2492ce"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bee7a1d9b5091462002c2b8de2a4ed0f0fde011d503cc272633f66075bd5141"
+checksum = "b46cbd7358a46b760609f1cb5093683328e58ca50e594a308716f5403fdc03e5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6639,22 +6648,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-client-networking"
-version = "0.1.0"
-dependencies = [
- "gadget-client-core",
- "gadget-config",
- "gadget-crypto",
- "gadget-logging",
- "gadget-networking",
- "gadget-std",
- "libp2p",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
-]
-
-[[package]]
 name = "gadget-client-tangle"
 version = "0.1.0"
 dependencies = [
@@ -6683,7 +6676,6 @@ dependencies = [
  "gadget-client-core",
  "gadget-client-eigenlayer",
  "gadget-client-evm",
- "gadget-client-networking",
  "gadget-client-tangle",
  "gadget-std",
  "thiserror 2.0.11",
@@ -7152,10 +7144,14 @@ dependencies = [
  "auto_impl",
  "bincode",
  "blake3",
+ "crossbeam-channel",
  "dashmap",
+ "fastrand",
  "futures",
  "gadget-crypto",
+ "gadget-crypto-core",
  "gadget-logging",
+ "gadget-networking",
  "gadget-std",
  "hex",
  "itertools 0.14.0",
@@ -7164,12 +7160,37 @@ dependencies = [
  "libp2p",
  "lru-mem",
  "parking_lot 0.12.3",
- "round-based",
  "serde",
  "serde_json",
  "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
+name = "gadget-networking-round-based-extension"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "crossbeam-channel",
+ "dashmap",
+ "futures",
+ "gadget-crypto",
+ "gadget-crypto-core",
+ "gadget-networking",
+ "generic-array",
+ "hex",
+ "libp2p",
+ "rand 0.8.5",
+ "rand_dev",
+ "round-based",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror 2.0.11",
+ "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
 ]
@@ -7429,6 +7450,7 @@ version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
+ "serde",
  "typenum",
  "version_check",
  "zeroize",
@@ -9471,6 +9493,7 @@ dependencies = [
  "quick-protobuf-codec",
  "rand 0.8.5",
  "regex",
+ "serde",
  "sha2 0.10.8",
  "tracing",
  "web-time",
@@ -9509,6 +9532,7 @@ dependencies = [
  "multihash",
  "quick-protobuf",
  "rand 0.8.5",
+ "serde",
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "tracing",
@@ -9534,6 +9558,7 @@ dependencies = [
  "quick-protobuf",
  "quick-protobuf-codec",
  "rand 0.8.5",
+ "serde",
  "sha2 0.10.8",
  "smallvec",
  "thiserror 2.0.11",
@@ -14427,9 +14452,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro-warning"
-version = "1.0.2"
+version = "1.84.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "834da187cfe638ae8abb0203f0b33e5ccdb02a28e7199f2f47b3e2754f50edca"
+checksum = "75eea531cfcd120e0851a3f8aed42c4841f78c889eefafd96339c72677ae42c3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14716,6 +14741,17 @@ checksum = "a88e0da7a2c97baa202165137c158d0a2e824ac465d13d81046727b34cb247d3"
 dependencies = [
  "getrandom 0.3.1",
  "zerocopy 0.8.18",
+]
+
+[[package]]
+name = "rand_dev"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbee97c27dada05f03db49ffe6516872f6c926e0fd525f9ce0cb3c051adf145c"
+dependencies = [
+ "hex",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -15179,6 +15215,8 @@ dependencies = [
  "phantom-type",
  "round-based-derive",
  "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
  "tracing",
 ]
 

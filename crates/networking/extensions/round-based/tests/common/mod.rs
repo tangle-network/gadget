@@ -1,28 +1,24 @@
-use crate::service::NetworkMessage;
-use crate::{
+use gadget_crypto::KeyType;
+use gadget_networking::service::NetworkMessage;
+use gadget_networking::{
     key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
     service_handle::NetworkServiceHandle,
     NetworkConfig, NetworkService,
 };
-use gadget_crypto::KeyType;
 use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
 };
+use std::string::ToString;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
 
-mod blueprint_protocol;
-mod discovery;
-mod gossip;
-mod handshake;
-
-fn init_tracing() {
+pub fn init_tracing() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_target(true)
-        .with_thread_ids(true)
+        .with_thread_ids(false)
         .with_file(true)
         .with_line_number(true)
         .try_init();
@@ -169,13 +165,6 @@ impl TestNode {
     pub fn get_listen_addr(&self) -> Option<Multiaddr> {
         self.listen_addr.clone()
     }
-
-    /// Update the allowed keys for this node
-    pub fn update_allowed_keys(&self, allowed_keys: HashSet<InstanceMsgPublicKey>) {
-        if let Some(service) = &self.service {
-            service.peer_manager.update_whitelisted_keys(allowed_keys);
-        }
-    }
 }
 
 /// Wait for a condition with timeout
@@ -250,101 +239,4 @@ pub async fn wait_for_peer_info(
         Ok(_) => info!("Peer info updated successfully in both directions"),
         Err(_) => panic!("Peer info update timed out"),
     }
-}
-
-// Helper to wait for handshake completion between multiple nodes
-async fn wait_for_all_handshakes(handles: &[&mut NetworkServiceHandle], timeout_length: Duration) {
-    info!("Starting handshake wait for {} nodes", handles.len());
-    timeout(timeout_length, async {
-        loop {
-            let mut all_verified = true;
-            for (i, handle1) in handles.iter().enumerate() {
-                for (j, handle2) in handles.iter().enumerate() {
-                    if i != j {
-                        let verified = handle1
-                            .peer_manager
-                            .is_peer_verified(&handle2.local_peer_id);
-                        if !verified {
-                            info!("Node {} -> Node {}: handshake not verified yet", i, j);
-                            all_verified = false;
-                            break;
-                        }
-                    }
-                }
-                if !all_verified {
-                    break;
-                }
-            }
-            if all_verified {
-                info!("All handshakes completed successfully");
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    .expect("Handshake verification timed out");
-}
-
-// Helper to wait for handshake completion between two nodes
-async fn wait_for_handshake_completion(
-    handle1: &NetworkServiceHandle,
-    handle2: &NetworkServiceHandle,
-    timeout_length: Duration,
-) {
-    timeout(timeout_length, async {
-        loop {
-            if handle1
-                .peer_manager
-                .is_peer_verified(&handle2.local_peer_id)
-                && handle2
-                    .peer_manager
-                    .is_peer_verified(&handle1.local_peer_id)
-            {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    })
-    .await
-    .expect("Handshake verification timed out");
-}
-
-// Helper to create a whitelisted test node
-async fn create_node_with_keys(
-    network: &str,
-    instance: &str,
-    allowed_keys: HashSet<InstanceMsgPublicKey>,
-    key_pair: Option<InstanceMsgKeyPair>,
-) -> TestNode {
-    TestNode::new_with_keys(network, instance, allowed_keys, vec![], key_pair, None).await
-}
-
-// Helper to create a set of nodes with whitelisted keys
-async fn create_whitelisted_nodes(count: usize) -> Vec<TestNode> {
-    let mut nodes = Vec::with_capacity(count);
-    let mut key_pairs = Vec::with_capacity(count);
-    let mut allowed_keys = HashSet::new();
-
-    // Generate all key pairs first
-    for _ in 0..count {
-        let key_pair = Curve::generate_with_seed(None).unwrap();
-        key_pairs.push(key_pair.clone());
-        allowed_keys.insert(key_pair.public());
-    }
-
-    // Create nodes with whitelisted keys
-    for i in 0..count {
-        nodes.push(
-            create_node_with_keys(
-                "test-net",
-                "sum-test",
-                allowed_keys.clone(),
-                Some(key_pairs[i].clone()),
-            )
-            .await,
-        );
-    }
-
-    nodes
 }

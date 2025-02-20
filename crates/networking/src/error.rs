@@ -36,6 +36,9 @@ pub enum Error {
     #[error("No network found")]
     NoNetworkFound,
 
+    #[error("Kademlia is not activated")]
+    KademliaNotActivated,
+
     #[error("Other error: {0}")]
     Other(String),
 
@@ -44,6 +47,12 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     // libp2p compat
+    #[error(transparent)]
+    InvalidProtocol(#[from] libp2p::swarm::InvalidProtocol),
+
+    #[error(transparent)]
+    NoKnownPeers(#[from] libp2p::kad::NoKnownPeers),
+
     #[error(transparent)]
     Dial(#[from] libp2p::swarm::DialError),
 
@@ -64,4 +73,7 @@ pub enum Error {
 
     #[error(transparent)]
     TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent>),
+
+    #[error(transparent)]
+    CrossbeamSendError(#[from] crossbeam_channel::SendError<NetworkEvent>),
 }

@@ -1,33 +1,28 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
     discovery::{
-        behaviour::{DerivedDiscoveryBehaviour, DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
+        behaviour::{DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
         PeerInfo, PeerManager,
     },
     error::Error,
-    key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature},
+    key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey},
+    service_handle::NetworkServiceHandle,
+    types::ProtocolMessage,
 };
-use futures::{Stream, StreamExt};
-use gadget_logging::trace;
+use crossbeam_channel::{self, Receiver, Sender};
+use futures::StreamExt;
 use libp2p::{
-    core::{transport::Boxed, upgrade},
-    gossipsub::{IdentTopic, Topic},
     identify,
     identity::Keypair,
-    noise, ping,
-    swarm::{ConnectionId, SwarmEvent},
-    tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder, Transport,
+    kad, mdns, ping,
+    swarm::{dial_opts::DialOpts, SwarmEvent},
+    Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::{IntervalStream, UnboundedReceiverStream};
-use tracing::{debug, error, info, warn};
+use tracing::trace;
+use tracing::{debug, info, warn};
 
 /// Events emitted by the network service
 #[derive(Debug)]
@@ -70,30 +65,17 @@ pub enum NetworkEvent {
     HandshakeFailed { peer: PeerId, reason: String },
 }
 
+/// Network message types
 #[derive(Debug)]
 pub enum NetworkMessage {
     InstanceRequest {
         peer: PeerId,
         request: InstanceMessageRequest,
     },
-    InstanceResponse {
-        peer: PeerId,
-        response: InstanceMessageResponse,
-    },
     GossipMessage {
         source: PeerId,
         topic: String,
         message: Vec<u8>,
-    },
-    HandshakeRequest {
-        peer: PeerId,
-        public_key: InstanceMsgPublicKey,
-        signature: InstanceSignedMsgSignature,
-    },
-    HandshakeResponse {
-        peer: PeerId,
-        public_key: InstanceMsgPublicKey,
-        signature: InstanceSignedMsgSignature,
     },
 }
 
@@ -105,17 +87,15 @@ pub struct NetworkConfig {
     /// Instance id for blueprint protocol
     pub instance_id: String,
     /// Instance secret key for blueprint protocol
-    pub instance_secret_key: InstanceMsgKeyPair,
-    /// Instance public key for blueprint protocol
-    pub instance_public_key: InstanceMsgPublicKey,
+    pub instance_key_pair: InstanceMsgKeyPair,
     /// Local keypair for authentication
     pub local_key: Keypair,
     /// Address to listen on
     pub listen_addr: Multiaddr,
     /// Target number of peers to maintain
-    pub target_peer_count: u64,
+    pub target_peer_count: u32,
     /// Bootstrap peers to connect to
-    pub bootstrap_peers: Vec<(PeerId, Multiaddr)>,
+    pub bootstrap_peers: Vec<Multiaddr>,
     /// Whether to enable mDNS discovery
     pub enable_mdns: bool,
     /// Whether to enable Kademlia DHT
@@ -126,51 +106,67 @@ pub struct NetworkService {
     /// The libp2p swarm
     swarm: Swarm<GadgetBehaviour>,
     /// Peer manager for tracking peer states
-    peer_manager: Arc<PeerManager>,
+    pub(crate) peer_manager: Arc<PeerManager>,
     /// Channel for sending messages to the network service
-    network_sender: mpsc::UnboundedSender<NetworkMessage>,
+    network_sender: Sender<NetworkMessage>,
     /// Channel for receiving messages from the network service
-    network_receiver: UnboundedReceiverStream<NetworkMessage>,
+    network_receiver: Receiver<NetworkMessage>,
+    /// Channel for sending messages to the network service
+    protocol_message_sender: Sender<ProtocolMessage>,
+    /// Channel for receiving messages from the network service
+    protocol_message_receiver: Receiver<ProtocolMessage>,
     /// Channel for sending events to the network service
-    event_sender: mpsc::UnboundedSender<NetworkEvent>,
+    event_sender: Sender<NetworkEvent>,
     /// Channel for receiving events from the network service
-    event_receiver: UnboundedReceiverStream<NetworkEvent>,
+    event_receiver: Receiver<NetworkEvent>,
     /// Network name/namespace
     network_name: String,
     /// Bootstrap peers
-    bootstrap_peers: HashMap<PeerId, Multiaddr>,
+    bootstrap_peers: HashSet<Multiaddr>,
 }
 
 impl NetworkService {
     /// Create a new network service
-    pub async fn new(config: NetworkConfig) -> Result<Self, Error> {
+    ///
+    /// # Errors
+    ///
+    /// * See [`GadgetBehaviour::new`]
+    /// * Bad `listen_addr` in the provided [`NetworkConfig`]
+    #[allow(clippy::missing_panics_doc)] // Unwrapping an Infallible
+    pub fn new(
+        config: NetworkConfig,
+        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        // allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
+    ) -> Result<Self, Error> {
         let NetworkConfig {
             network_name,
             instance_id,
-            instance_secret_key,
-            instance_public_key,
+            instance_key_pair,
             local_key,
             listen_addr,
             target_peer_count,
             bootstrap_peers,
-            enable_mdns,
-            enable_kademlia,
+            enable_mdns: _,
+            enable_kademlia: _,
         } = config;
 
-        let peer_manager = Arc::new(PeerManager::default());
+        let peer_manager = Arc::new(PeerManager::new(allowed_keys));
+        let blueprint_protocol_name = format!("{network_name}/{instance_id}");
 
-        let blueprint_protocol_name = format!("/blueprint_protocol/{}/1.0.0", instance_id);
+        let (network_sender, network_receiver) = crossbeam_channel::unbounded();
+        let (protocol_message_sender, protocol_message_receiver) = crossbeam_channel::unbounded();
+        let (event_sender, event_receiver) = crossbeam_channel::unbounded();
 
         // Create the swarm
         let behaviour = GadgetBehaviour::new(
             &network_name,
             &blueprint_protocol_name,
             &local_key,
-            &instance_secret_key,
-            &instance_public_key,
+            &instance_key_pair,
             target_peer_count,
             peer_manager.clone(),
-        );
+            protocol_message_sender.clone(),
+        )?;
 
         let mut swarm = SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
@@ -188,35 +184,69 @@ impl NetworkService {
             .unwrap()
             .build();
 
+        swarm
+            .behaviour_mut()
+            .blueprint_protocol
+            .subscribe(&blueprint_protocol_name)?;
+
         // Start listening
         swarm.listen_on(listen_addr)?;
-
-        let (network_sender, network_receiver) = mpsc::unbounded_channel();
-        let (event_sender, event_receiver) = mpsc::unbounded_channel();
-
         let bootstrap_peers = bootstrap_peers.into_iter().collect();
 
-        let service = Self {
+        Ok(Self {
             swarm,
             peer_manager,
             network_sender,
-            network_receiver: UnboundedReceiverStream::new(network_receiver),
-            event_sender: event_sender.clone(),
-            event_receiver: UnboundedReceiverStream::new(event_receiver),
+            network_receiver,
+            protocol_message_sender,
+            protocol_message_receiver,
+            event_sender,
+            event_receiver,
             network_name,
             bootstrap_peers,
-        };
-
-        Ok(service)
+        })
     }
 
     /// Get a sender to send messages to the network service
-    pub fn message_sender(&self) -> mpsc::UnboundedSender<NetworkMessage> {
+    pub fn network_sender(&self) -> Sender<NetworkMessage> {
         self.network_sender.clone()
     }
 
+    pub fn start(self) -> NetworkServiceHandle {
+        let local_peer_id = *self.swarm.local_peer_id();
+        let network_sender = self.network_sender.clone();
+        let protocol_message_receiver = self.protocol_message_receiver.clone();
+
+        // Create handle with new interface
+        let handle = NetworkServiceHandle::new(
+            local_peer_id,
+            self.swarm
+                .behaviour()
+                .blueprint_protocol
+                .blueprint_protocol_name
+                .clone(),
+            self.peer_manager.clone(),
+            network_sender,
+            protocol_message_receiver,
+        );
+
+        // Add our own peer ID to the peer manager with all listening addresses
+        let mut info = PeerInfo::default();
+        for addr in self.swarm.listeners() {
+            info.addresses.insert(addr.clone());
+        }
+        self.peer_manager.update_peer(local_peer_id, info);
+
+        // Spawn background task
+        tokio::spawn(async move {
+            Box::pin(self.run()).await;
+        });
+
+        handle
+    }
+
     /// Run the network service
-    async fn run(mut self, event_sender: mpsc::UnboundedSender<NetworkEvent>) {
+    async fn run(mut self) {
         info!("Starting network service");
 
         // Bootstrap with Kademlia
@@ -225,54 +255,61 @@ impl NetworkService {
         }
 
         // Connect to bootstrap peers
-        for (peer_id, addr) in &self.bootstrap_peers {
-            debug!("Dialing bootstrap peer {} at {}", peer_id, addr);
+        for addr in &self.bootstrap_peers {
+            debug!("Dialing bootstrap peer at {}", addr);
             if let Err(e) = self.swarm.dial(addr.clone()) {
                 warn!("Failed to dial bootstrap peer: {}", e);
             }
         }
 
-        let mut swarm_stream = self.swarm.fuse();
-        let mut network_stream = self.network_receiver.fuse();
         loop {
             tokio::select! {
-                message = network_stream.next() => {
-                    match message {
-                        Some(msg) => match handle_network_message(
-                            swarm_stream.get_mut(),
-                            msg,
-                            &self.peer_manager,
-                            &self.event_sender,
-                        )
-                        .await
-                        {
-                            Ok(_) => {}
-                            Err(e) => {
-                                warn!("Failed to handle network message: {}", e);
+                swarm_event = self.swarm.select_next_some() => {
+                    match swarm_event {
+                        SwarmEvent::NewListenAddr { address, .. } => {
+                            info!("New listen address: {}", address);
+                            let local_peer_id = *self.swarm.local_peer_id();
+                            let mut info = self.peer_manager.get_peer_info(&local_peer_id)
+                                .unwrap_or_default();
+                            info.addresses.insert(address.clone());
+                            self.peer_manager.update_peer(local_peer_id, info);
+                        },
+                        SwarmEvent::Behaviour(event) => {
+                            if let Err(e) = handle_behaviour_event(
+                                &mut self.swarm,
+                                &self.peer_manager,
+                                event,
+                                &self.event_sender,
+                            )
+                            .await
+                            {
+                                warn!("Failed to handle swarm event: {}", e);
                             }
                         },
-                        None => break,
+                        _ => {}
                     }
                 }
-                swarm_event = swarm_stream.next() => match swarm_event {
-                    // outbound events
-                    Some(SwarmEvent::Behaviour(event)) => {
-                        handle_behaviour_event(
-                            swarm_stream.get_mut(),
-                            &self.peer_manager,
-                            event,
-                            &self.event_sender,
-                            &self.network_sender,
-                        )
-                        .await;
-                    },
-                    None => { break; },
-                    _ => { },
-                },
+                Ok(msg) = async { self.network_receiver.try_recv() } => {
+                    if let Err(e) = handle_network_message(
+                        &mut self.swarm,
+                        msg,
+                        &self.peer_manager,
+                        &self.event_sender,
+                    )
+                    {
+                        warn!("Failed to handle network message: {}", e);
+                    }
+                }
+                else => break,
             }
         }
 
         info!("Network service stopped");
+    }
+
+    /// Get the current listening address
+    pub fn get_listen_addr(&self) -> Option<Multiaddr> {
+        self.swarm.listeners().next().cloned()
     }
 }
 
@@ -281,21 +318,10 @@ async fn handle_swarm_event(
     swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: SwarmEvent<GadgetBehaviourEvent>,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
-    match event {
-        SwarmEvent::Behaviour(behaviour_event) => {
-            handle_behaviour_event(
-                swarm,
-                peer_manager,
-                behaviour_event,
-                event_sender,
-                network_sender,
-            )
-            .await?
-        }
-        _ => {}
+    if let SwarmEvent::Behaviour(behaviour_event) = event {
+        handle_behaviour_event(swarm, peer_manager, behaviour_event, event_sender).await?;
     }
 
     Ok(())
@@ -306,41 +332,18 @@ async fn handle_behaviour_event(
     swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: GadgetBehaviourEvent,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match event {
         GadgetBehaviourEvent::ConnectionLimits(_) => {}
         GadgetBehaviourEvent::Discovery(discovery_event) => {
-            handle_discovery_event(
-                &swarm.behaviour().discovery.peer_info,
-                peer_manager,
-                discovery_event,
-                event_sender,
-                network_sender,
-                &swarm.behaviour().blueprint_protocol.blueprint_protocol_name,
-            )
-            .await?
+            handle_discovery_event(swarm, peer_manager, discovery_event, event_sender)?;
         }
         GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
-            handle_blueprint_protocol_event(
-                swarm,
-                peer_manager,
-                blueprint_event,
-                event_sender,
-                network_sender,
-            )
-            .await?
+            handle_blueprint_protocol_event(swarm, peer_manager, blueprint_event, event_sender)?;
         }
         GadgetBehaviourEvent::Ping(ping_event) => {
-            handle_ping_event(
-                swarm,
-                peer_manager,
-                ping_event,
-                event_sender,
-                network_sender,
-            )
-            .await?
+            handle_ping_event(swarm, peer_manager, ping_event, event_sender)?;
         }
     }
 
@@ -348,21 +351,24 @@ async fn handle_behaviour_event(
 }
 
 /// Handle a discovery event
-async fn handle_discovery_event(
-    peer_info_map: &HashMap<PeerId, PeerInfo>,
+fn handle_discovery_event(
+    swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: DiscoveryEvent,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
-    blueprint_protocol_name: &str,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match event {
         DiscoveryEvent::PeerConnected(peer_id) => {
-            trace!("Peer connected, {peer_id}");
+            info!("Peer connected, {peer_id}");
+            // Update peer info when connected
+            if let Some(info) = swarm.behaviour().discovery.peer_info.get(&peer_id) {
+                peer_manager.update_peer(peer_id, info.clone());
+            }
             event_sender.send(NetworkEvent::PeerConnected(peer_id))?;
         }
         DiscoveryEvent::PeerDisconnected(peer_id) => {
-            trace!("Peer disconnected, {peer_id}");
+            info!("Peer disconnected, {peer_id}");
+            peer_manager.remove_peer(&peer_id, "disconnected");
             event_sender.send(NetworkEvent::PeerDisconnected(peer_id))?;
         }
         DiscoveryEvent::Discovery(discovery_event) => match &*discovery_event {
@@ -371,39 +377,101 @@ async fn handle_discovery_event(
                 info,
                 ..
             }) => {
-                let protocols: HashSet<String> =
-                    HashSet::from_iter(info.protocols.iter().map(|p| p.to_string()));
+                info!(%peer_id, "Received identify event");
+                let protocols: HashSet<String> = info
+                    .protocols
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect();
+
+                trace!(%peer_id, ?protocols, "Supported protocols");
+
+                let blueprint_protocol_name =
+                    &swarm.behaviour().blueprint_protocol.blueprint_protocol_name;
                 if !protocols.contains(blueprint_protocol_name) {
-                    peer_manager
-                        .ban_peer_with_default_duration(*peer_id, "hello protocol unsupported");
+                    warn!(%peer_id, %blueprint_protocol_name, "Peer does not support required protocol");
+                    peer_manager.ban_peer_with_default_duration(*peer_id, "protocol unsupported");
+                    return Ok(());
+                }
+
+                // Get existing peer info or create new one
+                let mut peer_info = peer_manager.get_peer_info(peer_id).unwrap_or_default();
+
+                // Update identify info
+                peer_info.identify_info = Some(info.clone());
+
+                trace!(%peer_id, listen_addrs=?info.listen_addrs, "Adding identify addresses");
+                // Add all addresses from identify info
+                for addr in &info.listen_addrs {
+                    peer_info.addresses.insert(addr.clone());
+                }
+
+                trace!(%peer_id, "Updating peer info with identify information");
+                peer_manager.update_peer(*peer_id, peer_info);
+                debug!(%peer_id, "Successfully processed identify information");
+            }
+            DerivedDiscoveryBehaviourEvent::Identify(_) => {
+                // Ignore other identify events
+            }
+            DerivedDiscoveryBehaviourEvent::Kademlia(kad::Event::OutboundQueryProgressed {
+                result: kad::QueryResult::GetClosestPeers(Ok(ok)),
+                ..
+            }) => {
+                // Process newly discovered peers
+                for peer_info in &ok.peers {
+                    if !peer_manager.get_peers().contains_key(&peer_info.peer_id) {
+                        info!(%peer_info.peer_id, "Newly discovered peer from Kademlia");
+                        let info = PeerInfo::default();
+                        peer_manager.update_peer(peer_info.peer_id, info);
+                        let addrs: Vec<_> = peer_info.addrs.clone();
+                        for addr in addrs {
+                            debug!(%peer_info.peer_id, %addr, "Dialing peer from Kademlia");
+                            if let Err(e) = swarm.dial(DialOpts::from(addr)) {
+                                warn!("Failed to dial address: {}", e);
+                            }
+                        }
+                    }
                 }
             }
-            DerivedDiscoveryBehaviourEvent::Identify(_) => {}
+            DerivedDiscoveryBehaviourEvent::Mdns(mdns::Event::Discovered(list)) => {
+                // Add newly discovered peers from mDNS
+                for (peer_id, addr) in list {
+                    if !peer_manager.get_peers().contains_key(peer_id) {
+                        info!(%peer_id, %addr, "Newly discovered peer from Mdns");
+                        let mut info = PeerInfo::default();
+                        info.addresses.insert(addr.clone());
+                        peer_manager.update_peer(*peer_id, info);
+                        debug!(%peer_id, %addr, "Dialing peer from Mdns");
+                        if let Err(e) = swarm.dial(DialOpts::from(addr.clone())) {
+                            warn!("Failed to dial address: {}", e);
+                        }
+                    }
+                }
+            }
             _ => {}
         },
-    };
+    }
 
     Ok(())
 }
 
 /// Handle a blueprint event
-async fn handle_blueprint_protocol_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+fn handle_blueprint_protocol_event(
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: BlueprintProtocolEvent,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match event {
         BlueprintProtocolEvent::Request {
             peer,
             request,
-            channel,
+            channel: _,
         } => event_sender.send(NetworkEvent::InstanceRequestInbound { peer, request })?,
         BlueprintProtocolEvent::Response {
             peer,
             response,
-            request_id,
+            request_id: _,
         } => event_sender.send(NetworkEvent::InstanceResponseInbound { peer, response })?,
         BlueprintProtocolEvent::GossipMessage {
             source,
@@ -420,12 +488,11 @@ async fn handle_blueprint_protocol_event(
 }
 
 /// Handle a ping event
-async fn handle_ping_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+fn handle_ping_event(
+    _swarm: &mut Swarm<GadgetBehaviour>,
+    _peer_manager: &Arc<PeerManager>,
     event: ping::Event,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
-    network_sender: &mpsc::UnboundedSender<NetworkMessage>,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match event.result {
         Ok(rtt) => {
@@ -450,34 +517,43 @@ async fn handle_ping_event(
 }
 
 /// Handle a network message
-async fn handle_network_message(
+fn handle_network_message(
     swarm: &mut Swarm<GadgetBehaviour>,
     msg: NetworkMessage,
     peer_manager: &Arc<PeerManager>,
-    event_sender: &mpsc::UnboundedSender<NetworkEvent>,
+    event_sender: &Sender<NetworkEvent>,
 ) -> Result<(), Error> {
     match msg {
         NetworkMessage::InstanceRequest { peer, request } => {
-            event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?
-        }
-        NetworkMessage::InstanceResponse { peer, response } => {
-            event_sender.send(NetworkEvent::InstanceResponseOutbound { peer, response })?
+            // Only send requests to verified peers
+            if !peer_manager.is_peer_verified(&peer) {
+                warn!(%peer, "Attempted to send request to unverified peer");
+                return Ok(());
+            }
+
+            debug!(%peer, ?request, "Sending instance request");
+            swarm
+                .behaviour_mut()
+                .blueprint_protocol
+                .send_request(&peer, request.clone());
+            event_sender.send(NetworkEvent::InstanceRequestOutbound { peer, request })?;
         }
         NetworkMessage::GossipMessage {
             source,
             topic,
             message,
-        } => event_sender.send(NetworkEvent::GossipSent { topic, message })?,
-        NetworkMessage::HandshakeRequest {
-            peer,
-            public_key,
-            signature,
-        } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
-        NetworkMessage::HandshakeResponse {
-            peer,
-            public_key,
-            signature,
-        } => event_sender.send(NetworkEvent::HandshakeCompleted { peer })?,
+        } => {
+            debug!(%source, %topic, "Publishing gossip message");
+            if let Err(e) = swarm
+                .behaviour_mut()
+                .blueprint_protocol
+                .publish(&topic, message.clone())
+            {
+                warn!(%source, %topic, "Failed to publish gossip message: {:?}", e);
+                return Ok(());
+            }
+            event_sender.send(NetworkEvent::GossipSent { topic, message })?;
+        }
     }
 
     Ok(())

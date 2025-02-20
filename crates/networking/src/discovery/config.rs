@@ -2,7 +2,7 @@ use super::{
     behaviour::{DerivedDiscoveryBehaviour, DiscoveryBehaviour},
     new_kademlia,
 };
-use gadget_logging::warn;
+use crate::error::Result;
 use libp2p::{
     autonat, identify, identity::PublicKey, mdns, relay, upnp, Multiaddr, PeerId, StreamProtocol,
 };
@@ -10,6 +10,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
 };
+use tracing::warn;
 
 pub struct DiscoveryConfig {
     /// The local peer ID.
@@ -21,12 +22,12 @@ pub struct DiscoveryConfig {
     /// The relay nodes.
     relay_nodes: Vec<(PeerId, Multiaddr)>,
     /// The number of peers to connect to.
-    target_peer_count: u64,
+    target_peer_count: u32,
     /// Enable mDNS discovery.
     enable_mdns: bool,
     /// Enable Kademlia discovery.
     enable_kademlia: bool,
-    /// Enable UPnP discovery.
+    /// Enable `UPnP` discovery.
     enable_upnp: bool,
     /// Enable relay nodes.
     enable_relay: bool,
@@ -40,6 +41,7 @@ pub struct DiscoveryConfig {
 }
 
 impl DiscoveryConfig {
+    #[must_use]
     pub fn new(local_public_key: PublicKey, network_name: impl Into<String>) -> Self {
         Self {
             local_peer_id: local_public_key.to_peer_id(),
@@ -59,47 +61,60 @@ impl DiscoveryConfig {
     /// Set the protocol version that uniquely identifies your P2P service.
     /// This should be unique to your application to avoid conflicts with other P2P networks.
     /// Format recommendation: "<service-name>/<version>"
-    pub fn with_protocol_version(mut self, version: impl Into<String>) -> Self {
+    #[must_use]
+    pub fn protocol_version(mut self, version: impl Into<String>) -> Self {
         self.protocol_version = version.into();
         self
     }
 
-    pub fn with_bootstrap_peers(mut self, peers: Vec<(PeerId, Multiaddr)>) -> Self {
+    #[must_use]
+    pub fn bootstrap_peers(mut self, peers: Vec<(PeerId, Multiaddr)>) -> Self {
         self.bootstrap_peers = peers;
         self
     }
 
-    pub fn with_relay_nodes(mut self, nodes: Vec<(PeerId, Multiaddr)>) -> Self {
+    #[must_use]
+    pub fn relay_nodes(mut self, nodes: Vec<(PeerId, Multiaddr)>) -> Self {
         self.relay_nodes = nodes;
         self
     }
 
-    pub fn with_target_peer_count(mut self, count: u64) -> Self {
+    #[must_use]
+    pub fn target_peer_count(mut self, count: u32) -> Self {
         self.target_peer_count = count;
         self
     }
 
-    pub fn with_mdns(mut self, enable: bool) -> Self {
+    #[must_use]
+    pub fn mdns(mut self, enable: bool) -> Self {
         self.enable_mdns = enable;
         self
     }
 
-    pub fn with_kademlia(mut self, enable: bool) -> Self {
+    #[must_use]
+    pub fn kademlia(mut self, enable: bool) -> Self {
         self.enable_kademlia = enable;
         self
     }
 
-    pub fn with_upnp(mut self, enable: bool) -> Self {
+    #[must_use]
+    pub fn upnp(mut self, enable: bool) -> Self {
         self.enable_upnp = enable;
         self
     }
 
-    pub fn with_relay(mut self, enable: bool) -> Self {
+    #[must_use]
+    pub fn relay(mut self, enable: bool) -> Self {
         self.enable_relay = enable;
         self
     }
 
-    pub fn build(self) -> anyhow::Result<DiscoveryBehaviour> {
+    /// Construct this [`DiscoveryConfig`] into a [`DiscoveryBehaviour`]
+    ///
+    /// # Errors
+    ///
+    /// If `mdns` is enabled, see [mdns::Behaviour::new]
+    pub fn build(self) -> Result<DiscoveryBehaviour> {
         let kademlia_opt = if self.enable_kademlia {
             let protocol = StreamProtocol::try_from_owned(format!(
                 "/gadget/kad/{}/kad/1.0.0",
@@ -125,7 +140,7 @@ impl DiscoveryConfig {
 
         let mdns_opt = if self.enable_mdns {
             Some(mdns::Behaviour::new(
-                Default::default(),
+                mdns::Config::default(),
                 self.local_peer_id,
             )?)
         } else {
@@ -139,7 +154,7 @@ impl DiscoveryConfig {
         };
 
         let relay_opt = if self.enable_relay {
-            let relay = relay::Behaviour::new(self.local_peer_id, Default::default());
+            let relay = relay::Behaviour::new(self.local_peer_id, relay::Config::default());
             Some(relay)
         } else {
             None
@@ -153,7 +168,7 @@ impl DiscoveryConfig {
                     .with_agent_version(format!("gadget-{}", env!("CARGO_PKG_VERSION")))
                     .with_push_listen_addr_updates(true),
             ),
-            autonat: autonat::Behaviour::new(self.local_peer_id, Default::default()),
+            autonat: autonat::Behaviour::new(self.local_peer_id, autonat::Config::default()),
             upnp: upnp_opt.into(),
             relay: relay_opt.into(),
         };
