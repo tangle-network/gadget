@@ -11,7 +11,7 @@ use libp2p::{
     core::Multiaddr,
     identify,
     identity::PeerId,
-    kad::{self, store::MemoryStore, Event as KademliaEvent},
+    kad::{self, store::MemoryStore},
     mdns::{self, Event as MdnsEvent},
     relay,
     swarm::{
@@ -69,13 +69,13 @@ pub struct DiscoveryBehaviour {
     /// Events to return in priority when polled.
     pub pending_events: VecDeque<DiscoveryEvent>,
     /// Number of nodes we're currently connected to.
-    pub n_node_connected: u64,
+    pub n_node_connected: u32,
     /// Peers
     pub peers: HashSet<PeerId>,
     /// Peer info
     pub peer_info: HashMap<PeerId, PeerInfo>,
     /// Target peer count
-    pub target_peer_count: u64,
+    pub target_peer_count: u32,
     /// Options to configure dials to known peers.
     pub pending_dial_opts: VecDeque<DialOpts>,
 }

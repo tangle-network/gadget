@@ -21,7 +21,7 @@ pub struct DiscoveryConfig {
     /// The relay nodes.
     relay_nodes: Vec<(PeerId, Multiaddr)>,
     /// The number of peers to connect to.
-    target_peer_count: u64,
+    target_peer_count: u32,
     /// Enable mDNS discovery.
     enable_mdns: bool,
     /// Enable Kademlia discovery.
@@ -74,7 +74,7 @@ impl DiscoveryConfig {
         self
     }
 
-    pub fn target_peer_count(mut self, count: u64) -> Self {
+    pub fn target_peer_count(mut self, count: u32) -> Self {
         self.target_peer_count = count;
         self
     }

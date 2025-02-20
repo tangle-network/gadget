@@ -25,8 +25,6 @@ use std::{
 };
 use tracing::{debug, info};
 
-const MAX_ESTABLISHED_PER_PEER: u32 = 4;
-
 /// Events that can be emitted by the `GadgetBehavior`
 #[derive(Debug)]
 pub enum GadgetEvent {
@@ -57,25 +55,17 @@ impl GadgetBehaviour {
         blueprint_protocol_name: &str,
         local_key: &Keypair,
         instance_key_pair: &InstanceMsgKeyPair,
-        target_peer_count: u64,
+        target_peer_count: u32,
         peer_manager: Arc<PeerManager>,
         protocol_message_sender: Sender<ProtocolMessage>,
     ) -> Self {
         let connection_limits = connection_limits::Behaviour::new(
             ConnectionLimits::default()
-                .with_max_pending_incoming(Some(
-                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
-                ))
-                .with_max_pending_outgoing(Some(
-                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
-                ))
-                .with_max_established_incoming(Some(
-                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
-                ))
-                .with_max_established_outgoing(Some(
-                    target_peer_count as u32 * MAX_ESTABLISHED_PER_PEER,
-                ))
-                .with_max_established_per_peer(Some(MAX_ESTABLISHED_PER_PEER)),
+                .with_max_pending_incoming(Some(target_peer_count))
+                .with_max_pending_outgoing(Some(target_peer_count))
+                .with_max_established_incoming(Some(target_peer_count))
+                .with_max_established_outgoing(Some(target_peer_count))
+                .with_max_established_per_peer(Some(target_peer_count)),
         );
 
         let ping = ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(30)));

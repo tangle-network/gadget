@@ -48,7 +48,7 @@ pub enum GadgetCLICoreSettings {
         #[cfg(feature = "networking")]
         #[arg(long, env)]
         #[serde(default)]
-        target_peer_count: Option<u64>,
+        target_peer_count: Option<u32>,
         #[arg(long, short = 'd', env)]
         keystore_uri: String,
         #[arg(long, value_enum, env)]

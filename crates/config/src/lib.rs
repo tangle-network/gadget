@@ -129,7 +129,7 @@ pub struct GadgetConfiguration {
     pub enable_kademlia: bool,
     /// The target number of peers to connect to
     #[cfg(feature = "networking")]
-    pub target_peer_count: u64,
+    pub target_peer_count: u32,
 }
 
 impl GadgetConfiguration {

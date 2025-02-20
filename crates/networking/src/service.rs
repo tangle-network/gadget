@@ -97,7 +97,7 @@ pub struct NetworkConfig {
     /// Address to listen on
     pub listen_addr: Multiaddr,
     /// Target number of peers to maintain
-    pub target_peer_count: u64,
+    pub target_peer_count: u32,
     /// Bootstrap peers to connect to
     pub bootstrap_peers: Vec<Multiaddr>,
     /// Whether to enable mDNS discovery
@@ -149,7 +149,7 @@ impl NetworkService {
         } = config;
 
         let peer_manager = Arc::new(PeerManager::new(allowed_keys));
-        let blueprint_protocol_name = format!("/blueprint_protocol/{}/1.0.0", instance_id);
+        let blueprint_protocol_name = format!("{network_name}/{instance_id}");
 
         let (network_sender, network_receiver) = crossbeam_channel::unbounded();
         let (protocol_message_sender, protocol_message_receiver) = crossbeam_channel::unbounded();
