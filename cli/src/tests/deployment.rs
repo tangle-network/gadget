@@ -80,11 +80,17 @@ contract SimpleStorage {
     )?;
 
     // Create foundry.toml
-    let foundry_content = r#"[profile.default]
+    let foundry_content = format!(
+        r#"[profile.default]
 src = 'src'
-out = 'out'
+out = '{}'
 libs = ['lib']
-evm_version = 'shanghai'"#;
+evm_version = 'shanghai'"#,
+        contract_out_dir
+            .strip_prefix(temp_dir.path())
+            .unwrap()
+            .display()
+    );
     fs::write(temp_dir.path().join("foundry.toml"), foundry_content)?;
 
     // Start the local Anvil testnet
