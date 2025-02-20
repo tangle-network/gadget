@@ -1,9 +1,9 @@
 use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
-    key_types::{Curve, InstanceMsgPublicKey},
+    key_types::Curve,
     service_handle::NetworkServiceHandle,
     tests::{create_whitelisted_nodes, wait_for_all_handshakes},
-    types::{MessageRouting, ParticipantId, ParticipantInfo, ProtocolMessage},
+    types::{MessageRouting, ParticipantId, ParticipantInfo},
 };
 use gadget_crypto::KeyType;
 use std::{collections::HashSet, time::Duration};
@@ -23,7 +23,7 @@ async fn test_gossip_between_verified_peers() {
     let mut allowed_keys1 = HashSet::new();
     allowed_keys1.insert(instance_key_pair2.public());
 
-    let mut node1 = TestNode::new("test-net", "gossip-test", allowed_keys1, vec![]).await;
+    let mut node1 = TestNode::new("test-net", "gossip-test", allowed_keys1, vec![]);
 
     let mut allowed_keys2 = HashSet::new();
     allowed_keys2.insert(node1.instance_key_pair.public());
@@ -34,11 +34,10 @@ async fn test_gossip_between_verified_peers() {
         vec![],
         Some(instance_key_pair2),
         None,
-    )
-    .await;
+    );
 
     info!("Starting nodes");
-    let mut handle1 = node1.start().await.expect("Failed to start node1");
+    let handle1 = node1.start().await.expect("Failed to start node1");
     let mut handle2 = node2.start().await.expect("Failed to start node2");
 
     info!("Waiting for handshake completion");
@@ -102,7 +101,7 @@ async fn test_multi_node_gossip() {
 
     info!("Starting all nodes");
     let mut handles: Vec<_> = Vec::new();
-    for node in nodes.iter_mut() {
+    for node in &mut nodes {
         handles.push(node.start().await.expect("Failed to start node"));
     }
 
@@ -165,11 +164,11 @@ async fn test_unverified_peer_gossip() {
     info!("Starting unverified peer gossip test");
 
     // Create two nodes with no whitelisted keys
-    let mut node1 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]).await;
-    let mut node2 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]).await;
+    let mut node1 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
+    let mut node2 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
 
     info!("Starting nodes");
-    let mut handle1 = node1.start().await.expect("Failed to start node1");
+    let handle1 = node1.start().await.expect("Failed to start node1");
     let mut handle2 = node2.start().await.expect("Failed to start node2");
 
     // Create test message

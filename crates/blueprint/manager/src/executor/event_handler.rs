@@ -14,7 +14,7 @@ use gadget_logging::{error, info, trace, warn};
 use std::fmt::Debug;
 use std::sync::atomic::Ordering;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::{
     Gadget, GadgetSourceFetcher,
 };
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{

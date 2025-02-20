@@ -155,7 +155,7 @@ impl GadgetConfiguration {
     ) -> Result<gadget_networking::NetworkConfig, Error> {
         use gadget_keystore::backends::Backend;
         use gadget_keystore::crypto::sp_core::SpEd25519 as LibP2PKeyType;
-        use gadget_networking::key_types::Curve as GossipMsgKeyPair;
+        use gadget_networking::key_types::Curve as InstanceMsgKeyPair;
 
         let keystore_config = gadget_keystore::KeystoreConfig::new().fs_root(&self.keystore_uri);
         let keystore = gadget_keystore::Keystore::new(keystore_config)
@@ -170,10 +170,10 @@ impl GadgetConfiguration {
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let ecdsa_pub_key = keystore
-            .first_local::<GossipMsgKeyPair>()
+            .first_local::<InstanceMsgKeyPair>()
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let ecdsa_pair = keystore
-            .get_secret::<GossipMsgKeyPair>(&ecdsa_pub_key)
+            .get_secret::<InstanceMsgKeyPair>(&ecdsa_pub_key)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.network_bind_port)

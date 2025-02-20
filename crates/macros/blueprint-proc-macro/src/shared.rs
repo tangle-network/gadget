@@ -72,10 +72,8 @@ pub trait IntoFieldType {
 
 impl IntoFieldType for Type {
     fn into_field_type(&self) -> syn::Result<FieldType> {
-        // eprintln!("[DEBUG] Converting type: {:?}", self);
         match self {
             Type::Infer(_) => {
-                // eprintln!("[DEBUG] Encountered inferred type '_' - defaulting to unit type ()");
                 let unit: Type = syn::parse_quote! { () };
                 unit.into_field_type()
             }
@@ -210,7 +208,6 @@ pub(crate) trait MacroExt {
     fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<ParameterType>> {
         // If the result type is inferred ('_'), default to unit type
         let effective_result = if let Type::Infer(_) = result {
-            // eprintln!("[DEBUG] result type is inferred '_' so defaulting to unit type ()");
             syn::parse_quote! { () }
         } else {
             result.clone()

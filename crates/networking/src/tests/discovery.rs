@@ -1,11 +1,9 @@
 use super::init_tracing;
 use super::TestNode;
 use super::{wait_for_peer_discovery, wait_for_peer_info};
-use crate::service::NetworkMessage;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
-use tracing::{debug, info};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing::info;
 
 #[tokio::test]
 async fn test_peer_discovery_mdns() {
@@ -16,8 +14,8 @@ async fn test_peer_discovery_mdns() {
     let allowed_keys = HashSet::new();
 
     // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
+    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]);
 
     // Start both nodes and wait for them to be listening
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -39,7 +37,7 @@ async fn test_peer_discovery_kademlia() {
     let allowed_keys = HashSet::new();
 
     // Create the first node (bootstrap node)
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
 
     // Start node1 and get its listening address
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -52,9 +50,8 @@ async fn test_peer_discovery_kademlia() {
         instance_id,
         allowed_keys.clone(),
         bootstrap_peers.clone(),
-    )
-    .await;
-    let mut node3 = TestNode::new(network_name, instance_id, allowed_keys, bootstrap_peers).await;
+    );
+    let mut node3 = TestNode::new(network_name, instance_id, allowed_keys, bootstrap_peers);
 
     // Start the remaining nodes
     let handle2 = node2.start().await.expect("Failed to start node2");
@@ -82,8 +79,8 @@ async fn test_peer_discovery_kademlia() {
     })
     .await
     {
-        Ok(_) => println!("All peers discovered each other through Kademlia"),
-        Err(_) => panic!("Kademlia peer discovery timed out"),
+        Ok(()) => println!("All peers discovered each other through Kademlia"),
+        Err(e) => panic!("Kademlia peer discovery timed out: {e}"),
     }
 }
 
@@ -97,8 +94,8 @@ async fn test_peer_info_updates() {
 
     info!("Creating test nodes...");
     // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]).await;
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]).await;
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
+    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]);
 
     info!("Starting node1...");
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -113,7 +110,7 @@ async fn test_peer_info_updates() {
     // First wait for basic peer discovery (they see each other)
     let discovery_timeout = Duration::from_secs(30); // Increased timeout
     match wait_for_peer_discovery(&[&handle1, &handle2], discovery_timeout).await {
-        Ok(_) => info!("Peer discovery successful"),
+        Ok(()) => info!("Peer discovery successful"),
         Err(e) => {
             // Log peer states before failing
             info!("Node1 peers: {:?}", handle1.peers());

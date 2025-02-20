@@ -243,9 +243,9 @@ async fn test_raw_tangle_events() -> Result<()> {
     let (mut test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
     // Add the raw tangle events job
-    test_env
-        .add_job(|env| async move { crate::raw_tangle_events::constructor(env).await })
-        .await?;
+    // test_env
+    //     .add_job(|env| async move { crate::raw_tangle_events::constructor(env).await })
+    //     .await?;
 
     // Spawn the balance transfer task
     let _handle = balance_transfer_event(env.clone()).await?;
@@ -279,6 +279,8 @@ async fn test_raw_tangle_events() -> Result<()> {
         }
     };
     assert!(result.is_ok());
+
+    panic!("RAW events is not working as expected");
 
     Ok(())
 }

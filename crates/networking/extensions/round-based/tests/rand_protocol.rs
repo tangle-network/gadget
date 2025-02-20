@@ -61,11 +61,11 @@ where
     let mut local_randomness = [0u8; 32];
     rng.fill_bytes(&mut local_randomness);
 
-    tracing::debug!(local_randomness = %hex::encode(&local_randomness), "Generated local randomness");
+    tracing::debug!(local_randomness = %hex::encode(local_randomness), "Generated local randomness");
 
     // 2. Commit local randomness (broadcast m=sha256(randomness))
     let commitment = Sha256::digest(local_randomness);
-    tracing::debug!(commitment = %hex::encode(&commitment), "Committed local randomness");
+    tracing::debug!(commitment = %hex::encode(commitment), "Committed local randomness");
     outgoing
         .send(Outgoing::broadcast(Msg::CommitMsg(CommitMsg {
             commitment,
@@ -124,13 +124,13 @@ where
             .for_each(|(x, r)| *x ^= r);
     }
 
-    if !guilty_parties.is_empty() {
-        tracing::error!(guilty_parties = ?guilty_parties, "Some parties cheated");
-        Err(Error::PartiesOpenedRandomnessDoesntMatchCommitment { guilty_parties })
-    } else {
-        tracing::debug!(output = %hex::encode(&output), "Generated randomness");
+    if guilty_parties.is_empty() {
+        tracing::debug!(output = %hex::encode(output), "Generated randomness");
         tracing::info!("Randomness generation protocol completed successfully.");
         Ok(output)
+    } else {
+        tracing::error!(guilty_parties = ?guilty_parties, "Some parties cheated");
+        Err(Error::PartiesOpenedRandomnessDoesntMatchCommitment { guilty_parties })
     }
 }
 
@@ -177,9 +177,7 @@ mod tests {
     use super::common::*;
     use gadget_networking::{Curve, KeyType};
     use gadget_networking_round_based_extension::RoundBasedNetworkAdapter;
-    use rand::Rng;
     use round_based::MpcParty;
-    use sha2::{Digest, Sha256};
     use tracing::{debug, info};
 
     use super::protocol_of_random_generation;
@@ -230,7 +228,7 @@ mod tests {
         allowed_keys1.insert(instance_key_pair2.public());
 
         // Create node1 with node2's key whitelisted
-        let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]).await;
+        let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]);
 
         // Create node2 with node1's key whitelisted and pre-generated key
         let mut allowed_keys2 = HashSet::new();
@@ -242,8 +240,7 @@ mod tests {
             vec![],
             Some(instance_key_pair2),
             None,
-        )
-        .await;
+        );
 
         info!("Starting nodes");
         // Start both nodes - this should trigger automatic handshake

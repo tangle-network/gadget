@@ -6,7 +6,7 @@ use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
 use gadget_logging::info;
 use std::path::PathBuf;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::GithubFetcher;
 use tokio::io::AsyncWriteExt;
 
 pub struct GithubBinaryFetcher {

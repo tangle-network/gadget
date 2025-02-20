@@ -123,7 +123,7 @@ pub struct ServiceBlueprint<'a> {
     /// The metadata of the service.
     pub metadata: ServiceMetadata<'a>,
     /// The blueprint manager that will be used to manage the blueprints lifecycle.
-    pub manager: BlueprintManager,
+    pub manager: BlueprintServiceManager,
     /// The Revision number of the Master Blueprint Service Manager.
     ///
     /// If not sure what to use, use `MasterBlueprintServiceManagerRevision::default()` which will use
@@ -264,7 +264,7 @@ pub struct ReportMetadata<'a> {
 /// Service Blueprint Manager is a smart contract that will manage the service lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
-pub enum BlueprintManager {
+pub enum BlueprintServiceManager {
     /// A Smart contract that will manage the service lifecycle.
     Evm(String),
 }
