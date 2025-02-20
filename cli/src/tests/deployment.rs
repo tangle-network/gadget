@@ -24,6 +24,8 @@ async fn test_deploy_local_on_anvil() -> Result<()> {
     fs::create_dir_all(&contract_src_dir)?;
     fs::create_dir_all(&contract_out_dir)?;
 
+    let keystore_path = temp_dir.path().join(".keystore");
+
     // Write the test contract
     let contract_content = r#"// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
@@ -109,6 +111,7 @@ evm_version = 'shanghai'"#;
         constructor_args: Some(constructor_args),
         ordered_deployment: false,
         chain: SupportedChains::LocalTestnet,
+        keystore_path: keystore_path.to_string_lossy().to_string(),
     };
 
     // Build the contracts in temporary directory

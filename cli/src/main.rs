@@ -211,6 +211,9 @@ pub enum DeployTarget {
         /// Start a local devnet using Anvil (only valid with network=local)
         #[arg(long)]
         devnet: bool,
+        /// The keystore path (defaults to ./keystore)
+        #[arg(short, long)]
+        keystore_path: Option<PathBuf>,
     },
 }
 
@@ -270,6 +273,7 @@ async fn main() -> color_eyre::Result<()> {
                     ordered_deployment,
                     network,
                     devnet,
+                    keystore_path,
                 } => {
                     let chain = match network.to_lowercase().as_str() {
                         "local" => SupportedChains::LocalTestnet,
@@ -302,6 +306,7 @@ async fn main() -> color_eyre::Result<()> {
                             contracts_path,
                             ordered_deployment,
                             chain,
+                            keystore_path,
                         ))
                         .await?;
 
@@ -315,6 +320,7 @@ async fn main() -> color_eyre::Result<()> {
                             contracts_path,
                             ordered_deployment,
                             chain,
+                            keystore_path,
                         ))
                         .await?;
                     }
