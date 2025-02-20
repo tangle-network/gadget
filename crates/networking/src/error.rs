@@ -1,3 +1,7 @@
+use crate::NetworkEvent;
+
+pub type Result<T> = core::result::Result<T, Error>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Network error: {0}")]
@@ -32,6 +36,9 @@ pub enum Error {
     #[error("No network found")]
     NoNetworkFound,
 
+    #[error("Kademlia is not activated")]
+    KademliaNotActivated,
+
     #[error("Other error: {0}")]
     Other(String),
 
@@ -41,15 +48,32 @@ pub enum Error {
 
     // libp2p compat
     #[error(transparent)]
+    InvalidProtocol(#[from] libp2p::swarm::InvalidProtocol),
+
+    #[error(transparent)]
+    NoKnownPeers(#[from] libp2p::kad::NoKnownPeers),
+
+    #[error(transparent)]
     Dial(#[from] libp2p::swarm::DialError),
+
     #[error(transparent)]
     Noise(#[from] libp2p::noise::Error),
+
     #[error(transparent)]
     Behaviour(#[from] libp2p::BehaviourBuilderError),
+
     #[error(transparent)]
     Subscription(#[from] libp2p::gossipsub::SubscriptionError),
+
     #[error(transparent)]
     TransportIo(#[from] libp2p::TransportError<std::io::Error>),
+
     #[error(transparent)]
     Multiaddr(#[from] libp2p::multiaddr::Error),
+
+    #[error(transparent)]
+    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent>),
+
+    #[error(transparent)]
+    CrossbeamSendError(#[from] crossbeam_channel::SendError<NetworkEvent>),
 }

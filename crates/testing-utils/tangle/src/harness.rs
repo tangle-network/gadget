@@ -100,7 +100,7 @@ impl TestHarness for TangleTestHarness {
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(true)) // TODO(cleanup): REMOVE
+        let node = run(NodeConfig::new(false))
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
@@ -348,7 +348,7 @@ impl TangleTestHarness {
             service_id,
             Job::from(job_id),
             inputs,
-            0,
+            0, // TODO: Should this take a call ID? or leave it up to the caller to verify?
         )
         .await
         .map_err(|e| Error::Setup(e.to_string()))?;

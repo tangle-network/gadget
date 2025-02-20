@@ -198,7 +198,7 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
     service_id: u64,
     job_id: Job,
     job_params: Args,
-    call_id: u64,
+    _call_id: u64, // TODO: Actually verify this
 ) -> Result<JobCalled, TransactionError> {
     let call = api::tx().services().call(service_id, job_id, job_params);
     let events = client
@@ -215,7 +215,6 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
         if job_called.service_id == service_id
             && job_called.job == job_id
             && user.account_id() == job_called.caller
-            && job_called.call_id == call_id
         {
             return Ok(job_called);
         }

@@ -198,7 +198,6 @@ impl SubstrateNodeBuilder {
         cmd.env("RUST_LOG", "info,libp2p_tcp=debug")
             .stdout(process::Stdio::piped())
             .stderr(process::Stdio::piped())
-            .arg("-levm=trace") // TODO(cleanup): REMOVE
             .arg("--dev")
             .arg("--port=0");
 
