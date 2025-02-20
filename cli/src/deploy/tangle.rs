@@ -7,6 +7,7 @@ use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
+use serde_json::Value;
 use subxt::tx::Signer;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
@@ -367,6 +368,10 @@ fn bake_blueprint(
             }
         }
     }
+
+    // TODO
+    blueprint_json["supported_membership_models"] =
+        Value::Array(vec![Value::String(String::from("Fixed"))]);
 
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)

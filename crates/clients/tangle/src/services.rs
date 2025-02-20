@@ -9,9 +9,7 @@ use subxt::{Config, OnlineClient};
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    self, ServiceBlueprint,
-};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{self, ServiceBlueprint};
 
 /// A client for interacting with the services API
 #[derive(Debug, Clone)]
@@ -110,7 +108,14 @@ where
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
         match ret {
-            Some(instances) => Ok(instances.operators.0),
+            Some(instances) => {
+                // let mut ret = Vec::new();
+                // for (account, security_commitments) in instances.operator_security_commitments.0 {
+                //     ret.push((account, security_commitments.0))
+                // }
+                // Ok(ret)
+                Ok(instances.operators.0)
+            }
             None => Ok(Vec::new()),
         }
     }

@@ -29,11 +29,12 @@ use tangle_subxt::tangle_testnet_runtime::api::{
             call::{Args, Job},
             create_blueprint::Blueprint,
             register::{Preferences, RegistrationArgs},
-            request::{Assets, PaymentAsset},
+            request::{PaymentAsset},
         },
         events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised},
     },
 };
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::Assets;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransactionError {
@@ -236,6 +237,8 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     value: u128,
 ) -> Result<(), TransactionError> {
     info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
+
+    let total_nodes = test_nodes.len();
     let call = api::tx().services().request(
         None,
         blueprint_id,
@@ -370,9 +373,10 @@ pub async fn approve_service<T: Signer<TangleConfig>>(
     restaking_percent: u8,
 ) -> Result<(), TransactionError> {
     info!("Approving service request ...");
-    let call = api::tx()
-        .services()
-        .approve(request_id, Percent(restaking_percent));
+    let call = api::tx().services().approve(
+        request_id,
+        Percent(restaking_percent),
+    );
     let res = client
         .subxt_client()
         .tx()
