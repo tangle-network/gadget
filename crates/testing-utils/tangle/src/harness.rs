@@ -162,20 +162,17 @@ impl TestHarness for TangleTestHarness {
     }
 }
 
-impl TangleTestHarness {
-    async fn get_all_sr25519_pairs(
-        &self,
-    ) -> Result<
-        (
-            Vec<TanglePairSigner<sp_core::sr25519::Pair>>,
-            Vec<TangleClient>,
-        ),
-        RunnerError,
-    > {
-        let mut keys = vec![];
-        let mut clients = vec![];
+struct NodeInfo {
+    env: GadgetConfiguration,
+    client: TangleClient,
+    preferences: Preferences,
+}
 
-        for name in ENDOWED_TEST_NAMES {
+impl TangleTestHarness {
+    async fn get_all_node_info<const N: usize>(&self) -> Result<Vec<NodeInfo>, RunnerError> {
+        let mut nodes = vec![];
+
+        for name in &ENDOWED_TEST_NAMES[..N] {
             let env = generate_env_from_node_id(
                 name,
                 self.http_endpoint.clone(),
@@ -189,21 +186,24 @@ impl TangleTestHarness {
                 .await
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
 
-            clients.push(client);
-
-            // Setup signers
             let keystore = env.keystore();
-            let sr25519_public = keystore
-                .first_local::<SpSr25519>()
+            let ecdsa_public = keystore
+                .first_local::<SpEcdsa>()
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
-            let sr25519_pair = keystore
-                .get_secret::<SpSr25519>(&sr25519_public)
-                .map_err(|err| RunnerError::Other(err.to_string()))?;
-            let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
-            keys.push(sr25519_signer);
+
+            let preferences = Preferences {
+                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0 .0).unwrap(),
+                price_targets: PriceTargets::default().0,
+            };
+
+            nodes.push(NodeInfo {
+                env,
+                client,
+                preferences,
+            })
         }
 
-        Ok((keys, clients))
+        Ok(nodes)
     }
 
     /// Gets a reference to the Tangle client
@@ -260,16 +260,6 @@ impl TangleTestHarness {
         manifest.package.unwrap().name
     }
 
-    pub fn get_default_operator_preferences(&self) -> Preferences {
-        Preferences {
-            key: gadget_runners::tangle::tangle::decompress_pubkey(
-                &self.ecdsa_signer.signer().public().0,
-            )
-            .unwrap(),
-            price_targets: PriceTargets::default().0,
-        }
-    }
-
     /// Deploys a blueprint from the current directory and returns its ID
     pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
@@ -296,16 +286,33 @@ impl TangleTestHarness {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
 
-        let (all_signers, all_clients) = self.get_all_sr25519_pairs().await?;
+        let nodes = self.get_all_node_info::<N>().await?;
 
         // Setup operator and get service
-        let preferences = self.get_default_operator_preferences();
         let service_id = if !exit_after_registration {
+            let mut all_clients = Vec::new();
+            let mut all_signers = Vec::new();
+            let mut all_preferences = Vec::new();
+
+            for node in nodes {
+                let keystore = node.env.keystore();
+                let sr25519_public = keystore
+                    .first_local::<SpSr25519>()
+                    .map_err(|err| RunnerError::Other(err.to_string()))?;
+                let sr25519_pair = keystore
+                    .get_secret::<SpSr25519>(&sr25519_public)
+                    .map_err(|err| RunnerError::Other(err.to_string()))?;
+                let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
+                all_clients.push(node.client);
+                all_signers.push(sr25519_signer);
+                all_preferences.push(node.preferences);
+            }
+
             setup_operator_and_service_multiple(
                 &all_clients[..N],
                 &all_signers[..N],
                 blueprint_id,
-                preferences,
+                &all_preferences,
                 exit_after_registration,
             )
             .await
@@ -318,26 +325,6 @@ impl TangleTestHarness {
         let executor = MultiNodeTestEnv::new::<N>(self.config.clone()).await?;
 
         Ok((executor, service_id, blueprint_id))
-    }
-
-    /// Requests a service with the given blueprint and returns the newly created service ID
-    ///
-    /// This function does not register for a service, it only requests service for a blueprint
-    /// that has already been registered to.
-    pub async fn request_service(&self, blueprint_id: u64) -> Result<u64, Error> {
-        let preferences = self.get_default_operator_preferences();
-        let (all_signers, all_clients) = self.get_all_sr25519_pairs().await?;
-        let service_id = setup_operator_and_service_multiple(
-            &all_clients,
-            &all_signers,
-            blueprint_id,
-            preferences,
-            false,
-        )
-        .await
-        .map_err(|e| Error::Setup(e.to_string()))?;
-
-        Ok(service_id)
     }
 
     /// Submits a job to be executed
