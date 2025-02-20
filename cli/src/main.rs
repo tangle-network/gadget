@@ -197,8 +197,8 @@ pub enum DeployTarget {
     #[cfg(feature = "eigenlayer")]
     Eigenlayer {
         /// HTTP RPC URL to use
-        #[arg(long, value_name = "URL", env)]
-        rpc_url: String,
+        #[arg(long, value_name = "URL", env, required_unless_present = "devnet")]
+        rpc_url: Option<String>,
         /// Path to the contracts
         #[arg(long)]
         contracts_path: Option<String>,
@@ -206,7 +206,7 @@ pub enum DeployTarget {
         #[arg(long)]
         ordered_deployment: bool,
         /// Network to deploy to (local, testnet, mainnet)
-        #[arg(short = 'w', long, default_value = "testnet")]
+        #[arg(short = 'w', long, default_value = "local")]
         network: String,
         /// Start a local devnet using Anvil (only valid with network=local)
         #[arg(long)]
@@ -275,11 +275,20 @@ async fn main() -> color_eyre::Result<()> {
                     devnet,
                     keystore_path,
                 } => {
+                    // Validate that devnet is only used with local network
+                    if devnet && network.to_lowercase() != "local" {
+                        return Err(color_eyre::Report::msg(
+                            "The --devnet flag can only be used with --network local",
+                        ));
+                    }
+
                     let chain = match network.to_lowercase().as_str() {
                         "local" => SupportedChains::LocalTestnet,
                         "testnet" => SupportedChains::Testnet,
                         "mainnet" => {
-                            if rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost") {
+                            if rpc_url.as_ref().map_or(false, |url| {
+                                url.contains("127.0.0.1") || url.contains("localhost")
+                            }) {
                                 SupportedChains::LocalMainnet
                             } else {
                                 SupportedChains::Mainnet
@@ -316,7 +325,14 @@ async fn main() -> color_eyre::Result<()> {
                         println!("Shutting down devnet...");
                     } else {
                         deploy_to_eigenlayer(EigenlayerDeployOpts::new(
-                            rpc_url,
+                            rpc_url
+                                .as_ref()
+                                .map(|s| s.to_string())
+                                .ok_or_else(|| {
+                                    color_eyre::Report::msg(
+                                        "The --rpc-url flag is required when deploying to a non-local network",
+                                    )
+                                })?,
                             contracts_path,
                             ordered_deployment,
                             chain,

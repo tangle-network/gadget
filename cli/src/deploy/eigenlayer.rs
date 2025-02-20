@@ -416,10 +416,11 @@ async fn deploy_single_contract(
 
     // Build the forge create command as a single string
     let mut cmd_str = format!(
-        "forge create {} --rpc-url {} --private-key {} --broadcast --evm-version shanghai",
+        "forge create {} --rpc-url {} --private-key {} --broadcast --evm-version shanghai --out {}",
         contract_name,
         opts.rpc_url,
-        opts.get_private_key()?
+        opts.get_private_key()?,
+        Path::new(&opts.contracts_path).join("out").display()
     );
 
     if let Some(args) = get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
