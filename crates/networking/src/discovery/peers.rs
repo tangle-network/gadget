@@ -46,7 +46,10 @@ impl Default for PeerInfo {
 #[derive(Debug, Clone)]
 pub enum PeerEvent {
     /// A peer was added or updated
-    PeerUpdated { peer_id: PeerId, info: Box<PeerInfo> },
+    PeerUpdated {
+        peer_id: PeerId,
+        info: Box<PeerInfo>,
+    },
     /// A peer was removed
     PeerRemoved { peer_id: PeerId, reason: String },
     /// A peer was banned
@@ -126,7 +129,10 @@ impl PeerManager {
         self.peers.insert(peer_id, info.clone());
 
         // Emit event
-        let _ = self.event_tx.send(PeerEvent::PeerUpdated { peer_id, info: Box::new(info) });
+        let _ = self.event_tx.send(PeerEvent::PeerUpdated {
+            peer_id,
+            info: Box::new(info),
+        });
     }
 
     /// Remove a peer
