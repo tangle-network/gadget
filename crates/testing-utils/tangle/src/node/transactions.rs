@@ -416,7 +416,7 @@ pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
         &[client.clone()],
         &[sr25519_signer],
         blueprint_id,
-        preferences,
+        &[preferences],
         exit_after_registration,
     )
     .await
@@ -426,7 +426,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     clients: &[TestClient],
     sr25519_signers: &[T],
     blueprint_id: u64,
-    preferences: Preferences,
+    preferences: &[Preferences],
     _exit_after_registration: bool,
 ) -> Result<u64, TransactionError> {
     let alice_signer = sr25519_signers
@@ -437,7 +437,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
         .first()
         .ok_or(TransactionError::Other("No client".to_string()))?;
 
-    for (operator, client) in sr25519_signers.iter().zip(clients) {
+    for ((operator, client), preferences) in sr25519_signers.iter().zip(clients).zip(preferences) {
         join_operators(client, operator).await?;
         // Register for blueprint
         register_blueprint(
