@@ -1,0 +1,58 @@
+[package]
+name = "gadget-networking-round-based-extension"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-networking = { workspace = true }
+round-based = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+crossbeam = { workspace = true }
+crossbeam-channel = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+round-based = { workspace = true, features = ["derive", "sim", "sim-async"] }
+libp2p = { workspace = true, features = [
+  "tokio",
+  "gossipsub",
+  "mdns",
+  "noise",
+  "macros",
+  "yamux",
+  "tcp",
+  "quic",
+  "request-response",
+  "cbor",
+  "identify",
+  "kad",
+  "dcutr",
+  "relay",
+  "ping",
+  "dns",
+  "autonat",
+  "upnp",
+] }
+gadget-crypto = { workspace = true, features = ["sp-core"] }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
+
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+rand_dev = "0.1"
+rand = { workspace = true }
+hex = { workspace = true }
+# We don't use it directly, but we need to enable `serde` feature
+generic-array = { version = "0.14", features = ["serde"] }
+
+[lints]
+workspace = true

@@ -77,6 +77,12 @@ macro_rules! impl_sp_core_pair_public {
             #[derive(Clone, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
 
+            impl gadget_std::hash::Hash for [<Sp $key_type Public>] {
+                fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                    self.0.to_raw_vec().hash(state);
+                }
+            }
+
             impl KeyEncoding for [<Sp $key_type Public>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.0.to_raw_vec()
@@ -112,6 +118,12 @@ macro_rules! impl_sp_core_pair_public {
                     write!(f, "{:?}", self.to_bytes())
                 }
             }
+
+            impl gadget_std::fmt::Display for [<Sp $key_type Public>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{}", hex::encode(self.to_bytes()))
+                }
+            }
         }
     };
 }
@@ -120,7 +132,7 @@ macro_rules! impl_sp_core_pair_public {
 macro_rules! impl_sp_core_signature {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
-            #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            #[derive(Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type Signature>](pub <$pair_type as sp_core::Pair>::Signature);
 
             impl PartialOrd for [<Sp $key_type Signature>] {
@@ -138,6 +150,12 @@ macro_rules! impl_sp_core_signature {
             impl gadget_std::fmt::Debug for [<Sp $key_type Signature>] {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
                     write!(f, "{:?}", self.0.0)
+                }
+            }
+
+            impl gadget_std::fmt::Display for [<Sp $key_type Signature>] {
+                fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
+                    write!(f, "{}", hex::encode(self.0.0))
                 }
             }
         }

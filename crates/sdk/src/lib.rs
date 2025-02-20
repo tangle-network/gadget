@@ -33,6 +33,8 @@ pub mod build {
 pub mod networking {
     /// Networking utilities for blueprints
     pub use gadget_networking::*;
+    #[cfg(feature = "round-based-compat")]
+    pub use gadget_networking_round_based_extension as round_based_compat;
 }
 
 /// Event listener infrastructure for handling blueprint events
