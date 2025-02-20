@@ -58,7 +58,7 @@ impl GadgetBehaviour {
         target_peer_count: u32,
         peer_manager: Arc<PeerManager>,
         protocol_message_sender: Sender<ProtocolMessage>,
-    ) -> Self {
+    ) -> NetworkingResult<Self> {
         let connection_limits = connection_limits::Behaviour::new(
             ConnectionLimits::default()
                 .with_max_pending_incoming(Some(target_peer_count))
@@ -78,8 +78,7 @@ impl GadgetBehaviour {
             .mdns(true)
             .kademlia(true)
             .target_peer_count(target_peer_count)
-            .build()
-            .unwrap();
+            .build()?;
 
         info!(
             "Setting up blueprint protocol with name: {}",
@@ -94,12 +93,12 @@ impl GadgetBehaviour {
         );
 
         debug!("Created GadgetBehaviour with all components initialized");
-        Self {
+        Ok(Self {
             connection_limits,
             discovery,
             blueprint_protocol,
             ping,
-        }
+        })
     }
 
     /// Bootstrap Kademlia network

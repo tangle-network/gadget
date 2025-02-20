@@ -111,7 +111,6 @@ impl NetworkServiceHandle {
         self.peer_manager.get_peer_info(peer_id)
     }
 
-    #[must_use]
     pub fn send(&self, routing: MessageRouting, message: impl Into<Vec<u8>>) -> Result<(), String> {
         let protocol_message = ProtocolMessage {
             protocol: self.blueprint_protocol_name.clone().to_string(),

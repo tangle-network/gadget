@@ -76,7 +76,7 @@ pub struct PeerManager {
 
 impl Default for PeerManager {
     fn default() -> Self {
-        Self::new(Default::default())
+        Self::new(HashSet::default())
     }
 }
 
@@ -85,10 +85,10 @@ impl PeerManager {
     pub fn new(whitelisted_keys: HashSet<InstanceMsgPublicKey>) -> Self {
         let (event_tx, _) = broadcast::channel(100);
         Self {
-            peers: Default::default(),
-            banned_peers: Default::default(),
-            verified_peers: Default::default(),
-            public_keys_to_peer_ids: Default::default(),
+            peers: DashMap::default(),
+            banned_peers: DashMap::default(),
+            verified_peers: DashSet::default(),
+            public_keys_to_peer_ids: Arc::new(DashMap::default()),
             whitelisted_keys: DashSet::from_iter(whitelisted_keys),
             event_tx,
         }
@@ -172,7 +172,7 @@ impl PeerManager {
     }
 
     /// Bans a peer with the default duration(`1h`)
-    pub async fn ban_peer_with_default_duration(&self, peer: PeerId, reason: impl Into<String>) {
+    pub fn ban_peer_with_default_duration(&self, peer: PeerId, reason: impl Into<String>) {
         const BAN_PEER_DURATION: Duration = Duration::from_secs(60 * 60); //1h
         self.ban_peer(peer, reason, Some(BAN_PEER_DURATION));
     }

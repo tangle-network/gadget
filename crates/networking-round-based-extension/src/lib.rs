@@ -236,7 +236,7 @@ where
                 }
             }
             None => {
-                tracing::trace!(i = %this.party_index, "No message received; the waker will wake us up when there is a new message");
+                //tracing::trace!(i = %this.party_index, "No message received; the waker will wake us up when there is a new message");
                 // In this case, tell the waker to wake us up when there is a new message
                 cx.waker().wake_by_ref();
                 Poll::Pending

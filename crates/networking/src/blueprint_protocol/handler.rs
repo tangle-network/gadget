@@ -1,9 +1,6 @@
 use std::time::{Duration, Instant};
 
-use libp2p::{
-    gossipsub::{self},
-    request_response, PeerId,
-};
+use libp2p::{request_response, PeerId};
 use tracing::{debug, warn};
 
 use crate::blueprint_protocol::HandshakeMessage;
@@ -141,7 +138,7 @@ impl BlueprintProtocolBehaviour {
                             InstanceMessageRequest::Protocol {
                                 protocol,
                                 payload,
-                                metadata,
+                                metadata: _,
                             },
                         channel,
                         ..
@@ -204,7 +201,7 @@ impl BlueprintProtocolBehaviour {
                 peer,
                 message:
                     request_response::Message::Response {
-                        response: InstanceMessageResponse::Success { protocol, data },
+                        response: InstanceMessageResponse::Success { protocol, data: _ },
                         ..
                     },
                 ..

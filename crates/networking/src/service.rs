@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
@@ -12,7 +8,7 @@ use crate::{
         PeerInfo, PeerManager,
     },
     error::Error,
-    key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey, InstanceSignedMsgSignature},
+    key_types::{InstanceMsgKeyPair, InstanceMsgPublicKey},
     service_handle::NetworkServiceHandle,
     types::ProtocolMessage,
 };
@@ -131,6 +127,12 @@ pub struct NetworkService {
 
 impl NetworkService {
     /// Create a new network service
+    ///
+    /// # Errors
+    ///
+    /// * See [`GadgetBehaviour::new`]
+    /// * Bad `listen_addr` in the provided [`NetworkConfig`]
+    #[allow(clippy::missing_panics_doc)] // Unwrapping an Infallible
     pub fn new(
         config: NetworkConfig,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
@@ -144,8 +146,8 @@ impl NetworkService {
             listen_addr,
             target_peer_count,
             bootstrap_peers,
-            enable_mdns,
-            enable_kademlia,
+            enable_mdns: _,
+            enable_kademlia: _,
         } = config;
 
         let peer_manager = Arc::new(PeerManager::new(allowed_keys));
@@ -164,7 +166,7 @@ impl NetworkService {
             target_peer_count,
             peer_manager.clone(),
             protocol_message_sender.clone(),
-        );
+        )?;
 
         let mut swarm = SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
@@ -294,7 +296,6 @@ impl NetworkService {
                         &self.peer_manager,
                         &self.event_sender,
                     )
-                    .await
                     {
                         warn!("Failed to handle network message: {}", e);
                     }
@@ -336,14 +337,13 @@ async fn handle_behaviour_event(
     match event {
         GadgetBehaviourEvent::ConnectionLimits(_) => {}
         GadgetBehaviourEvent::Discovery(discovery_event) => {
-            handle_discovery_event(swarm, peer_manager, discovery_event, event_sender).await?;
+            handle_discovery_event(swarm, peer_manager, discovery_event, event_sender)?;
         }
         GadgetBehaviourEvent::BlueprintProtocol(blueprint_event) => {
-            handle_blueprint_protocol_event(swarm, peer_manager, blueprint_event, event_sender)
-                .await?;
+            handle_blueprint_protocol_event(swarm, peer_manager, blueprint_event, event_sender)?;
         }
         GadgetBehaviourEvent::Ping(ping_event) => {
-            handle_ping_event(swarm, peer_manager, ping_event, event_sender).await?;
+            handle_ping_event(swarm, peer_manager, ping_event, event_sender)?;
         }
     }
 
@@ -351,7 +351,7 @@ async fn handle_behaviour_event(
 }
 
 /// Handle a discovery event
-async fn handle_discovery_event(
+fn handle_discovery_event(
     swarm: &mut Swarm<GadgetBehaviour>,
     peer_manager: &Arc<PeerManager>,
     event: DiscoveryEvent,
@@ -390,9 +390,7 @@ async fn handle_discovery_event(
                     &swarm.behaviour().blueprint_protocol.blueprint_protocol_name;
                 if !protocols.contains(blueprint_protocol_name) {
                     warn!(%peer_id, %blueprint_protocol_name, "Peer does not support required protocol");
-                    peer_manager
-                        .ban_peer_with_default_duration(*peer_id, "protocol unsupported")
-                        .await;
+                    peer_manager.ban_peer_with_default_duration(*peer_id, "protocol unsupported");
                     return Ok(());
                 }
 
@@ -425,7 +423,7 @@ async fn handle_discovery_event(
                         info!(%peer_info.peer_id, "Newly discovered peer from Kademlia");
                         let info = PeerInfo::default();
                         peer_manager.update_peer(peer_info.peer_id, info);
-                        let addrs: Vec<_> = peer_info.addrs.to_vec();
+                        let addrs: Vec<_> = peer_info.addrs.clone();
                         for addr in addrs {
                             debug!(%peer_info.peer_id, %addr, "Dialing peer from Kademlia");
                             if let Err(e) = swarm.dial(DialOpts::from(addr)) {
@@ -458,7 +456,7 @@ async fn handle_discovery_event(
 }
 
 /// Handle a blueprint event
-async fn handle_blueprint_protocol_event(
+fn handle_blueprint_protocol_event(
     _swarm: &mut Swarm<GadgetBehaviour>,
     _peer_manager: &Arc<PeerManager>,
     event: BlueprintProtocolEvent,
@@ -490,7 +488,7 @@ async fn handle_blueprint_protocol_event(
 }
 
 /// Handle a ping event
-async fn handle_ping_event(
+fn handle_ping_event(
     _swarm: &mut Swarm<GadgetBehaviour>,
     _peer_manager: &Arc<PeerManager>,
     event: ping::Event,
@@ -519,7 +517,7 @@ async fn handle_ping_event(
 }
 
 /// Handle a network message
-async fn handle_network_message(
+fn handle_network_message(
     swarm: &mut Swarm<GadgetBehaviour>,
     msg: NetworkMessage,
     peer_manager: &Arc<PeerManager>,

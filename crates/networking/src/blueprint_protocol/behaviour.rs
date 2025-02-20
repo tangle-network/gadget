@@ -11,7 +11,7 @@ use dashmap::DashMap;
 use gadget_crypto::KeyType;
 use libp2p::{
     core::transport::PortUse,
-    gossipsub::{self, IdentTopic, MessageAuthenticity, MessageId, Sha256Topic},
+    gossipsub::{self, IdentTopic, MessageId, Sha256Topic},
     identity::Keypair,
     request_response::{self, OutboundRequestId, ResponseChannel},
     swarm::{
@@ -69,7 +69,7 @@ pub struct BlueprintProtocolBehaviour {
     pub(crate) peer_manager: Arc<PeerManager>,
     /// Libp2p peer ID
     pub(crate) local_peer_id: PeerId,
-    /// Instance key pair for handshakes and blueprint_protocol
+    /// Instance key pair for handshakes and blueprint protocol
     pub(crate) instance_key_pair: InstanceMsgKeyPair,
     /// Peers with pending inbound handshakes
     pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,

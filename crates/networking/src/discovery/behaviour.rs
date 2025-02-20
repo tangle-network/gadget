@@ -306,9 +306,9 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                         DerivedDiscoveryBehaviourEvent::Kademlia(ev) => match ev {
                             // Adding to Kademlia buckets is automatic with our config,
                             // no need to do manually.
-                            kad::Event::RoutingUpdated { .. } => {}
-                            kad::Event::RoutablePeer { .. } => {}
-                            kad::Event::PendingRoutablePeer { .. } => {
+                            kad::Event::RoutingUpdated { .. }
+                            | kad::Event::RoutablePeer { .. }
+                            | kad::Event::PendingRoutablePeer { .. } => {
                                 // Intentionally ignore
                             }
                             other => {

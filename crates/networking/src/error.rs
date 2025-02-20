@@ -48,6 +48,9 @@ pub enum Error {
 
     // libp2p compat
     #[error(transparent)]
+    InvalidProtocol(#[from] libp2p::swarm::InvalidProtocol),
+
+    #[error(transparent)]
     NoKnownPeers(#[from] libp2p::kad::NoKnownPeers),
 
     #[error(transparent)]
