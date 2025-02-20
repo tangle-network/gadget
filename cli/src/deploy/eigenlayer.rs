@@ -1,6 +1,7 @@
 use alloy_primitives::Address;
 use color_eyre::Result;
 use dialoguer::{Confirm, Input, Select};
+use gadget_config::supported_chains::SupportedChains;
 use gadget_logging::info;
 use gadget_std::env;
 use gadget_std::fs;

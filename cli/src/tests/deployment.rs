@@ -2,13 +2,14 @@ use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use alloy_provider::RootProvider;
 use alloy_transport::BoxTransport;
 use color_eyre::eyre::Result;
+use gadget_config::supported_chains::SupportedChains;
 use gadget_logging::setup_log;
+use gadget_std::collections::HashMap;
+use gadget_std::fs;
 use gadget_std::process::Command;
 use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use gadget_utils::evm::get_provider_http;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::fs;
 use tempfile::TempDir;
 
 #[tokio::test]
@@ -107,6 +108,7 @@ evm_version = 'shanghai'"#;
         contracts_path: contract_dir.to_string_lossy().to_string(),
         constructor_args: Some(constructor_args),
         ordered_deployment: false,
+        chain: SupportedChains::LocalTestnet,
     };
 
     // Build the contracts in temporary directory

@@ -2,7 +2,7 @@ use gadget_std::fmt::Display;
 use gadget_std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "std", clap(rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
