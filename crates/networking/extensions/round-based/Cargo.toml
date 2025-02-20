@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-networking = { path = "../networking" }
+gadget-networking = { workspace = true }
 round-based = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
