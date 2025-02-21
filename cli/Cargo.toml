@@ -123,3 +123,7 @@ evm = [
     "gadget-keystore/evm",
     "gadget-clients/evm",
 ]
+
+[lints.clippy]
+large_enum_variant = "allow" # TODO
+result_large_err = "allow"

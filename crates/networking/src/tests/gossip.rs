@@ -1,17 +1,15 @@
 use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
-    key_types::Curve,
     service_handle::NetworkServiceHandle,
     tests::{create_whitelisted_nodes, wait_for_all_handshakes},
     types::{MessageRouting, ParticipantId, ParticipantInfo},
 };
-use gadget_crypto::KeyType;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
-const PROTOCOL_NAME: &str = "/blueprint_protocol/gossip-test/1.0.0";
+const PROTOCOL_NAME: &str = "/test-net/sum-test";
 
 #[tokio::test]
 async fn test_gossip_between_verified_peers() {
@@ -19,22 +17,9 @@ async fn test_gossip_between_verified_peers() {
     info!("Starting gossip test between verified peers");
 
     // Create nodes with whitelisted keys
-    let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
-    let mut allowed_keys1 = HashSet::new();
-    allowed_keys1.insert(instance_key_pair2.public());
-
-    let mut node1 = TestNode::new("test-net", "gossip-test", allowed_keys1, vec![]);
-
-    let mut allowed_keys2 = HashSet::new();
-    allowed_keys2.insert(node1.instance_key_pair.public());
-    let mut node2 = TestNode::new_with_keys(
-        "test-net",
-        "gossip-test",
-        allowed_keys2,
-        vec![],
-        Some(instance_key_pair2),
-        None,
-    );
+    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut node2 = nodes.pop().unwrap();
+    let mut node1 = nodes.pop().unwrap();
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -66,7 +51,6 @@ async fn test_gossip_between_verified_peers() {
     let received_message = timeout(TEST_TIMEOUT, async {
         loop {
             if let Some(msg) = handle2.next_protocol_message() {
-                dbg!(&msg);
                 if msg.protocol == PROTOCOL_NAME {
                     return msg;
                 }

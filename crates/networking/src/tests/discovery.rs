@@ -1,5 +1,5 @@
-use super::init_tracing;
 use super::TestNode;
+use super::{create_whitelisted_nodes, init_tracing};
 use super::{wait_for_peer_discovery, wait_for_peer_info};
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
@@ -88,14 +88,11 @@ async fn test_peer_discovery_kademlia() {
 async fn test_peer_info_updates() {
     init_tracing();
 
-    let network_name = "test-network";
-    let instance_id = "test-instance";
-    let allowed_keys = HashSet::new();
-
     info!("Creating test nodes...");
-    // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]);
+    // Create nodes with whitelisted keys
+    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut node2 = nodes.pop().unwrap();
+    let mut node1 = nodes.pop().unwrap();
 
     info!("Starting node1...");
     let handle1 = node1.start().await.expect("Failed to start node1");

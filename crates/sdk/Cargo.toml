@@ -144,3 +144,6 @@ local-store = ["gadget-stores/local"]
 round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
 cronjob = ["gadget-event-listeners/cronjob"]
+
+[lints.clippy]
+large_enum_variant = "allow" # TODO

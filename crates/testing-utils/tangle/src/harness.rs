@@ -99,7 +99,7 @@ impl TestHarness for TangleTestHarness {
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(true).with_log_target("evm", "trace")) // TODO(cleanup): REMOVE WHEN DONE TESTING
+        let node = run(NodeConfig::new(false))
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;

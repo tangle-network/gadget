@@ -1,9 +1,9 @@
 #![allow(unused_variables, dead_code)]
-use super::*;
+use super::supported_chains::SupportedChains;
+use super::{Protocol, ProtocolSettings};
 use gadget_std::fmt::Debug;
 use gadget_std::str::FromStr;
 use serde::{Deserialize, Serialize};
-use supported_chains::SupportedChains;
 use url::Url;
 
 #[cfg(feature = "networking")]
@@ -294,7 +294,12 @@ impl ContextConfig {
     /// - `symbiotic_contract_addresses`: The [`contract addresses`](SymbioticContractAddresses) for the necessary Symbiotic contracts
     /// - `blueprint_id`: The blueprint ID - only required for Tangle
     /// - `service_id`: The service ID - only required for Tangle
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        clippy::too_many_lines,
+        clippy::match_wildcard_for_single_variants
+    )]
+    #[must_use]
     pub fn create_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
@@ -427,11 +432,12 @@ impl ContextConfig {
     /// Creates a new context config with the given parameters
     ///
     /// # Defaults
-    /// - `target_addr`: The same host address as the given http_rpc_url, defaulting to 127.0.0.1 if an error occurs
-    /// - `target_port`: The same port as the given http_rpc_url, defaulting to 0 if an error occurs
+    /// - `target_addr`: The same host address as the given `http_rpc_url`, defaulting to 127.0.0.1 if an error occurs
+    /// - `target_port`: The same port as the given `http_rpc_url`, defaulting to 0 if an error occurs
     /// - `skip_registration`: false
     /// - `keystore_password`: None
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn create_config_with_defaults(
         http_rpc_url: Url,
         ws_rpc_url: Url,
@@ -454,6 +460,7 @@ impl ContextConfig {
 
     /// Creates a new context config with defaults for Eigenlayer
     #[cfg(feature = "eigenlayer")]
+    #[must_use]
     pub fn create_eigenlayer_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
@@ -475,6 +482,7 @@ impl ContextConfig {
 
     /// Creates a new context config with defaults for Symbiotic
     #[cfg(feature = "symbiotic")]
+    #[must_use]
     pub fn create_symbiotic_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
@@ -496,6 +504,7 @@ impl ContextConfig {
 
     /// Creates a new context config with defaults for Tangle
     #[cfg(feature = "tangle")]
+    #[must_use]
     pub fn create_tangle_config(
         http_rpc_url: Url,
         ws_rpc_url: Url,
@@ -505,7 +514,7 @@ impl ContextConfig {
         blueprint_id: u64,
         service_id: Option<u64>,
     ) -> Self {
-        use protocol::TangleInstanceSettings;
+        use super::protocol::TangleInstanceSettings;
 
         Self::create_config_with_defaults(
             http_rpc_url,
