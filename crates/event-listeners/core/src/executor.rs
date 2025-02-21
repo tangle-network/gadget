@@ -298,28 +298,20 @@ mod tests {
         }
     }
 
-    fn preprocess(
-        event: TestEvent,
-    ) -> impl Future<Output = Result<Option<(u64, TestEvent)>, Error<Infallible>>> + Send {
-        async move {
-            let amount = event.fetch_add(1, Ordering::SeqCst) + 1;
-            Ok(Some((amount, event)))
-        }
+    async fn preprocess(event: TestEvent) -> Result<Option<(u64, TestEvent)>, Error<Infallible>> {
+        let amount = event.fetch_add(1, Ordering::SeqCst) + 1;
+        Ok(Some((amount, event)))
     }
 
-    fn job_processor(
+    async fn job_processor(
         preprocessed_event: ((u64, TestEvent), Arc<AtomicU64>),
-    ) -> impl Future<Output = Result<u64, Error<Infallible>>> + Send {
-        async move {
-            let amount = preprocessed_event.1.fetch_add(1, Ordering::SeqCst) + 1;
-            Ok(amount)
-        }
+    ) -> Result<u64, Error<Infallible>> {
+        let amount = preprocessed_event.1.fetch_add(1, Ordering::SeqCst) + 1;
+        Ok(amount)
     }
 
-    fn post_process(
-        _job_output: u64,
-    ) -> impl Future<Output = Result<(), Error<Infallible>>> + Send {
-        async move { Ok(()) }
+    async fn post_process(_job_output: u64) -> Result<(), Error<Infallible>> {
+        Ok(())
     }
 
     #[tokio::test]

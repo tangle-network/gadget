@@ -1,14 +1,8 @@
-use crate::{
-    blueprint_protocol::{InstanceMessageRequest, InstanceMessageResponse},
-    key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
-    service::NetworkMessage,
-    service_handle::NetworkServiceHandle,
-    tests::TestNode,
-};
+use crate::{key_types::Curve, tests::TestNode};
 use gadget_crypto::KeyType;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
-use tracing::{debug, info};
+use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -37,7 +31,7 @@ async fn test_automatic_handshake() {
     allowed_keys1.insert(instance_key_pair2.public());
 
     // Create node1 with node2's key whitelisted
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]).await;
+    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]);
 
     // Create node2 with node1's key whitelisted and pre-generated key
     let mut allowed_keys2 = HashSet::new();
@@ -49,8 +43,7 @@ async fn test_automatic_handshake() {
         vec![],
         Some(instance_key_pair2),
         None,
-    )
-    .await;
+    );
 
     info!("Starting nodes");
     // Start both nodes - this should trigger automatic handshake
@@ -101,12 +94,12 @@ async fn test_handshake_with_invalid_peer() {
     let instance_id = "test-instance";
 
     // Create node1 with empty whitelist
-    let mut node1 = TestNode::new(network_name, instance_id, HashSet::new(), vec![]).await;
+    let mut node1 = TestNode::new(network_name, instance_id, HashSet::new(), vec![]);
 
     // Create node2 with node1's key whitelisted (but node2's key is not whitelisted by node1)
     let mut allowed_keys2 = HashSet::new();
     allowed_keys2.insert(node1.instance_key_pair.public());
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys2, vec![]).await;
+    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys2, vec![]);
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");

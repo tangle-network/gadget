@@ -1,4 +1,5 @@
-use crate::service::NetworkMessage;
+#![allow(dead_code)]
+
 use crate::{
     key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
     service_handle::NetworkServiceHandle,
@@ -39,7 +40,7 @@ pub struct TestNode {
 
 impl TestNode {
     /// Create a new test node with auto-generated keys
-    pub async fn new(
+    pub fn new(
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
@@ -53,11 +54,10 @@ impl TestNode {
             None,
             None,
         )
-        .await
     }
 
     /// Create a new test node with specified keys
-    pub async fn new_with_keys(
+    pub fn new_with_keys(
         network_name: &str,
         instance_id: &str,
         allowed_keys: HashSet<InstanceMsgPublicKey>,
@@ -65,7 +65,7 @@ impl TestNode {
         instance_key_pair: Option<InstanceMsgKeyPair>,
         local_key: Option<Keypair>,
     ) -> Self {
-        let local_key = local_key.unwrap_or_else(|| identity::Keypair::generate_ed25519());
+        let local_key = local_key.unwrap_or_else(identity::Keypair::generate_ed25519);
         let peer_id = local_key.public().to_peer_id();
 
         // Bind to all interfaces instead of just localhost
@@ -116,7 +116,7 @@ impl TestNode {
 
                     // Extract port from multiaddr
                     let addr_str = addr.to_string();
-                    let port = addr_str.split("/").nth(4).unwrap_or("0").to_string();
+                    let port = addr_str.split('/').nth(4).unwrap_or("0").to_string();
 
                     // Try localhost first
                     let localhost_addr = format!("127.0.0.1:{}", port);
@@ -156,7 +156,7 @@ impl TestNode {
         })
         .await
         {
-            Ok(Ok(_)) => {
+            Ok(Ok(())) => {
                 info!("Node {} fully initialized", self.peer_id);
                 Ok(handle)
             }
@@ -247,8 +247,8 @@ pub async fn wait_for_peer_info(
     })
     .await
     {
-        Ok(_) => info!("Peer info updated successfully in both directions"),
-        Err(_) => panic!("Peer info update timed out"),
+        Ok(()) => info!("Peer info updated successfully in both directions"),
+        Err(e) => panic!("Peer info update timed out: {e}"),
     }
 }
 
@@ -311,13 +311,13 @@ async fn wait_for_handshake_completion(
 }
 
 // Helper to create a whitelisted test node
-async fn create_node_with_keys(
+fn create_node_with_keys(
     network: &str,
     instance: &str,
     allowed_keys: HashSet<InstanceMsgPublicKey>,
     key_pair: Option<InstanceMsgKeyPair>,
 ) -> TestNode {
-    TestNode::new_with_keys(network, instance, allowed_keys, vec![], key_pair, None).await
+    TestNode::new_with_keys(network, instance, allowed_keys, vec![], key_pair, None)
 }
 
 // Helper to create a set of nodes with whitelisted keys
@@ -334,16 +334,13 @@ async fn create_whitelisted_nodes(count: usize) -> Vec<TestNode> {
     }
 
     // Create nodes with whitelisted keys
-    for i in 0..count {
-        nodes.push(
-            create_node_with_keys(
-                "test-net",
-                "sum-test",
-                allowed_keys.clone(),
-                Some(key_pairs[i].clone()),
-            )
-            .await,
-        );
+    for key_pair in key_pairs {
+        nodes.push(create_node_with_keys(
+            "test-net",
+            "sum-test",
+            allowed_keys.clone(),
+            Some(key_pair),
+        ));
     }
 
     nodes

@@ -241,10 +241,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
 ) -> Result<(), TransactionError> {
     info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
     let min_operators = test_nodes.len() as u32;
-    let security_requirements = match optional_assets {
-        Some(assets) => assets,
-        None => vec![],
-    };
+    let security_requirements = optional_assets.unwrap_or_default();
     let call = api::tx().services().request(
         None,
         blueprint_id,

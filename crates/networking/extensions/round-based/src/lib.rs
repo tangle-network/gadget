@@ -20,7 +20,7 @@ use std::{
 #[cfg(test)]
 mod tests;
 
-/// Wrapper to adapt NetworkServiceHandle to round-based protocols
+/// Wrapper to adapt [`NetworkServiceHandle`] to round-based protocols
 pub struct RoundBasedNetworkAdapter<M> {
     /// The underlying network handle
     handle: NetworkServiceHandle,
@@ -130,7 +130,7 @@ where
         let (recipient, recipient_key) = match outgoing.recipient {
             MessageDestination::AllParties => (None, None),
             MessageDestination::OneParty(p) => {
-                let key = this.parties.get(&p).map(|k| k.clone());
+                let key = this.parties.get(&p).map(|k| *k);
                 (Some(p), key)
             }
         };
@@ -142,15 +142,14 @@ where
                 round_id: round,
                 sender: ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(this.party_index),
-                    public_key: this.parties.get(&this.party_index).map(|k| k.clone()),
+                    public_key: this.parties.get(&this.party_index).map(|k| *k),
                 },
                 recipient: recipient.map(|p| ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(p),
                     public_key: recipient_key,
                 }),
             },
-            payload: serde_json::to_vec(&outgoing.msg)
-                .map_err(|e| NetworkError::Serialization(e))?,
+            payload: serde_json::to_vec(&outgoing.msg).map_err(NetworkError::Serialization)?,
         };
 
         tracing::trace!(
@@ -162,7 +161,7 @@ where
 
         this.handle
             .send(protocol_message.routing, protocol_message.payload)
-            .map_err(|e| NetworkError::Send(e))
+            .map_err(NetworkError::Send)
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
