@@ -3171,17 +3171,22 @@ dependencies = [
 name = "cargo-tangle"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
+ "alloy-dyn-abi",
  "alloy-json-abi",
  "alloy-network",
+ "alloy-primitives 0.8.21",
  "alloy-provider",
  "alloy-rpc-types-eth",
  "alloy-signer-local",
+ "alloy-transport",
  "anyhow",
  "cargo-generate",
  "cargo_metadata 0.18.1",
  "clap",
  "clap-cargo",
  "color-eyre",
+ "dialoguer",
  "escargot",
  "gadget-blueprint-proc-macro-core",
  "gadget-clients",
@@ -3190,8 +3195,11 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
+ "gadget-testing-utils",
+ "gadget-utils",
  "gadget-utils-tangle",
  "hex",
+ "serde",
  "serde_json",
  "sp-core",
  "tangle-subxt",
@@ -18413,7 +18421,7 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 [[package]]
 name = "tangle-subxt"
 version = "0.12.0"
-source = "git+https://github.com/tangle-network/tangle#c1d8f6373e82e18288296bb5e25d1df438f17a64"
+source = "git+https://github.com/tangle-network/tangle?branch=drew%2Fslashing-update#67cb85fd8843e7d3126b40d9ecfac7acd56158a1"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18696,8 +18704,7 @@ dependencies = [
 [[package]]
 name = "tnt-core-bytecode"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aad568c5526da5761e58263eed5ad9a955e8c093c509e7729ea2b3a82f89ffe3"
+source = "git+https://github.com/tangle-network/tnt-core?branch=drew%2Fslashing-updates#e4dffeb522f5e33b4acbd7f0053bfb2b914e33ee"
 dependencies = [
  "serde_json",
 ]
@@ -19203,7 +19210,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.7",
  "rand 0.8.5",
  "static_assertions",

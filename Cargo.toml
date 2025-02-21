@@ -126,10 +126,10 @@ gadget-rpc-calls = { version = "0.1.0", path = "./crates/metrics/rpc-calls", def
 
 cargo-tangle = { version = "0.1.0", path = "./cli", default-features = false }
 cargo_metadata = { version = "0.18.1" }
-tnt-core-bytecode = { version = "0.3.0", default-features = false }
+tnt-core-bytecode = { git = "https://github.com/tangle-network/tnt-core", branch = "drew/slashing-updates", default-features = false }
 
 # Tangle-related dependencies
-tangle-subxt = { git = "https://github.com/tangle-network/tangle", default-features = false }
+tangle-subxt = { git = "https://github.com/tangle-network/tangle", branch = "drew/slashing-update", default-features = false }
 round-based = { version = "0.4.1", default-features = false }
 
 # Substrate dependencies

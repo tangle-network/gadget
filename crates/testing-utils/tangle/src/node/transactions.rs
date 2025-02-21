@@ -18,19 +18,21 @@ use tangle_subxt::subxt::{
     utils::AccountId32,
     Config,
 };
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::request::Assets;
+use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::AssetSecurityCommitment;
 use tangle_subxt::tangle_testnet_runtime::api::{
     self,
     runtime_types::{
-        pallet_services::module::Call, sp_arithmetic::per_things::Percent,
-        tangle_primitives::services::Asset, tangle_testnet_runtime::RuntimeCall,
+        pallet_services::module::Call,
+        sp_arithmetic::per_things::Percent,
+        tangle_primitives::services::types::{Asset, AssetSecurityRequirement, MembershipModel},
+        tangle_testnet_runtime::RuntimeCall,
     },
     services::{
         calls::types::{
             call::{Args, Job},
             create_blueprint::Blueprint,
             register::{Preferences, RegistrationArgs},
-            request::PaymentAsset,
         },
         events::{JobCalled, JobResultSubmitted, MasterBlueprintServiceManagerRevised},
     },
@@ -235,19 +237,25 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
     value: u128,
+    optional_assets: Option<Vec<AssetSecurityRequirement<AssetId>>>,
 ) -> Result<(), TransactionError> {
     info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
-
+    let min_operators = test_nodes.len() as u32;
+    let security_requirements = match optional_assets {
+        Some(assets) => assets,
+        None => vec![],
+    };
     let call = api::tx().services().request(
         None,
         blueprint_id,
         Vec::new(),
         test_nodes,
         Default::default(),
-        Assets::from([0]),
+        security_requirements,
         1000,
-        PaymentAsset::from(Asset::Custom(0)),
+        Asset::Custom(0),
         value,
+        MembershipModel::Fixed { min_operators },
     );
     let res = client
         .subxt_client()
@@ -364,17 +372,40 @@ pub async fn get_latest_mbsm_revision(
     Ok(res.0.pop().map(|addr| (ver, addr.0.into())))
 }
 
+pub fn get_security_requirement(a: AssetId, p: &[u8; 2]) -> AssetSecurityRequirement<AssetId> {
+    AssetSecurityRequirement {
+        asset: Asset::Custom(a),
+        min_exposure_percent: Percent(p[0]),
+        max_exposure_percent: Percent(p[1]),
+    }
+}
+
+pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
+    AssetSecurityCommitment {
+        asset: a,
+        exposure_percent: Percent(p),
+    }
+}
+
 /// Approves a service request. This is meant for testing, and will always approve the request.
 pub async fn approve_service<T: Signer<TangleConfig>>(
     client: &TestClient,
     caller: &T,
     request_id: u64,
     restaking_percent: u8,
+    optional_assets: Option<Vec<AssetSecurityCommitment<AssetId>>>,
 ) -> Result<(), TransactionError> {
     info!("Approving service request ...");
+    let native_security_commitments =
+        vec![get_security_commitment(Asset::Custom(0), restaking_percent)];
+    let security_commitments = match optional_assets {
+        Some(assets) => [native_security_commitments, assets].concat(),
+        None => native_security_commitments,
+    };
+
     let call = api::tx()
         .services()
-        .approve(request_id, Percent(restaking_percent));
+        .approve(request_id, security_commitments);
     let res = client
         .subxt_client()
         .tx()
@@ -459,13 +490,13 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
         .iter()
         .map(|s| s.account_id())
         .collect::<Vec<_>>();
-    request_service(alice_client, alice_signer, blueprint_id, accounts, 0).await?;
+    request_service(alice_client, alice_signer, blueprint_id, accounts, 0, None).await?;
 
     // Approve the service request and wait for completion
     let request_id = get_next_request_id(alice_client).await?.saturating_sub(1);
 
     for (signer, client) in sr25519_signers.iter().zip(clients) {
-        approve_service(client, signer, request_id, 20).await?;
+        approve_service(client, signer, request_id, 20, None).await?;
     }
 
     // Get the new service ID from events
