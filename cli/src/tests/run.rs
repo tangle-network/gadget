@@ -71,8 +71,9 @@ evm_version = 'shanghai'"#,
 
     // Set up deployment options with temporary directory path and constructor arguments
     let mut constructor_args = HashMap::new();
-    let init_a_value = 2;
-    let init_b_value = 3;
+    let init_a_value = 8;
+    let init_b_value = 11;
+    let expected_value = init_a_value * init_b_value;
     constructor_args.insert(
         "TestContract".to_string(),
         vec![init_a_value.to_string(), init_b_value.to_string()],
@@ -145,7 +146,7 @@ serde_json = "1.0"
     let main_rs = format!(
         r#"use blueprint_sdk::alloy::primitives::Address;
 use blueprint_sdk::logging::info;
-use blueprint_sdk::std::{{string::ToString, fs, path::PathBuf}};
+use blueprint_sdk::std::{{string::ToString, env, fs, path::PathBuf}};
 use alloy_sol_types::sol;
 use alloy_transport::BoxTransport;
 use alloy_provider::RootProvider;
@@ -204,11 +205,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     
     info!("Contract returned value: {{}}", get_result_value);
 
+    if get_result_value == alloy_primitives::U256::from({}) {{
+        info!("Setting RUN_SUCCEEDED to 1");
+        std::env::set_var("RUN_SUCCEEDED", "1");
+    }}
+
     Ok(())
 }}
 "#,
         test_contract_address,
-        temp_dir.path().display().to_string()
+        temp_dir.path().display().to_string(),
+        expected_value,
     );
     fs::write(binary_dir.join("src/main.rs"), main_rs)?;
 
@@ -220,7 +227,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .output()
         .expect("Failed to build binary");
     if !build_output.status.success() {
-        debug!("Cargo build output: {}", build_output);
+        gadget_logging::debug!("Cargo build output: {:?}", build_output);
         panic!("Failed to build binary")
     }
 
@@ -248,6 +255,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
 
     // Run the AVS
     run_eigenlayer_avs(run_opts, SupportedChains::LocalTestnet, Some(binary_path)).await?;
+
+    let mut interval = tokio::time::interval(std::time::Duration::from_millis(2000));
+    loop {
+        gadget_logging::info!("Waiting for run to succeed");
+        let var = std::env::var("RUN_SUCCEEDED").ok();
+        if let Some(val) = var {
+            if val == "1" {
+                gadget_logging::info!("Run succeeded");
+                break;
+            }
+        }
+        interval.tick().await;
+    }
 
     Ok(())
 }

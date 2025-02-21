@@ -152,7 +152,7 @@ pub enum BlueprintCommands {
         keystore_path: Option<PathBuf>,
 
         /// The path to the AVS binary
-        /// 
+        ///
         /// If not provided, the binary will be built if possible
         #[arg(short = 'b', long)]
         binary_path: Option<PathBuf>,

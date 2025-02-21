@@ -31,7 +31,7 @@ fn get_binary_name() -> Result<String> {
 
 /// Run a compiled Eigenlayer AVS binary with the provided options
 pub async fn run_eigenlayer_avs(
-    config: GadgetConfiguration, 
+    config: GadgetConfiguration,
     chain: SupportedChains,
     binary_path: Option<PathBuf>,
 ) -> Result<()> {
@@ -44,7 +44,7 @@ pub async fn run_eigenlayer_avs(
     };
 
     println!(
-        "Running Eigenlayer AVS binary at: {}",
+        "Attempting to run Eigenlayer AVS binary at: {}",
         binary_path.display()
     );
 
@@ -68,7 +68,7 @@ pub async fn run_eigenlayer_avs(
         .map_err(|_| eyre!("Missing Eigenlayer contract addresses"))?;
 
     // Run the AVS binary with the provided options
-    info!("Starting AVS...");
+    println!("Starting AVS...");
     let mut command = Command::new(&binary_path);
 
     // Add the run subcommand
@@ -120,6 +120,6 @@ pub async fn run_eigenlayer_avs(
 
     let child = command.spawn().unwrap();
 
-    info!("AVS is running with PID: {}", child.id());
+    println!("AVS is running with PID: {}", child.id());
     Ok(())
 }
