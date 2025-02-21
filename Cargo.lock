@@ -4534,7 +4534,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18e4fdb82bd54a12e42fb58a800dcae6b9e13982238ce2296dc3570b92148e1f"
 dependencies = [
  "data-encoding",
- "syn 2.0.98",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -18704,7 +18704,7 @@ dependencies = [
 [[package]]
 name = "tnt-core-bytecode"
 version = "0.3.0"
-source = "git+https://github.com/tangle-network/tnt-core?branch=drew%2Fslashing-updates#e4dffeb522f5e33b4acbd7f0053bfb2b914e33ee"
+source = "git+https://github.com/tangle-network/tnt-core?branch=drew%2Fslashing-updates#5de7c3a6336494a231cb86c2b7c32b81b274d5e6"
 dependencies = [
  "serde_json",
 ]

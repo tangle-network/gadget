@@ -241,7 +241,13 @@ pub async fn request_service<T: Signer<TangleConfig>>(
 ) -> Result<(), TransactionError> {
     info!(requester = ?user.account_id(), ?test_nodes, %blueprint_id, "Requesting service");
     let min_operators = test_nodes.len() as u32;
-    let security_requirements = optional_assets.unwrap_or_default();
+    let security_requirements = optional_assets.unwrap_or_else(|| {
+        vec![AssetSecurityRequirement {
+            asset: Asset::Custom(0),
+            min_exposure_percent: Percent(50),
+            max_exposure_percent: Percent(80),
+        }]
+    });
     let call = api::tx().services().request(
         None,
         blueprint_id,
@@ -493,7 +499,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     let request_id = get_next_request_id(alice_client).await?.saturating_sub(1);
 
     for (signer, client) in sr25519_signers.iter().zip(clients) {
-        approve_service(client, signer, request_id, 20, None).await?;
+        approve_service(client, signer, request_id, 50, None).await?;
     }
 
     // Get the new service ID from events
