@@ -1,22 +1,14 @@
-use async_trait::async_trait;
 use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
 use blueprint_sdk::contexts::tangle::TangleClientContext as _;
 use blueprint_sdk::macros::ext::clients::GadgetServicesClient as _;
-use blueprint_sdk::macros::ext::crypto::sp_core::SpEcdsa;
-use blueprint_sdk::macros::ext::keystore::backends::Backend;
-use blueprint_sdk::networking::networking::{Network, NetworkMultiplexer, ProtocolMessage};
-use blueprint_sdk::networking::{GossipMsgKeyPair, GossipMsgPublicKey};
-use blueprint_sdk::std::collections::BTreeMap;
 use blueprint_sdk::std::sync::Arc;
 use blueprint_sdk::stores::local_database::LocalDatabase;
 use gadget_context_derive::{
     EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext,
 };
-use round_based::ProtocolMessage as RoundBasedProtocolMessage;
-use serde::{Deserialize, Serialize};
 
 #[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 #[allow(dead_code)]
@@ -58,29 +50,4 @@ fn main() {
     };
 
     drop(body);
-}
-
-#[derive(RoundBasedProtocolMessage, Clone, Serialize, Deserialize)]
-enum StubMessage {}
-
-#[allow(dead_code)]
-struct StubNetwork;
-
-#[async_trait]
-impl Network for StubNetwork {
-    async fn next_message(&self) -> Option<ProtocolMessage> {
-        None
-    }
-
-    async fn send_message(
-        &self,
-        message: ProtocolMessage,
-    ) -> Result<(), blueprint_sdk::networking::error::Error> {
-        drop(message);
-        Ok(())
-    }
-
-    fn public_id(&self) -> GossipMsgPublicKey {
-        todo!()
-    }
 }
