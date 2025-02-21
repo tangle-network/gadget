@@ -157,8 +157,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     info!("~~~ Test AVS Started ~~~");
 
     let test_contract_address: Address = "{}".parse().expect("Invalid TEST_CONTRACT_ADDRESS");
+    info!("Test contract address: {{}}", test_contract_address);
     
     let temp_dir_str: String = "{}".to_string();
+    info!("Temp dir str: {{}}", temp_dir_str);
 
     // Create a provider
     let http_url = env.http_rpc_endpoint.clone();
@@ -170,6 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     let json: Value = serde_json::from_str(&json_content)?;
     let abi = json["abi"].to_string();
     let abi = alloy_json_abi::JsonAbi::from_json_str(&abi).unwrap();
+    info!("Successfully read ABI");
 
     // Create a contract instance
     let test_contract = alloy_contract::ContractInstance::<
@@ -181,6 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         provider.clone(),
         alloy_contract::Interface::new(abi),
     );
+    info!("Successfully created contract instance");
 
     // Test the getValue function
     let get_result = test_contract
@@ -189,6 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .call()
         .await
         .unwrap();
+    info!("Successfully called getValue function");
     
     let get_result_value: alloy_primitives::U256 =
         if let alloy_dyn_abi::DynSolValue::Uint(val, 256) = get_result[0] {{
@@ -214,8 +219,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .current_dir(&binary_dir)
         .output()
         .expect("Failed to build binary");
-
-    gadget_logging::info!("Build output: {:?}", build_output);
+    if !build_output.status.success() {
+        debug!("Cargo build output: {}", build_output);
+        panic!("Failed to build binary")
+    }
 
     let binary_path = binary_dir.join("target/release");
     assert!(
@@ -224,23 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         binary_path.display()
     );
 
-    // Create a directory listing to help debug
-    let entries = fs::read_dir(&binary_dir).unwrap();
-    for entry in entries {
-        if let Ok(entry) = entry {
-            gadget_logging::info!("Found: {}", entry.path().display());
-        }
-    }
-
-    // Also check target directory
-    if binary_dir.join("target").exists() {
-        let entries = fs::read_dir(binary_dir.join("target")).unwrap();
-        for entry in entries {
-            if let Ok(entry) = entry {
-                gadget_logging::info!("In target: {}", entry.path().display());
-            }
-        }
-    }
+    let binary_path = binary_path.join("testing");
 
     // Run the binary using the run command
     let config = ContextConfig::create_config(
@@ -256,7 +247,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     let run_opts = gadget_config::load(config).expect("Failed to load GadgetConfiguration");
 
     // Run the AVS
-    run_eigenlayer_avs(run_opts, SupportedChains::LocalTestnet).await?;
+    run_eigenlayer_avs(run_opts, SupportedChains::LocalTestnet, Some(binary_path)).await?;
 
     Ok(())
 }

@@ -151,6 +151,12 @@ pub enum BlueprintCommands {
         #[arg(short = 'k', long)]
         keystore_path: Option<PathBuf>,
 
+        /// The path to the AVS binary
+        /// 
+        /// If not provided, the binary will be built if possible
+        #[arg(short = 'b', long)]
+        binary_path: Option<PathBuf>,
+
         /// The network to connect to (local, testnet, mainnet)
         #[arg(short = 'w', long, default_value = "local")]
         network: String,
@@ -160,7 +166,7 @@ pub enum BlueprintCommands {
         data_dir: Option<PathBuf>,
 
         /// Optional bootnodes to connect to
-        #[arg(short = 'b', long)]
+        #[arg(short = 'n', long)]
         bootnodes: Option<Vec<String>>,
 
         /// Path to the protocol settings env file
@@ -346,6 +352,7 @@ async fn main() -> color_eyre::Result<()> {
                 protocol,
                 rpc_url,
                 keystore_path,
+                binary_path,
                 network,
                 data_dir,
                 bootnodes,
@@ -407,7 +414,7 @@ async fn main() -> color_eyre::Result<()> {
 
                 match protocol {
                     Protocol::Eigenlayer => {
-                        run_eigenlayer_avs(config, chain).await?;
+                        run_eigenlayer_avs(config, chain, binary_path).await?;
                     }
                     Protocol::Tangle => {
                         // Tangle implementation will go here
