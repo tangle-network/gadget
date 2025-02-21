@@ -10,4 +10,4 @@ solc_version = "0.8.20"
 recursive_deps = true
 
 [dependencies]
-tnt-core = { version = "0.2.0", git = "https://github.com/tangle-network/tnt-core.git", rev = "5de7c3a6336494a231cb86c2b7c32b81b274d5e6" }
+tnt-core = { version = "0.3.0" }
