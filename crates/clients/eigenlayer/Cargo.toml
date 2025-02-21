@@ -52,3 +52,6 @@ std = [
 	"gadget-client-core/std",
 	"url/std",
 ]
+
+[lints.clippy]
+large_enum_variant = "allow" # TODO

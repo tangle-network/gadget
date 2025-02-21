@@ -148,7 +148,7 @@ impl NetworkService {
         } = config;
 
         let peer_manager = Arc::new(PeerManager::new(allowed_keys));
-        let blueprint_protocol_name = format!("{network_name}/{instance_id}");
+        let blueprint_protocol_name = format!("/{network_name}/{instance_id}");
 
         let (network_sender, network_receiver) = crossbeam_channel::unbounded();
         let (protocol_message_sender, protocol_message_receiver) = crossbeam_channel::unbounded();

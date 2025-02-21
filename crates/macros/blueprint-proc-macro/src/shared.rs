@@ -67,6 +67,7 @@ fn base_type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
 
 /// Trait to convert a syn::Type to our FieldType, with special handling for arrays and debug logging.
 pub trait IntoFieldType {
+    #[allow(clippy::wrong_self_convention)]
     fn into_field_type(&self) -> syn::Result<FieldType>;
 }
 

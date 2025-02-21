@@ -1,5 +1,5 @@
-use crate::{key_types::Curve, tests::TestNode};
-use gadget_crypto::KeyType;
+use crate::tests::create_whitelisted_nodes;
+use crate::tests::TestNode;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
@@ -22,28 +22,10 @@ async fn test_automatic_handshake() {
     init_tracing();
     info!("Starting automatic handshake test");
 
-    let network_name = "test-network";
-    let instance_id = "test-instance";
-
-    // Generate node2's key pair first
-    let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
-    let mut allowed_keys1 = HashSet::new();
-    allowed_keys1.insert(instance_key_pair2.public());
-
-    // Create node1 with node2's key whitelisted
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]);
-
-    // Create node2 with node1's key whitelisted and pre-generated key
-    let mut allowed_keys2 = HashSet::new();
-    allowed_keys2.insert(node1.instance_key_pair.public());
-    let mut node2 = TestNode::new_with_keys(
-        network_name,
-        instance_id,
-        allowed_keys2,
-        vec![],
-        Some(instance_key_pair2),
-        None,
-    );
+    // Create nodes with whitelisted keys
+    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut node2 = nodes.pop().unwrap();
+    let mut node1 = nodes.pop().unwrap();
 
     info!("Starting nodes");
     // Start both nodes - this should trigger automatic handshake
@@ -81,8 +63,6 @@ async fn test_automatic_handshake() {
         peer_info2.identify_info.is_some(),
         "Missing identify info for node1"
     );
-
-    info!("Automatic handshake test completed successfully");
 }
 
 #[tokio::test]

@@ -133,6 +133,13 @@ pub struct GadgetConfiguration {
 }
 
 impl GadgetConfiguration {
+    /// Start a p2p network with the given `network_config`
+    ///
+    /// # Errors
+    ///
+    /// See [`NetworkService::new()`]
+    ///
+    /// [`NetworkService::new()`]: gadget_networking::NetworkService::new
     #[cfg(feature = "networking")]
     pub fn libp2p_start_network(
         &self,
@@ -148,7 +155,15 @@ impl GadgetConfiguration {
     }
 
     /// Returns a new `NetworkConfig` for the current environment.
+    ///
+    /// # Errors
+    ///
+    /// Missing the following keys in the keystore:
+    ///
+    /// * `Ed25519`
+    /// * `ECDSA`
     #[cfg(feature = "networking")]
+    #[allow(clippy::missing_panics_doc)] // Known good Multiaddr
     pub fn libp2p_network_config(
         &self,
         network_name: impl Into<String>,
@@ -198,6 +213,7 @@ impl GadgetConfiguration {
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
+///
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
@@ -205,6 +221,7 @@ pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     load_inner(config)
 }
 
+#[allow(clippy::too_many_lines)]
 fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
     tracing::info_span!("gadget");
     let ContextConfig {

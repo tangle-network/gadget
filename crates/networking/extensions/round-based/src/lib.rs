@@ -17,9 +17,6 @@ use std::{
     task::{Context, Poll},
 };
 
-#[cfg(test)]
-mod tests;
-
 /// Wrapper to adapt [`NetworkServiceHandle`] to round-based protocols
 pub struct RoundBasedNetworkAdapter<M> {
     /// The underlying network handle

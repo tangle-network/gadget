@@ -1,4 +1,5 @@
-use super::*;
+use super::Error;
+
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
@@ -39,11 +40,16 @@ impl Protocol {
     }
 
     /// Returns the protocol from the environment variable `PROTOCOL`.
+    ///
+    /// # Errors
+    ///
+    /// Infallible
     #[cfg(not(feature = "std"))]
     pub fn from_env() -> Result<Self, Error> {
         Ok(Protocol::default())
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Tangle => "tangle",
@@ -54,7 +60,7 @@ impl Protocol {
 }
 
 impl core::fmt::Display for Protocol {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
@@ -156,6 +162,7 @@ impl Default for ProtocolSettings {
 }
 
 impl ProtocolSettings {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             #[cfg(feature = "tangle")]
@@ -168,7 +175,13 @@ impl ProtocolSettings {
         }
     }
 
+    /// Attempt to extract the [`TangleInstanceSettings`]
+    ///
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Tangle`]
     #[cfg(feature = "tangle")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
     pub fn tangle(&self) -> Result<&TangleInstanceSettings, Error> {
         match self {
             Self::Tangle(settings) => Ok(settings),
@@ -176,7 +189,13 @@ impl ProtocolSettings {
         }
     }
 
+    /// Attempt to extract the [`EigenlayerContractAddresses`]
+    ///
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Eigenlayer`]
     #[cfg(feature = "eigenlayer")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
     pub fn eigenlayer(&self) -> Result<&EigenlayerContractAddresses, Error> {
         match self {
             Self::Eigenlayer(settings) => Ok(settings),
@@ -184,7 +203,13 @@ impl ProtocolSettings {
         }
     }
 
+    /// Attempt to extract the [`SymbioticContractAddresses`]
+    ///
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Symbiotic`]
     #[cfg(feature = "symbiotic")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
     pub fn symbiotic(&self) -> Result<&SymbioticContractAddresses, Error> {
         match self {
             Self::Symbiotic(settings) => Ok(settings),
@@ -193,16 +218,19 @@ impl ProtocolSettings {
     }
 
     #[cfg(feature = "tangle")]
+    #[must_use]
     pub fn from_tangle(settings: TangleInstanceSettings) -> Self {
         Self::Tangle(settings)
     }
 
     #[cfg(feature = "eigenlayer")]
+    #[must_use]
     pub fn from_eigenlayer(settings: EigenlayerContractAddresses) -> Self {
         Self::Eigenlayer(settings)
     }
 
     #[cfg(feature = "symbiotic")]
+    #[must_use]
     pub fn from_symbiotic(settings: SymbioticContractAddresses) -> Self {
         Self::Symbiotic(settings)
     }
