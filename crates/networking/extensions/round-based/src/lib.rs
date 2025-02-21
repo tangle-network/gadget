@@ -1,18 +1,11 @@
-#[cfg(test)]
-mod tests;
-
-use crossbeam_channel::{self, Receiver, Sender};
 use dashmap::DashMap;
-use futures::Future;
 use futures::{Sink, Stream};
 use gadget_networking::{
     key_types::InstanceMsgPublicKey,
     service_handle::NetworkServiceHandle,
     types::{ParticipantInfo, ProtocolMessage},
 };
-use round_based::{
-    Delivery, Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex,
-};
+use round_based::{Delivery, Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::HashMap,
@@ -23,6 +16,9 @@ use std::{
     },
     task::{Context, Poll},
 };
+
+#[cfg(test)]
+mod tests;
 
 /// Wrapper to adapt NetworkServiceHandle to round-based protocols
 pub struct RoundBasedNetworkAdapter<M> {
