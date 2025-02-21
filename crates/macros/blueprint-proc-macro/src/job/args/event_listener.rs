@@ -89,6 +89,7 @@ impl SingleListener {
 
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
+#[derive(Debug)]
 pub struct EventListenerArgs {
     pub(crate) listeners: Vec<SingleListener>,
 }
