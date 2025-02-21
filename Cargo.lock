@@ -2375,6 +2375,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33415e24172c1b7d6066f6d999545375ab8e1d95421d6784bdfff9496f292387"
 dependencies = [
  "bitcoin_hashes 0.13.0",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
 ]
@@ -3182,15 +3184,18 @@ dependencies = [
  "alloy-signer-local",
  "alloy-transport",
  "anyhow",
+ "bip39",
  "cargo-generate",
  "cargo_metadata 0.18.1",
  "clap",
  "clap-cargo",
  "color-eyre",
  "dialoguer",
+ "dotenv",
  "escargot",
  "gadget-blueprint-proc-macro-core",
  "gadget-clients",
+ "gadget-config",
  "gadget-crypto",
  "gadget-crypto-core",
  "gadget-keystore",
@@ -3200,14 +3205,17 @@ dependencies = [
  "gadget-utils",
  "gadget-utils-tangle",
  "hex",
+ "reqwest 0.12.12",
  "serde",
  "serde_json",
  "sp-core",
  "tangle-subxt",
  "tempfile",
+ "testcontainers",
  "thiserror 2.0.11",
  "tnt-bls",
  "tokio",
+ "toml 0.8.19",
  "tracing",
  "tracing-subscriber 0.3.19",
 ]
@@ -4740,6 +4748,12 @@ name = "doctest-file"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac81fa3e28d21450aa4d2ac065992ba96a1d7303efbce51a95f4fd175b67562"
+
+[[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "downcast-rs"

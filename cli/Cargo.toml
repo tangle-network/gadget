@@ -24,12 +24,17 @@ tokio = { workspace = true, features = ["full"] }
 hex = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 thiserror = { workspace = true }
+bip39 = { workspace = true, features = ["rand_core", "rand"] }
+dotenv = { workspace = true }
+reqwest = { workspace = true }
+toml = { workspace = true }
 
 # Gadget dependencies
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
+gadget-config = { workspace = true, features = ["std", "networking"] }
 dialoguer = { workspace = true, default-features = true }
 
 # Optional client dependencies
@@ -54,14 +59,19 @@ tnt-bls = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 
+# Anvil dependencies
+testcontainers = { workspace = true, optional = true }
+tempfile = { workspace = true }
+
 # EVM dependencies
 alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
-alloy-provider = { workspace = true, optional = true }
 alloy-network = { workspace = true, optional = true }
-alloy-rpc-types-eth = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true }
-alloy-transport = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
+alloy-contract = { workspace = true, optional = true }
+alloy-provider = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
+alloy-rpc-types-eth = { workspace = true, optional = true }
 
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
@@ -72,7 +82,7 @@ alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
 
 [features]
-default = ["std", "tangle"]
+default = ["std", "tangle", "eigenlayer"]
 std = [
     "gadget-blueprint-proc-macro-core/std",
     "gadget-clients/std",
@@ -102,10 +112,14 @@ eigenlayer = [
 # Core functionality features
 evm = [
     "alloy-json-abi",
-    "alloy-provider",
-    "alloy-network",
-    "alloy-rpc-types-eth",
-    "alloy-signer-local",
-    "alloy-transport",
     "alloy-primitives",
+    "alloy-contract",
+    "alloy-network",
+    "alloy-signer-local",
+    "alloy-provider",
+    "alloy-transport",
+    "alloy-rpc-types-eth",
+    "testcontainers",
+    "gadget-keystore/evm",
+    "gadget-clients/evm",
 ]

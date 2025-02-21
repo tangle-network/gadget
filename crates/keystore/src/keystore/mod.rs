@@ -170,6 +170,23 @@ impl Backend for Keystore {
         Ok(public)
     }
 
+    /// Insert a key pair
+    fn insert<T: KeyType>(&self, secret: &T::Secret) -> Result<()>
+    where
+        T::Public: DeserializeOwned,
+        T::Secret: DeserializeOwned,
+    {
+        let backends = self.get_storage_backends::<T>()?;
+        for entry in backends {
+            entry.storage.store_raw(
+                T::key_type_id(),
+                T::public_from_secret(secret).to_bytes(),
+                secret.to_bytes(),
+            )?;
+        }
+        Ok(())
+    }
+
     /// Generate a key pair from a string seed
     fn generate_from_string<T: KeyType>(&self, seed_str: &str) -> Result<T::Public>
     where

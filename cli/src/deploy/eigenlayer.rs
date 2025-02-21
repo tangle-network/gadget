@@ -1,8 +1,12 @@
 use alloy_primitives::Address;
 use color_eyre::Result;
 use dialoguer::{Confirm, Input, Select};
+use gadget_config::supported_chains::SupportedChains;
+use gadget_crypto::k256::K256Ecdsa;
+use gadget_crypto::KeyTypeId;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_logging::info;
-use gadget_std::env;
 use gadget_std::fs;
 use gadget_std::path::Path;
 use gadget_std::process::Command;
@@ -21,39 +25,79 @@ pub struct EigenlayerDeployOpts {
     pub(crate) constructor_args: Option<HashMap<String, Vec<String>>>,
     /// Whether to deploy contracts in an interactive ordered manner
     pub(crate) ordered_deployment: bool,
+    /// The type of the target chain
+    pub(crate) chain: SupportedChains,
+    /// The path to the keystore
+    pub(crate) keystore_path: String,
 }
 
 impl EigenlayerDeployOpts {
-    pub fn new(rpc_url: String, contracts_path: Option<String>, ordered_deployment: bool) -> Self {
+    pub fn new(
+        rpc_url: String,
+        contracts_path: Option<String>,
+        ordered_deployment: bool,
+        chain: SupportedChains,
+        keystore_path: Option<impl AsRef<Path>>,
+    ) -> Self {
+        let keystore_path = if keystore_path.is_none()
+            && chain == SupportedChains::LocalTestnet
+            && (rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost"))
+        {
+            // For local testnet with no specified keystore, use a temporary directory
+            let temp_dir = tempfile::tempdir()
+                .expect("Failed to create temporary directory")
+                .into_path();
+            temp_dir.to_string_lossy().to_string()
+        } else {
+            keystore_path
+                .map(|p| p.as_ref().to_string_lossy().to_string())
+                .unwrap_or_else(|| "./keystore".to_string())
+        };
+
         Self {
             rpc_url,
             contracts_path: contracts_path.unwrap_or_else(|| "./contracts".to_string()),
             constructor_args: None,
             ordered_deployment,
+            chain,
+            keystore_path,
         }
     }
 
     fn get_private_key(&self) -> Result<String> {
-        if self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost") {
+        let mut config = KeystoreConfig::new();
+        // Check if keystore exists and create it if it doesn't
+        if !Path::new(&self.keystore_path).exists() {
+            std::fs::create_dir_all(&self.keystore_path)?;
+        }
+        config = config.fs_root(&self.keystore_path);
+        let keystore = Keystore::new(config)?;
+
+        if (self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost"))
+            && self.chain == SupportedChains::LocalTestnet
+        {
             Ok("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string())
-        // Default Anvil private key
         } else {
-            env::var("EIGENLAYER_PRIVATE_KEY").map_err(|_| {
-                color_eyre::eyre::eyre!("EIGENLAYER_PRIVATE_KEY environment variable not set")
-            })
+            // Try to get the ECDSA key from the keystore
+            let keys = keystore.list_local::<K256Ecdsa>()?;
+            if keys.is_empty() {
+                println!(
+                    "No ECDSA key found at {}. Let's set one up.",
+                    self.keystore_path
+                );
+                let keys = crate::keys::prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
+                let (key_type, secret) = keys
+                    .first()
+                    .ok_or(color_eyre::eyre::eyre!("No ECDSA key found in keystore."))?;
+                let private_key = secret.clone();
+                let _public =
+                    crate::keys::import_key(*key_type, secret, Path::new(&self.keystore_path))?;
+                return Ok(private_key);
+            }
+
+            Err(color_eyre::eyre::eyre!("No ECDSA key found in keystore. Please add one using 'cargo tangle key import' or set EIGENLAYER_PRIVATE_KEY environment variable"))
         }
     }
-
-    // TODO: Implement verification flow using etherscan
-    // fn get_etherscan_key(&self) -> Result<Option<String>> {
-    //     if self.rpc_url.contains("127.0.0.1") || self.rpc_url.contains("localhost") {
-    //         Ok(None)
-    //     } else {
-    //         env::var("ETHERSCAN_API_KEY").map(Some).map_err(|_| {
-    //             color_eyre::eyre::eyre!("ETHERSCAN_API_KEY environment variable not set")
-    //         })
-    //     }
-    // }
 }
 
 fn parse_contract_path(contract_path: &str) -> Result<String> {
@@ -372,10 +416,11 @@ async fn deploy_single_contract(
 
     // Build the forge create command as a single string
     let mut cmd_str = format!(
-        "forge create {} --rpc-url {} --private-key {} --broadcast --evm-version shanghai",
+        "forge create {} --rpc-url {} --private-key {} --broadcast --evm-version shanghai --out {}",
         contract_name,
         opts.rpc_url,
-        opts.get_private_key()?
+        opts.get_private_key()?,
+        Path::new(&opts.contracts_path).join("out").display()
     );
 
     if let Some(args) = get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
