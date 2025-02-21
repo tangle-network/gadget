@@ -68,10 +68,6 @@ impl EigenlayerDeployOpts {
         let mut config = KeystoreConfig::new();
         // Check if keystore exists and create it if it doesn't
         if !Path::new(&self.keystore_path).exists() {
-            println!(
-                "Keystore not found at {}. Let's set up your keys.",
-                self.keystore_path
-            );
             std::fs::create_dir_all(&self.keystore_path)?;
         }
         config = config.fs_root(&self.keystore_path);
@@ -85,6 +81,10 @@ impl EigenlayerDeployOpts {
             // Try to get the ECDSA key from the keystore
             let keys = keystore.list_local::<K256Ecdsa>()?;
             if keys.is_empty() {
+                println!(
+                    "No ECDSA key found at {}. Let's set one up.",
+                    self.keystore_path
+                );
                 let keys = crate::keys::prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
                 let (key_type, secret) = keys
                     .first()

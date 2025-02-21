@@ -35,6 +35,11 @@ pub async fn run_eigenlayer_avs(config: GadgetConfiguration, chain: SupportedCha
     let binary_name = get_binary_name()?;
     let binary_path = target_dir.join(&binary_name);
 
+    println!(
+        "Running Eigenlayer AVS binary at: {}",
+        binary_path.display()
+    );
+
     // Always rebuild to ensure we have the latest version
     info!("Building AVS binary...");
     let status = Command::new("cargo")
@@ -45,6 +50,27 @@ pub async fn run_eigenlayer_avs(config: GadgetConfiguration, chain: SupportedCha
     if !status.success() {
         return Err(eyre!("Failed to build AVS binary"));
     }
+
+    // let dirs = fs::read_dir(".")
+    //     .expect("Failed to read current directory")
+    //     .filter_map(|entry| {
+    //         entry.ok().and_then(|e| {
+    //             if e.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+    //                 Some(e.file_name().to_str().unwrap().to_string())
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //     })
+    //     .collect::<Vec<_>>();
+    // println!("Current directories: {:#?}", dirs);
+
+    // if !binary_path.exists() {
+    //     return Err(eyre!(
+    //         "Binary does not exist at: {}. Try running `cargo build --release`",
+    //         binary_path.display()
+    //     ));
+    // }
 
     // Get contract addresses
     let contract_addresses = config
@@ -101,7 +127,10 @@ pub async fn run_eigenlayer_avs(config: GadgetConfiguration, chain: SupportedCha
         .arg("--rewards-coordinator")
         .arg(contract_addresses.rewards_coordinator_address.to_string());
 
-    let child = command.spawn()?;
+    assert!(target_dir.exists(), "Target directory does not exist");
+    // assert!(command.get_program().exists(), "Binary path does not exist");
+
+    let child = command.spawn().unwrap();
 
     info!("AVS is running with PID: {}", child.id());
     Ok(())
