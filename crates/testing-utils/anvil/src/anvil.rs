@@ -65,6 +65,8 @@ pub async fn start_anvil_container(
             "0",
             "--gas-price",
             "0",
+            "--code-size-limit",
+            "50000",
             "--hardfork",
             "shanghai",
         ])
