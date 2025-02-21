@@ -6577,7 +6577,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "blueprint-sdk",
  "gadget-blueprint-proc-macro-core",
@@ -6594,7 +6594,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "cid",
  "ethereum-types",

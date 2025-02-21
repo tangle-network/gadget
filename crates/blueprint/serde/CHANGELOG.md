@@ -44,7 +44,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `blueprint-serde` crate ([#429](https://github.com/tangle-network/gadget/pull/429))
-
-### Other
-
-- add description to crates ([#444](https://github.com/tangle-network/gadget/pull/444))
