@@ -1,9 +1,7 @@
 use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use crate::run::eigenlayer::run_eigenlayer_avs;
 use color_eyre::eyre::Result;
-use gadget_blueprint_proc_macro_core::Gadget;
 use gadget_config::supported_chains::SupportedChains;
-use gadget_config::GadgetConfiguration;
 use gadget_config::{
     protocol::EigenlayerContractAddresses, protocol::ProtocolSettings, ContextConfig, Protocol,
 };
@@ -111,6 +109,7 @@ evm_version = 'shanghai'"#,
     fs::create_dir_all(&binary_dir)?;
 
     // Create Cargo.toml for the binary
+    #[allow(clippy::useless_format)]
     let cargo_toml = format!(
         r#"[package]
 name = "testing"
@@ -142,11 +141,15 @@ serde_json = "1.0"
     // Create src directory for the binary
     fs::create_dir_all(binary_dir.join("src"))?;
 
+    // Create a success file path
+    let success_file = temp_dir.path().join("run_succeeded");
+    let success_file_str = success_file.to_string_lossy();
+
     // Create the binary that will interact with the contract
     let main_rs = format!(
         r#"use blueprint_sdk::alloy::primitives::Address;
 use blueprint_sdk::logging::info;
-use blueprint_sdk::std::{{string::ToString, env, fs, path::PathBuf}};
+use blueprint_sdk::std::{{string::ToString, fs, path::PathBuf}};
 use alloy_sol_types::sol;
 use alloy_transport::BoxTransport;
 use alloy_provider::RootProvider;
@@ -206,16 +209,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     info!("Contract returned value: {{}}", get_result_value);
 
     if get_result_value == alloy_primitives::U256::from({}) {{
-        info!("Setting RUN_SUCCEEDED to 1");
-        std::env::set_var("RUN_SUCCEEDED", "1");
+        info!("Writing success file");
+        fs::write("{}", "")?;
     }}
 
     Ok(())
 }}
 "#,
         test_contract_address,
-        temp_dir.path().display().to_string(),
+        temp_dir.path().display(),
         expected_value,
+        success_file_str
     );
     fs::write(binary_dir.join("src/main.rs"), main_rs)?;
 
@@ -254,20 +258,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     let run_opts = gadget_config::load(config).expect("Failed to load GadgetConfiguration");
 
     // Run the AVS
-    run_eigenlayer_avs(run_opts, SupportedChains::LocalTestnet, Some(binary_path)).await?;
+    let mut child =
+        run_eigenlayer_avs(run_opts, SupportedChains::LocalTestnet, Some(binary_path)).await?;
 
+    // Update the success detection loop
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(2000));
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: u32 = 30; // 60 seconds total timeout
+
     loop {
-        gadget_logging::info!("Waiting for run to succeed");
-        let var = std::env::var("RUN_SUCCEEDED").ok();
-        if let Some(val) = var {
-            if val == "1" {
-                gadget_logging::info!("Run succeeded");
-                break;
-            }
+        gadget_logging::info!(
+            "Waiting for run to succeed (attempt {}/{})",
+            attempts + 1,
+            MAX_ATTEMPTS
+        );
+
+        if success_file.exists() {
+            gadget_logging::info!("Run succeeded!");
+            break;
         }
+
+        attempts += 1;
+        if attempts >= MAX_ATTEMPTS {
+            panic!("Test timed out waiting for success file");
+        }
+
         interval.tick().await;
     }
+
+    child.wait().unwrap();
 
     Ok(())
 }

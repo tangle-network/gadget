@@ -2,7 +2,7 @@ use color_eyre::eyre::{eyre, Result};
 use gadget_config::{supported_chains::SupportedChains, GadgetConfiguration};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
 use toml::Value;
 use tracing::info;
 
@@ -34,7 +34,7 @@ pub async fn run_eigenlayer_avs(
     config: GadgetConfiguration,
     chain: SupportedChains,
     binary_path: Option<PathBuf>,
-) -> Result<()> {
+) -> Result<Child> {
     let binary_path = if let Some(path) = binary_path {
         path
     } else {
@@ -121,5 +121,5 @@ pub async fn run_eigenlayer_avs(
     let child = command.spawn().unwrap();
 
     println!("AVS is running with PID: {}", child.id());
-    Ok(())
+    Ok(child)
 }

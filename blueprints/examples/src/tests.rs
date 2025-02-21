@@ -112,10 +112,6 @@ async fn test_eigenlayer_context() {
         env.clone(),
     );
 
-    loop {
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-    }
-
     let result = timeout(Duration::from_secs(90), async {
         tokio::select! {
             _ = blueprint
