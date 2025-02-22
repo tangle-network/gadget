@@ -88,6 +88,18 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
         .alloy_address()
         .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
+    gadget_logging::info!("About to build avs registry chain reader");
+    gadget_logging::info!("Operator address: {}", operator_address);
+    gadget_logging::info!(
+        "Registry coordinator address: {}",
+        registry_coordinator_address
+    );
+    gadget_logging::info!(
+        "Operator state retriever address: {}",
+        operator_state_retriever_address
+    );
+    gadget_logging::info!("Http RPC endpoint: {}", env.http_rpc_endpoint);
+
     let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
         get_test_logger(),
         registry_coordinator_address,
@@ -95,7 +107,8 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
         env.http_rpc_endpoint.clone(),
     )
     .await
-    .map_err(EigenlayerError::AvsRegistry)?;
+    .map_err(EigenlayerError::AvsRegistry)
+    .unwrap();
 
     // Check if the operator has already registered for the service
     match avs_registry_reader
@@ -109,9 +122,11 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
 
 async fn register_bls_impl(
     env: &GadgetConfiguration,
-    earnings_receiver_address: Address,
+    _earnings_receiver_address: Address,
     delegation_approver_address: Address,
 ) -> Result<(), Error> {
+    gadget_logging::setup_log();
+
     let contract_addresses = match env.protocol_settings {
         ProtocolSettings::Eigenlayer(addresses) => addresses,
         _ => {
@@ -144,11 +159,11 @@ async fn register_bls_impl(
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
     let delegation_manager =
-        eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+        eigensdk::utils::rewardsv2::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
             delegation_manager_address,
             provider.clone(),
         );
-    let slasher_address = delegation_manager
+    let _slasher_address = delegation_manager
         .slasher()
         .call()
         .await
@@ -156,6 +171,20 @@ async fn register_bls_impl(
         .map_err(EigenlayerError::Contract)?;
 
     let logger = get_test_logger();
+
+    gadget_logging::info!("About to build avs registry chain writer");
+    gadget_logging::info!("Operator address: {}", operator_address);
+    gadget_logging::info!("Operator private key: {}", operator_private_key);
+    gadget_logging::info!(
+        "Registry coordinator address: {}",
+        registry_coordinator_address
+    );
+    gadget_logging::info!(
+        "Operator state retriever address: {}",
+        operator_state_retriever_address
+    );
+    gadget_logging::info!("Http RPC endpoint: {}", env.http_rpc_endpoint);
+
     let avs_registry_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
         logger.clone(),
         env.http_rpc_endpoint.clone(),
@@ -164,7 +193,8 @@ async fn register_bls_impl(
         operator_state_retriever_address,
     )
     .await
-    .map_err(EigenlayerError::AvsRegistry)?;
+    .map_err(EigenlayerError::AvsRegistry)
+    .unwrap();
 
     let bn254_public = env.keystore().iter_bls_bn254().next().unwrap();
     let bn254_secret = env
@@ -192,16 +222,20 @@ async fn register_bls_impl(
 
     let el_chain_reader = ELChainReader::new(
         logger,
-        slasher_address,
+        None,
         delegation_manager_address,
         rewards_coordinator_address,
         avs_directory_address,
+        None,
         env.http_rpc_endpoint.clone(),
     );
 
     let el_writer = ELChainWriter::new(
         strategy_manager_address,
         rewards_coordinator_address,
+        None,
+        None,
+        registry_coordinator_address,
         el_chain_reader,
         env.http_rpc_endpoint.clone(),
         operator_private_key,
@@ -210,10 +244,11 @@ async fn register_bls_impl(
     let staker_opt_out_window_blocks = 50400u32;
     let operator_details = Operator {
         address: operator_address,
-        earnings_receiver_address,
         delegation_approver_address,
-        metadata_url: Some("https://github.com/tangle-network/gadget".to_string()),
-        staker_opt_out_window_blocks,
+        metadata_url: "https://github.com/tangle-network/gadget".to_string(),
+        allocation_delay: None,
+        _deprecated_earnings_receiver_address: None,
+        staker_opt_out_window_blocks: Some(staker_opt_out_window_blocks),
     };
 
     let tx_hash = el_writer

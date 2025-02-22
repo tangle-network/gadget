@@ -1,8 +1,10 @@
 use color_eyre::eyre::{eyre, Result};
 use gadget_config::{supported_chains::SupportedChains, GadgetConfiguration};
-use std::fs;
-use std::path::PathBuf;
-use std::process::{Child, Command};
+use gadget_std::fs;
+use gadget_std::path::PathBuf;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
+use tokio::process::{Child, Command};
 use toml::Value;
 use tracing::info;
 
@@ -54,7 +56,8 @@ pub async fn run_eigenlayer_avs(
         let status = Command::new("cargo")
             .arg("build")
             .arg("--release")
-            .status()?;
+            .status()
+            .await?;
 
         if !status.success() {
             return Err(eyre!("Failed to build AVS binary"));
@@ -118,8 +121,47 @@ pub async fn run_eigenlayer_avs(
 
     assert!(binary_path.exists(), "Binary path does not exist");
 
-    let child = command.spawn().unwrap();
+    let mut child = command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
 
-    println!("AVS is running with PID: {}", child.id());
+    // Handle stdout
+    let stdout = child.stdout.take().expect("Failed to capture stdout");
+    let mut stdout_reader = BufReader::new(stdout).lines();
+
+    // Handle stderr
+    let stderr = child.stderr.take().expect("Failed to capture stderr");
+    let mut stderr_reader = BufReader::new(stderr).lines();
+
+    // Spawn tasks to handle stdout and stderr
+    let stdout_task = tokio::spawn(async move {
+        while let Some(line) = stdout_reader
+            .next_line()
+            .await
+            .expect("Failed to read stdout")
+        {
+            println!("{}", line);
+        }
+    });
+
+    let stderr_task = tokio::spawn(async move {
+        while let Some(line) = stderr_reader
+            .next_line()
+            .await
+            .expect("Failed to read stderr")
+        {
+            eprintln!("{}", line);
+        }
+    });
+
+    // Wait for both tasks to complete
+    let _ = tokio::join!(stdout_task, stderr_task);
+
+    println!(
+        "AVS is running with PID: {}",
+        child.id().unwrap_or_default()
+    );
     Ok(child)
 }

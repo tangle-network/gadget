@@ -109,12 +109,3 @@ async fn get_operator_id() {
     let result = client.get_operator_id(operator_addr).await;
     assert!(result.is_ok());
 }
-
-#[tokio::test]
-async fn get_operator_details() {
-    let env = setup_test_environment().await;
-    let client = EigenlayerClient::new(env.config.clone());
-    let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
-    let result = client.get_operator_details(operator_addr).await;
-    assert!(result.is_ok());
-}

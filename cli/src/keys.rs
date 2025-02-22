@@ -1,7 +1,9 @@
 use bip39::{Language, Mnemonic};
 use color_eyre::eyre::Result;
 use dialoguer::{Input, Select};
+use gadget_config::Protocol;
 use gadget_crypto::bn254::{ArkBlsBn254Public, ArkBlsBn254Secret};
+use gadget_crypto::k256::{K256Ecdsa, K256SigningKey};
 use gadget_crypto::sp_core::{
     SpBls377, SpBls377Pair, SpBls377Public, SpBls381, SpBls381Pair, SpBls381Public, SpEcdsa,
     SpEcdsaPair, SpEcdsaPublic, SpEd25519, SpEd25519Pair, SpEd25519Public, SpSr25519,
@@ -157,7 +159,12 @@ pub fn generate_mnemonic(word_count: Option<u32>) -> Result<String> {
     Ok(mnemonic.to_string())
 }
 
-pub fn import_key(key_type: KeyTypeId, secret: &str, keystore_path: &Path) -> Result<String> {
+pub fn import_key(
+    protocol: gadget_config::Protocol,
+    key_type: KeyTypeId,
+    secret: &str,
+    keystore_path: &Path,
+) -> Result<String> {
     let mut config = KeystoreConfig::new();
     config = config.fs_root(keystore_path);
     let keystore = Keystore::new(config)?;
@@ -175,11 +182,18 @@ pub fn import_key(key_type: KeyTypeId, secret: &str, keystore_path: &Path) -> Re
             keystore.insert::<SpEd25519>(&key)?;
             hex::encode(key.public().to_bytes())
         }
-        KeyTypeId::Ecdsa => {
-            let key = SpEcdsaPair::from_bytes(&secret_bytes)?;
-            keystore.insert::<SpEcdsa>(&key)?;
-            hex::encode(key.public().to_bytes())
-        }
+        KeyTypeId::Ecdsa => match protocol {
+            Protocol::Tangle => {
+                let key = SpEcdsaPair::from_bytes(&secret_bytes)?;
+                keystore.insert::<SpEcdsa>(&key)?;
+                hex::encode(key.public().to_bytes())
+            }
+            _ => {
+                let key = K256SigningKey::from_bytes(&secret_bytes)?;
+                keystore.insert::<K256Ecdsa>(&key)?;
+                hex::encode(key.public().to_bytes())
+            }
+        },
         KeyTypeId::Bls381 => {
             let key = SpBls381Pair::from_bytes(&secret_bytes)?;
             keystore.insert::<SpBls381>(&key)?;
@@ -259,6 +273,9 @@ pub fn list_keys(keystore_path: &Path) -> Result<Vec<(KeyTypeId, String)>> {
         keys.push((KeyTypeId::Ed25519, hex::encode(key.to_bytes())));
     }
     for key in keystore.list_local::<SpEcdsa>()? {
+        keys.push((KeyTypeId::Ecdsa, hex::encode(key.to_bytes())));
+    }
+    for key in keystore.list_local::<K256Ecdsa>()? {
         keys.push((KeyTypeId::Ecdsa, hex::encode(key.to_bytes())));
     }
     for key in keystore.list_local::<SpBls381>()? {

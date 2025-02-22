@@ -1,7 +1,9 @@
+use crate::keys::import_key;
 use alloy_primitives::Address;
 use color_eyre::Result;
 use dialoguer::{Confirm, Input, Select};
 use gadget_config::supported_chains::SupportedChains;
+use gadget_config::Protocol;
 use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::KeyTypeId;
 use gadget_keystore::backends::Backend;
@@ -90,14 +92,40 @@ impl EigenlayerDeployOpts {
                     .first()
                     .ok_or(color_eyre::eyre::eyre!("No ECDSA key found in keystore."))?;
                 let private_key = secret.clone();
-                let _public =
-                    crate::keys::import_key(*key_type, secret, Path::new(&self.keystore_path))?;
+                let _public = crate::keys::import_key(
+                    Protocol::Eigenlayer,
+                    *key_type,
+                    secret,
+                    Path::new(&self.keystore_path),
+                )?;
                 return Ok(private_key);
             }
 
             Err(color_eyre::eyre::eyre!("No ECDSA key found in keystore. Please add one using 'cargo tangle key import' or set EIGENLAYER_PRIVATE_KEY environment variable"))
         }
     }
+}
+
+/// Initializes the test keystore with Anvil's Account 0. Generating the `./test-keystore` directory if it doesn't exist
+///
+/// Returns the path to the Temporary Directory, which must be kept alive as long as the keystore needs to be accessed.
+pub fn initialize_test_keystore() -> Result<()> {
+    // For local testnet with no specified keystore, use a temporary directory
+    let keystore_path = Path::new("./test-keystore");
+    let mut config = KeystoreConfig::new();
+    if !keystore_path.exists() {
+        fs::create_dir_all(&keystore_path)?;
+    }
+    config = config.fs_root(&keystore_path);
+    let _keystore = Keystore::new(config)?;
+    // TODO: Add support for Tangle here, taking the protocol as an input and controlling the key type and key input(s)
+    import_key(
+        Protocol::Eigenlayer,
+        KeyTypeId::Ecdsa,
+        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        &keystore_path,
+    )?;
+    Ok(())
 }
 
 fn parse_contract_path(contract_path: &str) -> Result<String> {
@@ -472,12 +500,12 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
     let contract_files = find_contract_files(&opts.contracts_path)?;
 
     if opts.ordered_deployment {
-        info!("Starting ordered deployment of contracts...");
+        println!("Starting ordered deployment of contracts...");
 
         let mut remaining_contracts = contract_files.clone();
         while !remaining_contracts.is_empty() {
             let selected_contract = select_next_contract(&remaining_contracts)?;
-            info!("Selected contract: {}", selected_contract);
+            println!("Selected contract: {}", selected_contract);
 
             let (contract_name, address) = deploy_single_contract(opts, &selected_contract).await?;
             deployed_addresses.insert(contract_name, address);
@@ -486,7 +514,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
             remaining_contracts.retain(|c| c != &selected_contract);
         }
     } else {
-        info!("Finding contracts to deploy...");
+        println!("Finding contracts to deploy...");
 
         for contract_path in contract_files {
             let (contract_name, address) = deploy_single_contract(opts, &contract_path).await?;
@@ -498,11 +526,11 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
 }
 
 pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
-    info!("Deploying contracts to EigenLayer...");
+    println!("Beginning contract deployment");
     let addresses = deploy_avs_contracts(&opts).await?;
-    info!("Successfully deployed contracts:");
+    println!("Successfully deployed contracts:");
     for (contract, address) in addresses {
-        info!("{}: {}", contract, address);
+        println!("{}: {}", contract, address);
     }
     Ok(())
 }

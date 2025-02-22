@@ -1,8 +1,13 @@
 use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_primitives::{address, Uint};
 use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
 use alloy_transport::Transport;
+use eigensdk::utils::rewardsv2::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
+use eigensdk::utils::rewardsv2::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
+use eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator;
+use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
@@ -19,6 +24,7 @@ mod error;
 mod state;
 
 pub use error::Error;
+use gadget_utils_evm::get_provider_http;
 pub use state::{get_default_state, get_default_state_json, AnvilState};
 
 pub type Container = ContainerAsync<GenericImage>;
@@ -53,6 +59,8 @@ pub async fn start_anvil_container(
             "0",
             "--gas-price",
             "0",
+            "--code-size-limit",
+            "50000",
             "--hardfork",
             "shanghai",
         ])
@@ -66,7 +74,7 @@ pub async fn start_anvil_container(
             let mut reader = reader;
             let mut buffer = String::new();
             while reader.read_line(&mut buffer).await.unwrap() > 0 {
-                println!("{:?}", buffer);
+                info!("{:?}", buffer);
                 buffer.clear();
             }
         });
@@ -85,6 +93,41 @@ pub async fn start_anvil_container(
     println!("Anvil HTTP endpoint: {}", http_endpoint);
     let ws_endpoint = format!("ws://localhost:{}", port);
     println!("Anvil WS endpoint: {}", ws_endpoint);
+
+    let provider = get_provider_http(&http_endpoint);
+
+    // Some setup is required before we can interact with the contract
+    let accounts = provider.get_accounts().await.unwrap();
+    let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
+        .await
+        .unwrap();
+    let pauser_registry_address = *pauser_registry.address();
+    println!("Pauser Registry address: {}", pauser_registry_address);
+
+    let registry_coordinator_address =
+        alloy_primitives::address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
+    let registry_coordinator =
+        RegistryCoordinator::new(registry_coordinator_address, provider.clone());
+
+    let operator_set_params = OperatorSetParam {
+        maxOperatorCount: 10,
+        kickBIPsOfOperatorStake: 100,
+        kickBIPsOfTotalStake: 1000,
+    };
+    let erc20_mock_address = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
+    let strategy_params = StrategyParams {
+        strategy: erc20_mock_address,
+        multiplier: Uint::from(1),
+    };
+
+    info!("Creating Quorum");
+    let _receipt = get_receipt(registry_coordinator.createQuorum(
+        operator_set_params,
+        Uint::from(0),
+        vec![strategy_params],
+    ))
+    .await
+    .unwrap();
 
     (container, http_endpoint, ws_endpoint, Some(temp_dir))
 }

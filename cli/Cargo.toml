@@ -58,6 +58,9 @@ tnt-bls = { workspace = true, optional = true }
 # Optional dependencies based on features
 tangle-subxt = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
+gadget-eigenlayer-bindings = { workspace = true, default-features = true, optional = true }
+eigensdk = { workspace = true, optional = true }
+gadget-utils-evm = { workspace = true, optional = true }
 
 # Anvil dependencies
 testcontainers = { workspace = true, optional = true }
@@ -106,6 +109,8 @@ tangle = [
 eigenlayer = [
     "gadget-clients/eigenlayer",
     "gadget-keystore/eigenlayer-full",
+    "gadget-eigenlayer-bindings",
+    "eigensdk",
     "evm",
 ]
 
@@ -120,6 +125,7 @@ evm = [
     "alloy-transport",
     "alloy-rpc-types-eth",
     "testcontainers",
+    "gadget-utils-evm",
     "gadget-keystore/evm",
     "gadget-clients/evm",
 ]

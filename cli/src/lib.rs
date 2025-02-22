@@ -1,3 +1,4 @@
+#[cfg(feature = "eigenlayer")]
 pub mod anvil;
 pub mod create;
 pub mod deploy;
