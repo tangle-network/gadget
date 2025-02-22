@@ -392,8 +392,8 @@ pub struct NodeHandle {
     pub port: u16,
     pub client: TangleClient,
     pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
-    pub state: Arc<RwLock<NodeState>>,
-    pub command_tx: mpsc::Sender<NodeCommand>,
+    state: Arc<RwLock<NodeState>>,
+    command_tx: mpsc::Sender<NodeCommand>,
     pub test_env: Arc<RwLock<TangleTestEnv>>,
 }
 

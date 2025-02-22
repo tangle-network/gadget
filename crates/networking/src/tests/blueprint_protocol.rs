@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_lines)]
+
 use crate::{
     key_types::Curve,
     service_handle::NetworkServiceHandle,
@@ -44,7 +46,7 @@ fn create_protocol_message<T: Serialize>(
 fn extract_number_from_message(msg: &ProtocolMessage) -> u64 {
     match bincode::deserialize::<SummationMessage>(&msg.payload).expect("Failed to deserialize") {
         SummationMessage::Number(n) => n,
-        _ => panic!("Expected number message"),
+        SummationMessage::Verification { .. } => panic!("Expected number message"),
     }
 }
 
@@ -52,7 +54,7 @@ fn extract_number_from_message(msg: &ProtocolMessage) -> u64 {
 fn extract_sum_from_verification(msg: &ProtocolMessage) -> u64 {
     match bincode::deserialize::<SummationMessage>(&msg.payload).expect("Failed to deserialize") {
         SummationMessage::Verification { sum } => sum,
-        _ => panic!("Expected verification message"),
+        SummationMessage::Number(_) => panic!("Expected verification message"),
     }
 }
 
@@ -161,9 +163,9 @@ async fn test_summation_protocol_basic() {
     .await
     .expect("Timeout waiting for summation completion");
 
-    /// --------------------------------------------- ///
-    ///      ROUND 2: VERIFY NUMBERS AND GOSSIP
-    /// --------------------------------------------- ///
+    // -----------------------------------------------
+    //      ROUND 2: VERIFY NUMBERS AND GOSSIP
+    // -----------------------------------------------
     let message_id = 1;
     let round_id = 1;
 
@@ -292,7 +294,7 @@ async fn test_summation_protocol_multi_node() {
             message_id,
             round_id,
             ParticipantInfo {
-                id: ParticipantId(i as u16),
+                id: ParticipantId(u16::try_from(i as u16).unwrap()),
                 public_key: Some(nodes[i].instance_key_pair.public()),
             },
             None,
@@ -353,7 +355,7 @@ async fn test_summation_protocol_multi_node() {
     info!("Final sums: {:?}", sums);
     // Each node verifies with every other node
     for (i, sender) in handles.iter().enumerate() {
-        for (j, recipient) in handles.iter().enumerate() {
+        for (j, _) in handles.iter().enumerate() {
             if i != j {
                 info!(
                     "Node {} sending verification sum {} to node {}",
@@ -364,11 +366,11 @@ async fn test_summation_protocol_multi_node() {
                     message_id,
                     round_id,
                     ParticipantInfo {
-                        id: ParticipantId(i as u16),
+                        id: ParticipantId(u16::try_from(i as u16).unwrap()),
                         public_key: Some(nodes[i].instance_key_pair.public()),
                     },
                     Some(ParticipantInfo {
-                        id: ParticipantId(j as u16),
+                        id: ParticipantId(u16::try_from(j as u16).unwrap()),
                         public_key: Some(nodes[j].instance_key_pair.public()),
                     }),
                 );
