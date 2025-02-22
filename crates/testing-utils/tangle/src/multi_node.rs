@@ -25,23 +25,23 @@ use tangle_subxt::subxt::tx::Signer;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
 
 #[derive(Clone, Debug)]
-enum NodeSlot {
+pub enum NodeSlot {
     Occupied(Arc<NodeHandle>),
     Empty,
 }
 
 /// Improved multi-node test environment with better control and observability
 pub struct MultiNodeTestEnv {
-    nodes: Arc<RwLock<Vec<NodeSlot>>>,
-    command_tx: mpsc::Sender<EnvironmentCommand>,
-    event_tx: broadcast::Sender<TestEvent>,
-    config: Arc<TangleTestConfig>,
-    initialized_tx: Option<oneshot::Sender<()>>,
-    running_nodes: Arc<AtomicUsize>,
+    pub nodes: Arc<RwLock<Vec<NodeSlot>>>,
+    pub command_tx: mpsc::Sender<EnvironmentCommand>,
+    pub event_tx: broadcast::Sender<TestEvent>,
+    pub config: Arc<TangleTestConfig>,
+    pub initialized_tx: Option<oneshot::Sender<()>>,
+    pub running_nodes: Arc<AtomicUsize>,
 }
 
 #[derive(Debug)]
-enum EnvironmentCommand {
+pub enum EnvironmentCommand {
     AddNode {
         node_id: usize,
         result_tx: oneshot::Sender<Result<(), Error>>,
@@ -387,14 +387,14 @@ impl Debug for NodeCommand {
 
 /// Represents a single node in the multi-node test environment
 pub struct NodeHandle {
-    node_id: usize,
-    addr: Multiaddr,
-    port: u16,
-    client: TangleClient,
-    signer: TanglePairSigner<sp_core::sr25519::Pair>,
-    state: Arc<RwLock<NodeState>>,
-    command_tx: mpsc::Sender<NodeCommand>,
-    test_env: Arc<RwLock<TangleTestEnv>>,
+    pub node_id: usize,
+    pub addr: Multiaddr,
+    pub port: u16,
+    pub client: TangleClient,
+    pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
+    pub state: Arc<RwLock<NodeState>>,
+    pub command_tx: mpsc::Sender<NodeCommand>,
+    pub test_env: Arc<RwLock<TangleTestEnv>>,
 }
 
 impl NodeHandle {
