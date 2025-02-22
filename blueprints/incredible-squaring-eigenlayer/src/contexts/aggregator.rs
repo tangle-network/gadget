@@ -25,7 +25,6 @@ use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::common::get_provider;
 use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
-use eigensdk::services_blsaggregation::bls_agg::{AggregateReceiver, ServiceHandle, TaskSignature};
 use eigensdk::services_blsaggregation::{
     bls_agg::BlsAggregatorService, bls_aggregation_service_response::BlsAggregationServiceResponse,
 };
@@ -43,8 +42,7 @@ pub struct AggregatorContext {
     pub task_manager_address: Address,
     pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
     pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
-    pub bls_aggregation_service_handle: Option<Arc<Mutex<ServiceHandle>>>,
-    pub bls_aggregation_aggregate_receiver: Option<Arc<Mutex<AggregateReceiver>>>,
+    pub bls_aggregation_service: Option<Arc<Mutex<BlsAggServiceInMemory>>>,
     pub http_rpc_url: String,
     pub wallet: EthereumWallet,
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
@@ -65,8 +63,7 @@ impl AggregatorContext {
             task_manager_address,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             tasks_responses: Arc::new(Mutex::new(HashMap::new())),
-            bls_aggregation_service_handle: None,
-            bls_aggregation_aggregate_receiver: None,
+            bls_aggregation_service: None,
             http_rpc_url: sdk_config.http_rpc_endpoint.clone(),
             wallet,
             response_cache: Arc::new(Mutex::new(VecDeque::new())),
@@ -82,11 +79,7 @@ impl AggregatorContext {
             .bls_aggregation_service_in_memory()
             .await
             .map_err(|e| Error::Context(e.to_string()))?;
-        let (service_handle, aggregate_receiver) = bls_service.start();
-        aggregator_context.bls_aggregation_service_handle =
-            Some(Arc::new(Mutex::new(service_handle)));
-        aggregator_context.bls_aggregation_aggregate_receiver =
-            Some(Arc::new(Mutex::new(aggregate_receiver)));
+        aggregator_context.bls_aggregation_service = Some(Arc::new(Mutex::new(bls_service)));
 
         Ok(aggregator_context)
     }
@@ -337,10 +330,8 @@ impl AggregatorContext {
             "Processing signed task response for task index: {}, task response digest: {}",
             task_index, task_response_digest
         );
-        let task_signature =
-            TaskSignature::new(task_index, task_response_digest, signature, operator_id);
 
-        self.bls_aggregation_service_handle
+        self.bls_aggregation_service
             .as_ref()
             .ok_or_else(|| {
                 std::io::Error::new(
@@ -351,7 +342,7 @@ impl AggregatorContext {
             .map_err(|e| Error::Context(e.to_string()))?
             .lock()
             .await
-            .process_signature(task_signature)
+            .process_new_signature(task_index, task_response_digest, signature, operator_id)
             .await
             .map_err(|e| Error::Context(e.to_string()))?;
 
@@ -364,8 +355,8 @@ impl AggregatorContext {
             task_index
         );
 
-        let aggregated_response = self
-            .bls_aggregation_aggregate_receiver
+        if let Some(aggregated_response) = self
+            .bls_aggregation_service
             .as_ref()
             .ok_or_else(|| {
                 std::io::Error::new(
@@ -376,11 +367,15 @@ impl AggregatorContext {
             .map_err(|e| Error::Context(e.to_string()))?
             .lock()
             .await
-            .receive_aggregated_response()
-            .await;
-
-        let response = aggregated_response.map_err(|e| Error::Context(e.to_string()))?;
-        self.send_aggregated_response_to_contract(response).await?;
+            .aggregated_response_receiver
+            .lock()
+            .await
+            .recv()
+            .await
+        {
+            let response = aggregated_response.map_err(|e| Error::Context(e.to_string()))?;
+            self.send_aggregated_response_to_contract(response).await?;
+        }
         Ok(())
     }
 

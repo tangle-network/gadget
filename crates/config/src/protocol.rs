@@ -113,14 +113,14 @@ pub struct EigenlayerContractAddresses {
 impl Default for EigenlayerContractAddresses {
     fn default() -> Self {
         Self {
-            registry_coordinator_address: address!("9E545E3C0baAB3E08CdfD552C960A1050f373042"),
-            operator_state_retriever_address: address!("f5059a5D33d5853360D16C683c16e67980206f36"),
-            delegation_manager_address: address!("Dc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
-            service_manager_address: address!("c3e53F4d16Ae77Db1c982e75a937B9f60FE63690"),
-            stake_registry_address: address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"),
-            strategy_manager_address: address!("5FC8d32690cc91D4c39d9d3abcBD16989F875707"),
-            avs_directory_address: address!("0165878A594ca255338adfa4d48449f69242Eb8F"),
-            rewards_coordinator_address: address!("8A791620dd6260079BF849Dc5567aDC3F2FdC318"),
+            registry_coordinator_address: address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690"),
+            operator_state_retriever_address: address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8"),
+            delegation_manager_address: address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"),
+            service_manager_address: address!("0000000000000000000000000000000000000000"),
+            stake_registry_address: address!("0000000000000000000000000000000000000000"),
+            strategy_manager_address: address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"),
+            avs_directory_address: address!("0000000000000000000000000000000000000000"),
+            rewards_coordinator_address: address!("0000000000000000000000000000000000000000"),
         }
     }
 }

@@ -263,7 +263,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { version = "0.4.0", default-features = false }
+eigensdk = { version = "0.2.0", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 

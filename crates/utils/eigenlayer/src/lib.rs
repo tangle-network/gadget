@@ -21,7 +21,7 @@ pub async fn get_slasher_address(
 ) -> Result<Address, Error> {
     let provider = get_provider_http(http_endpoint);
     let delegation_manager =
-        eigensdk::utils::rewardsv2::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+        eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
             delegation_manager_addr,
             provider,
         );

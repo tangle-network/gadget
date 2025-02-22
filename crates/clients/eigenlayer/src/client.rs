@@ -67,7 +67,7 @@ impl EigenlayerClient {
     pub async fn get_slasher_address(&self, delegation_manager_addr: Address) -> Result<Address> {
         let provider = self.get_provider_http();
         let delegation_manager =
-            eigensdk::utils::rewardsv2::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+            eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
                 delegation_manager_addr,
                 provider,
             );
@@ -191,13 +191,13 @@ impl EigenlayerClient {
         &self,
         block_number: u32,
         quorum_numbers: Bytes,
-    ) -> Result<Vec<Vec<eigensdk::utils::slashing::middleware::operatorstateretriever::OperatorStateRetriever::Operator>>>
+    ) -> Result<Vec<Vec<eigensdk::utils::middleware::operatorstateretriever::OperatorStateRetriever::Operator>>>
     {
         self.avs_registry_reader()
             .await?
-            .get_operators_stake_in_quorums_at_block(block_number.into(), quorum_numbers)
+            .get_operators_stake_in_quorums_at_block(block_number, quorum_numbers)
             .await
-            .map_err(crate::error::Error::from)
+            .map_err(Into::into)
     }
 
     /// Get an Operator's stake in Quorums at current block.
@@ -226,19 +226,17 @@ impl EigenlayerClient {
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
-    ) -> Result<
-        Vec<eigensdk::utils::rewardsv2::middleware::stakeregistry::IStakeRegistry::StakeUpdate>,
-    > {
+    ) -> Result<Vec<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );
@@ -253,18 +251,17 @@ impl EigenlayerClient {
         quorum_number: u8,
         operator_id: alloy_primitives::FixedBytes<32>,
         index: alloy_primitives::U256,
-    ) -> Result<eigensdk::utils::rewardsv2::middleware::stakeregistry::IStakeRegistry::StakeUpdate>
-    {
+    ) -> Result<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );
@@ -283,13 +280,13 @@ impl EigenlayerClient {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );
@@ -298,23 +295,43 @@ impl EigenlayerClient {
         Ok(response._0)
     }
 
+    /// Get an Operator's [`details`](OperatorDetails).
+    pub async fn get_operator_details(
+        &self,
+        operator_addr: Address,
+    ) -> Result<eigensdk::types::operator::Operator> {
+        let http_rpc_endpoint = self.config.http_rpc_endpoint.clone();
+        let contract_addresses = self.config.protocol_settings.eigenlayer()?;
+        let slasher_addr = self
+            .get_slasher_address(contract_addresses.delegation_manager_address)
+            .await?;
+        let chain_reader = eigensdk::client_elcontracts::reader::ELChainReader::new(
+            eigensdk::logging::get_test_logger(),
+            slasher_addr,
+            contract_addresses.delegation_manager_address,
+            contract_addresses.rewards_coordinator_address,
+            contract_addresses.avs_directory_address,
+            http_rpc_endpoint.clone(),
+        );
+        Ok(chain_reader.get_operator_details(operator_addr).await?)
+    }
+
     /// Get an Operator's latest stake update.
     pub async fn get_latest_stake_update(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
-    ) -> Result<eigensdk::utils::rewardsv2::middleware::stakeregistry::IStakeRegistry::StakeUpdate>
-    {
+    ) -> Result<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );
@@ -345,13 +362,13 @@ impl EigenlayerClient {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );
@@ -369,13 +386,13 @@ impl EigenlayerClient {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
         let registry_coordinator =
-            eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator::new(
+            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
                 contract_addresses.registry_coordinator_address,
                 provider.clone(),
             );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::rewardsv2::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
+            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
                 stake_registry_address,
                 provider.clone(),
             );

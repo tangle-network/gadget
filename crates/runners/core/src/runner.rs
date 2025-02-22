@@ -60,7 +60,6 @@ impl BlueprintRunner {
     }
 
     pub async fn run(&mut self) -> Result<(), Error> {
-        gadget_logging::setup_log();
         if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?;
             if self.config.should_exit_after_registration() {
@@ -76,8 +75,6 @@ impl BlueprintRunner {
 
         let mut all_futures = Vec::new();
 
-        gadget_logging::info!("Blueprint runner setting up jobs");
-
         // Handle job futures
         for job in self.jobs.drain(..) {
             all_futures.push(Box::pin(async move {
@@ -91,8 +88,6 @@ impl BlueprintRunner {
             })
                 as Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>);
         }
-
-        gadget_logging::info!("Blueprint runner setting up background services");
 
         // Handle background services
         for receiver in background_receivers {
@@ -113,8 +108,6 @@ impl BlueprintRunner {
 
             all_futures = remaining;
         }
-
-        gadget_logging::info!("Blueprint runner run function returning");
 
         Ok(())
     }

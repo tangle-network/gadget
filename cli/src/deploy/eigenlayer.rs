@@ -1,4 +1,4 @@
-use crate::keys::import_key;
+use crate::keys::{generate_key, import_key};
 use alloy_primitives::Address;
 use color_eyre::Result;
 use dialoguer::{Confirm, Input, Select};
@@ -124,6 +124,12 @@ pub fn initialize_test_keystore() -> Result<()> {
         KeyTypeId::Ecdsa,
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
         &keystore_path,
+    )?;
+    generate_key(
+        KeyTypeId::Bn254,
+        Some(&keystore_path),
+        None,
+        false,
     )?;
     Ok(())
 }
