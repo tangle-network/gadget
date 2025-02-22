@@ -286,7 +286,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         interval.tick().await;
     }
 
-    child.wait().unwrap();
+    child.wait().await.unwrap();
 
     Ok(())
 }

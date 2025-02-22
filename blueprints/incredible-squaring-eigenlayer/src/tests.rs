@@ -117,7 +117,13 @@ async fn run_eigenlayer_incredible_squaring_test(
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
+    println!("Starting Runner from test");
+    info!("Starting Runner from test");
+
     test_env.run_runner().await.unwrap();
+
+    println!("Started Runner from test");
+    info!("Started Runner from test");
 
     // Wait for the process to complete or timeout
     let timeout_duration = Duration::from_secs(300);

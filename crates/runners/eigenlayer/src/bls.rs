@@ -1,4 +1,5 @@
 use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
+use alloy_provider::Provider;
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::crypto_bls::BlsKeyPair;
@@ -64,6 +65,7 @@ impl BlueprintConfig for EigenlayerBLSConfig {
 }
 
 async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<bool, Error> {
+    gadget_logging::setup_log();
     let contract_addresses = match env.protocol_settings {
         ProtocolSettings::Eigenlayer(addresses) => addresses,
         _ => {
@@ -88,18 +90,6 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
         .alloy_address()
         .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
-    gadget_logging::info!("About to build avs registry chain reader");
-    gadget_logging::info!("Operator address: {}", operator_address);
-    gadget_logging::info!(
-        "Registry coordinator address: {}",
-        registry_coordinator_address
-    );
-    gadget_logging::info!(
-        "Operator state retriever address: {}",
-        operator_state_retriever_address
-    );
-    gadget_logging::info!("Http RPC endpoint: {}", env.http_rpc_endpoint);
-
     let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
         get_test_logger(),
         registry_coordinator_address,
@@ -107,8 +97,9 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
         env.http_rpc_endpoint.clone(),
     )
     .await
-    .map_err(EigenlayerError::AvsRegistry)
-    .unwrap();
+    .map_err(EigenlayerError::AvsRegistry)?;
+
+    gadget_logging::info!("AVS Registry reader created");
 
     // Check if the operator has already registered for the service
     match avs_registry_reader
@@ -122,7 +113,7 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
 
 async fn register_bls_impl(
     env: &GadgetConfiguration,
-    _earnings_receiver_address: Address,
+    earnings_receiver_address: Address,
     delegation_approver_address: Address,
 ) -> Result<(), Error> {
     gadget_logging::setup_log();
@@ -172,19 +163,6 @@ async fn register_bls_impl(
 
     let logger = get_test_logger();
 
-    gadget_logging::info!("About to build avs registry chain writer");
-    gadget_logging::info!("Operator address: {}", operator_address);
-    gadget_logging::info!("Operator private key: {}", operator_private_key);
-    gadget_logging::info!(
-        "Registry coordinator address: {}",
-        registry_coordinator_address
-    );
-    gadget_logging::info!(
-        "Operator state retriever address: {}",
-        operator_state_retriever_address
-    );
-    gadget_logging::info!("Http RPC endpoint: {}", env.http_rpc_endpoint);
-
     let avs_registry_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
         logger.clone(),
         env.http_rpc_endpoint.clone(),
@@ -193,8 +171,7 @@ async fn register_bls_impl(
         operator_state_retriever_address,
     )
     .await
-    .map_err(EigenlayerError::AvsRegistry)
-    .unwrap();
+    .map_err(EigenlayerError::AvsRegistry).unwrap();
 
     let bn254_public = env.keystore().iter_bls_bn254().next().unwrap();
     let bn254_secret = env
@@ -230,7 +207,10 @@ async fn register_bls_impl(
         env.http_rpc_endpoint.clone(),
     );
 
-    let el_writer = ELChainWriter::new(
+    // let dist = el_chain_reader.get_current_claimable_distribution_root().await.unwrap();
+    // gadget_logging::info!("Current claimable distribution root: {:?}", dist.activatedAt);
+
+    let mut el_writer = ELChainWriter::new(
         strategy_manager_address,
         rewards_coordinator_address,
         None,
@@ -238,24 +218,39 @@ async fn register_bls_impl(
         registry_coordinator_address,
         el_chain_reader,
         env.http_rpc_endpoint.clone(),
-        operator_private_key,
+        operator_private_key.clone(),
     );
+
+    let tes = el_writer.set_signer(operator_private_key);
 
     let staker_opt_out_window_blocks = 50400u32;
     let operator_details = Operator {
         address: operator_address,
         delegation_approver_address,
         metadata_url: "https://github.com/tangle-network/gadget".to_string(),
-        allocation_delay: None,
-        _deprecated_earnings_receiver_address: None,
+        allocation_delay: Some(2),
+        _deprecated_earnings_receiver_address: Some(earnings_receiver_address),
         staker_opt_out_window_blocks: Some(staker_opt_out_window_blocks),
     };
+
+    gadget_logging::info!("Operator details:");
+    gadget_logging::info!("  address: {:?}", operator_details.address);
+    gadget_logging::info!("  delegation_approver_address: {:?}", operator_details.delegation_approver_address);
+    gadget_logging::info!("  metadata_url: {:?}", operator_details.metadata_url);
+    gadget_logging::info!("  allocation_delay: {:?}", operator_details.allocation_delay);
+    gadget_logging::info!("  _deprecated_earnings_receiver_address: {:?}", operator_details._deprecated_earnings_receiver_address);
+    gadget_logging::info!("  staker_opt_out_window_blocks: {:?}", operator_details.staker_opt_out_window_blocks);
 
     let tx_hash = el_writer
         .register_as_operator(operator_details)
         .await
         .map_err(EigenlayerError::ElContracts)?;
     gadget_logging::info!("Registered as operator for Eigenlayer {:?}", tx_hash);
+
+    let tx_receipt = provider
+        .get_transaction_receipt(tx_hash)
+        .await.unwrap().unwrap();
+    gadget_logging::info!("Tx receipt: {:?}", tx_receipt);
 
     let tx_hash = avs_registry_writer
         .register_operator_in_quorum_with_avs_registry_coordinator(
@@ -268,6 +263,9 @@ async fn register_bls_impl(
         .await
         .map_err(EigenlayerError::AvsRegistry)?;
 
-    gadget_logging::info!("Registered operator for Eigenlayer {:?}", tx_hash);
+    let tx_receipt = provider
+        .get_transaction_receipt(tx_hash)
+        .await.unwrap().unwrap();
+    gadget_logging::info!("Tx receipt: {:?}", tx_receipt);
     Ok(())
 }

@@ -96,9 +96,9 @@ pub async fn start_anvil_container(
         .unwrap();
 
     let http_endpoint = format!("http://localhost:{}", port);
-    println!("Anvil HTTP endpoint: {}", http_endpoint);
+    info!("Anvil HTTP endpoint: {}", http_endpoint);
     let ws_endpoint = format!("ws://localhost:{}", port);
-    println!("Anvil WS endpoint: {}", ws_endpoint);
+    info!("Anvil WS endpoint: {}", ws_endpoint);
 
     (container, http_endpoint, ws_endpoint)
 }
