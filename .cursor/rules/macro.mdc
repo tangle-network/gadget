@@ -1,0 +1,118 @@
+---
+description: Rust Macro Expert
+globs: *.rs
+---
+# Rust Macro Development Expert
+
+## Procedural and Derive Macro Development Guidelines
+
+1. **Initial Analysis & Design**
+   - Carefully analyze macro input requirements and syntax constraints
+   - Consider compile-time performance implications
+   - Plan error handling and diagnostic messages
+   - Review existing proc-macro crates before building new ones
+   - Evaluate whether declarative macros (`macro_rules!`) could suffice
+
+2. **Implementation Standards**
+   - Use `syn` for parsing Rust syntax trees
+   - Leverage `quote` for generating Rust code
+   - Implement proper `proc_macro_derive` attributes
+   - Handle edge cases explicitly
+   - Follow naming conventions:
+     - Derive macros: PascalCase
+     - Function-like macros: snake_case
+     - Attribute macros: snake_case
+
+3. **Error Handling & Diagnostics**
+   - Use `proc_macro::Diagnostic` for compiler errors
+   - Implement detailed error messages with span information
+   - Provide helpful suggestions in error messages
+   - Handle parsing failures gracefully
+   - Validate input thoroughly before generation
+
+4. **Code Generation Best Practices**
+   - Generate hygienic identifiers using `format_ident!`
+   - Avoid name collisions with `quote::quote_spanned!`
+   - Maintain proper token spans for error reporting
+   - Generate well-formatted and documented code
+   - Implement Debug/Display traits for custom types
+
+5. **Testing Framework**
+   - Use `trybuild` for compilation tests
+   - Create comprehensive test cases including:
+     - Success cases
+     - Expected failure cases
+     - Edge cases
+     - Syntax variations
+   - Test generated code functionality
+   - Document test cases thoroughly
+
+6. **Performance Considerations**
+   - Minimize allocations during macro expansion
+   - Cache parsed results where appropriate
+   - Use efficient algorithms for syntax tree manipulation
+   - Profile macro expansion time
+   - Consider incremental compilation impact
+
+7. **Documentation Requirements**
+   - Document macro syntax and usage
+   - Provide clear examples
+   - Explain generated code behavior
+   - Document any assumptions or limitations
+   - Include common pitfalls and solutions
+
+8. **Advanced Features**
+   - Custom derive helper attributes
+   - Nested attribute handling
+   - Cross-platform compatibility
+   - Integration with existing traits
+   - Custom keyword parsing
+
+9. **Security & Safety**
+   - Validate all inputs thoroughly
+   - Avoid executing arbitrary code
+   - Maintain type safety in generated code
+   - Handle visibility modifiers correctly
+   - Respect macro hygiene rules
+
+10. **Debugging Support**
+    - Implement `#[derive(Debug)]` where appropriate
+    - Add trace logging for development
+    - Support for cargo-expand
+    - Generate readable code
+    - Maintain source mappings
+
+11. **Common Patterns**
+    - Builder pattern generation
+    - Trait implementation automation
+    - Serialization/Deserialization
+    - Custom DSL parsing
+    - Attribute forwarding
+
+12. **Integration Guidelines**
+    - Proper dependency specification
+    - Version compatibility
+    - Feature flag organization
+    - Re-export convenience
+    - Documentation of integration points
+
+13. **Maintenance Considerations**
+    - Semantic versioning adherence
+    - Breaking change management
+    - Deprecation strategies
+    - Upgrade paths
+    - Backward compatibility
+
+14. **Optimization Techniques**
+    - Token stream pre-processing
+    - Lazy evaluation strategies
+    - Compile-time computation
+    - Code generation optimization
+    - Memory usage optimization
+
+15. **Quality Assurance**
+    - Continuous Integration setup
+    - Cross-platform testing
+    - Documentation testing
+    - API stability testing
+    - Performance benchmarking

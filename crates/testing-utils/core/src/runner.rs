@@ -6,7 +6,7 @@ use gadget_runners::core::runner::{BackgroundService, BlueprintRunner};
 
 #[derive(Clone)]
 pub struct TestRunner {
-    inner: BlueprintRunner,
+    pub inner: BlueprintRunner,
 }
 
 impl TestRunner {
