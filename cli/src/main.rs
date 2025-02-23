@@ -83,6 +83,9 @@ pub enum KeyCommands {
         /// The path to the keystore
         #[arg(short = 'k', long)]
         keystore_path: PathBuf,
+        /// The protocol you are generating keys for (Eigenlayer or Tangle). Only matters for some keys.
+        #[arg(short = 'p', long, default_value = "tangle")]
+        protocol: Protocol,
     },
     /// Export a key from the keystore
     #[command(visible_alias = "e")]
@@ -170,8 +173,8 @@ pub enum BlueprintCommands {
         bootnodes: Option<Vec<String>>,
 
         /// Path to the protocol settings env file
-        #[arg(short = 'f', long)]
-        settings_file: PathBuf,
+        #[arg(short = 'f', long, default_value = "./settings.env")]
+        settings_file: Option<PathBuf>,
     },
 }
 
@@ -281,6 +284,14 @@ async fn main() -> color_eyre::Result<()> {
                     devnet,
                     keystore_path,
                 } => {
+                    let build_status = gadget_std::process::Command::new("cargo")
+                        .args(["build", "--release"])
+                        .status()?;
+
+                    if !build_status.success() {
+                        return Err(color_eyre::Report::msg("Cargo build failed"));
+                    }
+
                     // Validate that devnet is only used with local network
                     if devnet && network.to_lowercase() != "local" {
                         return Err(color_eyre::Report::msg(
@@ -312,8 +323,8 @@ async fn main() -> color_eyre::Result<()> {
                         // Start local Anvil testnet
                         let (_container, http_endpoint, _ws_endpoint) =
                             start_default_anvil_testnet(true).await;
-                        println!("Started local devnet:");
-                        println!("  HTTP endpoint: {}", http_endpoint);
+
+                        deploy::eigenlayer::initialize_test_keystore()?;
 
                         // Deploy to local devnet
                         deploy_to_eigenlayer(EigenlayerDeployOpts::new(
@@ -358,6 +369,13 @@ async fn main() -> color_eyre::Result<()> {
                 bootnodes,
                 settings_file,
             } => {
+                let settings_file =
+                    settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
+                if !settings_file.exists() {
+                    return Err(color_eyre::Report::msg(format!(
+                        "The --settings-file flag needs to be provided with a valid path, or the file {settings_file:?} needs to exist",
+                    )));
+                }
                 let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
 
                 let chain = match network.to_lowercase().as_str() {
@@ -394,7 +412,7 @@ async fn main() -> color_eyre::Result<()> {
                         "Keystore not found at {}. Let's set up your keys.",
                         keystore_path.display()
                     );
-                    let keys = prompt_for_keys(vec![])?;
+                    let keys = prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
                     std::fs::create_dir_all(&keystore_path)?;
                     for (key_type, key) in keys {
                         let key_path = keystore_path.join(format!("{:?}", key_type));
@@ -447,20 +465,21 @@ async fn main() -> color_eyre::Result<()> {
                 key_type,
                 secret,
                 keystore_path,
+                protocol,
             } => {
                 if let Some(key_type) = key_type {
                     // If key_type is provided, require secret
                     let secret = secret.ok_or_else(|| {
                         color_eyre::eyre::eyre!("Secret key is required when key type is specified")
                     })?;
-                    let public = keys::import_key(key_type, &secret, &keystore_path)?;
+                    let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
                     eprintln!("Imported {:?} key:", key_type);
                     eprintln!("Public key: {}", public);
                 } else {
                     // If no key_type provided, use interactive prompt
                     let key_pairs = keys::prompt_for_keys(vec![])?;
                     for (key_type, secret) in key_pairs {
-                        let public = keys::import_key(key_type, &secret, &keystore_path)?;
+                        let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
                         eprintln!("Imported {:?} key:", key_type);
                         eprintln!("Public key: {}", public);
                     }

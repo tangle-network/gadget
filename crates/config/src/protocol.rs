@@ -91,6 +91,9 @@ pub struct TangleInstanceSettings {
 
 #[cfg(feature = "eigenlayer")]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+/// The contract addresses used for EigenLayer Blueprint AVSs
+///
+/// The default values of these contracts are the addresses for our testing environment.
 pub struct EigenlayerContractAddresses {
     /// The address of the registry coordinator contract
     pub registry_coordinator_address: Address,

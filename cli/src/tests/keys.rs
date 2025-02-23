@@ -1,5 +1,6 @@
 use crate::keys::generate_key;
 use color_eyre::eyre::Result;
+use gadget_config::Protocol;
 use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_crypto::sp_core::{SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto_core::KeyTypeId;
@@ -109,7 +110,7 @@ fn test_key_import_export() -> Result<()> {
         let secret = secret.unwrap();
 
         // Import the key
-        let imported_public = import_key(key_type, &secret, keystore_path)?;
+        let imported_public = import_key(Protocol::Tangle, key_type, &secret, keystore_path)?;
         assert!(!imported_public.is_empty());
 
         // Export the key

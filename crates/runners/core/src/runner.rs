@@ -63,6 +63,7 @@ impl BlueprintRunner {
         if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?;
             if self.config.should_exit_after_registration() {
+                println!("Exiting after registration, please run again to continue execution");
                 return Ok(());
             }
         }
