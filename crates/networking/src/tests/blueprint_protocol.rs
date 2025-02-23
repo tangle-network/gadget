@@ -294,7 +294,7 @@ async fn test_summation_protocol_multi_node() {
             message_id,
             round_id,
             ParticipantInfo {
-                id: ParticipantId(u16::try_from(i as u16).unwrap()),
+                id: ParticipantId(u16::try_from(i).unwrap()),
                 public_key: Some(nodes[i].instance_key_pair.public()),
             },
             None,
@@ -366,11 +366,11 @@ async fn test_summation_protocol_multi_node() {
                     message_id,
                     round_id,
                     ParticipantInfo {
-                        id: ParticipantId(u16::try_from(i as u16).unwrap()),
+                        id: ParticipantId(u16::try_from(i).unwrap()),
                         public_key: Some(nodes[i].instance_key_pair.public()),
                     },
                     Some(ParticipantInfo {
-                        id: ParticipantId(u16::try_from(j as u16).unwrap()),
+                        id: ParticipantId(u16::try_from(j).unwrap()),
                         public_key: Some(nodes[j].instance_key_pair.public()),
                     }),
                 );
