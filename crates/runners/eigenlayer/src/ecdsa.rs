@@ -58,8 +58,6 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
             ));
         }
     };
-    // let registry_coordinator_address = contract_addresses.registry_coordinator_address;
-    // let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
 
     let ecdsa_public = env
         .keystore()
