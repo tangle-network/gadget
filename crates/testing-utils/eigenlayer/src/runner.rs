@@ -11,10 +11,10 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct EigenlayerBLSTestEnv {
-    runner: TestRunner,
-    config: EigenlayerBLSConfig,
-    gadget_config: GadgetConfiguration,
-    runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
+    pub runner: TestRunner,
+    pub config: EigenlayerBLSConfig,
+    pub gadget_config: GadgetConfiguration,
+    pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
 impl TestEnv for EigenlayerBLSTestEnv {

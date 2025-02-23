@@ -11,10 +11,10 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct TangleTestEnv {
-    runner: TestRunner,
-    config: TangleConfig,
-    gadget_config: GadgetConfiguration,
-    runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
+    pub runner: TestRunner,
+    pub config: TangleConfig,
+    pub gadget_config: GadgetConfiguration,
+    pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
 impl TangleTestEnv {
