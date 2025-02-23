@@ -7,6 +7,7 @@ use alloy_transport::Transport;
 use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
 use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
 use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
+use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::{self, Quorum};
 use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
@@ -102,7 +103,23 @@ pub async fn start_anvil_container(
         .await
         .unwrap();
     let pauser_registry_address = *pauser_registry.address();
-    println!("Pauser Registry address: {}", pauser_registry_address);
+    println!(
+        "\n\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m Pauser Registry address: {}",
+        pauser_registry_address
+    );
+
+    let delegation_manager_address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+    let service_manager_address = address!("34B40BA116d5Dec75548a9e9A8f15411461E8c70");
+
+    let ecdsa_stake_registry =
+        ECDSAStakeRegistry::deploy(provider.clone(), delegation_manager_address)
+            .await
+            .unwrap();
+    let ecdsa_stake_registry_address = *ecdsa_stake_registry.address();
+    println!(
+        "\n\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m Ecdsa Stake Registry address: {}\n",
+        ecdsa_stake_registry_address
+    );
 
     let registry_coordinator_address =
         alloy_primitives::address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
@@ -117,17 +134,43 @@ pub async fn start_anvil_container(
     let erc20_mock_address = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
     let strategy_params = StrategyParams {
         strategy: erc20_mock_address,
-        multiplier: Uint::from(1),
+        multiplier: Uint::from(10000),
     };
+    let strategies = vec![strategy_params];
 
     info!("Creating Quorum");
     let _receipt = get_receipt(registry_coordinator.createQuorum(
         operator_set_params,
         Uint::from(0),
-        vec![strategy_params],
+        strategies,
     ))
     .await
     .unwrap();
+
+    let threshold_weight = alloy_primitives::U256::from(1);
+    let strategy_params = ECDSAStakeRegistry::StrategyParams {
+        strategy: erc20_mock_address,
+        multiplier: Uint::from(10000),
+    };
+    let strategies = vec![strategy_params];
+    let quorum = Quorum { strategies };
+    let ecdsa_stake_registry_init = ecdsa_stake_registry
+        .initialize(service_manager_address, threshold_weight, quorum)
+        .send()
+        .await
+        .unwrap()
+        .get_receipt()
+        .await
+        .unwrap();
+    info!(
+        "Ecdsa Stake Registry initialized: {:?}",
+        ecdsa_stake_registry_init
+    );
+    if !ecdsa_stake_registry_init.status() {
+        panic!("Failed to initialize Ecdsa Stake Registry");
+    } else {
+        println!("\nEcdsa Stake Registry was successfully initialized\n");
+    }
 
     (container, http_endpoint, ws_endpoint, Some(temp_dir))
 }

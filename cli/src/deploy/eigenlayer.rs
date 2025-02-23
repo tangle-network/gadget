@@ -8,7 +8,7 @@ use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::info;
+use gadget_logging::{debug, info};
 use gadget_std::fs;
 use gadget_std::path::Path;
 use gadget_std::process::Command;
@@ -114,23 +114,18 @@ pub fn initialize_test_keystore() -> Result<()> {
     let keystore_path = Path::new("./test-keystore");
     let mut config = KeystoreConfig::new();
     if !keystore_path.exists() {
-        fs::create_dir_all(&keystore_path)?;
+        fs::create_dir_all(keystore_path)?;
     }
-    config = config.fs_root(&keystore_path);
+    config = config.fs_root(keystore_path);
     let _keystore = Keystore::new(config)?;
     // TODO: Add support for Tangle here, taking the protocol as an input and controlling the key type and key input(s)
     import_key(
         Protocol::Eigenlayer,
         KeyTypeId::Ecdsa,
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        &keystore_path,
+        keystore_path,
     )?;
-    generate_key(
-        KeyTypeId::Bn254,
-        Some(&keystore_path),
-        None,
-        false,
-    )?;
+    generate_key(KeyTypeId::Bn254, Some(&keystore_path), None, false)?;
     Ok(())
 }
 
@@ -487,8 +482,8 @@ async fn deploy_single_contract(
     }
 
     // Try to find address in stdout first, then stderr if not found
-    let address = extract_address_from_output(output.stdout.clone())
-        .or_else(|_| extract_address_from_output(output.stderr.clone()))
+    let address = extract_address_from_output(contract_name.clone(), output.stdout.clone())
+        .or_else(|_| extract_address_from_output(contract_name.clone(), output.stderr.clone()))
         .map_err(|_| {
             color_eyre::eyre::eyre!("Failed to find contract address in deployment output")
         })?;
@@ -532,18 +527,25 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
 }
 
 pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
-    println!("Beginning contract deployment");
     let addresses = deploy_avs_contracts(&opts).await?;
     println!("Successfully deployed contracts:");
     for (contract, address) in addresses {
-        println!("{}: {}", contract, address);
+        println!(
+            "\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m {}: {}",
+            contract, address
+        );
     }
     Ok(())
 }
 
-pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
+pub fn extract_address_from_output(contract_name: String, output: Vec<u8>) -> Result<Address> {
+    let contract_name_clean = contract_name
+        .rsplit(':')
+        .next()
+        .unwrap_or(contract_name.as_str());
+
     let output = String::from_utf8_lossy(&output);
-    info!("Attempting to extract address from output:\n{}", output);
+    debug!("Attempting to extract address from output:\n{}", output);
 
     // Possible patterns to search for deployed address
     let patterns = [
@@ -555,7 +557,7 @@ pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
 
     for pattern in patterns {
         if let Some(line) = output.lines().find(|line| line.contains(pattern)) {
-            println!("Found matching line with pattern '{}': {}", pattern, line);
+            debug!("Found matching line with pattern '{}': {}", pattern, line);
 
             // Try to extract address
             let addr_str = line
@@ -565,9 +567,13 @@ pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
                 .or_else(|| line.split_whitespace().last());
 
             if let Some(addr) = addr_str {
-                println!("Found potential address: {}", addr);
+                debug!("Found potential address: {}", addr);
                 if let Ok(address) = Address::from_str(addr) {
-                    println!("Successfully parsed address: {}", address);
+                    debug!("Successfully parsed address: {}", address);
+                    println!(
+                        "\n\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m {} Address: {}\n",
+                        contract_name_clean, address
+                    );
                     return Ok(address);
                 }
             }

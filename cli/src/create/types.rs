@@ -10,7 +10,7 @@ pub struct CreateArgs {
     pub blueprint_type: BlueprintType,
 }
 
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Args, Default)]
 #[group(required = false, multiple = false)]
 pub struct BlueprintType {
     /// Create a Tangle blueprint
@@ -22,15 +22,6 @@ pub struct BlueprintType {
     pub eigenlayer: Option<EigenlayerVariant>,
 }
 
-impl Default for BlueprintType {
-    fn default() -> Self {
-        Self {
-            tangle: true,
-            eigenlayer: None,
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone, Copy, ValueEnum)]
 pub enum EigenlayerVariant {
     #[default]
@@ -40,10 +31,12 @@ pub enum EigenlayerVariant {
 
 impl BlueprintType {
     pub fn get_type(&self) -> Option<BlueprintVariant> {
-        if self.tangle {
+        if self.eigenlayer.is_some() {
+            self.eigenlayer.map(BlueprintVariant::Eigenlayer)
+        } else if self.tangle {
             Some(BlueprintVariant::Tangle)
         } else {
-            self.eigenlayer.map(BlueprintVariant::Eigenlayer)
+            None
         }
     }
 }

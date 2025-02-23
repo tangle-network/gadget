@@ -173,8 +173,8 @@ pub enum BlueprintCommands {
         bootnodes: Option<Vec<String>>,
 
         /// Path to the protocol settings env file
-        #[arg(short = 'f', long)]
-        settings_file: PathBuf,
+        #[arg(short = 'f', long, default_value = "./settings.env")]
+        settings_file: Option<PathBuf>,
     },
 }
 
@@ -323,8 +323,6 @@ async fn main() -> color_eyre::Result<()> {
                         // Start local Anvil testnet
                         let (_container, http_endpoint, _ws_endpoint) =
                             start_default_anvil_testnet(true).await;
-                        println!("Started local devnet:");
-                        println!("  HTTP endpoint: {}", http_endpoint);
 
                         deploy::eigenlayer::initialize_test_keystore()?;
 
@@ -371,6 +369,13 @@ async fn main() -> color_eyre::Result<()> {
                 bootnodes,
                 settings_file,
             } => {
+                let settings_file =
+                    settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
+                if !settings_file.exists() {
+                    return Err(color_eyre::Report::msg(format!(
+                        "The --settings-file flag needs to be provided with a valid path, or the file {settings_file:?} needs to exist",
+                    )));
+                }
                 let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
 
                 let chain = match network.to_lowercase().as_str() {

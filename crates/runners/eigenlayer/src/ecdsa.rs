@@ -1,18 +1,13 @@
-use alloy_network::primitives::BlockTransactionsKind;
-use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, Address, FixedBytes, U256};
-use alloy_provider::Provider;
-use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
-use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use eigensdk::utils::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
-use eigensdk::utils::middleware::ecdsastakeregistry::ISignatureUtils::SignatureWithSaltAndExpiry;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_contexts::keystore::KeystoreContext;
+use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry;
+use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::SignatureWithSaltAndExpiry;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::k256::K256Ecdsa;
@@ -54,6 +49,7 @@ impl BlueprintConfig for EigenlayerECDSAConfig {
 }
 
 async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<bool, Error> {
+    let provider = get_provider_http(&env.http_rpc_endpoint);
     let contract_addresses = match env.protocol_settings {
         ProtocolSettings::Eigenlayer(addresses) => addresses,
         _ => {
@@ -62,8 +58,8 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
             ));
         }
     };
-    let registry_coordinator_address = contract_addresses.registry_coordinator_address;
-    let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
+    // let registry_coordinator_address = contract_addresses.registry_coordinator_address;
+    // let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
 
     let ecdsa_public = env
         .keystore()
@@ -78,21 +74,17 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
         .alloy_address()
         .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
-    let avs_registry_reader = AvsRegistryChainReader::new(
-        get_test_logger(),
-        registry_coordinator_address,
-        operator_state_retriever_address,
-        env.http_rpc_endpoint.clone(),
-    )
-    .await
-    .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;
+    let stake_registry_address = contract_addresses.stake_registry_address;
+
+    let ecdsa_stake_registry = ECDSAStakeRegistry::new(stake_registry_address, provider.clone());
 
     // Check if the operator has already registered for the service
-    match avs_registry_reader
-        .is_operator_registered(operator_address)
+    match ecdsa_stake_registry
+        .operatorRegistered(operator_address)
+        .call()
         .await
     {
-        Ok(is_registered) => Ok(!is_registered),
+        Ok(is_registered) => Ok(!is_registered._0),
         Err(e) => Err(RunnerError::Eigenlayer(e.to_string())),
     }
 }
@@ -131,6 +123,7 @@ async fn register_ecdsa_impl(
         .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
     let operator_private_key = hex::encode(ecdsa_secret.0.to_bytes());
+    info!("Operator private key: {}", operator_private_key);
     let wallet = PrivateKeySigner::from_str(&operator_private_key)
         .map_err(|_| Error::Keystore("Invalid private key".into()))?;
 
@@ -186,11 +179,13 @@ async fn register_ecdsa_impl(
     let now = std::time::SystemTime::now();
     let sig_expiry = now
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| U256::from(duration.as_secs()) + U256::from(86400))
-        .unwrap_or_else(|_| {
-            info!("System time seems to be before the UNIX epoch.");
-            U256::from(0)
-        });
+        .map(|duration| U256::from(duration.as_secs()) + U256::from(3600))
+        .unwrap_or_else(|_| U256::from(0));
+
+    info!(
+        "Registration parameters: operator={:?}, manager={:?}, salt={:?}, expiry={:?}",
+        operator_address, service_manager_address, digest_hash_salt, sig_expiry
+    );
 
     let msg_to_sign = el_chain_reader
         .calculate_operator_avs_registration_digest_hash(
@@ -206,6 +201,7 @@ async fn register_ecdsa_impl(
         .sign_hash(&msg_to_sign)
         .await
         .map_err(|e| Error::SignatureError(e.to_string()))?;
+    let signing_key_address = wallet.address();
 
     let operator_signature_with_salt_and_expiry = SignatureWithSaltAndExpiry {
         signature: operator_signature.as_bytes().into(),
@@ -213,126 +209,28 @@ async fn register_ecdsa_impl(
         expiry: sig_expiry,
     };
 
-    let signer = PrivateKeySigner::from_str(&operator_private_key)
-        .map_err(|e| Error::SignatureError(e.to_string()))?;
-    let wallet = EthereumWallet::from(signer);
-
     // --- Register the operator to AVS ---
 
-    info!("Building Transaction");
+    let ecdsa_stake_registry = ECDSAStakeRegistry::new(stake_registry_address, provider.clone());
 
-    let latest_block_number = provider
-        .get_block_number()
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
-
-    // Get the latest block to estimate gas price
-    let latest_block = provider
-        .get_block_by_number(
-            BlockNumberOrTag::Number(latest_block_number),
-            BlockTransactionsKind::Full,
+    let _register_response = ecdsa_stake_registry
+        .registerOperatorWithSignature(
+            operator_signature_with_salt_and_expiry.clone(),
+            signing_key_address,
         )
+        .send()
         .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?
-        .ok_or(Error::TransactionError("Failed to get latest block".into()))?;
-
-    // Get the base fee per gas from the latest block
-    let base_fee_per_gas: u128 = latest_block
-        .header
-        .base_fee_per_gas
-        .ok_or(Error::TransactionError(
-            "Failed to get base fee per gas from latest block".into(),
-        ))?
-        .into();
-
-    // Get the max priority fee per gas
-    let max_priority_fee_per_gas = provider
-        .get_max_priority_fee_per_gas()
+        .unwrap()
+        .get_receipt()
         .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
+        .unwrap();
 
-    // Calculate max fee per gas
-    let max_fee_per_gas = base_fee_per_gas + max_priority_fee_per_gas;
-
-    // Build the transaction request
-    let tx = TransactionRequest::default()
-        .with_call(&ECDSAStakeRegistry::registerOperatorWithSignatureCall {
-            _operatorSignature: operator_signature_with_salt_and_expiry,
-            _signingKey: operator_address,
-        })
-        .with_from(operator_address)
-        .with_to(stake_registry_address)
-        .with_nonce(
-            provider
-                .get_transaction_count(operator_address)
-                .await
-                .map_err(|e| Error::TransactionError(e.to_string()))?,
-        )
-        .with_chain_id(
-            provider
-                .get_chain_id()
-                .await
-                .map_err(|e| Error::TransactionError(e.to_string()))?,
-        )
-        .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
-        .with_max_fee_per_gas(max_fee_per_gas);
-
-    // Estimate gas limit
-    let gas_estimate = provider
-        .estimate_gas(&tx)
+    let is_registered = ecdsa_stake_registry
+        .operatorRegistered(operator_address)
+        .call()
         .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
-    info!("Gas Estimate: {}", gas_estimate);
+        .map_err(|e| Error::Eigenlayer(format!("Failed to check registration: {}", e)))?;
 
-    // Set gas limit
-    let tx = tx.with_gas_limit(gas_estimate);
-
-    info!("Building Transaction Envelope");
-
-    let tx_envelope = tx
-        .build(&wallet)
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
-
-    info!("Sending Transaction Envelope");
-
-    let result = provider
-        .send_tx_envelope(tx_envelope)
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?
-        .register()
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
-
-    info!("Operator Registration to AVS Sent. Awaiting Receipt...");
-
-    info!("Operator Address: {}", operator_address);
-    info!("Stake Registry Address: {}", stake_registry_address);
-    info!("RPC Endpoint: {}", env.http_rpc_endpoint);
-
-    let tx_hash = result
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?;
-
-    info!(
-        "Command for testing: cast code {} --rpc-url {}",
-        stake_registry_address, env.http_rpc_endpoint
-    );
-
-    let receipt = provider
-        .get_transaction_receipt(tx_hash)
-        .await
-        .map_err(|e| Error::TransactionError(e.to_string()))?
-        .ok_or(Error::TransactionError("Failed to get receipt".into()))?;
-
-    info!("Got Transaction Receipt: {:?}", receipt);
-
-    if !receipt.status() {
-        return Err(Error::Eigenlayer(
-            "Failed to register operator to AVS".to_string(),
-        ));
-    }
-
-    info!("Operator Registration to AVS Succeeded");
+    info!("Operator Registration Status {:?}", is_registered._0);
     Ok(())
 }
