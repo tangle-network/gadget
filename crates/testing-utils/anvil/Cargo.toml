@@ -26,3 +26,4 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
 futures = { workspace = true }
+tempfile = { workspace = true}
