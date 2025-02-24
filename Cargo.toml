@@ -218,7 +218,7 @@ rustdoc-types = { version = "0.35.0", default-features = false }
 syn = { version = "2.0.98", default-features = false }
 trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
-dirs = { version = "5.0.1", default-features = false }
+dirs = { version = "6.0.0", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
 
 # Alloy (EVM)
