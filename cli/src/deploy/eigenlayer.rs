@@ -11,7 +11,7 @@ use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::{debug, info};
+use gadget_logging::debug;
 use gadget_std::fs;
 use gadget_std::path::Path;
 use gadget_std::process::Command;
@@ -225,7 +225,7 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
                 .dim()
                 .to_string(),
         )
-        .items(&available_contracts)
+        .items(available_contracts)
         .default(0)
         .interact()?;
 
@@ -547,7 +547,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
 
     if opts.ordered_deployment {
         print_section_header("Ordered Contract Deployment");
-
+        println!("Contract files: {:?}", contract_files);
         let mut remaining_contracts = contract_files.clone();
         while !remaining_contracts.is_empty() {
             let selected_contract = select_next_contract(&remaining_contracts)?;

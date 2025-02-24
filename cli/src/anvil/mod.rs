@@ -4,7 +4,7 @@ use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
 use alloy_transport::Transport;
-use dialoguer::console::{style, Term};
+use dialoguer::console::style;
 use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
 use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
 use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
@@ -13,8 +13,7 @@ use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs::{self};
 use tempfile::TempDir;
 use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},
@@ -154,8 +153,7 @@ pub async fn start_anvil_container(
             return Err(color_eyre::eyre::eyre!(
                 "Failed to start Anvil container: {}",
                 e
-            ))
-            .expect("Container start error");
+            ));
         }
     };
 

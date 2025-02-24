@@ -1,10 +1,10 @@
 use super::CommandInstalled;
 use color_eyre::eyre::Result;
-use dialoguer::console::{style, Term};
+use dialoguer::console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     collections::VecDeque,
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader},
     process::{Command, Stdio},
     sync::mpsc,
     thread,
@@ -98,19 +98,15 @@ impl Forge {
 
         // Spawn thread to read stdout
         thread::spawn(move || {
-            for line in stdout_reader.lines() {
-                if let Ok(line) = line {
-                    let _ = tx.send(line);
-                }
+            for line in stdout_reader.lines().flatten() {
+                let _ = tx.send(line);
             }
         });
 
         // Spawn thread to read stderr
         thread::spawn(move || {
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    let _ = tx_stderr.send(line);
-                }
+            for line in stderr_reader.lines().flatten() {
+                let _ = tx_stderr.send(line);
             }
         });
 
