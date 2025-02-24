@@ -1,0 +1,36 @@
+[package]
+name = "blueprint-evm-extra"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Blueprint dependencies
+blueprint-core.workspace = true
+
+# Alloy dependencies
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true, features = ["pubsub"] }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
+alloy-transport-http = { workspace = true }
+
+# Async dependencies
+async-stream = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+pin-project-lite = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tower = { workspace = true, features = ["filter"] }
+
+# Utils
+bytes = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tracing-subscriber = { workspace = true }

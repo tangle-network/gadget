@@ -9,8 +9,9 @@ manager = { Evm = "ExperimentalBlueprint" }
 master_revision = "Latest"
 
 [dependencies]
-tangle-job-utils.workspace = true
-blueprint-job-router.workspace = true
+blueprint-tangle-extra.workspace = true
+blueprint-core.workspace = true
+blueprint-router.workspace = true
 blueprint-runner.workspace = true
 tokio.workspace = true
 tower = { version = "0.5.2", features = ["util"] }
@@ -20,7 +21,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 gadget-tangle-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
 gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
 tempfile = "3.13.0"
+tracing = { workspace = true }
 
 [[bin]]
-name = "main"
+name = "experimental-blueprint"
 path = "src/main.rs"

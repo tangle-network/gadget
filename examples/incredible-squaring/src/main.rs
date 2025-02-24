@@ -1,19 +1,20 @@
 extern crate alloc;
 
 use async_trait::async_trait;
-use blueprint_job_router::__private::tracing;
-use blueprint_job_router::*;
+use blueprint_core::Context;
+use blueprint_core::IntoJobResult;
+use blueprint_router::Router;
 use blueprint_runner::config::{GadgetConfiguration, TangleConfig};
 use blueprint_runner::error::RunnerError;
 use blueprint_runner::{BackgroundService, BlueprintRunner};
-use gadget_core_testing_utils::harness::TestHarness;
-use gadget_tangle_testing_utils::TangleTestHarness;
-use tangle_job_utils::extract::{
+use blueprint_tangle_extra::extract::{
     BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, TangleArg, TangleArgs2,
     TangleResult,
 };
-use tangle_job_utils::filters::MatchesServiceId;
-use tangle_job_utils::producer::TangleProducer;
+use blueprint_tangle_extra::filters::MatchesServiceId;
+use blueprint_tangle_extra::producer::TangleProducer;
+use gadget_core_testing_utils::harness::TestHarness;
+use gadget_tangle_testing_utils::TangleTestHarness;
 use tangle_subxt::tangle_testnet_runtime::api::balances::events::Transfer;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -126,7 +127,7 @@ impl BackgroundService for FooBackgroundService {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), BoxError> {
+async fn main() -> Result<(), blueprint_core::BoxError> {
     setup_log();
 
     // Sets up the tangle node for the producer
