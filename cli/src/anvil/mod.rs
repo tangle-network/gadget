@@ -150,10 +150,12 @@ pub async fn start_anvil_container(
                 println!("2. You have sufficient permissions to pull Docker images");
                 std::process::exit(1);
             }
+            #[allow(clippy::unnecessary_literal_unwrap)]
             return Err(color_eyre::eyre::eyre!(
                 "Failed to start Anvil container: {}",
                 e
-            ));
+            ))
+            .expect("Container start error");
         }
     };
 
