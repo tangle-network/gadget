@@ -156,7 +156,6 @@ clap-cargo = { version = "0.14", default-features = false }
 toml = { version = "0.8.19", default-features = false }
 dialoguer = { version = "0.11.0", default-features = false }
 dotenv = { version = "0.15", default-features = false }
-indicatif = { version = "0.17.8", default-features = false }
 
 # Cryptography & Blockchain
 bip39 = { version = "2.1.0", default-features = false }
