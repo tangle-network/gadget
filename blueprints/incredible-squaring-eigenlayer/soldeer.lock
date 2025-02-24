@@ -1,10 +1,4 @@
 [[dependencies]]
-name = "eigenlayer-middleware"
-version = "0.5.4"
-git = "https://github.com/Layr-Labs/eigenlayer-middleware"
-rev = "848032a7e22b2e6a2ab7835a45e9b39bb16d41a5"
-
-[[dependencies]]
 name = "forge-std"
 version = "1.9.5"
 url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_9_5_21-12-2024_15:04:05_forge-std-1.9.zip"
