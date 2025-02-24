@@ -98,14 +98,14 @@ impl Forge {
 
         // Spawn thread to read stdout
         thread::spawn(move || {
-            for line in stdout_reader.lines().flatten() {
+            for line in stdout_reader.lines().map_while(Result::ok) {
                 let _ = tx.send(line);
             }
         });
 
         // Spawn thread to read stderr
         thread::spawn(move || {
-            for line in stderr_reader.lines().flatten() {
+            for line in stderr_reader.lines().map_while(Result::ok) {
                 let _ = tx_stderr.send(line);
             }
         });
