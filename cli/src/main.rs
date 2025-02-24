@@ -9,6 +9,7 @@ use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpt
 use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
+use dialoguer::console::style;
 use dotenv::from_path;
 use gadget_config::{
     protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
@@ -328,7 +329,7 @@ async fn main() -> color_eyre::Result<()> {
 
                         // Deploy to local devnet
                         deploy_to_eigenlayer(EigenlayerDeployOpts::new(
-                            http_endpoint,
+                            http_endpoint.clone(),
                             contracts_path,
                             ordered_deployment,
                             chain,
@@ -336,10 +337,37 @@ async fn main() -> color_eyre::Result<()> {
                         ))
                         .await?;
 
-                        // Keep the process running for development
-                        println!("\nTestnet will now continue running. Press Ctrl+C to stop...");
+                        // Keep the process running and show helpful instructions
+                        println!("\n{}", style("Local Testnet Active").green().bold());
+                        println!("\n{}", style("To run your AVS:").cyan().bold());
+                        println!("{}", style("1. Open a new terminal window").dim());
+                        println!(
+                            "{}",
+                            style("2. Set your AVS-specific environment variables:").dim()
+                        );
+                        println!(
+                            "   {}",
+                            style("# Your AVS may require specific environment variables from the deployment output above").dim()
+                        );
+                        println!(
+                            "   {}",
+                            style("# For example: TASK_MANAGER_ADDRESS=<address> or other contract addresses").dim()
+                        );
+                        println!("\n{}", style("3. Run your AVS with:").dim());
+                        println!(
+                            "   {}\n   {}\n   {}\n   {}",
+                            style("cargo tangle blueprint run \\").yellow(),
+                            style("  -p eigenlayer \\").yellow(),
+                            style(format!("  -u {} \\", http_endpoint)).yellow(),
+                            style("  --keystore-path ./test-keystore").yellow()
+                        );
+                        println!(
+                            "\n{}",
+                            style("The deployment variables above show all contract addresses you may need.").dim()
+                        );
+                        println!("{}", style("Press Ctrl+C to stop the testnet...").dim());
                         signal::ctrl_c().await?;
-                        println!("Shutting down devnet...");
+                        println!("{}", style("\nShutting down devnet...").yellow());
                     } else {
                         deploy_to_eigenlayer(EigenlayerDeployOpts::new(
                             rpc_url

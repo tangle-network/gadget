@@ -1,9 +1,13 @@
 use super::CommandInstalled;
 use color_eyre::eyre::Result;
+use dialoguer::console::{style, Term};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
-    io::{BufRead, BufReader},
+    collections::VecDeque,
+    io::{BufRead, BufReader, Read, Write},
     process::{Command, Stdio},
+    sync::mpsc,
+    thread,
 };
 
 pub struct Forge {
@@ -44,65 +48,19 @@ impl Forge {
     /// Install dependencies with live progress updates.
     /// Shows real-time output from forge and tracks progress.
     pub fn install_dependencies(&self) -> Result<()> {
-        let spinner = ProgressBar::new_spinner();
-        spinner.set_style(
-            ProgressStyle::default_spinner()
-                .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈")
-                .template("{spinner:.green} {msg}")
-                .unwrap(),
-        );
-
-        // Start the command with piped output so we can read it
-        let mut child = Command::new("forge")
+        // Start the command with inherited stdio to show output directly
+        let status = Command::new("forge")
             .args(["soldeer", "update", "-d"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-
-        let stdout = child.stdout.take().expect("Failed to capture stdout");
-        let stderr = child.stderr.take().expect("Failed to capture stderr");
-
-        // Create readers for both stdout and stderr
-        let stdout_reader = BufReader::new(stdout);
-        let stderr_reader = BufReader::new(stderr);
-
-        // Read output in a separate thread to prevent blocking
-        let stdout_lines = std::thread::spawn(move || {
-            stdout_reader
-                .lines()
-                .filter_map(|line| line.ok())
-                .collect::<Vec<String>>()
-        });
-
-        let stderr_lines = std::thread::spawn(move || {
-            stderr_reader
-                .lines()
-                .filter_map(|line| line.ok())
-                .collect::<Vec<String>>()
-        });
-
-        // Update spinner while command runs
-        while child.try_wait()?.is_none() {
-            spinner.tick();
-            spinner.set_message("Installing dependencies...");
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-
-        // Get the output from both streams
-        let stdout_output = stdout_lines.join().unwrap();
-        let stderr_output = stderr_lines.join().unwrap();
-
-        let status = child.wait()?;
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()?;
 
         if !status.success() {
-            spinner.finish_with_message("Failed to install dependencies");
             return Err(color_eyre::eyre::eyre!(
-                "Failed to install dependencies:\n{}",
-                stderr_output.join("\n")
+                "Failed to install dependencies. Check the output above for details."
             ));
         }
 
-        spinner.finish_with_message("Dependencies installed successfully!");
         Ok(())
     }
 
@@ -124,28 +82,73 @@ impl Forge {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        // Similar pattern to install_dependencies for live output
+        let stdout = child.stdout.take().expect("Failed to capture stdout");
+        let stderr = child.stderr.take().expect("Failed to capture stderr");
+
+        // Create readers for both stdout and stderr
+        let stdout_reader = BufReader::new(stdout);
+        let stderr_reader = BufReader::new(stderr);
+
+        // Create channels for output communication
+        let (tx, rx) = mpsc::channel();
+        let tx_stderr = tx.clone();
+
+        // Keep a buffer of recent output lines
+        let mut output_buffer = VecDeque::with_capacity(100);
+
+        // Spawn thread to read stdout
+        thread::spawn(move || {
+            for line in stdout_reader.lines() {
+                if let Ok(line) = line {
+                    let _ = tx.send(line);
+                }
+            }
+        });
+
+        // Spawn thread to read stderr
+        thread::spawn(move || {
+            for line in stderr_reader.lines() {
+                if let Ok(line) = line {
+                    let _ = tx_stderr.send(line);
+                }
+            }
+        });
+
+        // Update spinner and show output while command runs
         while child.try_wait()?.is_none() {
             spinner.tick();
-            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Check for new output
+            while let Ok(line) = rx.try_recv() {
+                // Only add non-duplicate lines
+                if !output_buffer.contains(&line) {
+                    output_buffer.push_back(line);
+
+                    // Keep only the last 100 lines
+                    if output_buffer.len() > 100 {
+                        output_buffer.pop_front();
+                    }
+
+                    // Print just the new line
+                    spinner.suspend(|| {
+                        println!("{}", style(&output_buffer[output_buffer.len() - 1]).dim());
+                    });
+                }
+            }
+
+            thread::sleep(std::time::Duration::from_millis(100));
         }
 
         let status = child.wait()?;
 
         if !status.success() {
-            spinner.finish_with_message("Failed to build contracts");
-            let stderr = child.stderr.take().expect("Failed to capture stderr");
-            let stderr_reader = BufReader::new(stderr);
-            let error_output: Vec<String> =
-                stderr_reader.lines().filter_map(|line| line.ok()).collect();
-
+            spinner.finish_with_message("❌ Failed to build contracts");
             return Err(color_eyre::eyre::eyre!(
-                "Failed to build contracts:\n{}",
-                error_output.join("\n")
+                "Failed to build contracts. Check the output above for details."
             ));
         }
 
-        spinner.finish_with_message("Contracts built successfully!");
+        spinner.finish_with_message("✨ Contracts built successfully!");
         Ok(())
     }
 }
