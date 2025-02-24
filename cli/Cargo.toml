@@ -28,6 +28,7 @@ bip39 = { workspace = true, features = ["rand_core", "rand"] }
 dotenv = { workspace = true }
 reqwest = { workspace = true }
 toml = { workspace = true }
+indicatif = { workspace = true }
 
 # Gadget dependencies
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }

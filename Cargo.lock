@@ -3207,6 +3207,7 @@ dependencies = [
  "gadget-utils-evm",
  "gadget-utils-tangle",
  "hex",
+ "indicatif",
  "reqwest 0.12.12",
  "serde",
  "serde_json",

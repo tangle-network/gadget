@@ -156,6 +156,7 @@ clap-cargo = { version = "0.14", default-features = false }
 toml = { version = "0.8.19", default-features = false }
 dialoguer = { version = "0.11.0", default-features = false }
 dotenv = { version = "0.15", default-features = false }
+indicatif = { version = "0.17.8", default-features = false }
 
 # Cryptography & Blockchain
 bip39 = { version = "2.1.0", default-features = false }
@@ -220,6 +221,7 @@ trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
 dirs = { version = "5.0.1", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
+indicatif = { version = "0.17.8", default-features = false }
 
 # Alloy (EVM)
 alloy = { version = "0.9", default-features = false }

@@ -463,6 +463,11 @@ async fn deploy_single_contract(
                 } else {
                     value
                 };
+
+                println!("Formatted value: {}", formatted_value);
+                // if formatted_value.contains("0x") {
+                //     formatted_value = formatted_value.replace("0x", "");
+                // }
                 cmd_str.push_str(&format!(" {}", formatted_value));
             }
         }
