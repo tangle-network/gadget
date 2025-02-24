@@ -2,7 +2,7 @@ use super::*;
 use alloy_primitives::address;
 use alloy_provider::Provider;
 use client::EigenlayerClient;
-use gadget_anvil_testing_utils::{start_anvil_container, Container, ANVIL_STATE_PATH};
+use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
 use gadget_config::{
     load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
     GadgetConfiguration,
@@ -19,8 +19,7 @@ struct TestEnvironment {
 }
 
 async fn setup_test_environment() -> TestEnvironment {
-    let (_container, http_endpoint, ws_endpoint) =
-        start_anvil_container(ANVIL_STATE_PATH, false).await;
+    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
 
     // Create test configuration
     let context_config = ContextConfig::create_eigenlayer_config(

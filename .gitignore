@@ -20,3 +20,5 @@ blueprint.lock
 blueprint.json
 cache
 target
+
+.cursor/
