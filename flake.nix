@@ -70,7 +70,6 @@
           ];
           packages = [
             pkgs.cargo-nextest
-            pkgs.cargo-machete
             pkgs.cargo-expand
             pkgs.cargo-dist
           ];

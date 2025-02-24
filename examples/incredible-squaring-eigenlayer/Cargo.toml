@@ -1,0 +1,60 @@
+[package]
+name = "incredible-squaring-eigenlayer"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.blueprint]
+manager = { Evm = "ExperimentalBlueprint" }
+master_revision = "Latest"
+
+[[bin]]
+name = "incredible-squaring"
+path = "src/main.rs"
+
+
+[dependencies]
+# Blueprint dependencies
+blueprint-core = { workspace = true }
+blueprint-router = { workspace = true }
+blueprint-runner = { workspace = true }
+blueprint-evm-extra = { workspace = true }
+anvil-testing-utils = { workspace = true }
+serde = { workspace = true }
+
+# Alloy dependencies
+alloy-contract = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true, features = ["json"] }
+alloy-transport = { workspace = true }
+alloy-transport-http = { workspace = true }
+
+# Async dependencies
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tower = { workspace = true }
+reqwest = { workspace = true }
+
+# Eigenlayer dependencies
+eigensdk = { workspace = true, features = [
+    "client-elcontracts",
+    "types",
+    "utils",
+    "logging",
+    "client-avsregistry",
+    "crypto-bls",
+] }
+
+# Misc
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[dev-dependencies]
+testcontainers = { workspace = true }
