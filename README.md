@@ -37,21 +37,25 @@ Tangle Network's Gadget SDK is a modular framework designed to simplify the deve
 ## 🌟 Features
 
 - **Blueprint System**
+
   - Template-based blueprint creation
   - Automated deployment workflows
   - Metadata Management
 
 - **Multi-Chain Support**
+
   - Native Tangle Network integration
   - EigenLayer compatibility
   - EVM chain support
   - Cross-chain communication
 
 - **Advanced Cryptography**
+
   - Multiple signature schemes (BLS, Ed25519, SR25519)
   - Secure key management
 
 - **Networking**
+
   - P2P communication via libp2p
   - Custom protocol implementations
   - NAT traversal
@@ -102,11 +106,13 @@ tangle-network-gadget-workspace
 - CMake (for certain dependencies)
 
 For Ubuntu/Debian:
+
 ```bash
 apt install build-essential cmake libssl-dev pkg-config
 ```
 
 For macOS:
+
 ```bash
 brew install openssl cmake
 ```
@@ -159,13 +165,13 @@ cargo tangle blueprint generate-keys -k <KEY_TYPE> -p <PATH> -s <SURI/SEED> --sh
 
 ### Supported Key Types
 
-| Key Type | Description | Use Case |
-|----------|-------------|----------|
-| sr25519 | Schnorrkel/Ristretto x25519 | Tangle Network account keys |
-| ecdsa | Elliptic Curve Digital Signature Algorithm | EVM compatible chains |
-| bls_bn254 | BLS signatures on BN254 curve | EigenLayer validators |
-| ed25519 | Edwards-curve Digital Signature Algorithm | General purpose signatures |
-| bls381 | BLS signatures on BLS12-381 curve | Advanced cryptographic operations |
+| Key Type  | Description                                | Use Case                          |
+| --------- | ------------------------------------------ | --------------------------------- |
+| sr25519   | Schnorrkel/Ristretto x25519                | Tangle Network account keys       |
+| ecdsa     | Elliptic Curve Digital Signature Algorithm | EVM compatible chains             |
+| bls_bn254 | BLS signatures on BN254 curve              | EigenLayer validators             |
+| ed25519   | Edwards-curve Digital Signature Algorithm  | General purpose signatures        |
+| bls381    | BLS signatures on BLS12-381 curve          | Advanced cryptographic operations |
 
 ## 🔧 Configuration
 
@@ -173,15 +179,16 @@ cargo tangle blueprint generate-keys -k <KEY_TYPE> -p <PATH> -s <SURI/SEED> --sh
 
 The CLI and core libraries support various feature flags for customizing functionality when building blueprints:
 
-| Feature Flag | Description | Components Included |
-|--------------|-------------|-------------------|
-| default | Standard installation | Tangle + EVM support with standard library features |
-| std | Standard library features | Core functionality with std support |
-| tangle | Tangle Network support | Tangle Network client, keystore, and EVM integration |
-| eigenlayer | EigenLayer integration | EigenLayer clients, keystore, and EVM support |
-| evm | EVM chain support | Ethereum JSON ABI, provider, network, and signer support |
+| Feature Flag | Description               | Components Included                                      |
+| ------------ | ------------------------- | -------------------------------------------------------- |
+| default      | Standard installation     | Tangle + EVM support with standard library features      |
+| std          | Standard library features | Core functionality with std support                      |
+| tangle       | Tangle Network support    | Tangle Network client, keystore, and EVM integration     |
+| eigenlayer   | EigenLayer integration    | EigenLayer clients, keystore, and EVM support            |
+| evm          | EVM chain support         | Ethereum JSON ABI, provider, network, and signer support |
 
 The crypto system supports multiple signature schemes:
+
 - k256 (ECDSA)
 - sr25519 (Schnorrkel)
 - ed25519
@@ -206,12 +213,12 @@ cargo install cargo-tangle --features "tangle,eigenlayer"
 
 Required environment variables for different operations:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| SIGNER | Substrate signer account SURI | `export SIGNER="//Alice"` |
-| EVM_SIGNER | EVM signer private key | `export EVM_SIGNER="0xcb6df..."` |
-| RPC_URL | Tangle Network RPC endpoint | `export RPC_URL="wss://rpc.tangle.tools"` |
-| HTTP_RPC_URL | HTTP RPC endpoint | `export HTTP_RPC_URL="https://rpc.tangle.tools"` |
+| Variable     | Description                   | Example                                          |
+| ------------ | ----------------------------- | ------------------------------------------------ |
+| SIGNER       | Substrate signer account SURI | `export SIGNER="//Alice"`                        |
+| EVM_SIGNER   | EVM signer private key        | `export EVM_SIGNER="0xcb6df..."`                 |
+| RPC_URL      | Tangle Network RPC endpoint   | `export RPC_URL="wss://rpc.tangle.tools"`        |
+| HTTP_RPC_URL | HTTP RPC endpoint             | `export HTTP_RPC_URL="https://rpc.tangle.tools"` |
 
 ## 🔨 Core Components
 

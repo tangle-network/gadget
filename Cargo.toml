@@ -220,6 +220,7 @@ trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
 dirs = { version = "6.0.0", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
+indicatif = { version = "0.17.8", default-features = false }
 
 # Alloy (EVM)
 alloy = { version = "0.9", default-features = false }

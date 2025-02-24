@@ -1,6 +1,9 @@
+use crate::anvil::{print_info, print_section_header, print_success};
 use crate::keys::{generate_key, import_key};
 use alloy_primitives::Address;
+use color_eyre::owo_colors::OwoColorize;
 use color_eyre::Result;
+use dialoguer::console::style;
 use dialoguer::{Confirm, Input, Select};
 use gadget_config::supported_chains::SupportedChains;
 use gadget_config::Protocol;
@@ -8,7 +11,7 @@ use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::KeyTypeId;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::{debug, info};
+use gadget_logging::debug;
 use gadget_std::fs;
 use gadget_std::path::Path;
 use gadget_std::process::Command;
@@ -174,8 +177,14 @@ fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
             let entry = entry?;
             let path = entry.path();
             if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
-                if let Some(path_str) = path.to_str() {
-                    contract_files.push(path_str.to_string());
+                // Read the file content to check if it's an interface
+                let content = fs::read_to_string(&path)?;
+                if !content.contains("interface I") {
+                    if let Some(path_str) = path.to_str() {
+                        contract_files.push(path_str.to_string());
+                    }
+                } else {
+                    debug!("Skipping interface file: {}", path.display());
                 }
             }
         }
@@ -183,7 +192,7 @@ fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
 
     if contract_files.is_empty() {
         return Err(color_eyre::eyre::eyre!(
-            "No Solidity contract files found in {}/src",
+            "No deployable Solidity contract files found in {}/src",
             contracts_path
         ));
     }
@@ -198,22 +207,35 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
 
     if available_contracts.len() == 1 {
         println!(
-            "\nOnly one contract available to deploy: {}, deploying it now...\n",
-            available_contracts[0]
+            "\n{}",
+            style(format!(
+                "Only one contract available to deploy: {}",
+                style(&available_contracts[0]).yellow()
+            ))
+            .cyan()
         );
         return Ok(available_contracts[0].clone());
     }
 
-    println!("\nAvailable contracts to deploy:");
+    print_section_header("Contract Selection");
+    println!("{}", style("Available contracts to deploy:").cyan());
     let selection = Select::new()
-        .with_prompt("Select the contract to deploy (use arrow keys ↑↓)")
+        .with_prompt(
+            style("Select the contract to deploy (use arrow keys ↑↓)")
+                .dim()
+                .to_string(),
+        )
         .items(available_contracts)
         .default(0)
         .interact()?;
 
     println!(
-        "\nNow deploying contract: {} Please wait...\n",
-        available_contracts[selection]
+        "\n{}",
+        style(format!(
+            "Now deploying contract: {}",
+            style(&available_contracts[selection]).yellow()
+        ))
+        .cyan()
     );
 
     Ok(available_contracts[selection].clone())
@@ -247,10 +269,10 @@ fn get_constructor_args(
         }
     }
 
-    info!(
-        "Contract '{}' requires constructor arguments:",
-        contract_name
-    );
+    print_section_header(&format!(
+        "Constructor Arguments for {}",
+        style(contract_map_name).yellow()
+    ));
 
     // For each input parameter, prompt the user for a value
     let mut args = Vec::new();
@@ -258,10 +280,12 @@ fn get_constructor_args(
         let name = input.get("name")?.as_str()?;
         let type_str = input.get("type")?.as_str()?;
 
-        info!("Parameter '{}' of type '{}'", name, type_str);
-
         let value: String = Input::new()
-            .with_prompt(format!("Enter value for {} ({})", name, type_str))
+            .with_prompt(format!(
+                "{} ({})",
+                style(name).yellow(),
+                style(type_str).cyan()
+            ))
             .interact()
             .ok()?;
 
@@ -317,20 +341,31 @@ async fn initialize_contract_if_needed(
 ) -> Result<()> {
     // Check if contract has an initialize function
     if let Some(init_args) = get_function_args_from_abi(contract_json, "initialize") {
-        info!("Contract {} is initializable", contract_name);
+        print_section_header(&format!("Initialize {}", style(contract_name).yellow()));
 
         let should_initialize = Confirm::new()
-            .with_prompt(format!("Do you want to initialize {}?", contract_name))
+            .with_prompt(format!(
+                "Do you want to initialize {}?",
+                style(contract_name).yellow()
+            ))
             .default(false)
             .interact()?;
 
         if should_initialize {
-            info!("Collecting initialization arguments...");
+            println!(
+                "\n{}",
+                style("Collecting initialization arguments...").cyan()
+            );
             let mut init_values = Vec::new();
 
             for (arg_name, arg_type) in &init_args {
-                let prompt = format!("Enter value for {} (type: {})", arg_name, arg_type);
-                let value: String = Input::new().with_prompt(&prompt).interact()?;
+                let value: String = Input::new()
+                    .with_prompt(format!(
+                        "{} ({})",
+                        style(arg_name).yellow(),
+                        style(arg_type).cyan()
+                    ))
+                    .interact()?;
 
                 // Format the value based on its type
                 let formatted_value = if arg_type == "string" || arg_type.contains("bytes") {
@@ -344,6 +379,8 @@ async fn initialize_contract_if_needed(
 
             let function_sig = build_function_signature("initialize", &init_args);
 
+            print_info("Generating initialization calldata...");
+
             // First generate the calldata using cast calldata
             let calldata_cmd = format!(
                 "cast calldata \"{}\" {}",
@@ -351,7 +388,7 @@ async fn initialize_contract_if_needed(
                 init_values.join(" ")
             );
 
-            info!("Generating calldata: {}", calldata_cmd);
+            debug!("Calldata command: {}", calldata_cmd);
 
             let calldata_output = Command::new("sh").arg("-c").arg(&calldata_cmd).output()?;
 
@@ -365,7 +402,7 @@ async fn initialize_contract_if_needed(
             let calldata = String::from_utf8_lossy(&calldata_output.stdout)
                 .trim()
                 .to_string();
-            info!("Generated calldata: {}", calldata);
+            debug!("Generated calldata: {}", calldata);
 
             // Get the from address from the private key
             let from_cmd = format!(
@@ -392,13 +429,15 @@ async fn initialize_contract_if_needed(
                 from_address, contract_address, calldata
             );
 
+            print_info("Sending initialization transaction...");
+
             // Send the transaction using eth_sendTransaction
             let command_str = format!(
                 "cast rpc --rpc-url {} eth_sendTransaction '{}'",
                 opts.rpc_url, tx_params
             );
 
-            info!("Running command: {}", command_str);
+            debug!("Running command: {}", command_str);
 
             let mut cmd = Command::new("sh");
             cmd.arg("-c").arg(&command_str);
@@ -411,9 +450,9 @@ async fn initialize_contract_if_needed(
                 ));
             }
 
-            info!("Successfully initialized {}", contract_name);
+            print_success(&format!("Initialized {}", contract_name), None);
         } else {
-            info!("Skipping initialization of {}", contract_name);
+            print_info(&format!("Skipping initialization of {}", contract_name));
         }
     }
 
@@ -425,19 +464,14 @@ async fn deploy_single_contract(
     contract_path: &str,
 ) -> Result<(String, Address)> {
     let contract_name = parse_contract_path(contract_path)?;
-    info!("Deploying contract: {}", contract_name);
-
     let contract_output = contract_name.rsplit('/').next().ok_or_else(|| {
         color_eyre::eyre::eyre!("Failed to get contract output from path: {}", contract_name)
     })?;
     let contract_output = contract_output.replace(':', "/");
-    info!("Contract output: {}", contract_output);
 
     // Read the contract's JSON artifact to check for constructor args
     let out_dir = Path::new(&opts.contracts_path).join("out");
-    info!("Out directory: {}", out_dir.display());
     let json_path = out_dir.join(format!("{}.json", contract_output));
-    info!("Contract JSON path: {}", json_path.display());
 
     // Read and parse the contract JSON
     let json_content = fs::read_to_string(&json_path)?;
@@ -463,7 +497,7 @@ async fn deploy_single_contract(
                 } else {
                     value
                 };
-                cmd_str.push_str(&format!(" {}", formatted_value));
+                cmd_str.push_str(&format!(" {}", formatted_value.replace("0x", "")));
             }
         }
     }
@@ -482,13 +516,24 @@ async fn deploy_single_contract(
     }
 
     // Try to find address in stdout first, then stderr if not found
-    let address = extract_address_from_output(contract_name.clone(), output.stdout.clone())
-        .or_else(|_| extract_address_from_output(contract_name.clone(), output.stderr.clone()))
+    let address = extract_address_from_output(output.stdout.clone())
+        .or_else(|_| extract_address_from_output(output.stderr.clone()))
         .map_err(|_| {
             color_eyre::eyre::eyre!("Failed to find contract address in deployment output")
         })?;
 
-    info!("Successfully deployed {} at {}", contract_name, address);
+    // Print deployment success with prominent address
+    println!(
+        "\n{}",
+        style("Contract Deployed Successfully").green().bold()
+    );
+    println!("{}", style("━".repeat(50)).purple());
+    println!(
+        "{}: {}",
+        style(&contract_name).yellow().bold(),
+        style(format!("0x{:x}", address)).cyan().bold()
+    );
+    println!("{}", style("━".repeat(50)).purple());
 
     // Check for initialization
     initialize_contract_if_needed(opts, &contract_json, &contract_name, address).await?;
@@ -501,13 +546,11 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
     let contract_files = find_contract_files(&opts.contracts_path)?;
 
     if opts.ordered_deployment {
-        println!("Starting ordered deployment of contracts...");
-
+        print_section_header("Ordered Contract Deployment");
+        println!("Contract files: {:?}", contract_files);
         let mut remaining_contracts = contract_files.clone();
         while !remaining_contracts.is_empty() {
             let selected_contract = select_next_contract(&remaining_contracts)?;
-            println!("Selected contract: {}", selected_contract);
-
             let (contract_name, address) = deploy_single_contract(opts, &selected_contract).await?;
             deployed_addresses.insert(contract_name, address);
 
@@ -515,7 +558,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
             remaining_contracts.retain(|c| c != &selected_contract);
         }
     } else {
-        println!("Finding contracts to deploy...");
+        print_section_header("Contract Deployment");
 
         for contract_path in contract_files {
             let (contract_name, address) = deploy_single_contract(opts, &contract_path).await?;
@@ -528,22 +571,20 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
 
 pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
     let addresses = deploy_avs_contracts(&opts).await?;
-    println!("Successfully deployed contracts:");
+    print_section_header("Deployment Summary");
+    println!("{}", style("━".repeat(50)).cyan());
     for (contract, address) in addresses {
         println!(
-            "\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m {}: {}",
-            contract, address
+            "{}: {}",
+            style(&contract).yellow().bold(),
+            style(format!("0x{:x}", address)).cyan().bold()
         );
     }
+    println!("{}", style("━".repeat(50)).cyan());
     Ok(())
 }
 
-pub fn extract_address_from_output(contract_name: String, output: Vec<u8>) -> Result<Address> {
-    let contract_name_clean = contract_name
-        .rsplit(':')
-        .next()
-        .unwrap_or(contract_name.as_str());
-
+pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
     let output = String::from_utf8_lossy(&output);
     debug!("Attempting to extract address from output:\n{}", output);
 
@@ -570,10 +611,6 @@ pub fn extract_address_from_output(contract_name: String, output: Vec<u8>) -> Re
                 debug!("Found potential address: {}", addr);
                 if let Ok(address) = Address::from_str(addr) {
                     debug!("Successfully parsed address: {}", address);
-                    println!(
-                        "\n\x1B[1;34m\u{2713}\u{FE0F}\x1B[0m {} Address: {}\n",
-                        contract_name_clean, address
-                    );
                     return Ok(address);
                 }
             }

@@ -1,0 +1,64 @@
+---
+description: Rust engineer
+globs: *.rs
+---
+# Rust Engineering Principles
+
+You're an expert Rust engineer skilled in designed beautiful and easy to walkthough interactive CLI programs. You can digest complex topics and implement them for users to have seamless dev experiences.
+
+## 1. Problem Analysis
+- Break down complex problems into smaller, testable units
+- Identify core data structures and their relationships first
+- Map out error cases before implementation
+- Consider performance implications early
+
+## 2. Implementation Flow
+- Start minimal, expand methodically
+- Write types and interfaces before implementation
+- Use early returns for cleaner control flow
+- Follow the "make it work, make it right, make it fast" principle
+- Leverage Rust's type system to prevent bugs
+
+## 3. Code Standards 
+- Keep functions focused and small. Focus on concise, efficient impls.
+- Use descriptive variable names (balance_amount vs amt)
+- Return Result/Option instead of unwrap/expect
+- Document public APIs with examples
+- Put tests in src/tests/ directory
+- Use proper error types with thiserror
+
+## 4. Data Structure Guidelines
+- Choose appropriate collections (Vec, HashMap, BTreeMap)
+- Use strong typing over stringly-typed code
+- Implement common traits (Debug, Clone, etc.) as needed
+- Consider using type-state pattern for complex states
+- Leverage enums for variant handling
+
+## 5. Error Handling
+- Create custom error types for your domain
+- Use anyhow for application code
+- Use thiserror for library code
+- Propagate errors with ? operator
+- Add context to errors when bubbling up
+
+## 6. Testing Strategy
+- Write tests as you code in a separate test in src/tests.rs or src/tests/<FILE> file.
+- Test happy and error paths
+- Use test fixtures for complex setup
+- Leverage property-based testing where suitable
+- Mock external services in tests
+
+## 7. Performance Considerations
+- Profile before optimizing
+- Use appropriate data structures
+- Consider memory layout and cache effects
+- Avoid unnecessary allocations
+- Use iterators effectively
+
+## 8. Review Checklist
+- Error cases handled properly
+- Memory management is clear
+- No unwrap/expect in production code
+- Documentation is clear and complete
+- Tests cover edge cases
+- Code follows SOLID principles

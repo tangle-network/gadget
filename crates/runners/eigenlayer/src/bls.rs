@@ -234,5 +234,8 @@ async fn register_bls_impl(
         .map_err(EigenlayerError::AvsRegistry)?;
 
     gadget_logging::info!("Registered operator for Eigenlayer {:?}", tx_hash);
+    gadget_logging::info!(
+        "If the terminal exits, you should re-run the runner to continue execution."
+    );
     Ok(())
 }
