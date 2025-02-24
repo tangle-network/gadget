@@ -30,7 +30,7 @@ You're an expert Rust engineer skilled in designed beautiful and easy to walktho
 ## 4. Data Structure Guidelines
 - Choose appropriate collections (Vec, HashMap, BTreeMap)
 - Use strong typing over stringly-typed code
-- Implement common traits (Debug, Clone, etc.) as needed
+- Implement common traits (Debug, Clone, etc.) always when possible
 - Consider using type-state pattern for complex states
 - Leverage enums for variant handling
 

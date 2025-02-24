@@ -53,9 +53,24 @@ pub mod key_types {
 }
 
 #[cfg(all(
+    feature = "bls381",
     not(feature = "sp-core-ecdsa"),
     not(feature = "sp-core-sr25519"),
     not(feature = "sp-core-ed25519")
+))]
+pub mod key_types {
+    // Default to k256 ECDSA implementation
+    pub use gadget_crypto::bls::bls381::{
+        W3fBls381 as Curve, W3fBls381Public as InstanceMsgPublicKey,
+        W3fBls381Secret as InstanceMsgKeyPair, W3fBls381Signature as InstanceSignedMsgSignature,
+    };
+}
+
+#[cfg(all(
+    not(feature = "sp-core-ecdsa"),
+    not(feature = "sp-core-sr25519"),
+    not(feature = "sp-core-ed25519"),
+    not(feature = "bls381")
 ))]
 pub mod key_types {
     // Default to k256 ECDSA implementation

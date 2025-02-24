@@ -89,6 +89,7 @@ std = [
 sp-core-ecdsa = ["gadget-crypto/sp-core"]
 sp-core-sr25519 = ["gadget-crypto/sp-core"]
 sp-core-ed25519 = ["gadget-crypto/sp-core"]
+bls381 = ["gadget-crypto/bls"]
 
 [lints]
 workspace = true
