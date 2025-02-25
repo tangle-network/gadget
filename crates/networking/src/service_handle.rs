@@ -6,6 +6,7 @@ use crate::{
     types::ProtocolMessage,
 };
 use crossbeam_channel::{self, Receiver, Sender};
+use gadget_crypto::KeyType;
 use libp2p::{Multiaddr, PeerId};
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -13,13 +14,13 @@ use tracing::debug;
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
-pub struct NetworkSender {
-    network_message_sender: Sender<NetworkMessage>,
+pub struct NetworkSender<T: KeyType> {
+    network_message_sender: Sender<NetworkMessage<T>>,
 }
 
-impl NetworkSender {
+impl<T: KeyType> NetworkSender<T> {
     #[must_use]
-    pub fn new(network_message_sender: Sender<NetworkMessage>) -> Self {
+    pub fn new(network_message_sender: Sender<NetworkMessage<T>>) -> Self {
         Self {
             network_message_sender,
         }
@@ -30,7 +31,7 @@ impl NetworkSender {
     /// # Errors
     ///
     /// See [`crossbeam_channel::Sender::send`]
-    pub fn send_message(&self, message: NetworkMessage) -> Result<(), String> {
+    pub fn send_message(&self, message: NetworkMessage<T>) -> Result<(), String> {
         self.network_message_sender
             .send(message)
             .map_err(|e| e.to_string())
@@ -38,13 +39,13 @@ impl NetworkSender {
 }
 
 /// Handle for receiving incoming messages from the network
-pub struct NetworkReceiver {
-    protocol_message_receiver: Receiver<ProtocolMessage>,
+pub struct NetworkReceiver<T: KeyType> {
+    protocol_message_receiver: Receiver<ProtocolMessage<T>>,
 }
 
-impl NetworkReceiver {
+impl<T: KeyType> NetworkReceiver<T> {
     #[must_use]
-    pub fn new(protocol_message_receiver: Receiver<ProtocolMessage>) -> Self {
+    pub fn new(protocol_message_receiver: Receiver<ProtocolMessage<T>>) -> Self {
         Self {
             protocol_message_receiver,
         }
@@ -55,21 +56,21 @@ impl NetworkReceiver {
     /// # Errors
     ///
     /// See [`crossbeam_channel::Receiver::try_recv()`]
-    pub fn try_recv(&self) -> Result<ProtocolMessage, crossbeam_channel::TryRecvError> {
+    pub fn try_recv(&self) -> Result<ProtocolMessage<T>, crossbeam_channel::TryRecvError> {
         self.protocol_message_receiver.try_recv()
     }
 }
 
 /// Combined handle for the network service
-pub struct NetworkServiceHandle {
+pub struct NetworkServiceHandle<T: KeyType> {
     pub local_peer_id: PeerId,
     pub blueprint_protocol_name: Arc<str>,
-    pub sender: NetworkSender,
-    pub receiver: NetworkReceiver,
-    pub peer_manager: Arc<PeerManager>,
+    pub sender: NetworkSender<T>,
+    pub receiver: NetworkReceiver<T>,
+    pub peer_manager: Arc<PeerManager<T>>,
 }
 
-impl Clone for NetworkServiceHandle {
+impl<T: KeyType> Clone for NetworkServiceHandle<T> {
     fn clone(&self) -> Self {
         Self {
             local_peer_id: self.local_peer_id,
@@ -81,14 +82,14 @@ impl Clone for NetworkServiceHandle {
     }
 }
 
-impl NetworkServiceHandle {
+impl<T: KeyType> NetworkServiceHandle<T> {
     #[must_use]
     pub fn new(
         local_peer_id: PeerId,
         blueprint_protocol_name: String,
-        peer_manager: Arc<PeerManager>,
-        network_message_sender: Sender<NetworkMessage>,
-        protocol_message_receiver: Receiver<ProtocolMessage>,
+        peer_manager: Arc<PeerManager<T>>,
+        network_message_sender: Sender<NetworkMessage<T>>,
+        protocol_message_receiver: Receiver<ProtocolMessage<T>>,
     ) -> Self {
         Self {
             local_peer_id,
@@ -99,7 +100,7 @@ impl NetworkServiceHandle {
         }
     }
 
-    pub fn next_protocol_message(&mut self) -> Option<ProtocolMessage> {
+    pub fn next_protocol_message(&mut self) -> Option<ProtocolMessage<T>> {
         self.receiver.try_recv().ok()
     }
 
@@ -124,7 +125,11 @@ impl NetworkServiceHandle {
     /// # Errors
     ///
     /// See [`crossbeam_channel::Sender::send`]
-    pub fn send(&self, routing: MessageRouting, message: impl Into<Vec<u8>>) -> Result<(), String> {
+    pub fn send(
+        &self,
+        routing: MessageRouting<T>,
+        message: impl Into<Vec<u8>>,
+    ) -> Result<(), String> {
         let protocol_message = ProtocolMessage {
             protocol: self.blueprint_protocol_name.clone().to_string(),
             routing,
@@ -171,7 +176,7 @@ impl NetworkServiceHandle {
         Ok(())
     }
 
-    pub(crate) fn send_network_message(&self, message: NetworkMessage) -> Result<(), String> {
+    pub(crate) fn send_network_message(&self, message: NetworkMessage<T>) -> Result<(), String> {
         self.sender.send_message(message)
     }
 
@@ -188,7 +193,7 @@ impl NetworkServiceHandle {
 
     /// Split the handle into separate sender and receiver
     #[must_use]
-    pub fn split(self) -> (NetworkSender, NetworkReceiver) {
+    pub fn split(self) -> (NetworkSender<T>, NetworkReceiver<T>) {
         (self.sender, self.receiver)
     }
 }

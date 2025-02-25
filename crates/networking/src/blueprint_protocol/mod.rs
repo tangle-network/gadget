@@ -1,22 +1,22 @@
 mod behaviour;
 mod handler;
-mod utils;
 
 pub use behaviour::{BlueprintProtocolBehaviour, BlueprintProtocolEvent};
+use gadget_crypto::KeyType;
 use libp2p::PeerId;
 
-use crate::{discovery::peers::VerificationIdentifierKey, key_types::InstanceSignedMsgSignature};
+use crate::discovery::peers::VerificationIdentifierKey;
 use serde::{Deserialize, Serialize};
 
 /// A message sent to a specific instance or broadcast to all instances
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum InstanceMessageRequest {
+pub enum InstanceMessageRequest<T: KeyType> {
     /// Handshake request with authentication
     Handshake {
         /// Public key for authentication
-        verification_id_key: VerificationIdentifierKey,
+        verification_id_key: VerificationIdentifierKey<T>,
         /// Signature for verification
-        signature: InstanceSignedMsgSignature,
+        signature: T::Signature,
         /// Handshake message
         msg: HandshakeMessage,
     },
@@ -32,12 +32,12 @@ pub enum InstanceMessageRequest {
 }
 
 /// Response to an instance message
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum InstanceMessageResponse {
+#[derive(Debug, Clone, Serialize)]
+pub enum InstanceMessageResponse<T: KeyType> {
     /// Handshake response with authentication
     Handshake {
         /// Public key for authentication
-        verification_id_key: VerificationIdentifierKey,
+        verification_id_key: VerificationIdentifierKey<T>,
         /// Signature for verification
         signature: InstanceSignedMsgSignature,
         /// Handshake message

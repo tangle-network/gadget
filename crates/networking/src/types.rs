@@ -1,4 +1,5 @@
-use crate::{discovery::peers::VerificationIdentifierKey, key_types::InstanceMsgPublicKey};
+use crate::discovery::peers::VerificationIdentifierKey;
+use gadget_crypto::KeyType;
 use libp2p::{gossipsub::IdentTopic, PeerId};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -33,44 +34,35 @@ pub enum MessageDelivery {
 
 /// Message routing information
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MessageRouting {
+pub struct MessageRouting<T: KeyType> {
     /// Unique identifier for this message
     pub message_id: u64,
     /// The round/sequence number this message belongs to
     pub round_id: u16,
     /// The sender's information
-    pub sender: ParticipantInfo,
+    pub sender: ParticipantInfo<T>,
     /// Optional recipient information for direct messages
-    pub recipient: Option<ParticipantInfo>,
+    pub recipient: Option<ParticipantInfo<T>>,
 }
 
 /// Information about a participant in the network
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParticipantInfo {
+pub struct ParticipantInfo<T: KeyType> {
     /// The participant's unique ID
     pub id: ParticipantId,
     /// The participant's verification ID key (if known)
-    pub verification_id_key: Option<VerificationIdentifierKey>,
+    pub verification_id_key: Option<VerificationIdentifierKey<T>>,
 }
 
 /// A protocol message that can be sent over the network
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolMessage {
+pub struct ProtocolMessage<T: KeyType> {
     /// The protocol name
     pub protocol: String,
     /// Routing information for the message
-    pub routing: MessageRouting,
+    pub routing: MessageRouting<T>,
     /// The actual message payload
     pub payload: Vec<u8>,
-}
-
-/// Internal representation of a message to be sent
-#[derive(Debug)]
-pub struct OutboundMessage {
-    /// The message to be sent
-    pub message: ProtocolMessage,
-    /// How the message should be delivered
-    pub delivery: MessageDelivery,
 }
 
 impl Display for ParticipantId {
@@ -79,7 +71,7 @@ impl Display for ParticipantId {
     }
 }
 
-impl Display for MessageRouting {
+impl<T: KeyType> Display for MessageRouting<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -92,7 +84,7 @@ impl Display for MessageRouting {
     }
 }
 
-impl Display for ParticipantInfo {
+impl<T: KeyType> Display for ParticipantInfo<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -107,7 +99,7 @@ impl Display for ParticipantInfo {
     }
 }
 
-impl Display for ProtocolMessage {
+impl<T: KeyType> Display for ProtocolMessage<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} payload_size={}", self.routing, self.payload.len())
     }

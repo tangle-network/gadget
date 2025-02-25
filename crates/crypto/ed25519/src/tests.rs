@@ -1,5 +1,5 @@
 use super::*;
-use gadget_crypto_core::{KeyEncoding, KeyType};
+use gadget_crypto_core::{BytesEncoding, KeyType};
 
 mod ed25519_crypto_tests {
     use super::*;

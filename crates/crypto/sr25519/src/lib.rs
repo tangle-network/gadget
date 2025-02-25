@@ -6,15 +6,19 @@ use error::{Result, Sr25519Error};
 #[cfg(test)]
 mod tests;
 
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
+    hash::Hash,
     string::{String, ToString},
     vec::Vec,
 };
 use schnorrkel::MiniSecretKey;
 
 /// Schnorrkel key type
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct SchnorrkelSr25519;
 
 macro_rules! impl_schnorrkel_serde {
@@ -34,7 +38,13 @@ macro_rules! impl_schnorrkel_serde {
             }
         }
 
-        impl KeyEncoding for $name {
+        impl Hash for $name {
+            fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                self.0.to_bytes().hash(state);
+            }
+        }
+
+        impl BytesEncoding for $name {
             fn to_bytes(&self) -> Vec<u8> {
                 self.0.to_bytes().to_vec()
             }

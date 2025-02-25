@@ -1,5 +1,4 @@
 use crate::error::Result as NetworkingResult;
-use crate::key_types::InstanceMsgKeyPair;
 use crate::types::ProtocolMessage;
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
@@ -10,6 +9,7 @@ use crate::{
     },
 };
 use crossbeam_channel::Sender;
+use gadget_crypto::KeyType;
 use libp2p::{
     connection_limits::{self, ConnectionLimits},
     identity::Keypair,
@@ -27,28 +27,28 @@ use tracing::{debug, info};
 
 /// Events that can be emitted by the `GadgetBehavior`
 #[derive(Debug)]
-pub enum GadgetEvent {
+pub enum GadgetEvent<T: KeyType> {
     /// Discovery-related events
     Discovery(DiscoveryEvent),
     /// Ping events for connection liveness
     Ping(ping::Event),
     /// Blueprint protocol events
-    Blueprint(BlueprintProtocolEvent),
+    Blueprint(BlueprintProtocolEvent<T>),
 }
 
 #[derive(NetworkBehaviour)]
-pub struct GadgetBehaviour {
+pub struct GadgetBehaviour<T: KeyType> {
     /// Connection limits to prevent `DoS`
     connection_limits: connection_limits::Behaviour,
     /// Discovery mechanisms (Kademlia, mDNS, etc)
     pub(super) discovery: DiscoveryBehaviour,
     /// Direct P2P messaging and gossip
-    pub(super) blueprint_protocol: BlueprintProtocolBehaviour,
+    pub(super) blueprint_protocol: BlueprintProtocolBehaviour<T>,
     /// Connection liveness checks
     ping: ping::Behaviour,
 }
 
-impl GadgetBehaviour {
+impl<T: KeyType> GadgetBehaviour<T> {
     /// Create a new `GadgetBehaviour`
     ///
     /// # Errors
@@ -58,10 +58,10 @@ impl GadgetBehaviour {
         network_name: &str,
         blueprint_protocol_name: &str,
         local_key: &Keypair,
-        instance_key_pair: &InstanceMsgKeyPair,
+        instance_key_pair: &T::Secret,
         target_peer_count: u32,
-        peer_manager: Arc<PeerManager>,
-        protocol_message_sender: Sender<ProtocolMessage>,
+        peer_manager: Arc<PeerManager<T>>,
+        protocol_message_sender: Sender<ProtocolMessage<T>>,
         use_address_for_handshake_verification: bool,
     ) -> NetworkingResult<Self> {
         let connection_limits = connection_limits::Behaviour::new(

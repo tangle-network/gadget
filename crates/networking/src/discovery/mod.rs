@@ -8,6 +8,7 @@ use libp2p::{
 pub mod behaviour;
 pub mod config;
 pub mod peers;
+pub mod utils;
 
 pub use peers::{PeerEvent, PeerInfo, PeerManager};
 

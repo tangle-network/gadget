@@ -11,14 +11,16 @@ use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
 use ark_ff::UniformRand;
 use ark_ff::{BigInteger256, Field, One, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::hash::Hash;
 use gadget_std::vec::Vec;
 use gadget_std::{
     str::FromStr,
     string::{String, ToString},
 };
 use num_bigint::BigUint;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Serialize this to a vector of bytes.
@@ -99,6 +101,7 @@ pub fn verify(public_key: G2Affine, message: &[u8], signature: G1Affine) -> bool
 }
 
 /// BLS-BN254 key type
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ArkBlsBn254;
 
 macro_rules! impl_ark_serde {
@@ -118,7 +121,13 @@ macro_rules! impl_ark_serde {
             }
         }
 
-        impl KeyEncoding for $name {
+        impl Hash for $name {
+            fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                self.to_bytes().hash(state);
+            }
+        }
+
+        impl BytesEncoding for $name {
             fn to_bytes(&self) -> Vec<u8> {
                 crate::to_bytes(self.0)
             }

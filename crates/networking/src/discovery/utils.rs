@@ -1,8 +1,13 @@
 use alloy_primitives::{keccak256, Address};
+use thiserror::*;
 
+#[derive(Error, Debug)]
 pub enum EcdsaVerifyError {
+    #[error("Bad V")]
     BadV,
+    #[error("Bad RS")]
     BadRS,
+    #[error("Bad Signature")]
     BadSignature,
 }
 
@@ -29,8 +34,10 @@ pub fn get_address_from_pubkey(pubkey: &[u8; 64]) -> Address {
     Address::from_slice(&address)
 }
 
-pub fn get_address_from_compressed_pubkey(pubkey: &[u8; 33]) -> Address {
-    let pk = libsecp256k1::PublicKey::parse_compressed(pubkey).unwrap();
+pub fn get_address_from_compressed_pubkey(pubkey: Vec<u8>) -> Address {
+    let mut pk = [0u8; 33];
+    pk[..pubkey.len()].copy_from_slice(&pubkey);
+    let pk = libsecp256k1::PublicKey::parse_compressed(&pk).unwrap();
     let decompressed: [u8; 65] = pk.serialize();
     let hash = keccak256(&decompressed[1..65]);
     let mut address = [0u8; 20];

@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use gadget_std::fmt::Debug;
+use gadget_std::hash::Hash;
 use gadget_std::string::String;
 use gadget_std::vec::Vec;
 use serde::{Deserialize, Serialize};
@@ -63,17 +65,58 @@ impl KeyTypeId {
     }
 }
 
-pub trait KeyEncoding: Sized {
+pub trait BytesEncoding: Sized {
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Result<Self, serde::de::value::Error>;
 }
 
 /// Trait for key types that can be stored in the keystore
-pub trait KeyType: Sized + 'static {
-    type Secret: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync + KeyEncoding;
-    type Public: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync + KeyEncoding;
-    type Signature: Clone + Serialize + for<'de> Deserialize<'de> + Ord + Send + Sync;
-    type Error: Clone + Send + Sync;
+pub trait KeyType:
+    Clone
+    + Eq
+    + Debug
+    + PartialEq
+    + Ord
+    + PartialOrd
+    + Hash
+    + Sized
+    + Serialize
+    + for<'de> Deserialize<'de>
+    + 'static
+{
+    type Secret: Clone
+        + Serialize
+        + for<'de> Deserialize<'de>
+        + Ord
+        + Send
+        + Sync
+        + Eq
+        + PartialEq
+        + BytesEncoding
+        + Debug;
+    type Public: Clone
+        + Serialize
+        + for<'de> Deserialize<'de>
+        + Ord
+        + Send
+        + Sync
+        + Hash
+        + Eq
+        + PartialEq
+        + BytesEncoding
+        + Debug;
+
+    type Signature: Clone
+        + Serialize
+        + for<'de> Deserialize<'de>
+        + Ord
+        + Send
+        + Sync
+        + Eq
+        + PartialEq
+        + BytesEncoding
+        + Debug;
+    type Error: Clone + Send + Sync + Debug;
 
     fn key_type_id() -> KeyTypeId;
 

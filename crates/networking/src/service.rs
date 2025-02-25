@@ -13,6 +13,7 @@ use crate::{
 use alloy_primitives::Address;
 use crossbeam_channel::{self, Receiver, Sender};
 use futures::StreamExt;
+use gadget_crypto::KeyType;
 use libp2p::{
     identify,
     identity::Keypair,
@@ -26,26 +27,26 @@ use tracing::{debug, info, warn};
 
 /// Events emitted by the network service
 #[derive(Debug)]
-pub enum NetworkEvent {
+pub enum NetworkEvent<T: KeyType> {
     /// New request received from a peer
     InstanceRequestInbound {
         peer: PeerId,
-        request: InstanceMessageRequest,
+        request: InstanceMessageRequest<T>,
     },
     /// New response received from a peer
     InstanceResponseInbound {
         peer: PeerId,
-        response: InstanceMessageResponse,
+        response: InstanceMessageResponse<T>,
     },
     /// New request sent to a peer
     InstanceRequestOutbound {
         peer: PeerId,
-        request: InstanceMessageRequest,
+        request: InstanceMessageRequest<T>,
     },
     /// Response sent to a peer
     InstanceResponseOutbound {
         peer: PeerId,
-        response: InstanceMessageResponse,
+        response: InstanceMessageResponse<T>,
     },
     /// New gossip message received
     GossipReceived {
@@ -67,10 +68,10 @@ pub enum NetworkEvent {
 
 /// Network message types
 #[derive(Debug)]
-pub enum NetworkMessage {
+pub enum NetworkMessage<T: KeyType> {
     InstanceRequest {
         peer: PeerId,
-        request: InstanceMessageRequest,
+        request: InstanceMessageRequest<T>,
     },
     GossipMessage {
         source: PeerId,
@@ -81,13 +82,13 @@ pub enum NetworkMessage {
 
 /// Configuration for the network service
 #[derive(Debug, Clone)]
-pub struct NetworkConfig {
+pub struct NetworkConfig<T: KeyType> {
     /// Network name/namespace
     pub network_name: String,
     /// Instance id for blueprint protocol
     pub instance_id: String,
     /// Instance secret key for blueprint protocol
-    pub instance_key_pair: InstanceMsgKeyPair,
+    pub instance_key_pair: T::Secret,
     /// Local keypair for authentication
     pub local_key: Keypair,
     /// Address to listen on
@@ -104,32 +105,32 @@ pub struct NetworkConfig {
     pub use_evm_addresses: bool,
 }
 
-pub struct NetworkService {
+pub struct NetworkService<T: KeyType> {
     /// The libp2p swarm
-    swarm: Swarm<GadgetBehaviour>,
+    swarm: Swarm<GadgetBehaviour<T>>,
     /// Peer manager for tracking peer states
-    pub(crate) peer_manager: Arc<PeerManager>,
+    pub(crate) peer_manager: Arc<PeerManager<T>>,
     /// Channel for sending messages to the network service
-    network_sender: Sender<NetworkMessage>,
+    network_sender: Sender<NetworkMessage<T>>,
     /// Channel for receiving messages from the network service
-    network_receiver: Receiver<NetworkMessage>,
+    network_receiver: Receiver<NetworkMessage<T>>,
     /// Channel for receiving messages from the network service
-    protocol_message_receiver: Receiver<ProtocolMessage>,
+    protocol_message_receiver: Receiver<ProtocolMessage<T>>,
     /// Channel for sending events to the network service
-    event_sender: Sender<NetworkEvent>,
+    event_sender: Sender<NetworkEvent<T>>,
     /// Channel for receiving events from the network service
     #[expect(dead_code)] // For future use
-    event_receiver: Receiver<NetworkEvent>,
+    event_receiver: Receiver<NetworkEvent<T>>,
     /// Bootstrap peers
     bootstrap_peers: HashSet<Multiaddr>,
 }
 
-pub enum AllowedKeys {
+pub enum AllowedKeys<T: KeyType> {
     EvmAddresses(gadget_std::collections::HashSet<Address>),
-    InstancePublicKeys(gadget_std::collections::HashSet<InstanceMsgPublicKey>),
+    InstancePublicKeys(gadget_std::collections::HashSet<T::Public>),
 }
 
-impl NetworkService {
+impl<T: KeyType> NetworkService<T> {
     /// Create a new network service
     ///
     /// # Errors
@@ -138,11 +139,11 @@ impl NetworkService {
     /// * Bad `listen_addr` in the provided [`NetworkConfig`]
     #[allow(clippy::missing_panics_doc)] // Unwrapping an Infallible
     pub fn new(
-        config: NetworkConfig,
-        allowed_keys: AllowedKeys,
+        config: NetworkConfig<T>,
+        allowed_keys: AllowedKeys<T>,
         // allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
     ) -> Result<Self, Error> {
-        let NetworkConfig {
+        let NetworkConfig::<T> {
             network_name,
             instance_id,
             instance_key_pair,
@@ -212,11 +213,11 @@ impl NetworkService {
     }
 
     /// Get a sender to send messages to the network service
-    pub fn network_sender(&self) -> Sender<NetworkMessage> {
+    pub fn network_sender(&self) -> Sender<NetworkMessage<T>> {
         self.network_sender.clone()
     }
 
-    pub fn start(self) -> NetworkServiceHandle {
+    pub fn start(self) -> NetworkServiceHandle<T> {
         let local_peer_id = *self.swarm.local_peer_id();
         let network_sender = self.network_sender.clone();
         let protocol_message_receiver = self.protocol_message_receiver.clone();
@@ -317,12 +318,12 @@ impl NetworkService {
 }
 
 /// Handle a behaviour event
-fn handle_behaviour_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
-    event: GadgetBehaviourEvent,
-    event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
+fn handle_behaviour_event<T: KeyType>(
+    swarm: &mut Swarm<GadgetBehaviour<T>>,
+    peer_manager: &Arc<PeerManager<T>>,
+    event: GadgetBehaviourEvent<T>,
+    event_sender: &Sender<NetworkEvent<T>>,
+) -> Result<(), Error<T>> {
     match event {
         GadgetBehaviourEvent::ConnectionLimits(_) => {}
         GadgetBehaviourEvent::Discovery(discovery_event) => {
@@ -340,12 +341,12 @@ fn handle_behaviour_event(
 }
 
 /// Handle a discovery event
-fn handle_discovery_event(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    peer_manager: &Arc<PeerManager>,
+fn handle_discovery_event<T: KeyType>(
+    swarm: &mut Swarm<GadgetBehaviour<T>>,
+    peer_manager: &Arc<PeerManager<T>>,
     event: DiscoveryEvent,
-    event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
+    event_sender: &Sender<NetworkEvent<T>>,
+) -> Result<(), Error<T>> {
     match event {
         DiscoveryEvent::PeerConnected(peer_id) => {
             info!("Peer connected, {peer_id}");
@@ -442,12 +443,12 @@ fn handle_discovery_event(
 }
 
 /// Handle a blueprint event
-fn handle_blueprint_protocol_event(
-    _swarm: &mut Swarm<GadgetBehaviour>,
-    _peer_manager: &Arc<PeerManager>,
-    event: BlueprintProtocolEvent,
-    event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
+fn handle_blueprint_protocol_event<T: KeyType>(
+    _swarm: &mut Swarm<GadgetBehaviour<T>>,
+    _peer_manager: &Arc<PeerManager<T>>,
+    event: BlueprintProtocolEvent<T>,
+    event_sender: &Sender<NetworkEvent<T>>,
+) -> Result<(), Error<T>> {
     match event {
         BlueprintProtocolEvent::Request {
             peer,
@@ -475,12 +476,12 @@ fn handle_blueprint_protocol_event(
 
 /// Handle a ping event
 #[expect(clippy::unnecessary_wraps)]
-fn handle_ping_event(
-    _swarm: &mut Swarm<GadgetBehaviour>,
-    _peer_manager: &Arc<PeerManager>,
+fn handle_ping_event<T: KeyType>(
+    _swarm: &mut Swarm<GadgetBehaviour<T>>,
+    _peer_manager: &Arc<PeerManager<T>>,
     event: ping::Event,
-    _event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
+    _event_sender: &Sender<NetworkEvent<T>>,
+) -> Result<(), Error<T>> {
     match event.result {
         Ok(rtt) => {
             trace!(
@@ -504,12 +505,12 @@ fn handle_ping_event(
 }
 
 /// Handle a network message
-fn handle_network_message(
-    swarm: &mut Swarm<GadgetBehaviour>,
-    msg: NetworkMessage,
-    peer_manager: &Arc<PeerManager>,
-    event_sender: &Sender<NetworkEvent>,
-) -> Result<(), Error> {
+fn handle_network_message<T: KeyType>(
+    swarm: &mut Swarm<GadgetBehaviour<T>>,
+    msg: NetworkMessage<T>,
+    peer_manager: &Arc<PeerManager<T>>,
+    event_sender: &Sender<NetworkEvent<T>>,
+) -> Result<(), Error<T>> {
     match msg {
         NetworkMessage::InstanceRequest { peer, request } => {
             // Only send requests to verified peers

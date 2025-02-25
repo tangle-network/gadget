@@ -1,6 +1,4 @@
 #![allow(unused_variables, unreachable_code)]
-
-use alloy_primitives::Address;
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
 
@@ -170,6 +168,7 @@ impl GadgetConfiguration {
     pub fn libp2p_network_config(
         &self,
         network_name: impl Into<String>,
+        use_evm_addresses: bool,
     ) -> Result<gadget_networking::NetworkConfig, Error> {
         use gadget_keystore::backends::Backend;
         use gadget_keystore::crypto::sp_core::SpEd25519 as LibP2PKeyType;
@@ -209,6 +208,7 @@ impl GadgetConfiguration {
             bootstrap_peers: self.bootnodes.clone(),
             enable_mdns: self.enable_mdns,
             enable_kademlia: self.enable_kademlia,
+            use_evm_addresses,
         };
 
         Ok(network_config)

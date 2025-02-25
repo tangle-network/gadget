@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_std::{
+    hash::Hash,
     string::{String, ToString},
     vec::Vec,
 };
@@ -50,7 +51,7 @@ macro_rules! impl_sp_core_bls_pair_public {
                 }
             }
 
-            impl KeyEncoding for [<Sp $key_type Pair>] {
+            impl BytesEncoding for [<Sp $key_type Pair>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.seed.to_vec()
                 }
@@ -101,6 +102,12 @@ macro_rules! impl_sp_core_bls_pair_public {
                 }
             }
 
+            impl Hash for [<Sp $key_type Public>]{
+                fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                    self.0.hash(state);
+                }
+            }
+
             impl Eq for [<Sp $key_type Public>]{}
 
             impl PartialOrd for [<Sp $key_type Public>]{
@@ -121,7 +128,7 @@ macro_rules! impl_sp_core_bls_pair_public {
                 }
             }
 
-            impl KeyEncoding for [<Sp $key_type Public>] {
+            impl BytesEncoding for [<Sp $key_type Public>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.0.to_raw().to_vec()
                 }
@@ -162,6 +169,19 @@ macro_rules! impl_sp_core_bls_signature {
                     write!(f, "{:?}", bytes)
                 }
             }
+
+            impl BytesEncoding for [<Sp $key_type Signature>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw().to_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    match $signature::try_from(bytes) {
+                        Ok(signature) => Ok(Self(signature)),
+                        Err(_) => Err(serde::de::Error::custom("Invalid signature length")),
+                    }
+                }
+            }
         }
     };
 }
@@ -170,6 +190,7 @@ macro_rules! impl_sp_core_bls_signature {
 macro_rules! impl_sp_core_bls_key_type {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type>];
 
             impl gadget_crypto_core::KeyType for [<Sp $key_type>] {

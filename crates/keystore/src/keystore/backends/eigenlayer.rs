@@ -3,7 +3,7 @@ use crate::{Error, Keystore};
 use bn254::Bn254Backend;
 use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::k256::{K256Signature, K256SigningKey, K256VerifyingKey};
-use gadget_crypto::{KeyEncoding, KeyTypeId};
+use gadget_crypto::{BytesEncoding, KeyTypeId};
 
 #[async_trait::async_trait]
 pub trait EigenlayerBackend: Bn254Backend {

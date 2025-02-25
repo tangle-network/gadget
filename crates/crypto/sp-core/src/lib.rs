@@ -10,7 +10,7 @@ pub mod error;
 #[cfg(test)]
 mod tests;
 
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_std::{string::String, vec::Vec};
 use sp_core::{ByteArray, Pair};
 
@@ -83,7 +83,7 @@ macro_rules! impl_sp_core_pair_public {
                 }
             }
 
-            impl KeyEncoding for [<Sp $key_type Public>] {
+            impl BytesEncoding for [<Sp $key_type Public>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.0.to_raw_vec()
                 }
@@ -158,6 +158,19 @@ macro_rules! impl_sp_core_signature {
                     write!(f, "{}", hex::encode(self.0.0))
                 }
             }
+
+            impl BytesEncoding for [<Sp $key_type Signature>] {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.0.to_raw_vec()
+                }
+
+                fn from_bytes(bytes: &[u8]) -> core::result::Result<Self, serde::de::value::Error> {
+                    match <$pair_type as sp_core::Pair>::Signature::from_slice(bytes) {
+                        Ok(sig) => Ok([<Sp $key_type Signature>](sig)),
+                        Err(_) => Err(serde::de::Error::custom("Invalid signature length")),
+                    }
+                }
+            }
         }
     };
 }
@@ -166,6 +179,7 @@ macro_rules! impl_sp_core_signature {
 macro_rules! impl_sp_core_key_type {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
             pub struct [<Sp $key_type>];
 
             impl gadget_crypto_core::KeyType for [<Sp $key_type>] {
@@ -245,7 +259,7 @@ macro_rules! impl_sp_core_key_type {
                 }
             }
 
-            impl KeyEncoding for [<Sp $key_type Pair>] {
+            impl BytesEncoding for [<Sp $key_type Pair>] {
                 fn to_bytes(&self) -> Vec<u8> {
                     self.0.to_raw_vec()
                 }

@@ -6,14 +6,17 @@ use error::{Ed25519Error, Result};
 #[cfg(test)]
 mod tests;
 
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
 use gadget_std::{
+    hash::Hash,
     string::{String, ToString},
     vec::Vec,
 };
+use serde::{Deserialize, Serialize};
 
 /// Ed25519 key type
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Ed25519Zebra;
 
 macro_rules! impl_zebra_serde {
@@ -35,6 +38,12 @@ macro_rules! impl_zebra_serde {
             }
         }
 
+        impl Hash for $name {
+            fn hash<H: gadget_std::hash::Hasher>(&self, state: &mut H) {
+                self.to_bytes().hash(state);
+            }
+        }
+
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
                 self.to_bytes().cmp(&other.to_bytes())
@@ -47,7 +56,7 @@ macro_rules! impl_zebra_serde {
             }
         }
 
-        impl KeyEncoding for $name {
+        impl BytesEncoding for $name {
             fn to_bytes(&self) -> Vec<u8> {
                 self.to_bytes_impl()
             }

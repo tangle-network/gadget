@@ -1,6 +1,7 @@
 use dashmap::DashMap;
 use futures::{Sink, Stream};
 use gadget_networking::{
+    discovery::peers::VerificationIdentifierKey,
     key_types::InstanceMsgPublicKey,
     service_handle::NetworkServiceHandle,
     types::{ParticipantInfo, ProtocolMessage},
@@ -18,13 +19,13 @@ use std::{
 };
 
 /// Wrapper to adapt [`NetworkServiceHandle`] to round-based protocols
-pub struct RoundBasedNetworkAdapter<M> {
+pub struct RoundBasedNetworkAdapter<M, T: KeyType> {
     /// The underlying network handle
     handle: NetworkServiceHandle,
     /// Current party's index
     party_index: PartyIndex,
     /// Mapping of party indices to their public keys
-    parties: Arc<DashMap<PartyIndex, InstanceMsgPublicKey>>,
+    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<T>>>,
     /// Counter for message IDs
     next_msg_id: Arc<AtomicU64>,
     /// Protocol identifier
@@ -32,7 +33,7 @@ pub struct RoundBasedNetworkAdapter<M> {
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M> RoundBasedNetworkAdapter<M>
+impl<M, T: KeyType> RoundBasedNetworkAdapter<M, T>
 where
     M: Clone + Send + Sync + Unpin + 'static,
     M: Serialize + DeserializeOwned,
@@ -41,7 +42,7 @@ where
     pub fn new(
         handle: NetworkServiceHandle,
         party_index: PartyIndex,
-        parties: HashMap<PartyIndex, InstanceMsgPublicKey>,
+        parties: HashMap<PartyIndex, VerificationIdentifierKey<T>>,
         protocol_id: impl Into<String>,
     ) -> Self {
         Self {
@@ -91,16 +92,16 @@ where
     }
 }
 
-pub struct RoundBasedSender<M> {
+pub struct RoundBasedSender<M, T: KeyType> {
     handle: NetworkServiceHandle,
     party_index: PartyIndex,
-    parties: Arc<DashMap<PartyIndex, InstanceMsgPublicKey>>,
+    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<T>>>,
     next_msg_id: Arc<AtomicU64>,
     protocol_id: String,
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M> Sink<Outgoing<M>> for RoundBasedSender<M>
+impl<M, T: KeyType> Sink<Outgoing<M>> for RoundBasedSender<M, T>
 where
     M: Serialize + round_based::ProtocolMessage + Clone + Unpin,
 {
@@ -170,14 +171,14 @@ where
     }
 }
 
-pub struct RoundBasedReceiver<M> {
-    handle: NetworkServiceHandle,
+pub struct RoundBasedReceiver<M, T: KeyType> {
+    handle: NetworkServiceHandle<T>,
     party_index: PartyIndex,
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M> RoundBasedReceiver<M> {
-    fn new(handle: NetworkServiceHandle, party_index: PartyIndex) -> Self {
+impl<M, T: KeyType> RoundBasedReceiver<M, T> {
+    fn new(handle: NetworkServiceHandle<T>, party_index: PartyIndex) -> Self {
         Self {
             handle,
             party_index,
@@ -186,7 +187,7 @@ impl<M> RoundBasedReceiver<M> {
     }
 }
 
-impl<M> Stream for RoundBasedReceiver<M>
+impl<M, T: KeyType> Stream for RoundBasedReceiver<M, T>
 where
     M: DeserializeOwned + round_based::ProtocolMessage + Unpin,
 {

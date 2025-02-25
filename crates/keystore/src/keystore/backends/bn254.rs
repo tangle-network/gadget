@@ -4,7 +4,7 @@ use crate::Keystore;
 use gadget_crypto::bn254::{
     ArkBlsBn254, ArkBlsBn254Public, ArkBlsBn254Secret, ArkBlsBn254Signature,
 };
-use gadget_crypto::{KeyEncoding, KeyTypeId};
+use gadget_crypto::{BytesEncoding, KeyTypeId};
 
 #[async_trait::async_trait]
 pub trait Bn254Backend: Send + Sync {
