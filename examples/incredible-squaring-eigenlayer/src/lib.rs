@@ -57,18 +57,21 @@ mod tests {
     use crate::{config::get_provider_http, contracts::SquaringTask};
 
     use super::*;
-    use alloy_primitives::U256;
+    use alloy_primitives::{address, Address, U256};
     use alloy_provider::Provider;
-    use anvil_testing_utils::{
-        anvil::start_anvil_container,
-        keys::{ANVIL_FIRST_ADDRESS, REGISTRY_COORDINATOR_ADDRESS},
-        ANVIL_STATE_PATH,
-    };
+    use gadget_anvil_testing_utils::{anvil::start_anvil_container, start_default_anvil_testnet};
     use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
     use blueprint_runner::{
         config::GadgetConfiguration, error::RunnerError, BlueprintConfig, BlueprintRunner,
     };
+    use gadget_logging::setup_log;
     use std::{sync::Arc, time::Duration};
+
+    const REGISTRY_COORDINATOR_ADDRESS: Address =
+        address!("0xc3e53f4d16ae77db1c982e75a937b9f60fe63690");
+
+    /// Address of the first account in the local anvil network
+    const ANVIL_FIRST_ADDRESS: Address = address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 
     #[derive(Debug, Clone, Copy)]
     struct MockBlueprintConfig;
@@ -81,22 +84,6 @@ mod tests {
         ) -> Result<bool, RunnerError> {
             Ok(false)
         }
-    }
-
-    fn setup_log() {
-        use tracing_subscriber::util::SubscriberInitExt;
-
-        let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
-            .without_time()
-            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
-            .with_env_filter(
-                tracing_subscriber::EnvFilter::builder()
-                    .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
-                    .from_env_lossy(),
-            )
-            .with_test_writer()
-            .finish()
-            .try_init();
     }
 
     /// Submits squaring tasks periodically
@@ -142,7 +129,7 @@ mod tests {
     async fn task_monitoring() -> Result<(), BoxError> {
         setup_log();
         let (anvil_container, rpc_url, ws_url) =
-            start_anvil_container(ANVIL_STATE_PATH, false).await;
+            start_default_anvil_testnet(false).await;
 
         let provider = get_provider_http(&rpc_url);
         // Deploy contracts and get addresses

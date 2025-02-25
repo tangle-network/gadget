@@ -142,7 +142,7 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
     let tangle_client = harness.client().subxt_client().clone();
     let tangle_config = TangleConfig::default();
 
-    let (_test_env, service_id, _blueprint_id) = harness.setup_services(false).await?;
+    let (_test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
     let tangle_producer = TangleProducer::finalized_blocks(tangle_client).await?;
 
