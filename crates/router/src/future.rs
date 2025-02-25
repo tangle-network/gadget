@@ -105,10 +105,6 @@ impl<E> RouteFuture<E> {
     fn new(inner: Oneshot<BoxCloneSyncService<JobCall, JobResult, E>, JobCall>) -> Self {
         Self { inner }
     }
-
-    pub(crate) fn join(&mut self, other: RouteFuture<E>) -> Self {
-        todo!()
-    }
 }
 
 impl<E> Future for RouteFuture<E> {

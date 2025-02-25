@@ -106,7 +106,8 @@ pub async fn manual_event_handling(
     println!("Manual Event Handling for Block Number: {}", block_number);
 
     for event in events.iter() {
-        println!("Event: {:?}", event);
+        let details = event.unwrap();
+        println!("Event: {:?}", details.variant_name());
     }
 
     TangleResult(0)
@@ -155,9 +156,14 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
             Router::new()
                 .route(XSQUARE_JOB_ID, square)
                 .route(MULTIPLY_JOB_ID, multiply)
-                .catch_all(on_transfer)
-                // This is an example of a job function that manually handles the events
-                .catch_all(manual_event_handling)
+                // Jobs that "always" run, regardless of the job ID. These will be called even if the job ID
+                // matches another router.
+                .always(on_transfer)
+                .always(manual_event_handling)
+                // We can add a context to the router, which will be passed to all job functions
+                // that have the `Context` extractor.
+                // TODO: This means a *lot* of cloning, need to inform users that their context
+                //       should be cheaply cloneable.
                 .with_context(MyContext { foo: 10 })
                 // Add the `FilterLayer` to filter out job calls that don't match the service ID
                 .layer(FilterLayer::new(MatchesServiceId(service_id))),

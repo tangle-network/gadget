@@ -5,7 +5,8 @@ use alloc::borrow::Cow;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobId};
-use core::fmt;
+use core::{fmt, iter};
+use futures::future::{TryJoinAll, try_join_all};
 use hashbrown::HashMap;
 use tower::{BoxError, Layer, Service};
 
@@ -53,7 +54,8 @@ pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
     routes: HashMap<RouteId, Handler<Ctx>>,
     node: Arc<Node>,
     prev_route_id: RouteId,
-    catch_all_routes: Vec<Handler<Ctx>>,
+    // Routes that are *always* called, regardless of job ID
+    always_routes: Vec<Handler<Ctx>>,
 }
 
 impl<Ctx, const IS_FALLBACK: bool> JobIdRouter<Ctx, IS_FALLBACK>
@@ -91,12 +93,12 @@ where
         Ok(())
     }
 
-    pub(super) fn catch_all<J, T>(&mut self, job: J) -> Result<(), Cow<'static, str>>
+    pub(super) fn always<J, T>(&mut self, job: J) -> Result<(), Cow<'static, str>>
     where
         J: Job<T, Ctx>,
         T: 'static,
     {
-        self.catch_all_routes
+        self.always_routes
             .push(Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
         Ok(())
@@ -105,13 +107,6 @@ where
     fn set_node(&mut self, job_id: JobId, id: RouteId) {
         let node = Arc::make_mut(&mut self.node);
         node.insert(job_id, id);
-    }
-
-    pub(super) fn merge(
-        &mut self,
-        other: JobIdRouter<Ctx, IS_FALLBACK>,
-    ) -> Result<(), Cow<'static, str>> {
-        todo!();
     }
 
     pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx, IS_FALLBACK>
@@ -131,8 +126,8 @@ where
             })
             .collect();
 
-        let catch_all_routes = self
-            .catch_all_routes
+        let always_routes = self
+            .always_routes
             .into_iter()
             .map(|h| h.layer(layer.clone()))
             .collect();
@@ -141,20 +136,8 @@ where
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
-            catch_all_routes,
+            always_routes,
         }
-    }
-
-    #[track_caller]
-    pub(super) fn route_layer<L>(self, layer: L) -> Self
-    where
-        L: Layer<Route> + Clone + Send + Sync + 'static,
-        L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
-        <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
-        <L::Service as Service<JobCall>>::Future: Send + 'static,
-    {
-        todo!()
     }
 
     pub(super) fn has_routes(&self) -> bool {
@@ -172,7 +155,7 @@ where
             .collect();
 
         let catch_all_routes = self
-            .catch_all_routes
+            .always_routes
             .into_iter()
             .map(|endpoint| match endpoint {
                 Handler::Route(route) => Handler::Route(route),
@@ -184,7 +167,7 @@ where
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
-            catch_all_routes,
+            always_routes: catch_all_routes,
         }
     }
 
@@ -192,10 +175,12 @@ where
         &self,
         call: JobCall,
         context: Ctx,
-    ) -> Result<RouteFuture<BoxError>, (JobCall, Ctx)> {
+    ) -> Result<TryJoinAll<RouteFuture<BoxError>>, (JobCall, Ctx)> {
         let (parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
-            return Err((JobCall::from_parts(parts, body), context));
+            let catch_all_futures =
+                self.call_always_routes(JobCall::from_parts(parts, body), context)?;
+            return Ok(try_join_all(catch_all_futures));
         };
 
         let handler = self
@@ -204,31 +189,30 @@ where
             .expect("no route for id. This is a bug in axum. Please file an issue");
 
         let call = JobCall::from_parts(parts, body);
-        match handler {
-            Handler::Route(route) => Ok(route.clone().call_owned(call)),
-            Handler::Boxed(boxed) => Ok(boxed.clone().into_route(context).call(call)),
-        }
+        let matched_call_future = match handler {
+            Handler::Route(route) => route.clone().call_owned(call.clone()),
+            Handler::Boxed(boxed) => boxed.clone().into_route(context.clone()).call(call.clone()),
+        };
+
+        let catch_all_futures = self.call_always_routes(call, context)?;
+        Ok(try_join_all(
+            iter::once(matched_call_future).chain(catch_all_futures),
+        ))
     }
 
-    pub(super) fn catch_all_call(
-        &self,
+    fn call_always_routes<'a>(
+        &'a self,
         call: JobCall,
         context: Ctx,
-    ) -> Result<Vec<RouteFuture<BoxError>>, (JobCall, Ctx)> {
-        if self.catch_all_routes.is_empty() {
+    ) -> Result<impl Iterator<Item = RouteFuture<BoxError>> + 'a, (JobCall, Ctx)> {
+        if self.always_routes.is_empty() {
             return Err((call, context));
         }
 
-        Ok(self
-            .catch_all_routes
-            .iter()
-            .map(|handler| match handler {
-                Handler::Route(route) => route.clone().call_owned(call.clone()),
-                Handler::Boxed(boxed) => {
-                    boxed.clone().into_route(context.clone()).call(call.clone())
-                }
-            })
-            .collect::<Vec<_>>())
+        Ok(self.always_routes.iter().map(move |handler| match handler {
+            Handler::Route(route) => route.clone().call_owned(call.clone()),
+            Handler::Boxed(boxed) => boxed.clone().into_route(context.clone()).call(call.clone()),
+        }))
     }
 
     fn next_route_id(&mut self) -> RouteId {
@@ -248,7 +232,7 @@ impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
             routes: Default::default(),
             node: Default::default(),
             prev_route_id: RouteId(0),
-            catch_all_routes: Vec::new(),
+            always_routes: Vec::new(),
         }
     }
 }
@@ -271,7 +255,7 @@ where
             routes: self.routes.clone(),
             node: self.node.clone(),
             prev_route_id: self.prev_route_id,
-            catch_all_routes: self.catch_all_routes.clone(),
+            always_routes: self.always_routes.clone(),
         }
     }
 }

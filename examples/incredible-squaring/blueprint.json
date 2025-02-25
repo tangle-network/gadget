@@ -34,7 +34,7 @@
             "Testing": {
               "cargo_package": "experimental-blueprint",
               "cargo_bin": "main",
-              "base_path": "/home/shady/github/webb-tools/gadget-sdk/examples/incredible-squaring"
+              "base_path": "/home/alex/Projects/Contributions/blueprint-experimental/examples/incredible-squaring"
             }
           }
         }

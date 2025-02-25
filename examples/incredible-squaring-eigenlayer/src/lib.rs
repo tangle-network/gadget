@@ -59,11 +59,11 @@ mod tests {
     use super::*;
     use alloy_primitives::{address, Address, U256};
     use alloy_provider::Provider;
-    use gadget_anvil_testing_utils::{anvil::start_anvil_container, start_default_anvil_testnet};
     use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
     use blueprint_runner::{
         config::GadgetConfiguration, error::RunnerError, BlueprintConfig, BlueprintRunner,
     };
+    use gadget_anvil_testing_utils::start_default_anvil_testnet;
     use gadget_logging::setup_log;
     use std::{sync::Arc, time::Duration};
 
@@ -128,8 +128,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn task_monitoring() -> Result<(), BoxError> {
         setup_log();
-        let (anvil_container, rpc_url, ws_url) =
-            start_default_anvil_testnet(false).await;
+        let (_anvil_container, rpc_url, _ws_url) = start_default_anvil_testnet(false).await;
 
         let provider = get_provider_http(&rpc_url);
         // Deploy contracts and get addresses

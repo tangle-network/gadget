@@ -227,10 +227,15 @@ where
                 producer_result = producer_stream.next() => {
                     match producer_result {
                         Some(Ok(job_call)) => {
-                            if let Err(e) = router.call(job_call).await {
-                                tracing::error!("Job call failed: {:?}", e);
-                                let _ = shutdown_tx.send(true);
-                                return Err(Error::JobCall(e.to_string()));
+                            match router.call(job_call).await {
+                                Ok(_results) => {
+                                    tracing::warn!("TODO: Pass the results to the consumers");
+                                },
+                                Err(e) => {
+                                    tracing::error!("Job call failed: {:?}", e);
+                                    let _ = shutdown_tx.send(true);
+                                    return Err(Error::JobCall(e.to_string()));
+                                }
                             }
                         }
                         Some(Err(e)) => {
