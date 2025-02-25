@@ -134,10 +134,9 @@ networking = [
 ]
 
 networking-sp-core-ecdsa = ["gadget-networking/sp-core-ecdsa"]
-
 networking-sr25519 = ["gadget-networking/sp-core-sr25519"]
-
 networking-ed25519 = ["gadget-networking/sp-core-ed25519"]
+networking-bls381 = ["gadget-networking/bls381"]
 
 local-store = ["gadget-stores/local"]
 
