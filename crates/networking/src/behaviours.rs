@@ -62,6 +62,7 @@ impl GadgetBehaviour {
         target_peer_count: u32,
         peer_manager: Arc<PeerManager>,
         protocol_message_sender: Sender<ProtocolMessage>,
+        use_address_for_handshake_verification: bool,
     ) -> NetworkingResult<Self> {
         let connection_limits = connection_limits::Behaviour::new(
             ConnectionLimits::default()
@@ -94,6 +95,7 @@ impl GadgetBehaviour {
             peer_manager,
             blueprint_protocol_name,
             protocol_message_sender,
+            use_address_for_handshake_verification,
         );
 
         debug!("Created GadgetBehaviour with all components initialized");

@@ -1,4 +1,4 @@
-use crate::key_types::InstanceMsgPublicKey;
+use crate::{discovery::peers::VerificationIdentifierKey, key_types::InstanceMsgPublicKey};
 use libp2p::{gossipsub::IdentTopic, PeerId};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -49,8 +49,8 @@ pub struct MessageRouting {
 pub struct ParticipantInfo {
     /// The participant's unique ID
     pub id: ParticipantId,
-    /// The participant's public key (if known)
-    pub public_key: Option<InstanceMsgPublicKey>,
+    /// The participant's verification ID key (if known)
+    pub verification_id_key: Option<VerificationIdentifierKey>,
 }
 
 /// A protocol message that can be sent over the network
@@ -98,7 +98,7 @@ impl Display for ParticipantInfo {
             f,
             "{} key={}",
             self.id,
-            if self.public_key.is_some() {
+            if self.verification_id_key.is_some() {
                 "yes"
             } else {
                 "no"

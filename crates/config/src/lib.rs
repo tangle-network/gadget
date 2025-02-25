@@ -1,5 +1,6 @@
 #![allow(unused_variables, unreachable_code)]
 
+use alloy_primitives::Address;
 use gadget_std::fmt::Debug;
 use gadget_std::string::{String, ToString};
 
@@ -144,8 +145,10 @@ impl GadgetConfiguration {
     pub fn libp2p_start_network(
         &self,
         network_config: gadget_networking::NetworkConfig,
-        allowed_keys: gadget_std::collections::HashSet<gadget_networking::InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys,
     ) -> Result<gadget_networking::service_handle::NetworkServiceHandle, Error> {
+        use gadget_networking::service::AllowedKeys;
+
         let networking_service =
             gadget_networking::NetworkService::new(network_config, allowed_keys)?;
 

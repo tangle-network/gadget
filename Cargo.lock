@@ -7176,6 +7176,7 @@ dependencies = [
 name = "gadget-networking"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives 0.8.21",
  "anyhow",
  "async-trait",
  "auto_impl",
@@ -7195,6 +7196,7 @@ dependencies = [
  "k256",
  "lazy_static",
  "libp2p",
+ "libsecp256k1",
  "lru-mem",
  "parking_lot 0.12.3",
  "serde",

@@ -139,11 +139,11 @@ where
                 round_id: round,
                 sender: ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(this.party_index),
-                    public_key: this.parties.get(&this.party_index).map(|k| *k),
+                    verification_id_key: this.parties.get(&this.party_index).map(|k| *k),
                 },
                 recipient: recipient.map(|p| ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(p),
-                    public_key: recipient_key,
+                    verification_id_key: recipient_key,
                 }),
             },
             payload: serde_json::to_vec(&outgoing.msg).map_err(NetworkError::Serialization)?,

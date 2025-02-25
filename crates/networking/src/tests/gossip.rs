@@ -1,5 +1,6 @@
 use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
+    discovery::peers::VerificationIdentifierKey,
     service_handle::NetworkServiceHandle,
     tests::{create_whitelisted_nodes, wait_for_all_handshakes},
     types::{MessageRouting, ParticipantId, ParticipantInfo},
@@ -37,7 +38,9 @@ async fn test_gossip_between_verified_peers() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         recipient: None, // No specific recipient for gossip
     };
@@ -67,8 +70,10 @@ async fn test_gossip_between_verified_peers() {
     assert_eq!(received_message.routing.message_id, 1);
     assert_eq!(received_message.routing.round_id, 0);
     assert_eq!(
-        received_message.routing.sender.public_key,
-        Some(node1.instance_key_pair.public())
+        received_message.routing.sender.verification_id_key,
+        Some(VerificationIdentifierKey::InstancePublicKey(
+            node1.instance_key_pair.public()
+        ))
     );
     assert!(received_message.routing.recipient.is_none());
 
@@ -100,7 +105,9 @@ async fn test_multi_node_gossip() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(0),
-            public_key: Some(nodes[0].instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                nodes[0].instance_key_pair.public(),
+            )),
         },
         recipient: None,
     };
@@ -130,8 +137,10 @@ async fn test_multi_node_gossip() {
             );
             assert_eq!(received.protocol, PROTOCOL_NAME);
             assert_eq!(
-                received.routing.sender.public_key,
-                Some(nodes[0].instance_key_pair.public())
+                received.routing.sender.verification_id_key,
+                Some(VerificationIdentifierKey::InstancePublicKey(
+                    nodes[0].instance_key_pair.public()
+                ))
             );
             info!("Node {} received the gossip message correctly", i);
         }
@@ -162,7 +171,9 @@ async fn test_unverified_peer_gossip() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         recipient: None,
     };

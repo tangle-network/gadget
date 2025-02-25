@@ -1,5 +1,3 @@
-use std::{collections::HashSet, sync::Arc, time::Duration};
-
 use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
@@ -12,6 +10,7 @@ use crate::{
     service_handle::NetworkServiceHandle,
     types::ProtocolMessage,
 };
+use alloy_primitives::Address;
 use crossbeam_channel::{self, Receiver, Sender};
 use futures::StreamExt;
 use libp2p::{
@@ -21,6 +20,7 @@ use libp2p::{
     swarm::{dial_opts::DialOpts, SwarmEvent},
     Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
+use std::{collections::HashSet, sync::Arc, time::Duration};
 use tracing::trace;
 use tracing::{debug, info, warn};
 
@@ -100,6 +100,8 @@ pub struct NetworkConfig {
     pub enable_mdns: bool,
     /// Whether to enable Kademlia DHT
     pub enable_kademlia: bool,
+    /// Whether to use evm addresses for verification of handshakes and msgs
+    pub use_evm_addresses: bool,
 }
 
 pub struct NetworkService {
@@ -122,6 +124,11 @@ pub struct NetworkService {
     bootstrap_peers: HashSet<Multiaddr>,
 }
 
+pub enum AllowedKeys {
+    EvmAddresses(gadget_std::collections::HashSet<Address>),
+    InstancePublicKeys(gadget_std::collections::HashSet<InstanceMsgPublicKey>),
+}
+
 impl NetworkService {
     /// Create a new network service
     ///
@@ -132,7 +139,7 @@ impl NetworkService {
     #[allow(clippy::missing_panics_doc)] // Unwrapping an Infallible
     pub fn new(
         config: NetworkConfig,
-        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys,
         // allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
     ) -> Result<Self, Error> {
         let NetworkConfig {
@@ -145,6 +152,7 @@ impl NetworkService {
             bootstrap_peers,
             enable_mdns: _,
             enable_kademlia: _,
+            use_evm_addresses,
         } = config;
 
         let peer_manager = Arc::new(PeerManager::new(allowed_keys));
@@ -163,6 +171,7 @@ impl NetworkService {
             target_peer_count,
             peer_manager.clone(),
             protocol_message_sender.clone(),
+            use_evm_addresses,
         )?;
 
         let mut swarm = SwarmBuilder::with_existing_identity(local_key)

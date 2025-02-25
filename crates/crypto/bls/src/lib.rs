@@ -4,7 +4,7 @@ pub mod error;
 #[cfg(test)]
 mod tests;
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+pub use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use gadget_std::vec::Vec;
 
 /// Serialize this to a vector of bytes.
@@ -39,6 +39,12 @@ macro_rules! impl_w3f_serde {
         impl PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
                 Some(self.cmp(other))
+            }
+        }
+
+        impl gadget_std::hash::Hash for $name {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.to_bytes().hash(state);
             }
         }
 

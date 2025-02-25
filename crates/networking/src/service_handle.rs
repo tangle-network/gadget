@@ -140,11 +140,13 @@ impl NetworkServiceHandle {
                     metadata: None,
                 };
 
-                let Some(public_key) = recipient.public_key else {
+                let Some(verification_id_key) = recipient.verification_id_key else {
                     return Ok(());
                 };
 
-                let Some(peer_id) = self.peer_manager.get_peer_id_from_public_key(&public_key)
+                let Some(peer_id) = self
+                    .peer_manager
+                    .get_peer_id_from_verification_id_key(&verification_id_key)
                 else {
                     return Ok(());
                 };

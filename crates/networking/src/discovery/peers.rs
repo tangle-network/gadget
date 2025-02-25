@@ -4,9 +4,11 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-use crate::InstanceMsgPublicKey;
+use crate::{service::AllowedKeys, InstanceMsgPublicKey};
+use alloy_primitives::Address;
 use dashmap::{DashMap, DashSet};
 use libp2p::{core::Multiaddr, identify, PeerId};
+use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tracing::debug;
 
@@ -68,44 +70,109 @@ pub struct PeerManager {
     /// Verified peers from completed handshakes
     verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
-    public_keys_to_peer_ids: Arc<DashMap<InstanceMsgPublicKey, PeerId>>,
+    verification_id_keys_to_peer_ids: Arc<DashMap<VerificationIdentifierKey, PeerId>>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
     /// Allowed public keys
-    whitelisted_keys: DashSet<InstanceMsgPublicKey>,
+    whitelisted_keys: WhitelistedKeys,
     /// Event sender for peer updates
     event_tx: broadcast::Sender<PeerEvent>,
 }
 
 impl Default for PeerManager {
     fn default() -> Self {
-        Self::new(HashSet::default())
+        Self::new(AllowedKeys::InstancePublicKeys(HashSet::default()))
+    }
+}
+
+/// A collection of whitelisted keys
+#[derive(Debug, Clone)]
+pub enum WhitelistedKeys {
+    EvmAddresses(DashSet<Address>),
+    InstancePublicKeys(DashSet<InstanceMsgPublicKey>),
+}
+
+/// A key that can be used to verify a peer
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum VerificationIdentifierKey {
+    EvmAddress(Address),
+    InstancePublicKey(InstanceMsgPublicKey),
+}
+
+impl WhitelistedKeys {
+    pub fn clear(&mut self) {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
+        }
+    }
+
+    pub fn contains(&self, key: &VerificationIdentifierKey) -> bool {
+        match key {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                self.get_addresses().contains(address)
+            }
+            VerificationIdentifierKey::InstancePublicKey(key) => {
+                self.get_instance_keys().contains(key)
+            }
+        }
+    }
+
+    pub fn get_addresses(&self) -> &DashSet<Address> {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses,
+            WhitelistedKeys::InstancePublicKeys(_) => panic!("EvmAddresses expected"),
+        }
+    }
+
+    pub fn get_instance_keys(&self) -> &DashSet<InstanceMsgPublicKey> {
+        match self {
+            WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys,
+        }
     }
 }
 
 impl PeerManager {
     #[must_use]
-    pub fn new(whitelisted_keys: HashSet<InstanceMsgPublicKey>) -> Self {
+    pub fn new(allowed_keys: AllowedKeys) -> Self {
         let (event_tx, _) = broadcast::channel(100);
         Self {
             peers: DashMap::default(),
             banned_peers: DashMap::default(),
             verified_peers: DashSet::default(),
-            public_keys_to_peer_ids: Arc::new(DashMap::default()),
-            whitelisted_keys: DashSet::from_iter(whitelisted_keys),
+            verification_id_keys_to_peer_ids: Arc::new(DashMap::default()),
+            whitelisted_keys: match allowed_keys {
+                AllowedKeys::EvmAddresses(addresses) => {
+                    WhitelistedKeys::EvmAddresses(DashSet::from_iter(addresses))
+                }
+                AllowedKeys::InstancePublicKeys(keys) => {
+                    WhitelistedKeys::InstancePublicKeys(DashSet::from_iter(keys))
+                }
+            },
             event_tx,
         }
     }
 
-    pub fn update_whitelisted_keys(&self, keys: HashSet<InstanceMsgPublicKey>) {
-        self.whitelisted_keys.clear();
-        for key in keys {
-            self.whitelisted_keys.insert(key);
+    pub fn update_whitelisted_keys(&self, keys: AllowedKeys) {
+        match keys {
+            AllowedKeys::EvmAddresses(addresses) => {
+                let current_addresses = self.whitelisted_keys.get_addresses();
+                for address in addresses {
+                    current_addresses.insert(address);
+                }
+            }
+            AllowedKeys::InstancePublicKeys(keys) => {
+                let current_keys = self.whitelisted_keys.get_instance_keys();
+                for key in keys {
+                    current_keys.insert(key);
+                }
+            }
         }
     }
 
     #[must_use]
-    pub fn is_key_whitelisted(&self, key: &InstanceMsgPublicKey) -> bool {
+    pub fn is_key_whitelisted(&self, key: &VerificationIdentifierKey) -> bool {
         self.whitelisted_keys.contains(key)
     }
 
@@ -261,18 +328,29 @@ impl PeerManager {
     }
 
     /// Add a peer id to the public key to peer id map after verifying handshake
-    pub fn add_peer_id_to_public_key(&self, peer_id: &PeerId, public_key: &InstanceMsgPublicKey) {
-        self.public_keys_to_peer_ids.insert(*public_key, *peer_id);
+    pub fn link_peer_id_to_verification_id_key(
+        &self,
+        peer_id: &PeerId,
+        verification_id_key: &VerificationIdentifierKey,
+    ) {
+        self.verification_id_keys_to_peer_ids
+            .insert(verification_id_key.clone(), peer_id.clone());
     }
 
     /// Remove a peer id from the public key to peer id map
-    pub fn remove_peer_id_from_public_key(&self, peer_id: &PeerId) {
-        self.public_keys_to_peer_ids.retain(|_, id| id != peer_id);
+    pub fn remove_peer_id_from_verification_id_key(&self, peer_id: &PeerId) {
+        self.verification_id_keys_to_peer_ids
+            .retain(|_, id| id != peer_id);
     }
 
     #[must_use]
-    pub fn get_peer_id_from_public_key(&self, public_key: &InstanceMsgPublicKey) -> Option<PeerId> {
-        self.public_keys_to_peer_ids.get(public_key).map(|id| *id)
+    pub fn get_peer_id_from_verification_id_key(
+        &self,
+        verification_id_key: &VerificationIdentifierKey,
+    ) -> Option<PeerId> {
+        self.verification_id_keys_to_peer_ids
+            .get(verification_id_key)
+            .map(|id| *id)
     }
 }
 

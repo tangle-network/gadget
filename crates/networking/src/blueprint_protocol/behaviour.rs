@@ -1,13 +1,20 @@
 use super::{InstanceMessageRequest, InstanceMessageResponse};
+use crate::blueprint_protocol::utils::{
+    get_address_from_compressed_pubkey, get_address_from_pubkey, secp256k1_ecdsa_recover,
+};
 use crate::blueprint_protocol::HandshakeMessage;
+use crate::discovery::peers::VerificationIdentifierKey;
 use crate::discovery::PeerManager;
 use crate::{
-    types::ProtocolMessage, Curve, InstanceMsgKeyPair, InstanceMsgPublicKey,
-    InstanceSignedMsgSignature,
+    key_types::{InstanceMsgKeyPair, InstanceSignedMsgSignature},
+    types::ProtocolMessage,
+    Curve,
 };
+use alloy_primitives::keccak256;
 use bincode;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
+use gadget_crypto::KeyEncoding;
 use gadget_crypto::KeyType;
 use libp2p::{
     core::transport::PortUse,
@@ -81,6 +88,8 @@ pub struct BlueprintProtocolBehaviour {
         DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse>>,
     /// Protocol message sender
     pub(crate) protocol_message_sender: Sender<ProtocolMessage>,
+    /// Flag for using addresses for whitelisting and handshake verification
+    pub(crate) use_address_for_handshake_verification: bool,
 }
 
 impl BlueprintProtocolBehaviour {
@@ -93,6 +102,7 @@ impl BlueprintProtocolBehaviour {
         peer_manager: Arc<PeerManager>,
         blueprint_protocol_name: &str,
         protocol_message_sender: Sender<ProtocolMessage>,
+        use_address_for_handshake_verification: bool,
     ) -> Self {
         let blueprint_protocol_name = blueprint_protocol_name.to_string();
         let protocols = vec![(
@@ -142,6 +152,7 @@ impl BlueprintProtocolBehaviour {
             outbound_handshakes: DashMap::new(),
             response_channels: DashMap::new(),
             protocol_message_sender,
+            use_address_for_handshake_verification,
         }
     }
 
@@ -156,10 +167,10 @@ impl BlueprintProtocolBehaviour {
         let msg = handshake_msg.to_bytes(peer);
         match <Curve as KeyType>::sign_with_secret(key_pair, &msg) {
             Ok(signature) => {
-                let public_key = key_pair.public();
+                let public_key = <Curve as KeyType>::public_from_secret(key_pair);
                 let hex_msg = hex::encode(msg);
 
-                debug!(%peer, ?hex_msg, %public_key, %signature, "signing handshake");
+                debug!(%peer, ?hex_msg, ?public_key, ?signature, "signing handshake");
                 Some(signature)
             }
             Err(e) => {
@@ -229,7 +240,7 @@ impl BlueprintProtocolBehaviour {
     pub fn verify_handshake(
         &self,
         msg: &HandshakeMessage,
-        public_key: &InstanceMsgPublicKey,
+        verification_id_key: &VerificationIdentifierKey,
         signature: &InstanceSignedMsgSignature,
     ) -> Result<(), InstanceMessageResponse> {
         if msg.is_expired(HandshakeMessage::MAX_AGE) {
@@ -243,9 +254,28 @@ impl BlueprintProtocolBehaviour {
         let msg_bytes = msg.to_bytes(&self.local_peer_id);
         let hex_msg = hex::encode(msg_bytes.clone());
 
-        debug!(%hex_msg, %public_key, %signature, "verifying handshake");
+        debug!(%hex_msg, ?verification_id_key, ?signature, "verifying handshake");
 
-        let valid = <Curve as KeyType>::verify(public_key, &msg_bytes, signature);
+        let valid = match verification_id_key {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                let msg = keccak256(&msg_bytes);
+                let sig: [u8; 65] = signature.0 .0;
+
+                let pubkey = secp256k1_ecdsa_recover(&sig, &msg).map_err(|_| {
+                    InstanceMessageResponse::Error {
+                        code: 400,
+                        message: "Public key recover failed".to_string(),
+                    }
+                })?;
+
+                let address_from_pk = get_address_from_pubkey(&pubkey);
+                address_from_pk == *address
+            }
+            VerificationIdentifierKey::InstancePublicKey(public_key) => {
+                <Curve as KeyType>::verify(public_key, &msg_bytes, signature)
+            }
+        };
+
         if !valid {
             warn!(%msg.sender, "Invalid handshake signature for peer");
             return Err(InstanceMessageResponse::Error {
@@ -266,12 +296,12 @@ impl BlueprintProtocolBehaviour {
     pub fn handle_handshake(
         &self,
         msg: &HandshakeMessage,
-        public_key: &InstanceMsgPublicKey,
+        verification_id_key: &VerificationIdentifierKey,
         signature: &InstanceSignedMsgSignature,
     ) -> Result<(), InstanceMessageResponse> {
-        self.verify_handshake(msg, public_key, signature)?;
+        self.verify_handshake(msg, verification_id_key, signature)?;
         self.peer_manager
-            .add_peer_id_to_public_key(&msg.sender, public_key);
+            .link_peer_id_to_verification_id_key(&msg.sender, verification_id_key);
 
         Ok(())
     }
@@ -420,10 +450,17 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                         return;
                     };
 
+                    let public_key = <Curve as KeyType>::public_from_secret(&key_pair);
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {
-                            public_key: key_pair.public(),
+                            verification_id_key: if self.use_address_for_handshake_verification {
+                                VerificationIdentifierKey::EvmAddress(
+                                    get_address_from_compressed_pubkey(&public_key.0 .0),
+                                )
+                            } else {
+                                VerificationIdentifierKey::InstancePublicKey(public_key)
+                            },
                             signature,
                             msg: handshake_msg,
                         },
@@ -457,7 +494,8 @@ impl NetworkBehaviour for BlueprintProtocolBehaviour {
                     .gossipsub
                     .remove_explicit_peer(&e.peer_id);
 
-                self.peer_manager.remove_peer_id_from_public_key(&e.peer_id);
+                self.peer_manager
+                    .remove_peer_id_from_verification_id_key(&e.peer_id);
             }
 
             _ => {}

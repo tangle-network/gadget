@@ -2,6 +2,7 @@
 
 use crate::{
     key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
+    service::AllowedKeys,
     service_handle::NetworkServiceHandle,
     NetworkConfig, NetworkService,
 };
@@ -85,10 +86,11 @@ impl TestNode {
             bootstrap_peers,
             enable_mdns: true,
             enable_kademlia: true,
+            use_evm_addresses: false,
         };
 
-        let service =
-            NetworkService::new(config, allowed_keys).expect("Failed to create network service");
+        let service = NetworkService::new(config, AllowedKeys::InstancePublicKeys(allowed_keys))
+            .expect("Failed to create network service");
 
         Self {
             service: Some(service),
@@ -171,7 +173,7 @@ impl TestNode {
     }
 
     /// Update the allowed keys for this node
-    pub fn update_allowed_keys(&self, allowed_keys: HashSet<InstanceMsgPublicKey>) {
+    pub fn update_allowed_keys(&self, allowed_keys: AllowedKeys) {
         if let Some(service) = &self.service {
             service.peer_manager.update_whitelisted_keys(allowed_keys);
         }

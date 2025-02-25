@@ -1,10 +1,12 @@
 use std::time::{Duration, Instant};
 
+use gadget_crypto::KeyType;
 use libp2p::{request_response, PeerId};
 use tracing::{debug, warn};
 
 use crate::blueprint_protocol::HandshakeMessage;
-use crate::{key_types::InstanceMsgPublicKey, types::ProtocolMessage};
+use crate::discovery::peers::VerificationIdentifierKey;
+use crate::{key_types::Curve, types::ProtocolMessage};
 
 use super::{BlueprintProtocolBehaviour, InstanceMessageRequest, InstanceMessageResponse};
 
@@ -24,7 +26,7 @@ impl BlueprintProtocolBehaviour {
                     request_response::Message::Request {
                         request:
                             InstanceMessageRequest::Handshake {
-                                public_key,
+                                verification_id_key,
                                 signature,
                                 msg,
                             },
@@ -42,19 +44,19 @@ impl BlueprintProtocolBehaviour {
                     debug!(%peer, "Responding to inbound handshake request while outbound is pending");
                 }
 
-                if !self.peer_manager.is_key_whitelisted(&public_key) {
-                    warn!(%peer, %public_key, "Received handshake response from unwhitelisted peer");
+                if !self.peer_manager.is_key_whitelisted(&verification_id_key) {
+                    warn!(%peer, ?verification_id_key, "Received handshake response from unwhitelisted peer");
                     self.peer_manager.handle_nonwhitelisted_peer(&peer);
                     return;
                 }
 
                 // Verify the handshake
-                match self.verify_handshake(&msg, &public_key, &signature) {
+                match self.verify_handshake(&msg, &verification_id_key, &signature) {
                     Ok(()) => {
                         // Store the handshake request
                         self.inbound_handshakes.insert(peer, Instant::now());
                         self.peer_manager
-                            .add_peer_id_to_public_key(&peer, &public_key);
+                            .link_peer_id_to_verification_id_key(&peer, &verification_id_key);
 
                         // Send handshake response
                         let mut key_pair = self.instance_key_pair.clone();
@@ -67,7 +69,9 @@ impl BlueprintProtocolBehaviour {
                         };
 
                         let response = InstanceMessageResponse::Handshake {
-                            public_key: key_pair.public(),
+                            verification_id_key: VerificationIdentifierKey::InstancePublicKey(
+                                <Curve as KeyType>::public_from_secret(&key_pair),
+                            ),
                             signature,
                             msg: handshake_msg,
                         };
@@ -95,7 +99,7 @@ impl BlueprintProtocolBehaviour {
                     request_response::Message::Response {
                         response:
                             InstanceMessageResponse::Handshake {
-                                public_key,
+                                verification_id_key,
                                 signature,
                                 msg,
                             },
@@ -111,17 +115,17 @@ impl BlueprintProtocolBehaviour {
                     return;
                 }
 
-                if !self.peer_manager.is_key_whitelisted(&public_key) {
-                    warn!(%peer, "Received handshake response from unwhitelisted peer");
+                if !self.peer_manager.is_key_whitelisted(&verification_id_key) {
+                    warn!(%peer, ?verification_id_key, "Received handshake response from unwhitelisted peer");
                     self.peer_manager.handle_nonwhitelisted_peer(&peer);
                     return;
                 }
 
                 // Verify the handshake
-                match self.verify_handshake(&msg, &public_key, &signature) {
+                match self.verify_handshake(&msg, &verification_id_key, &signature) {
                     Ok(()) => {
                         // Mark handshake as completed
-                        self.complete_handshake(&peer, &public_key);
+                        self.complete_handshake(&peer, &verification_id_key);
                     }
                     Err(e) => {
                         warn!(%peer, "Invalid handshake verification: {:?}", e);
@@ -251,8 +255,12 @@ impl BlueprintProtocolBehaviour {
     }
 
     /// Complete a successful handshake
-    fn complete_handshake(&mut self, peer: &PeerId, public_key: &InstanceMsgPublicKey) {
-        debug!(%peer, "Completed handshake");
+    fn complete_handshake(
+        &mut self,
+        peer: &PeerId,
+        verification_id_key: &VerificationIdentifierKey,
+    ) {
+        debug!(%peer, ?verification_id_key, "Completed handshake");
 
         // Remove from pending handshakes
         self.inbound_handshakes.remove(peer);
@@ -260,7 +268,7 @@ impl BlueprintProtocolBehaviour {
 
         // Update peer manager
         self.peer_manager
-            .add_peer_id_to_public_key(peer, public_key);
+            .link_peer_id_to_verification_id_key(peer, verification_id_key);
 
         // Add to verified peers
         self.peer_manager.verify_peer(peer);

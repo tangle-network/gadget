@@ -14,6 +14,7 @@ gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 
 # Core dependencies
+alloy-primitives = { workspace = true }
 auto_impl = { workspace = true }
 blake3 = { workspace = true }
 dashmap = { workspace = true }
@@ -33,6 +34,9 @@ parking_lot = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 crossbeam-channel = { workspace = true }
+
+# TODO: Can be optional with proper flag. Used for p2p w/ evm addresses
+libsecp256k1 = { workspace = true }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
@@ -82,6 +86,7 @@ std = [
 	"tokio/full",
 	"serde/std",
 	"serde_json/std",
+	"libsecp256k1/std",
 ]
 
 # Only one of these features should be enabled at a time.

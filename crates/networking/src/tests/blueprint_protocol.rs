@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_lines)]
 
 use crate::{
+    discovery::peers::VerificationIdentifierKey,
     key_types::Curve,
     service_handle::NetworkServiceHandle,
     tests::{
@@ -106,7 +107,9 @@ async fn test_summation_protocol_basic() {
         round_id,
         ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         None,
     );
@@ -121,7 +124,9 @@ async fn test_summation_protocol_basic() {
         round_id,
         ParticipantInfo {
             id: ParticipantId(2),
-            public_key: Some(node2.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node2.instance_key_pair.public(),
+            )),
         },
         None,
     );
@@ -177,11 +182,15 @@ async fn test_summation_protocol_basic() {
         round_id,
         ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         Some(ParticipantInfo {
             id: ParticipantId(2),
-            public_key: Some(node2.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node2.instance_key_pair.public(),
+            )),
         }),
     );
     handle1
@@ -194,11 +203,15 @@ async fn test_summation_protocol_basic() {
         round_id,
         ParticipantInfo {
             id: ParticipantId(2),
-            public_key: Some(node2.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node2.instance_key_pair.public(),
+            )),
         },
         Some(ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         }),
     );
     handle2
@@ -295,7 +308,9 @@ async fn test_summation_protocol_multi_node() {
             round_id,
             ParticipantInfo {
                 id: ParticipantId(u16::try_from(i).unwrap()),
-                public_key: Some(nodes[i].instance_key_pair.public()),
+                verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                    nodes[i].instance_key_pair.public(),
+                )),
             },
             None,
         );
@@ -367,11 +382,15 @@ async fn test_summation_protocol_multi_node() {
                     round_id,
                     ParticipantInfo {
                         id: ParticipantId(u16::try_from(i).unwrap()),
-                        public_key: Some(nodes[i].instance_key_pair.public()),
+                        verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                            nodes[i].instance_key_pair.public(),
+                        )),
                     },
                     Some(ParticipantInfo {
                         id: ParticipantId(u16::try_from(j).unwrap()),
-                        public_key: Some(nodes[j].instance_key_pair.public()),
+                        verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                            nodes[j].instance_key_pair.public(),
+                        )),
                     }),
                 );
                 sender
