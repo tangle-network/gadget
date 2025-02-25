@@ -19,7 +19,8 @@ pub use service::{NetworkConfig, NetworkEvent, NetworkService};
 #[cfg(all(
     feature = "sp-core-ecdsa",
     not(feature = "sp-core-sr25519"),
-    not(feature = "sp-core-ed25519")
+    not(feature = "sp-core-ed25519"),
+    not(feature = "bls381")
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
@@ -31,7 +32,8 @@ pub mod key_types {
 #[cfg(all(
     feature = "sp-core-sr25519",
     not(feature = "sp-core-ecdsa"),
-    not(feature = "sp-core-ed25519")
+    not(feature = "sp-core-ed25519"),
+    not(feature = "bls381")
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
@@ -43,7 +45,8 @@ pub mod key_types {
 #[cfg(all(
     feature = "sp-core-ed25519",
     not(feature = "sp-core-ecdsa"),
-    not(feature = "sp-core-sr25519")
+    not(feature = "sp-core-sr25519"),
+    not(feature = "bls381")
 ))]
 pub mod key_types {
     pub use gadget_crypto::sp_core::{
