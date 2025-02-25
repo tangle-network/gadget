@@ -9,6 +9,7 @@ bytes.workspace = true
 pin-project-lite.workspace = true
 tower.workspace = true
 hashbrown = { workspace = true, default-features = false, features = ["default-hasher", "inline-more"] }
+futures = { workspace = true }
 
 # optional dependencies
 tracing = { workspace = true, optional = true }

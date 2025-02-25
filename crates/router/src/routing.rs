@@ -3,16 +3,17 @@
 use crate::future::{Route, RouteFuture};
 
 use crate::IntoMakeService;
-use crate::nop::NoOp;
 use crate::path_router::JobIdRouter;
 use crate::util::try_downcast;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobResult};
 
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use bytes::Bytes;
 use core::fmt;
 use core::marker::PhantomData;
 use core::task::{Context, Poll};
+use futures::future::TryJoinAll;
 use tower::{BoxError, Layer, Service};
 
 macro_rules! panic_on_err {
@@ -109,6 +110,9 @@ where
         })
     }
 
+    /// Add a [`Job`] to the router, with the given job ID.
+    ///
+    /// The job will be called when a [`JobCall`] with the given job ID is received by the router.
     #[track_caller]
     pub fn route<I, J, T>(self, job_id: I, job: J) -> Self
     where
@@ -142,34 +146,18 @@ where
         })
     }
 
-    /// Add a [`Job`] with no associated ID
+    /// Add a [`Job`] that *always* gets called, regardless of the job ID
     ///
-    /// This is useful for jobs that want to watch for certain events. Any [`JobCall`] with no specified
-    /// ID will be passed to every `catch_all` job.
+    /// This is useful for jobs that want to watch for certain events. Any [`JobCall`] received by
+    /// router will be passed to the `job`, regardless if another route matches.
     #[track_caller]
-    pub fn catch_all<J, T>(self, job: J) -> Self
+    pub fn always<J, T>(self, job: J) -> Self
     where
         J: Job<T, Ctx>,
         T: 'static,
     {
         tap_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.catch_all(job));
-        })
-    }
-
-    #[track_caller]
-    pub fn merge<R>(self, other: R) -> Self
-    where
-        R: Into<Router<Ctx>>,
-    {
-        let other: Router<Ctx> = other.into();
-        let RouterInner {
-            job_id_router: path_router,
-        } = other.into_inner();
-
-        map_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.merge(path_router));
-            this
+            panic_on_err!(this.job_id_router.always(job));
         })
     }
 
@@ -186,20 +174,6 @@ where
         })
     }
 
-    #[track_caller]
-    pub fn route_layer<L>(self, layer: L) -> Self
-    where
-        L: Layer<Route> + Clone + Send + Sync + 'static,
-        L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
-        <L::Service as Service<JobCall>>::Response: IntoJobResult + 'static,
-        <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
-        <L::Service as Service<JobCall>>::Future: Send + 'static,
-    {
-        map_inner!(self, this => RouterInner {
-            job_id_router: this.job_id_router.route_layer(layer),
-        })
-    }
-
     /// True if the router currently has at least one route added.
     pub fn has_routes(&self) -> bool {
         self.inner.job_id_router.has_routes()
@@ -211,30 +185,22 @@ where
         })
     }
 
-    pub(crate) fn call_with_context(&self, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
+    pub(crate) fn call_with_context(
+        &self,
+        call: JobCall,
+        context: Ctx,
+    ) -> TryJoinAll<RouteFuture<BoxError>> {
         tracing::trace!(?call, "routing a job call to inner routers");
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
-            Ok(future) => return future,
-            Err((call, context)) => (call, context),
-        };
-
-        let (call, _context) = match self.inner.job_id_router.catch_all_call(call, context) {
-            Ok(mut futures) => {
-                let mut first = futures.remove(0);
-                loop {
-                    if futures.is_empty() {
-                        break;
-                    }
-
-                    first.join(futures.remove(0));
-                }
-
-                return first;
+            Ok(matched_call_future) => {
+                return matched_call_future;
             }
             Err((call, context)) => (call, context),
         };
 
-        Route::new(NoOp).call(call)
+        // At this point, no route matched the job ID, and there are no always routes
+
+        todo!("fallback route")
     }
 
     /// Convert the router into a borrowed [`Service`] with a fixed request body type, to aid type
@@ -294,18 +260,6 @@ where
             _marker: PhantomData,
         }
     }
-
-    /// Convert the router into an owned [`Service`] with a fixed request body type, to aid type
-    /// inference.
-    ///
-    /// This is the same as [`Router::as_service`] instead it returns an owned [`Service`]. See
-    /// that method for more details.
-    pub fn into_service<B>(self) -> RouterIntoService<B, Ctx> {
-        RouterIntoService {
-            router: self,
-            _marker: PhantomData,
-        }
-    }
 }
 
 impl Router {
@@ -337,9 +291,9 @@ impl<B> Service<JobCall<B>> for Router<()>
 where
     B: Into<Bytes>,
 {
-    type Response = JobResult;
+    type Response = Vec<JobResult>;
     type Error = BoxError;
-    type Future = RouteFuture<BoxError>;
+    type Future = TryJoinAll<RouteFuture<BoxError>>;
 
     #[inline]
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -364,9 +318,9 @@ impl<B> Service<JobCall<B>> for RouterAsService<'_, B, ()>
 where
     B: Into<Bytes>,
 {
-    type Response = JobResult;
+    type Response = Vec<JobResult>;
     type Error = BoxError;
-    type Future = RouteFuture<BoxError>;
+    type Future = TryJoinAll<RouteFuture<BoxError>>;
 
     #[inline]
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -385,56 +339,6 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RouterAsService")
-            .field("router", &self.router)
-            .finish()
-    }
-}
-
-/// A [`Router`] converted into an owned [`Service`] with a fixed body type.
-///
-/// See [`Router::into_service`] for more details.
-pub struct RouterIntoService<B, Ctx = ()> {
-    router: Router<Ctx>,
-    _marker: PhantomData<B>,
-}
-
-impl<B, Ctx> Clone for RouterIntoService<B, Ctx>
-where
-    Router<Ctx>: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            router: self.router.clone(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<B> Service<JobCall<B>> for RouterIntoService<B, ()>
-where
-    B: Into<Bytes>,
-{
-    type Response = JobResult;
-    type Error = BoxError;
-    type Future = RouteFuture<BoxError>;
-
-    #[inline]
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        <Router as Service<JobCall<B>>>::poll_ready(&mut self.router, cx)
-    }
-
-    #[inline]
-    fn call(&mut self, req: JobCall<B>) -> Self::Future {
-        self.router.call(req)
-    }
-}
-
-impl<B, Ctx> fmt::Debug for RouterIntoService<B, Ctx>
-where
-    Ctx: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RouterIntoService")
             .field("router", &self.router)
             .finish()
     }

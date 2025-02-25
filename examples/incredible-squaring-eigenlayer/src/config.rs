@@ -2,7 +2,6 @@ use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
-use gadget_anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
 use blueprint_runner::{
     config::{GadgetConfiguration, ProtocolSettings},
     error::RunnerError as Error,
@@ -15,6 +14,7 @@ use eigensdk::{
     logging::get_test_logger,
     types::operator::Operator,
 };
+use gadget_anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
 use tracing::info;
 
 pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {

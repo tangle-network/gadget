@@ -1,11 +1,9 @@
-use crate::Router;
 use crate::future::Route;
 use crate::future::RouteFuture;
 use alloc::boxed::Box;
 use blueprint_core::{IntoJobResult, Job, JobCall};
 
 use core::fmt;
-
 use tower::util::{MapErrLayer, MapResponseLayer};
 use tower::{BoxError, Layer, Service};
 
@@ -118,41 +116,6 @@ where
     fn clone(&self) -> Self {
         Self {
             job: self.job.clone(),
-            into_route: self.into_route,
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub(crate) struct MakeErasedRouter<Ctx> {
-    pub(crate) router: Router<Ctx>,
-    pub(crate) into_route: fn(Router<Ctx>, Ctx) -> Route,
-}
-
-impl<Ctx> ErasedIntoRoute<Ctx, BoxError> for MakeErasedRouter<Ctx>
-where
-    Ctx: Clone + Send + Sync + 'static,
-{
-    fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, BoxError>> {
-        Box::new(self.clone())
-    }
-
-    fn into_route(self: Box<Self>, context: Ctx) -> Route {
-        (self.into_route)(self.router, context)
-    }
-
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
-        self.router.call_with_context(call, context)
-    }
-}
-
-impl<Ctx> Clone for MakeErasedRouter<Ctx>
-where
-    Ctx: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            router: self.router.clone(),
             into_route: self.into_route,
         }
     }
