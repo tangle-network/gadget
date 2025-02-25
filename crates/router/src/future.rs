@@ -8,7 +8,7 @@ use core::{
 };
 use pin_project_lite::pin_project;
 use tower::util::{BoxCloneSyncService, MapErrLayer, MapResponseLayer, Oneshot};
-use tower::{BoxError, Layer, Service, ServiceExt, service_fn};
+use tower::{BoxError, Layer, Service, ServiceExt};
 
 /// How routes are stored inside a [`Router`](super::Router).
 ///
@@ -104,13 +104,6 @@ pin_project! {
 impl<E> RouteFuture<E> {
     fn new(inner: Oneshot<BoxCloneSyncService<JobCall, Option<JobResult>, E>, JobCall>) -> Self {
         Self { inner }
-    }
-
-    /// An indicator to consumers that this job call has been ignored
-    pub(crate) fn empty() -> Self {
-        Self::new(
-            BoxCloneSyncService::new(service_fn(async |_| Ok(None))).oneshot(JobCall::empty()),
-        )
     }
 }
 

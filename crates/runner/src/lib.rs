@@ -1,14 +1,14 @@
 pub mod config;
 pub mod error;
 
-use blueprint_core::{BoxError, JobCall};
+use blueprint_core::{BoxError, JobCall, JobResult};
 use blueprint_router::Router;
 use config::GadgetConfiguration;
 use core::pin::Pin;
 use error::RunnerError as Error;
-use futures::Future;
+use futures::{Future, Sink};
 use futures_core::Stream;
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{SinkExt, StreamExt, TryStreamExt, stream};
 use std::future;
 use std::future::poll_fn;
 use tokio::sync::oneshot;
@@ -66,11 +66,13 @@ pub trait BackgroundService: Send + Sync + CloneableService + 'static {
 }
 
 type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Unpin + 'static>;
+type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'static>;
 
 pub struct BlueprintRunnerBuilder<F> {
     config: Box<dyn BlueprintConfig>,
     env: GadgetConfiguration,
     producers: Vec<Producer>,
+    consumers: Vec<Consumer>,
     router: Option<Router>,
     background_services: Vec<Box<dyn BackgroundService>>,
     shutdown_handler: F,
@@ -97,6 +99,18 @@ where
         self
     }
 
+    pub fn consumer<E>(
+        mut self,
+        consumer: impl Sink<JobResult, Error = E> + Send + Unpin + 'static,
+    ) -> Self
+    where
+        E: Into<BoxError>,
+    {
+        self.consumers
+            .push(Box::new(consumer.sink_map_err(|e| e.into())));
+        self
+    }
+
     pub fn background_service(mut self, service: impl BackgroundService) -> Self {
         self.background_services.push(Box::new(service));
         self
@@ -110,6 +124,7 @@ where
             config: self.config,
             env: self.env,
             producers: self.producers,
+            consumers: self.consumers,
             router: self.router,
             background_services: self.background_services,
             shutdown_handler: handler,
@@ -124,6 +139,7 @@ where
         let runner = FinalizedBlueprintRunner {
             config: self.config,
             producers: self.producers,
+            consumers: self.consumers,
             router,
             env: self.env,
             background_services: self.background_services,
@@ -145,6 +161,7 @@ impl BlueprintRunner {
             config: Box::new(config),
             env,
             producers: Vec::new(),
+            consumers: Vec::new(),
             router: None,
             background_services: Vec::new(),
             shutdown_handler: future::pending(),
@@ -155,6 +172,7 @@ impl BlueprintRunner {
 struct FinalizedBlueprintRunner<F> {
     config: Box<dyn BlueprintConfig>,
     producers: Vec<Producer>,
+    consumers: Vec<Consumer>,
     router: Router,
     env: GadgetConfiguration,
     background_services: Vec<Box<dyn BackgroundService>>,
@@ -177,6 +195,7 @@ where
         let FinalizedBlueprintRunner {
             config: _,
             producers,
+            mut consumers,
             mut router,
             env: _,
             background_services,
@@ -214,6 +233,7 @@ where
         poll_fn(|ctx| router.poll_ready(ctx)).await.unwrap_or(());
 
         let mut producer_stream = futures::stream::select_all(producers);
+
         let mut background_services = if background_futures.is_empty() {
             futures::future::select_all(vec![Box::pin(futures::future::ready(Ok(())))
                 as Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>])
@@ -228,14 +248,31 @@ where
                     match producer_result {
                         Some(Ok(job_call)) => {
                             match router.call(job_call).await {
-                                Ok(_results) => {
-                                    tracing::warn!("TODO: Pass the results to the consumers");
+                                Ok(Some(results)) => {
+                                    let result_stream = stream::iter(results.into_iter().map(Ok));
+
+                                    // Broadcast results to all consumers
+                                    let send_futures = consumers.iter_mut().map(|consumer| {
+                                        let mut stream_clone = result_stream.clone();
+                                        async move {
+                                            consumer.send_all(&mut stream_clone).await
+                                        }
+                                    });
+
+                                    let result = futures::future::try_join_all(send_futures).await;
+                                    if let Err(e) = result {
+                                        let _ = shutdown_tx.send(true);
+                                        return Err(Error::Consumer(e));
+                                    }
+                                },
+                                Ok(None) => {
+                                    tracing::debug!("Job call was ignored by router");
                                 },
                                 Err(e) => {
                                     tracing::error!("Job call failed: {:?}", e);
                                     let _ = shutdown_tx.send(true);
                                     return Err(Error::JobCall(e.to_string()));
-                                }
+                                },
                             }
                         }
                         Some(Err(e)) => {

@@ -1,6 +1,7 @@
 //! Routing between [`Service`]s and handlers.
 
 use crate::future::{Route, RouteFuture};
+use alloc::boxed::Box;
 
 use crate::IntoMakeService;
 use crate::path_router::JobIdRouter;
@@ -11,9 +12,11 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bytes::Bytes;
 use core::marker::PhantomData;
+use core::pin::Pin;
 use core::task::{Context, Poll};
 use core::{fmt, iter};
-use futures::future::{TryJoinAll, try_join_all};
+use futures::StreamExt;
+use futures::stream::FuturesUnordered;
 use tower::{BoxError, Layer, Service};
 
 macro_rules! panic_on_err {
@@ -209,11 +212,11 @@ where
         &self,
         call: JobCall,
         context: Ctx,
-    ) -> TryJoinAll<RouteFuture<BoxError>> {
+    ) -> Option<FuturesUnordered<RouteFuture<BoxError>>> {
         tracing::trace!(?call, "routing a job call to inner routers");
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
             Ok(matched_call_future) => {
-                return matched_call_future;
+                return Some(matched_call_future).into();
             }
             Err((call, context)) => (call, context),
         };
@@ -221,8 +224,8 @@ where
         // At this point, no route matched the job ID, and there are no always routes
 
         match self.inner.job_id_router.call_fallback(call, context) {
-            Some(future) => try_join_all(iter::once(future)),
-            None => try_join_all(iter::once(RouteFuture::empty())),
+            Some(future) => Some(FuturesUnordered::from_iter(iter::once(future))).into(),
+            None => None,
         }
     }
 
@@ -314,9 +317,9 @@ impl<B> Service<JobCall<B>> for Router<()>
 where
     B: Into<Bytes>,
 {
-    type Response = Vec<Option<JobResult>>;
+    type Response = Option<Vec<JobResult>>;
     type Error = BoxError;
-    type Future = TryJoinAll<RouteFuture<BoxError>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -325,7 +328,23 @@ where
 
     #[inline]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
-        self.call_with_context(call.map(Into::into), ())
+        let Some(mut futures) = self.call_with_context(call.map(Into::into), ()) else {
+            return Box::pin(async { Ok(None) });
+        };
+
+        Box::pin(async move {
+            let mut results = Vec::with_capacity(futures.len());
+            while let Some(item) = futures.next().await {
+                match item {
+                    Ok(Some(job)) => results.push(job),
+                    // Job produced nothing, and didn't error. Don't include it.
+                    Ok(None) => continue,
+                    Err(e) => return Err(e),
+                }
+            }
+
+            Ok(Some(results))
+        })
     }
 }
 
@@ -341,9 +360,9 @@ impl<B> Service<JobCall<B>> for RouterAsService<'_, B, ()>
 where
     B: Into<Bytes>,
 {
-    type Response = Vec<Option<JobResult>>;
+    type Response = Option<Vec<JobResult>>;
     type Error = BoxError;
-    type Future = TryJoinAll<RouteFuture<BoxError>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {

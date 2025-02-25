@@ -1,3 +1,4 @@
+use crate::extract;
 use blueprint_core::IntoJobResult;
 use blueprint_core::JobResult;
 use bytes::Bytes;
@@ -5,6 +6,7 @@ use gadget_blueprint_serde::Field;
 use gadget_blueprint_serde::to_field;
 use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::submit_result;
 
 use blueprint_core::__define_rejection as define_rejection;
 
@@ -45,7 +47,7 @@ macro_rules! impl_tangle_results {
         ///
         /// This will work for any type that implements [`serde::Serialize`].
         #[derive(Debug, Clone)]
-        pub struct $name<$($ty,)*>($(pub $ty,)*);
+        pub struct $name<$($ty,)*>(pub submit_result::CallId, pub submit_result::ServiceId, $(pub $ty,)*);
 
         #[allow(non_snake_case, unused_mut)]
         impl<$($ty,)*> IntoJobResult for $name<$($ty,)*>
@@ -54,7 +56,7 @@ macro_rules! impl_tangle_results {
         {
             fn into_job_result(self) -> Option<JobResult> {
                 let mut fields: Vec::<Field<AccountId32>> = Vec::with_capacity(16);
-                let $name($($ty,)*) = self;
+                let $name(call_id, service_id, $($ty,)*) = self;
                 $(
                     match to_field($ty) {
                         Ok(field) => fields.push(field),
@@ -63,7 +65,11 @@ macro_rules! impl_tangle_results {
                 )*
 
                 // Encode the fields into a `Bytes` object.
-                Bytes::from(fields.encode()).into_job_result()
+                let mut result = Bytes::from(fields.encode()).into_job_result()?;
+                let metadata = result.metadata_mut();
+                metadata.insert(extract::CallId::METADATA_KEY, call_id);
+                metadata.insert(extract::ServiceId::METADATA_KEY, service_id);
+                Some(result)
             }
         }
     };
