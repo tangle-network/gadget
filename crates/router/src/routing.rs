@@ -10,10 +10,10 @@ use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobResult};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bytes::Bytes;
-use core::{fmt, iter};
 use core::marker::PhantomData;
 use core::task::{Context, Poll};
-use futures::future::{try_join_all, TryJoinAll};
+use core::{fmt, iter};
+use futures::future::{TryJoinAll, try_join_all};
 use tower::{BoxError, Layer, Service};
 
 macro_rules! panic_on_err {

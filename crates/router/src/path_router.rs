@@ -240,7 +240,11 @@ where
         }))
     }
 
-    pub(super) fn call_fallback(&self, call: JobCall, context: Ctx) -> Option<RouteFuture<BoxError>> {
+    pub(super) fn call_fallback(
+        &self,
+        call: JobCall,
+        context: Ctx,
+    ) -> Option<RouteFuture<BoxError>> {
         let Some(fallback) = self.fallback.clone() else {
             return None;
         };

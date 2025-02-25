@@ -11,6 +11,8 @@ use alloy_rpc_types::Log;
 use blueprint_core::{JobCall, extensions::Extensions, job_call::Parts, metadata::MetadataMap};
 pub use polling::{PollingConfig, PollingProducer};
 
+use crate::extract::{BlockHash, BlockNumber, BlockTimestamp};
+
 /// Converts Logs to JobCalls
 pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
     let mut job_calls = Vec::new();
@@ -28,9 +30,23 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
     }
 
     for (block_number, logs) in logs_by_block {
+        if logs.is_empty() {
+            continue;
+        }
+        let log0 = &logs[0];
+        let Some(block_hash) = log0.block_hash else {
+            tracing::warn!(?log0, "Missing block hash");
+            continue;
+        };
+        let Some(block_timestamp) = log0.block_timestamp else {
+            tracing::warn!(?log0, "Missing block timestamp");
+            continue;
+        };
         let mut extensions = Extensions::new();
-        let metadata = MetadataMap::new();
-        // TODO: add block number and block hash to the metadata
+        let mut metadata = MetadataMap::new();
+        metadata.insert(BlockNumber::METADATA_KEY, block_number);
+        metadata.insert(BlockHash::METADATA_KEY, *block_hash);
+        metadata.insert(BlockTimestamp::METADATA_KEY, block_timestamp);
         extensions.insert(logs.clone());
         tracing::trace!(?block_number, "Processing logs");
 
