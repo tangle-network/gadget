@@ -52,7 +52,7 @@ macro_rules! impl_tangle_results {
         where
             $( $ty: serde::Serialize, )*
         {
-            fn into_job_result(self) -> JobResult {
+            fn into_job_result(self) -> Option<JobResult> {
                 let mut fields: Vec::<Field<AccountId32>> = Vec::with_capacity(16);
                 let $name($($ty,)*) = self;
                 $(

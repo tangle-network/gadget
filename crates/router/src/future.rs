@@ -8,13 +8,13 @@ use core::{
 };
 use pin_project_lite::pin_project;
 use tower::util::{BoxCloneSyncService, MapErrLayer, MapResponseLayer, Oneshot};
-use tower::{BoxError, Layer, Service, ServiceExt};
+use tower::{service_fn, BoxError, Layer, Service, ServiceExt};
 
 /// How routes are stored inside a [`Router`](super::Router).
 ///
 /// You normally shouldn't need to care about this type. It's used in
 /// [`Router::layer`](super::Router::layer).
-pub struct Route<E = BoxError>(BoxCloneSyncService<JobCall, JobResult, E>);
+pub struct Route<E = BoxError>(BoxCloneSyncService<JobCall, Option<JobResult>, E>);
 
 impl<E> Route<E> {
     pub(crate) fn new<T>(svc: T) -> Self
@@ -24,7 +24,7 @@ impl<E> Route<E> {
         T::Future: Send + 'static,
     {
         Self(BoxCloneSyncService::new(
-            svc.map_response(IntoJobResult::into_job_result),
+            svc.map_response(|r| r.into_job_result()),
         ))
     }
 
@@ -78,7 +78,7 @@ impl<B, E> Service<JobCall<B>> for Route<E>
 where
     B: Into<Bytes>,
 {
-    type Response = JobResult;
+    type Response = Option<JobResult>;
     type Error = E;
     type Future = RouteFuture<E>;
 
@@ -97,18 +97,23 @@ pin_project! {
     /// Response future for [`Route`].
     pub struct RouteFuture<E> {
         #[pin]
-        inner: Oneshot<BoxCloneSyncService<JobCall, JobResult, E>, JobCall>,
+        inner: Oneshot<BoxCloneSyncService<JobCall, Option<JobResult>, E>, JobCall>,
     }
 }
 
 impl<E> RouteFuture<E> {
-    fn new(inner: Oneshot<BoxCloneSyncService<JobCall, JobResult, E>, JobCall>) -> Self {
+    fn new(inner: Oneshot<BoxCloneSyncService<JobCall, Option<JobResult>, E>, JobCall>) -> Self {
         Self { inner }
+    }
+
+    /// An indicator to consumers that this job call has been ignored
+    pub(crate) fn empty() -> Self {
+        Self::new(BoxCloneSyncService::new(service_fn(async |_| { Ok(None) })).oneshot(JobCall::empty()))
     }
 }
 
 impl<E> Future for RouteFuture<E> {
-    type Output = Result<JobResult, E>;
+    type Output = Result<Option<JobResult>, E>;
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

@@ -10,10 +10,10 @@ use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobResult};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bytes::Bytes;
-use core::fmt;
+use core::{fmt, iter};
 use core::marker::PhantomData;
 use core::task::{Context, Poll};
-use futures::future::TryJoinAll;
+use futures::future::{try_join_all, TryJoinAll};
 use tower::{BoxError, Layer, Service};
 
 macro_rules! panic_on_err {
@@ -161,6 +161,26 @@ where
         })
     }
 
+    /// Add a [`Job`] that gets called if no other route matches
+    ///
+    /// NOTE: This will replace any existing fallback route.
+    ///
+    /// This will **only** be called when:
+    /// - No other route matches the job ID
+    /// - No [`always`] route is present
+    ///
+    /// [`always`]: Router::always
+    #[track_caller]
+    pub fn fallback<J, T>(self, job: J) -> Self
+    where
+        J: Job<T, Ctx>,
+        T: 'static,
+    {
+        tap_inner!(self, mut this => {
+            panic_on_err!(this.job_id_router.fallback(job));
+        })
+    }
+
     pub fn layer<L>(self, layer: L) -> Router<Ctx>
     where
         L: Layer<Route> + Clone + Send + Sync + 'static,
@@ -200,7 +220,10 @@ where
 
         // At this point, no route matched the job ID, and there are no always routes
 
-        todo!("fallback route")
+        match self.inner.job_id_router.call_fallback(call, context) {
+            Some(future) => try_join_all(iter::once(future)),
+            None => try_join_all(iter::once(RouteFuture::empty())),
+        }
     }
 
     /// Convert the router into a borrowed [`Service`] with a fixed request body type, to aid type
@@ -291,7 +314,7 @@ impl<B> Service<JobCall<B>> for Router<()>
 where
     B: Into<Bytes>,
 {
-    type Response = Vec<JobResult>;
+    type Response = Vec<Option<JobResult>>;
     type Error = BoxError;
     type Future = TryJoinAll<RouteFuture<BoxError>>;
 
@@ -318,7 +341,7 @@ impl<B> Service<JobCall<B>> for RouterAsService<'_, B, ()>
 where
     B: Into<Bytes>,
 {
-    type Response = Vec<JobResult>;
+    type Response = Vec<Option<JobResult>>;
     type Error = BoxError;
     type Future = TryJoinAll<RouteFuture<BoxError>>;
 

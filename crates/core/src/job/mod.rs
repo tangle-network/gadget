@@ -118,7 +118,7 @@ pub use self::service::JobService;
 )]
 pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
     /// The type of future calling this handler returns.
-    type Future: Future<Output = JobResult> + Send + 'static;
+    type Future: Future<Output = Option<JobResult>> + Send + 'static;
 
     /// Call the handler with the given request.
     fn call(self, call: JobCall, ctx: Ctx) -> Self::Future;
@@ -180,7 +180,7 @@ where
     Fut: Future<Output = Res> + Send,
     Res: IntoJobResult,
 {
-    type Future = Pin<Box<dyn Future<Output = JobResult> + Send>>;
+    type Future = Pin<Box<dyn Future<Output = Option<JobResult>> + Send>>;
 
     fn call(self, _call: JobCall, _ctx: Ctx) -> Self::Future {
         Box::pin(async move { self().await.into_job_result() })
@@ -201,7 +201,7 @@ macro_rules! impl_job {
             $( $ty: FromJobCallParts<Ctx> + Send, )*
             $last: FromJobCall<Ctx, M> + Send,
         {
-            type Future = Pin<Box<dyn Future<Output = JobResult> + Send>>;
+            type Future = Pin<Box<dyn Future<Output = Option<JobResult>> + Send>>;
 
             fn call(self, call: JobCall, state: Ctx) -> Self::Future {
                 Box::pin(async move {
@@ -243,7 +243,7 @@ impl<T, Ctx> Job<private::IntoJobResultHandler, Ctx> for T
 where
     T: IntoJobResult + Clone + Send + Sync + 'static,
 {
-    type Future = core::future::Ready<JobResult>;
+    type Future = core::future::Ready<Option<JobResult>>;
 
     fn call(self, _call: JobCall, _ctx: Ctx) -> Self::Future {
         core::future::ready(self.into_job_result())

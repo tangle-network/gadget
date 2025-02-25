@@ -56,6 +56,7 @@ pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
     prev_route_id: RouteId,
     // Routes that are *always* called, regardless of job ID
     always_routes: Vec<Handler<Ctx>>,
+    fallback: Option<Handler<Ctx>>,
 }
 
 impl<Ctx, const IS_FALLBACK: bool> JobIdRouter<Ctx, IS_FALLBACK>
@@ -98,9 +99,24 @@ where
         J: Job<T, Ctx>,
         T: 'static,
     {
+        let _ = self.fallback.take();
         self.always_routes
             .push(Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
+        Ok(())
+    }
+
+    pub(super) fn fallback<J, T>(&mut self, job: J) -> Result<(), Cow<'static, str>>
+    where
+        J: Job<T, Ctx>,
+        T: 'static,
+    {
+        if !self.always_routes.is_empty() {
+            // Cannot combine `always` and `fallback` routes
+            return Ok(());
+        }
+
+        self.fallback = Some(Handler::Boxed(BoxedIntoRoute::from_job(job)));
         Ok(())
     }
 
@@ -132,11 +148,14 @@ where
             .map(|h| h.layer(layer.clone()))
             .collect();
 
+        let fallback = self.fallback.map(|h| h.layer(layer.clone()));
+
         JobIdRouter {
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
             always_routes,
+            fallback,
         }
     }
 
@@ -154,7 +173,7 @@ where
             })
             .collect();
 
-        let catch_all_routes = self
+        let always_routes = self
             .always_routes
             .into_iter()
             .map(|endpoint| match endpoint {
@@ -163,11 +182,17 @@ where
             })
             .collect();
 
+        let fallback = self.fallback.map(|fallback| match fallback {
+            Handler::Route(route) => Handler::Route(route),
+            Handler::Boxed(boxed) => Handler::Route(boxed.into_route(context.clone())),
+        });
+
         JobIdRouter {
             routes,
             node: self.node,
             prev_route_id: self.prev_route_id,
-            always_routes: catch_all_routes,
+            always_routes,
+            fallback,
         }
     }
 
@@ -215,6 +240,17 @@ where
         }))
     }
 
+    pub(super) fn call_fallback(&self, call: JobCall, context: Ctx) -> Option<RouteFuture<BoxError>> {
+        let Some(fallback) = self.fallback.clone() else {
+            return None;
+        };
+
+        match fallback {
+            Handler::Route(route) => Some(route.clone().call_owned(call)),
+            Handler::Boxed(boxed) => Some(boxed.clone().into_route(context).call(call)),
+        }
+    }
+
     fn next_route_id(&mut self) -> RouteId {
         let next_id = self
             .prev_route_id
@@ -233,6 +269,7 @@ impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
             node: Default::default(),
             prev_route_id: RouteId(0),
             always_routes: Vec::new(),
+            fallback: None,
         }
     }
 }
@@ -256,6 +293,7 @@ where
             node: self.node.clone(),
             prev_route_id: self.prev_route_id,
             always_routes: self.always_routes.clone(),
+            fallback: self.fallback.clone(),
         }
     }
 }
