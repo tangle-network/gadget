@@ -26,7 +26,7 @@ macro_rules! impl_from_job_call {
             $last: FromJobCallParts<Ctx> + Send,
             Ctx: Send + Sync,
         {
-            type Rejection = JobResult;
+            type Rejection = Option<JobResult>;
 
             async fn from_job_call_parts(parts: &mut Parts, ctx: &Ctx) -> Result<Self, Self::Rejection> {
                 $(
@@ -51,7 +51,7 @@ macro_rules! impl_from_job_call {
             $last: FromJobCall<Ctx> + Send,
             Ctx: Send + Sync,
         {
-            type Rejection = JobResult;
+            type Rejection = Option<JobResult>;
 
             async fn from_job_call(req: JobCall, ctx: &Ctx) -> Result<Self, Self::Rejection> {
                 let (mut parts, body) = req.into_parts();

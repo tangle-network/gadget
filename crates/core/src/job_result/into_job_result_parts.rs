@@ -186,7 +186,7 @@ where
     K: fmt::Display,
     V: fmt::Display,
 {
-    fn into_job_result(self) -> JobResult {
+    fn into_job_result(self) -> Option<JobResult> {
         match self.kind {
             TryIntoMetadataErrorKind::Key(inner) => inner.to_string().into_job_result(),
             TryIntoMetadataErrorKind::Value(inner) => inner.to_string().into_job_result(),
@@ -225,7 +225,7 @@ macro_rules! impl_into_response_parts {
         where
             $( $ty: IntoJobResultParts, )*
         {
-            type Error = JobResult;
+            type Error = Option<JobResult>;
 
             fn into_job_result_parts(self, res: JobResultParts) -> Result<JobResultParts, Self::Error> {
                 let ($($ty,)*) = self;

@@ -74,7 +74,7 @@ where
     B: Into<Bytes> + Send + 'static,
     Ctx: Clone + Send + Sync,
 {
-    type Response = JobResult;
+    type Response = Option<JobResult>;
     type Error = BoxError;
     type Future = super::future::IntoServiceFuture<J::Future>;
 

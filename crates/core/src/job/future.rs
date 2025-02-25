@@ -13,7 +13,7 @@ opaque_future! {
     pub type IntoServiceFuture<F> =
         Map<
             F,
-            fn(JobResult) -> Result<JobResult, BoxError>,
+            fn(Option<JobResult>) -> Result<Option<JobResult>, BoxError>,
         >;
 }
 
@@ -24,7 +24,7 @@ pin_project! {
         S: Service<JobCall>,
     {
         #[pin]
-        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> JobResult>,
+        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> Option<JobResult>>,
     }
 }
 
@@ -33,7 +33,7 @@ where
     S: Service<JobCall>,
 {
     pub(super) fn new(
-        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> JobResult>,
+        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> Option<JobResult>>,
     ) -> Self {
         Self { inner }
     }
@@ -43,7 +43,7 @@ impl<S> Future for LayeredFuture<S>
 where
     S: Service<JobCall>,
 {
-    type Output = JobResult;
+    type Output = Option<JobResult>;
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> core::task::Poll<Self::Output> {
