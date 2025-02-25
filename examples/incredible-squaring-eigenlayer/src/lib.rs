@@ -19,15 +19,17 @@ pub struct ExampleContext {}
 
 /// Job function for handling tasks
 pub async fn handle_task(
+    BlockNumber(block_number): BlockNumber,
     Context(_): Context<ExampleContext>,
     Events(tasks): Events<NewTaskCreated>,
 ) -> impl IntoJobResult {
     for task in tasks {
         tracing::info!(
-            "Processing task: index={}, generator={}, quorum={}",
+            "Processing task: index={}, generator={}, quorum={}, block_number={}",
             task.taskIndex,
             task.task.message,
-            task.task.quorumNumbers
+            task.task.quorumNumbers,
+            block_number
         );
 
         // Here you would implement the actual task handling logic
@@ -49,8 +51,6 @@ pub fn create_contract_router(contract_address: alloy_primitives::Address) -> Ro
         )))
         .layer(FilterLayer::new(MatchesContract(contract_address)))
 }
-
-/// Creates a block router with block event filters
 
 #[cfg(test)]
 mod tests {

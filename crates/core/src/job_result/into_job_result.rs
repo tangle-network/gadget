@@ -104,7 +104,10 @@ impl IntoJobResult for Infallible {
     }
 }
 
-impl<T> IntoJobResult for Option<T> where T: IntoJobResult {
+impl<T> IntoJobResult for Option<T>
+where
+    T: IntoJobResult,
+{
     fn into_job_result(self) -> Option<JobResult> {
         self.map(IntoJobResult::into_job_result).flatten()
     }
