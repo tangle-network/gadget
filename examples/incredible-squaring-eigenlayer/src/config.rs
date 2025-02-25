@@ -2,7 +2,7 @@ use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
-use anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
+use gadget_anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
 use blueprint_runner::{
     config::{GadgetConfiguration, ProtocolSettings},
     error::RunnerError as Error,

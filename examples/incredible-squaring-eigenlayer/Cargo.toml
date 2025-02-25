@@ -18,7 +18,7 @@ blueprint-core = { workspace = true }
 blueprint-router = { workspace = true }
 blueprint-runner = { workspace = true }
 blueprint-evm-extra = { workspace = true }
-anvil-testing-utils = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true }
 serde = { workspace = true }
 
 # Alloy dependencies
@@ -57,4 +57,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
+gadget-logging = { workspace = true }
+gadget-core-testing-utils = { workspace = true }
 testcontainers = { workspace = true }

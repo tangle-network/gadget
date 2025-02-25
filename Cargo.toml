@@ -34,6 +34,15 @@ broken_intra_doc_links = "deny"
 # SDKs (overarching crates that include all other crates)
 blueprint-sdk = { version = "0.1.0", path = "./crates/sdk", default-features = false }
 
+# Job system
+blueprint-core = { version = "0.1.0", path = "crates/core", default-features = false }
+blueprint-router = { version = "0.1.0", path = "crates/router", default-features = false }
+blueprint-runner = { version = "0.1.0", path = "crates/runner", default-features = false }
+
+# Extras
+blueprint-tangle-extra = { version = "0.1.0", path = "crates/tangle-extra", default-features = false }
+blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-features = false }
+
 # Blueprint Examples
 testing = { version = "0.1.0", path = "./blueprints/testing", default-features = false }
 blueprint-examples = { version = "0.1.0", path = "./blueprints/examples", default-features = false }

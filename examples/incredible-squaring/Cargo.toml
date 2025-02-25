@@ -18,8 +18,8 @@ tower = { version = "0.5.2", features = ["util"] }
 async-trait = "0.1.86"
 tangle-subxt.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-gadget-tangle-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
-gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "89f298a" }
+gadget-tangle-testing-utils = { workspace = true }
+gadget-core-testing-utils = { workspace = true }
 tempfile = "3.13.0"
 tracing = { workspace = true }
 
