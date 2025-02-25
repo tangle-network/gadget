@@ -7,9 +7,10 @@ use blueprint_router::Router;
 use blueprint_runner::config::{GadgetConfiguration, TangleConfig};
 use blueprint_runner::error::RunnerError;
 use blueprint_runner::{BackgroundService, BlueprintRunner};
+use blueprint_tangle_extra::consumer::TangleConsumer;
 use blueprint_tangle_extra::extract::{
-    BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, TangleArg, TangleArgs2,
-    TangleResult,
+    BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, ServiceId, TangleArg,
+    TangleArgs2, TangleResult,
 };
 use blueprint_tangle_extra::filters::MatchesServiceId;
 use blueprint_tangle_extra::producer::TangleProducer;
@@ -19,6 +20,7 @@ use tangle_subxt::tangle_testnet_runtime::api::balances::events::Transfer;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tower::filter::FilterLayer;
+use tracing::error;
 use tracing_subscriber::filter::LevelFilter;
 
 // The job ID (to be generated?)
@@ -39,6 +41,7 @@ pub struct MyContext {
 // The context is passed in as a parameter, and can be used to store any shared state between job calls.
 pub async fn square(
     CallId(call_id): CallId,
+    ServiceId(service_id): ServiceId,
     Context(ctx): Context<MyContext>,
     TangleArg(x): TangleArg<u64>,
 ) -> impl IntoJobResult {
@@ -50,11 +53,12 @@ pub async fn square(
     println!("result: {}", result);
 
     // The result is then converted into a `JobResult` to be sent back to the caller.
-    TangleResult(result)
+    TangleResult(call_id, service_id, result)
 }
 
 pub async fn multiply(
     CallId(call_id): CallId,
+    ServiceId(service_id): ServiceId,
     Context(ctx): Context<MyContext>,
     TangleArgs2(x, y): TangleArgs2<u64, u64>,
 ) -> impl IntoJobResult {
@@ -67,7 +71,7 @@ pub async fn multiply(
     tracing::info!("result: {}", result);
 
     // The result is then converted into a `JobResult` to be sent back to the caller.
-    TangleResult(result)
+    TangleResult(call_id, service_id, result)
 }
 
 /// An Example of a job function that uses the `Event` extractors
@@ -92,8 +96,6 @@ pub async fn on_transfer(
 
     println!("First Transfer: {:?}", first_transfer);
     println!("Last Transfer: {:?}", last_transfer);
-
-    TangleResult(0)
 }
 
 /// An Example of a job function that uses the `BlockEvents` extractor
@@ -109,8 +111,6 @@ pub async fn manual_event_handling(
         let details = event.unwrap();
         println!("Event: {:?}", details.variant_name());
     }
-
-    TangleResult(0)
 }
 
 #[derive(Clone)]
@@ -145,7 +145,8 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
 
     let (_test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
 
-    let tangle_producer = TangleProducer::finalized_blocks(tangle_client).await?;
+    let tangle_producer = TangleProducer::finalized_blocks(tangle_client.clone()).await?;
+    let tangle_consumer = TangleConsumer::new(tangle_client, harness.sr25519_signer.clone());
 
     let result = BlueprintRunner::new(tangle_config, GadgetConfiguration::default())
         .router(
@@ -174,6 +175,12 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
         // A producer is simply a `Stream` that outputs `JobCall`s, which are passed down to the intended
         // job functions.
         .producer(tangle_producer)
+        // Add potentially many consumers
+        //
+        // A consumer is simply a `Sink` that consumes `JobResult`s, which are the output of the job functions.
+        // Every result will be passed to every consumer. It is the responsibility of the consumer
+        // to determine whether or not to process a result.
+        .consumer(tangle_consumer)
         // Custom shutdown handlers
         //
         // Now users can specify what to do when an error occurs and the runner is shutting down.
@@ -183,7 +190,7 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
         .await;
 
     if let Err(e) = result {
-        eprintln!("Runner failed! {e:?}");
+        error!("Runner failed! {e:?}");
     }
 
     Ok(())

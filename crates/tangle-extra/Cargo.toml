@@ -10,6 +10,7 @@ futures-core.workspace = true
 futures-util.workspace = true
 tower = { workspace = true, features = ["filter"] }
 gadget-blueprint-serde.workspace = true
+gadget-utils-tangle = { workspace = true, optional = true }
 tangle-subxt.workspace = true
 serde.workspace = true
 
@@ -18,5 +19,6 @@ tracing = { workspace = true, optional = true }
 
 [features]
 default = ["std", "tracing"]
-std = ["futures-util/std"]
+std = ["dep:gadget-utils-tangle", "futures-util/std", "gadget-utils-tangle/std"]
+web = ["dep:gadget-utils-tangle", "futures-util/std", "gadget-utils-tangle/web"]
 tracing = ["dep:tracing"]

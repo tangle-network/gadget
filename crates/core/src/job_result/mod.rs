@@ -7,6 +7,12 @@ pub use into_job_result::IntoJobResult;
 pub use into_job_result_parts::IntoJobResultParts;
 pub use into_job_result_parts::JobResultParts;
 
+// TODO: More docs on this
+/// A special result type that indicates a job produced no result
+///
+/// This is **not** the same as returning `None` or `()` from your [`Job`].
+pub struct Void;
+
 #[derive(Debug, Clone)]
 pub struct JobResult<T> {
     head: Parts,

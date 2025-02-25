@@ -6,7 +6,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobId};
 use core::{fmt, iter};
-use futures::future::{TryJoinAll, try_join_all};
+use futures::stream::FuturesUnordered;
 use hashbrown::HashMap;
 use tower::{BoxError, Layer, Service};
 
@@ -200,12 +200,12 @@ where
         &self,
         call: JobCall,
         context: Ctx,
-    ) -> Result<TryJoinAll<RouteFuture<BoxError>>, (JobCall, Ctx)> {
+    ) -> Result<FuturesUnordered<RouteFuture<BoxError>>, (JobCall, Ctx)> {
         let (parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
             let catch_all_futures =
                 self.call_always_routes(JobCall::from_parts(parts, body), context)?;
-            return Ok(try_join_all(catch_all_futures));
+            return Ok(FuturesUnordered::from_iter(catch_all_futures));
         };
 
         let handler = self
@@ -220,7 +220,7 @@ where
         };
 
         let catch_all_futures = self.call_always_routes(call, context)?;
-        Ok(try_join_all(
+        Ok(FuturesUnordered::from_iter(
             iter::once(matched_call_future).chain(catch_all_futures),
         ))
     }

@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+/// Tangle Network Job Consumers
+pub mod consumer;
 /// Tangle Specific extractors
 pub mod extract;
 /// Tangle Specific filters

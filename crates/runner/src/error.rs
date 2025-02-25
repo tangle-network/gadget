@@ -1,3 +1,4 @@
+use blueprint_core::BoxError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -37,6 +38,9 @@ pub enum RunnerError {
 
     #[error("A job call failed: {0}")]
     JobCall(String),
+
+    #[error("A consumer failed: {0}")]
+    Consumer(BoxError),
 
     #[error("Generic error: {0}")]
     Other(String),

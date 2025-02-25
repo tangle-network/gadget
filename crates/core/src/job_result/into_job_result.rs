@@ -1,4 +1,4 @@
-use super::{IntoJobResultParts, JobResultParts};
+use super::{IntoJobResultParts, JobResultParts, Void};
 use crate::JobResult;
 use crate::job_result::Parts;
 use crate::metadata::{MetadataMap, MetadataValue};
@@ -92,6 +92,12 @@ pub trait IntoJobResult {
     fn into_job_result(self) -> Option<JobResult>;
 }
 
+impl IntoJobResult for Void {
+    fn into_job_result(self) -> Option<JobResult> {
+        None
+    }
+}
+
 impl IntoJobResult for () {
     fn into_job_result(self) -> Option<JobResult> {
         Bytes::new().into_job_result()
@@ -104,6 +110,7 @@ impl IntoJobResult for Infallible {
     }
 }
 
+// TODO: Is this possible to remove? Ideally, `Void` is the only way to return `None` from a handler.
 impl<T> IntoJobResult for Option<T>
 where
     T: IntoJobResult,
