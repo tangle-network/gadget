@@ -33,7 +33,8 @@ pub enum MessageDelivery {
 }
 
 /// Message routing information
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "K: KeyType")]
 pub struct MessageRouting<K: KeyType> {
     /// Unique identifier for this message
     pub message_id: u64,
@@ -45,19 +46,9 @@ pub struct MessageRouting<K: KeyType> {
     pub recipient: Option<ParticipantInfo<K>>,
 }
 
-impl<'de, K: KeyType> Deserialize<'de> for MessageRouting<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = Vec::deserialize(deserializer)?;
-        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
-        Ok(message)
-    }
-}
-
 /// Information about a participant in the network
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "K: KeyType")]
 pub struct ParticipantInfo<K: KeyType> {
     /// The participant's unique ID
     pub id: ParticipantId,
@@ -65,19 +56,9 @@ pub struct ParticipantInfo<K: KeyType> {
     pub verification_id_key: Option<VerificationIdentifierKey<K>>,
 }
 
-impl<'de, K: KeyType> Deserialize<'de> for ParticipantInfo<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = Vec::deserialize(deserializer)?;
-        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
-        Ok(message)
-    }
-}
-
 /// A protocol message that can be sent over the network
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "K: KeyType")]
 pub struct ProtocolMessage<K: KeyType> {
     /// The protocol name
     pub protocol: String,
@@ -85,17 +66,6 @@ pub struct ProtocolMessage<K: KeyType> {
     pub routing: MessageRouting<K>,
     /// The actual message payload
     pub payload: Vec<u8>,
-}
-
-impl<'de, K: KeyType> Deserialize<'de> for ProtocolMessage<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = Vec::deserialize(deserializer)?;
-        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
-        Ok(message)
-    }
 }
 
 impl Display for ParticipantId {
