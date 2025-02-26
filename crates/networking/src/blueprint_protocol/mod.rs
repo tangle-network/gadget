@@ -6,10 +6,11 @@ use gadget_crypto::KeyType;
 use libp2p::PeerId;
 
 use crate::discovery::peers::VerificationIdentifierKey;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// A message sent to a specific instance or broadcast to all instances
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "K: KeyType")]
 pub enum InstanceMessageRequest<K: KeyType> {
     /// Handshake request with authentication
     Handshake {
@@ -31,18 +32,9 @@ pub enum InstanceMessageRequest<K: KeyType> {
     },
 }
 
-impl<'de, K: KeyType> Deserialize<'de> for InstanceMessageRequest<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = Vec::deserialize(deserializer)?;
-        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
-        Ok(message)
-    }
-}
 /// Response to an instance message
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "K: KeyType")]
 pub enum InstanceMessageResponse<K: KeyType> {
     /// Handshake response with authentication
     Handshake {
@@ -67,17 +59,6 @@ pub enum InstanceMessageResponse<K: KeyType> {
         /// Error message
         message: String,
     },
-}
-
-impl<'de, K: KeyType> Deserialize<'de> for InstanceMessageResponse<K> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = Vec::deserialize(deserializer)?;
-        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
-        Ok(message)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -353,6 +353,7 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
         local_addr: &libp2p::Multiaddr,
         remote_addr: &libp2p::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(%peer, ?connection_id, ?local_addr, ?remote_addr, "Established inbound connection");
         self.blueprint_protocol
             .handle_established_inbound_connection(connection_id, peer, local_addr, remote_addr)
     }
@@ -446,11 +447,9 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                             msg: handshake_msg,
                         },
                     );
+
+                    debug!(%e.peer_id, "Sent handshake request");
                     self.outbound_handshakes.insert(e.peer_id, Instant::now());
-                    info!(
-                        "Established connection to {:?}, sending handshake",
-                        e.peer_id
-                    );
                 }
 
                 self.blueprint_protocol
