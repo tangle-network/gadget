@@ -46,7 +46,7 @@ impl<Ctx> Clone for Router<Ctx> {
 }
 
 struct RouterInner<Ctx> {
-    job_id_router: JobIdRouter<Ctx, false>,
+    job_id_router: JobIdRouter<Ctx>,
 }
 
 impl<Ctx> Default for Router<Ctx>
