@@ -6,6 +6,11 @@ use alloy_transport::BoxTransport;
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use eigensdk::common::get_ws_provider;
 use eigensdk::logging::get_test_logger;
+use eigensdk::utils::rewardsv2::core::eigenpodmanager::EigenPodManager;
+use eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator;
+use eigensdk::utils::rewardsv2::middleware::stakeregistry::{IStakeRegistry, StakeRegistry};
+use eigensdk::utils::slashing::core::delegationmanager::DelegationManager;
+use eigensdk::utils::slashing::middleware::operatorstateretriever::OperatorStateRetriever;
 use gadget_config::GadgetConfiguration;
 use gadget_std::collections::HashMap;
 use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
@@ -57,27 +62,25 @@ impl EigenlayerClient {
             .map_err(Into::into)
     }
 
-    /// Get the slasher address from the `DelegationManager` contract
-    ///
-    /// # Returns
-    /// - [`Address`] - The slasher address
-    ///
-    /// # Errors
-    /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
-    pub async fn get_slasher_address(&self, delegation_manager_addr: Address) -> Result<Address> {
-        let provider = self.get_provider_http();
-        let delegation_manager =
-            eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
-                delegation_manager_addr,
-                provider,
-            );
-        delegation_manager
-            .slasher()
-            .call()
-            .await
-            .map(|a| a._0)
-            .map_err(Into::into)
-    }
+    // TODO: Slashing contracts equivalent
+    // /// Get the slasher address from the `DelegationManager` contract
+    // ///
+    // /// # Returns
+    // /// - [`Address`] - The slasher address
+    // ///
+    // /// # Errors
+    // /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
+    // pub async fn get_slasher_address(&self, eigen_pod_manager_address: Address) -> Result<Address> {
+    //     let provider = self.get_provider_http();
+    //     let eigen_pod_manager =
+    //         EigenPodManager::EigenPodManagerInstance::new(eigen_pod_manager_address, provider);
+    //     eigen_pod_manager
+    //         .slasher()
+    //         .call()
+    //         .await
+    //         .map(|a| a._0)
+    //         .map_err(Into::into)
+    // }
 
     /// Provides a reader for the AVS registry.
     pub async fn avs_registry_reader(
@@ -191,11 +194,10 @@ impl EigenlayerClient {
         &self,
         block_number: u32,
         quorum_numbers: Bytes,
-    ) -> Result<Vec<Vec<eigensdk::utils::middleware::operatorstateretriever::OperatorStateRetriever::Operator>>>
-    {
+    ) -> Result<Vec<Vec<OperatorStateRetriever::Operator>>> {
         self.avs_registry_reader()
             .await?
-            .get_operators_stake_in_quorums_at_block(block_number, quorum_numbers)
+            .get_operators_stake_in_quorums_at_block(block_number.into(), quorum_numbers)
             .await
             .map_err(Into::into)
     }
@@ -226,20 +228,16 @@ impl EigenlayerClient {
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
-    ) -> Result<Vec<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate>> {
+    ) -> Result<Vec<IStakeRegistry::StakeUpdate>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder = instance.getStakeHistory(operator_id, quorum_number);
         let response = call_builder.call().await?;
         Ok(response._0)
@@ -251,20 +249,16 @@ impl EigenlayerClient {
         quorum_number: u8,
         operator_id: alloy_primitives::FixedBytes<32>,
         index: alloy_primitives::U256,
-    ) -> Result<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate> {
+    ) -> Result<IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder = instance.getStakeUpdateAtIndex(quorum_number, operator_id, index);
         let response = call_builder.call().await?;
         Ok(response._0)
@@ -279,62 +273,53 @@ impl EigenlayerClient {
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder = instance.getStakeAtBlockNumber(operator_id, quorum_number, block_number);
         let response = call_builder.call().await?;
         Ok(response._0)
     }
 
-    /// Get an Operator's [`details`](OperatorDetails).
-    pub async fn get_operator_details(
-        &self,
-        operator_addr: Address,
-    ) -> Result<eigensdk::types::operator::Operator> {
-        let http_rpc_endpoint = self.config.http_rpc_endpoint.clone();
-        let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let slasher_addr = self
-            .get_slasher_address(contract_addresses.delegation_manager_address)
-            .await?;
-        let chain_reader = eigensdk::client_elcontracts::reader::ELChainReader::new(
-            eigensdk::logging::get_test_logger(),
-            slasher_addr,
-            contract_addresses.delegation_manager_address,
-            contract_addresses.rewards_coordinator_address,
-            contract_addresses.avs_directory_address,
-            http_rpc_endpoint.clone(),
-        );
-        Ok(chain_reader.get_operator_details(operator_addr).await?)
-    }
+    // TODO: Slashing contract equivalent
+    // /// Get an Operator's [`details`](OperatorDetails).
+    // pub async fn get_operator_details(
+    //     &self,
+    //     operator_addr: Address,
+    // ) -> Result<eigensdk::types::operator::Operator> {
+    //     let http_rpc_endpoint = self.config.http_rpc_endpoint.clone();
+    //     let contract_addresses = self.config.protocol_settings.eigenlayer()?;
+    //     let chain_reader = eigensdk::client_elcontracts::reader::ELChainReader::new(
+    //         eigensdk::logging::get_test_logger(),
+    //         Some(contract_addresses.allocation_manager_address),
+    //         contract_addresses.delegation_manager_address,
+    //         contract_addresses.rewards_coordinator_address,
+    //         contract_addresses.avs_directory_address,
+    //         Some(contract_addresses.permission_controller_address),
+    //         http_rpc_endpoint.clone(),
+    //     );
+    //     Ok(chain_reader.get_operator_details(operator_addr).await?)
+    // }
 
     /// Get an Operator's latest stake update.
     pub async fn get_latest_stake_update(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
         quorum_number: u8,
-    ) -> Result<eigensdk::utils::middleware::stakeregistry::IStakeRegistry::StakeUpdate> {
+    ) -> Result<IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder = instance.getLatestStakeUpdate(operator_id, quorum_number);
         let response = call_builder.call().await?;
         Ok(response._0)
@@ -361,17 +346,13 @@ impl EigenlayerClient {
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder =
             instance.getTotalStakeAtBlockNumberFromIndex(quorum_number, block_number, index);
         let response = call_builder.call().await?;
@@ -385,17 +366,13 @@ impl EigenlayerClient {
     ) -> Result<alloy_primitives::U256> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
         let provider = self.get_provider_http();
-        let registry_coordinator =
-            eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator::new(
-                contract_addresses.registry_coordinator_address,
-                provider.clone(),
-            );
+        let registry_coordinator = RegistryCoordinator::new(
+            contract_addresses.registry_coordinator_address,
+            provider.clone(),
+        );
         let stake_registry_address = registry_coordinator.stakeRegistry().call().await?._0;
         let instance =
-            eigensdk::utils::middleware::stakeregistry::StakeRegistry::StakeRegistryInstance::new(
-                stake_registry_address,
-                provider.clone(),
-            );
+            StakeRegistry::StakeRegistryInstance::new(stake_registry_address, provider.clone());
         let call_builder = instance.getTotalStakeHistoryLength(quorum_number);
         let response = call_builder.call().await?;
         Ok(response._0)

@@ -13,7 +13,7 @@ repository.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { workspace = true, features = ["clap"] }
-cargo-generate = { workspace = true, features = ["vendored-openssl", "vendored-libgit2"] }
+cargo-generate = { workspace = true, features = ["vendored-libgit2"] }
 cargo_metadata = { workspace = true }
 escargot = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
