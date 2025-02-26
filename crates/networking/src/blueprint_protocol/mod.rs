@@ -6,7 +6,7 @@ use gadget_crypto::KeyType;
 use libp2p::PeerId;
 
 use crate::discovery::peers::VerificationIdentifierKey;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// A message sent to a specific instance or broadcast to all instances
 #[derive(Debug, Clone, Serialize, Deserialize)]

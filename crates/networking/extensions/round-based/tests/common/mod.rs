@@ -8,7 +8,7 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use std::string::ToString;
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
 

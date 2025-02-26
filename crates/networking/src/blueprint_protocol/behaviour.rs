@@ -25,7 +25,7 @@ use std::{
     task::Poll,
     time::{Duration, Instant},
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 #[derive(NetworkBehaviour)]
 pub struct DerivedBlueprintProtocolBehaviour<K: KeyType> {

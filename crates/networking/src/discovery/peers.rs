@@ -147,6 +147,7 @@ impl<K: KeyType> WhitelistedKeys<K> {
         }
     }
 
+    #[must_use]
     pub fn get_addresses(&self) -> &DashSet<Address> {
         match self {
             WhitelistedKeys::EvmAddresses(addresses) => addresses,
@@ -154,6 +155,7 @@ impl<K: KeyType> WhitelistedKeys<K> {
         }
     }
 
+    #[must_use]
     pub fn get_instance_keys(&self) -> &DashSet<K::Public> {
         match self {
             WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
@@ -363,7 +365,7 @@ impl<K: KeyType> PeerManager<K> {
         verification_id_key: &VerificationIdentifierKey<K>,
     ) {
         self.verification_id_keys_to_peer_ids
-            .insert(verification_id_key.clone(), peer_id.clone());
+            .insert(verification_id_key.clone(), *peer_id);
     }
 
     /// Remove a peer id from the public key to peer id map

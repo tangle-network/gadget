@@ -1,5 +1,5 @@
 use alloy_primitives::{keccak256, Address};
-use thiserror::*;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum EcdsaVerifyError {
@@ -27,6 +27,7 @@ pub fn secp256k1_ecdsa_recover(
     Ok(res)
 }
 
+#[must_use]
 pub fn get_address_from_pubkey(pubkey: &[u8; 64]) -> Address {
     let hash = keccak256(pubkey);
     let mut address = [0u8; 20];
@@ -34,6 +35,7 @@ pub fn get_address_from_pubkey(pubkey: &[u8; 64]) -> Address {
     Address::from_slice(&address)
 }
 
+#[must_use]
 pub fn get_address_from_compressed_pubkey(pubkey: Vec<u8>) -> Address {
     let mut pk = [0u8; 33];
     pk[..pubkey.len()].copy_from_slice(&pubkey);
