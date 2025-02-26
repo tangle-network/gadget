@@ -50,7 +50,7 @@ impl<Ctx> Clone for Handler<Ctx> {
     }
 }
 
-pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
+pub(super) struct JobIdRouter<Ctx> {
     routes: HashMap<RouteId, Handler<Ctx>>,
     node: Arc<Node>,
     prev_route_id: RouteId,
@@ -59,7 +59,7 @@ pub(super) struct JobIdRouter<Ctx, const IS_FALLBACK: bool> {
     fallback: Option<Handler<Ctx>>,
 }
 
-impl<Ctx, const IS_FALLBACK: bool> JobIdRouter<Ctx, IS_FALLBACK>
+impl<Ctx> JobIdRouter<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
@@ -125,7 +125,7 @@ where
         node.insert(job_id, id);
     }
 
-    pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx, IS_FALLBACK>
+    pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx>
     where
         L: Layer<Route> + Clone + Send + Sync + 'static,
         L::Service: Service<JobCall> + Clone + Send + Sync + 'static,
@@ -163,7 +163,7 @@ where
         !self.routes.is_empty()
     }
 
-    pub(super) fn with_context<Ctx2>(self, context: Ctx) -> JobIdRouter<Ctx2, IS_FALLBACK> {
+    pub(super) fn with_context<Ctx2>(self, context: Ctx) -> JobIdRouter<Ctx2> {
         let routes = self
             .routes
             .into_iter()
@@ -266,7 +266,7 @@ where
     }
 }
 
-impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
+impl<Ctx> Default for JobIdRouter<Ctx> {
     fn default() -> Self {
         Self {
             routes: Default::default(),
@@ -278,7 +278,7 @@ impl<Ctx, const IS_FALLBACK: bool> Default for JobIdRouter<Ctx, IS_FALLBACK> {
     }
 }
 
-impl<Ctx, const IS_FALLBACK: bool> fmt::Debug for JobIdRouter<Ctx, IS_FALLBACK> {
+impl<Ctx> fmt::Debug for JobIdRouter<Ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PathRouter")
             .field("routes", &self.routes)
@@ -287,7 +287,7 @@ impl<Ctx, const IS_FALLBACK: bool> fmt::Debug for JobIdRouter<Ctx, IS_FALLBACK> 
     }
 }
 
-impl<Ctx, const IS_FALLBACK: bool> Clone for JobIdRouter<Ctx, IS_FALLBACK>
+impl<Ctx> Clone for JobIdRouter<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
