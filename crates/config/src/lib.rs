@@ -253,6 +253,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 #[cfg(feature = "tangle")]
                 service_id,
                 #[cfg(feature = "eigenlayer")]
+                allocation_manager,
+                #[cfg(feature = "eigenlayer")]
                 registry_coordinator,
                 #[cfg(feature = "eigenlayer")]
                 operator_state_retriever,
@@ -268,6 +270,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 avs_directory,
                 #[cfg(feature = "eigenlayer")]
                 rewards_coordinator,
+                #[cfg(feature = "eigenlayer")]
+                permission_controller,
                 #[cfg(feature = "symbiotic")]
                 operator_registry,
                 #[cfg(feature = "symbiotic")]
@@ -303,6 +307,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         #[cfg(feature = "eigenlayer")]
         {
             ProtocolSettings::from_eigenlayer(crate::protocol::EigenlayerContractAddresses {
+                allocation_manager_address: allocation_manager
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
                 registry_coordinator_address: registry_coordinator
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
                 operator_state_retriever_address: operator_state_retriever
@@ -318,6 +324,8 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
                 avs_directory_address: avs_directory
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
                 rewards_coordinator_address: rewards_coordinator
+                    .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                permission_controller_address: permission_controller
                     .ok_or(Error::MissingEigenlayerContractAddresses)?,
             })
         }

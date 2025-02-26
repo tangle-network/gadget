@@ -5,11 +5,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
 use alloy_transport::Transport;
 use dialoguer::console::style;
-use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
-use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
-use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::{self, Quorum};
-use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
@@ -260,14 +256,14 @@ pub async fn start_anvil_container(
 
     // Some setup is required before we can interact with the contract
     let accounts = provider.get_accounts().await.unwrap();
-    let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
-        .await
-        .unwrap();
-    let pauser_registry_address = *pauser_registry.address();
-    print_success(
-        "Pauser Registry deployed",
-        Some(&format!("Address: {}", pauser_registry_address)),
-    );
+    // let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
+    //     .await
+    //     .unwrap();
+    // let pauser_registry_address = *pauser_registry.address();
+    // print_success(
+    //     "Pauser Registry deployed",
+    //     Some(&format!("Address: {}", pauser_registry_address)),
+    // );
 
     let delegation_manager_address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
     let service_manager_address = address!("34B40BA116d5Dec75548a9e9A8f15411461E8c70");
