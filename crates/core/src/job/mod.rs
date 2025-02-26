@@ -48,7 +48,7 @@ use crate::{
     job_result::IntoJobResult,
 };
 use alloc::boxed::Box;
-use core::{convert::Infallible, fmt, future::Future, marker::PhantomData, pin::Pin};
+use core::{fmt, future::Future, marker::PhantomData, pin::Pin};
 use tower::{Layer, Service, ServiceExt};
 
 pub mod future;
@@ -163,7 +163,7 @@ pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
     {
         Layered {
             layer,
-            handler: self,
+            job: self,
             _marker: PhantomData,
         }
     }
@@ -253,13 +253,13 @@ where
 /// A [`Service`] created from a [`Job`] by applying a Tower middleware.
 ///
 /// Created with [`Job::layer`]. See that method for more details.
-pub struct Layered<L, H, T, S> {
+pub struct Layered<L, J, T, Ctx> {
     layer: L,
-    handler: H,
-    _marker: PhantomData<fn() -> (T, S)>,
+    job: J,
+    _marker: PhantomData<fn() -> (T, Ctx)>,
 }
 
-impl<L, H, T, Ctx> fmt::Debug for Layered<L, H, T, Ctx>
+impl<L, J, T, Ctx> fmt::Debug for Layered<L, J, T, Ctx>
 where
     L: fmt::Debug,
 {
@@ -270,27 +270,27 @@ where
     }
 }
 
-impl<L, H, T, Ctx> Clone for Layered<L, H, T, Ctx>
+impl<L, J, T, Ctx> Clone for Layered<L, J, T, Ctx>
 where
     L: Clone,
-    H: Clone,
+    J: Clone,
 {
     fn clone(&self) -> Self {
         Self {
             layer: self.layer.clone(),
-            handler: self.handler.clone(),
+            job: self.job.clone(),
             _marker: PhantomData,
         }
     }
 }
 
-impl<H, Ctx, T, L> Job<T, Ctx> for Layered<L, H, T, Ctx>
+impl<L, J, Ctx, T> Job<T, Ctx> for Layered<L, J, T, Ctx>
 where
-    L: Layer<JobService<H, T, Ctx>> + Clone + Send + Sync + 'static,
-    H: Job<T, Ctx>,
-    L::Service: Service<JobCall, Error = Infallible> + Clone + Send + 'static,
+    L: Layer<JobService<J, T, Ctx>> + Clone + Send + Sync + 'static,
+    L::Service: Service<JobCall> + Clone + Send + 'static,
     <L::Service as Service<JobCall>>::Response: IntoJobResult,
     <L::Service as Service<JobCall>>::Future: Send,
+    J: Job<T, Ctx>,
     T: 'static,
     Ctx: 'static,
 {
@@ -299,7 +299,7 @@ where
     fn call(self, req: JobCall, state: Ctx) -> Self::Future {
         use futures_util::future::{FutureExt, Map};
 
-        let svc = self.handler.with_context(state);
+        let svc = self.job.with_context(state);
         let svc = self.layer.layer(svc);
 
         let future: Map<
@@ -312,7 +312,7 @@ where
             ) -> _,
         > = svc.oneshot(req).map(|result| match result {
             Ok(res) => res.into_job_result(),
-            Err(err) => match err {},
+            Err(_err) => todo!("JobService needs to return a result"),
         });
 
         future::LayeredFuture::new(future)

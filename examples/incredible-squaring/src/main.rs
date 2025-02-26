@@ -1,18 +1,19 @@
 extern crate alloc;
 
 use async_trait::async_trait;
-use blueprint_core::Context;
 use blueprint_core::IntoJobResult;
+use blueprint_core::{Context, Job};
 use blueprint_router::Router;
 use blueprint_runner::config::{GadgetConfiguration, TangleConfig};
 use blueprint_runner::error::RunnerError;
 use blueprint_runner::{BackgroundService, BlueprintRunner};
 use blueprint_tangle_extra::consumer::TangleConsumer;
 use blueprint_tangle_extra::extract::{
-    BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, ServiceId, TangleArg,
-    TangleArgs2, TangleResult,
+    BlockEvents, BlockNumber, CallId, Event, FirstEvent, LastEvent, TangleArg, TangleArgs2,
+    TangleResult,
 };
 use blueprint_tangle_extra::filters::MatchesServiceId;
+use blueprint_tangle_extra::layers::TangleLayer;
 use blueprint_tangle_extra::producer::TangleProducer;
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_tangle_testing_utils::TangleTestHarness;
@@ -41,7 +42,6 @@ pub struct MyContext {
 // The context is passed in as a parameter, and can be used to store any shared state between job calls.
 pub async fn square(
     CallId(call_id): CallId,
-    ServiceId(service_id): ServiceId,
     Context(ctx): Context<MyContext>,
     TangleArg(x): TangleArg<u64>,
 ) -> impl IntoJobResult {
@@ -53,12 +53,11 @@ pub async fn square(
     println!("result: {}", result);
 
     // The result is then converted into a `JobResult` to be sent back to the caller.
-    TangleResult(call_id, service_id, result)
+    TangleResult(result)
 }
 
 pub async fn multiply(
     CallId(call_id): CallId,
-    ServiceId(service_id): ServiceId,
     Context(ctx): Context<MyContext>,
     TangleArgs2(x, y): TangleArgs2<u64, u64>,
 ) -> impl IntoJobResult {
@@ -71,7 +70,7 @@ pub async fn multiply(
     tracing::info!("result: {}", result);
 
     // The result is then converted into a `JobResult` to be sent back to the caller.
-    TangleResult(call_id, service_id, result)
+    TangleResult(result)
 }
 
 /// An Example of a job function that uses the `Event` extractors
@@ -155,8 +154,10 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
             // Each "route" is a job ID and the job function. We can also support arbitrary `Service`s from `tower`,
             // which may make it easier for people to port over existing services to a blueprint.
             Router::new()
-                .route(XSQUARE_JOB_ID, square)
-                .route(MULTIPLY_JOB_ID, multiply)
+                // The two routes defined here have the `TangleLayer`, which adds metadata to the
+                // produced `JobResult`s, making it visible to a `TangleConsumer`.
+                .route(XSQUARE_JOB_ID, square.layer(TangleLayer))
+                .route(MULTIPLY_JOB_ID, multiply.layer(TangleLayer))
                 // Jobs that "always" run, regardless of the job ID. These will be called even if the job ID
                 // matches another router.
                 .always(on_transfer)
