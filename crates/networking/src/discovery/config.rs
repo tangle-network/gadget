@@ -2,7 +2,8 @@ use super::{
     behaviour::{DerivedDiscoveryBehaviour, DiscoveryBehaviour},
     new_kademlia,
 };
-use crate::error::Result;
+use crate::error::Error;
+use gadget_crypto::KeyType;
 use libp2p::{
     autonat, identify, identity::PublicKey, mdns, relay, upnp, Multiaddr, PeerId, StreamProtocol,
 };
@@ -12,7 +13,7 @@ use std::{
 };
 use tracing::warn;
 
-pub struct DiscoveryConfig {
+pub struct DiscoveryConfig<K: KeyType> {
     /// The local peer ID.
     local_peer_id: PeerId,
     /// The local public key.
@@ -35,9 +36,11 @@ pub struct DiscoveryConfig {
     network_name: String,
     /// Protocol version string that uniquely identifies your P2P service.
     protocol_version: String,
+    /// Phantom key type
+    _marker: gadget_std::marker::PhantomData<K>,
 }
 
-impl DiscoveryConfig {
+impl<K: KeyType> DiscoveryConfig<K> {
     #[must_use]
     pub fn new(local_public_key: PublicKey, network_name: impl Into<String>) -> Self {
         Self {
@@ -52,6 +55,7 @@ impl DiscoveryConfig {
             enable_relay: true,    // Enable by default for relay functionality
             network_name: network_name.into(),
             protocol_version: String::from("gadget/1.0.0"), // Default version
+            _marker: gadget_std::marker::PhantomData,
         }
     }
 
@@ -114,7 +118,7 @@ impl DiscoveryConfig {
     /// # Errors
     ///
     /// If `mdns` is enabled, see [`mdns::Behaviour::new`]
-    pub fn build(self) -> Result<DiscoveryBehaviour> {
+    pub fn build(self) -> Result<DiscoveryBehaviour<K>, Error> {
         let kademlia_opt = if self.enable_kademlia {
             let protocol = StreamProtocol::try_from_owned(format!(
                 "/gadget/kad/{}/kad/1.0.0",
@@ -173,7 +177,7 @@ impl DiscoveryConfig {
             relay: relay_opt.into(),
         };
 
-        Ok(DiscoveryBehaviour {
+        Ok(DiscoveryBehaviour::<K> {
             discovery: behaviour,
             peers: HashSet::new(),
             peer_info: HashMap::new(),
@@ -183,6 +187,7 @@ impl DiscoveryConfig {
             pending_events: VecDeque::new(),
             n_node_connected: 0,
             pending_dial_opts: VecDeque::new(),
+            _marker: gadget_std::marker::PhantomData,
         })
     }
 }

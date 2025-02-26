@@ -175,7 +175,9 @@ mod tests {
     use std::time::Duration;
 
     use super::common::*;
-    use gadget_networking::{Curve, KeyType};
+    use gadget_crypto::{sp_core::SpEcdsa, KeyType};
+    use gadget_networking::discovery::peers::VerificationIdentifierKey;
+    use gadget_networking::service::AllowedKeys;
     use gadget_networking_round_based_extension::RoundBasedNetworkAdapter;
     use round_based::MpcParty;
     use tracing::{debug, info};
@@ -223,23 +225,30 @@ mod tests {
         let instance_id = "rand-test-instance";
 
         // Generate node2's key pair first
-        let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
+        let instance_key_pair2 = SpEcdsa::generate_with_seed(None).unwrap();
         let mut allowed_keys1 = HashSet::new();
         allowed_keys1.insert(instance_key_pair2.public());
 
         // Create node1 with node2's key whitelisted
-        let mut node1 = TestNode::new(network_name, instance_id, allowed_keys1, vec![]);
+        let mut node1 = TestNode::<SpEcdsa>::new(
+            network_name,
+            instance_id,
+            AllowedKeys::InstancePublicKeys(allowed_keys1),
+            vec![],
+            false,
+        );
 
         // Create node2 with node1's key whitelisted and pre-generated key
         let mut allowed_keys2 = HashSet::new();
         allowed_keys2.insert(node1.instance_key_pair.public());
-        let mut node2 = TestNode::new_with_keys(
+        let mut node2 = TestNode::<SpEcdsa>::new_with_keys(
             network_name,
             instance_id,
-            allowed_keys2,
+            AllowedKeys::InstancePublicKeys(allowed_keys2),
             vec![],
             Some(instance_key_pair2),
             None,
+            false,
         );
 
         info!("Starting nodes");
@@ -252,8 +261,14 @@ mod tests {
             .unwrap();
 
         let parties = HashMap::from_iter([
-            (0, node1.instance_key_pair.public()),
-            (1, node2.instance_key_pair.public()),
+            (
+                0,
+                VerificationIdentifierKey::InstancePublicKey(node1.instance_key_pair.public()),
+            ),
+            (
+                1,
+                VerificationIdentifierKey::InstancePublicKey(node2.instance_key_pair.public()),
+            ),
         ]);
 
         let node1_network = RoundBasedNetworkAdapter::new(handle1, 0, parties.clone(), instance_id);

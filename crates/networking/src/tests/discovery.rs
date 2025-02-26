@@ -1,6 +1,9 @@
+use crate::service::AllowedKeys;
+
 use super::TestNode;
 use super::{create_whitelisted_nodes, init_tracing};
 use super::{wait_for_peer_discovery, wait_for_peer_info};
+use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
@@ -11,11 +14,22 @@ async fn test_peer_discovery_mdns() {
 
     let network_name = "test-network";
     let instance_id = "test-instance";
-    let allowed_keys = HashSet::new();
 
     // Create two nodes
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys, vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
+    let mut node2 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
 
     // Start both nodes and wait for them to be listening
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -34,10 +48,15 @@ async fn test_peer_discovery_kademlia() {
 
     let network_name = "test-network";
     let instance_id = "test-instance";
-    let allowed_keys = HashSet::new();
 
     // Create the first node (bootstrap node)
-    let mut node1 = TestNode::new(network_name, instance_id, allowed_keys.clone(), vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
 
     // Start node1 and get its listening address
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -45,13 +64,20 @@ async fn test_peer_discovery_kademlia() {
 
     // Create two more nodes that will bootstrap from node1
     let bootstrap_peers = vec![node1_addr.clone()];
-    let mut node2 = TestNode::new(
+    let mut node2 = TestNode::<SpEcdsa>::new(
         network_name,
         instance_id,
-        allowed_keys.clone(),
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
         bootstrap_peers.clone(),
+        false,
     );
-    let mut node3 = TestNode::new(network_name, instance_id, allowed_keys, bootstrap_peers);
+    let mut node3 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        bootstrap_peers.clone(),
+        false,
+    );
 
     // Start the remaining nodes
     let handle2 = node2.start().await.expect("Failed to start node2");
@@ -90,7 +116,7 @@ async fn test_peer_info_updates() {
 
     info!("Creating test nodes...");
     // Create nodes with whitelisted keys
-    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(2, false).await;
     let mut node2 = nodes.pop().unwrap();
     let mut node1 = nodes.pop().unwrap();
 

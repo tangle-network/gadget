@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+gadget-crypto = { workspace = true }
 gadget-networking = { workspace = true }
 round-based = { workspace = true }
 tokio = { workspace = true }
@@ -56,3 +57,10 @@ generic-array = { version = "0.14", features = ["serde"] }
 
 [lints]
 workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "gadget-crypto/std",
+	"gadget-networking/std",
+]

@@ -1,10 +1,12 @@
 use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
     discovery::peers::VerificationIdentifierKey,
+    service::AllowedKeys,
     service_handle::NetworkServiceHandle,
     tests::{create_whitelisted_nodes, wait_for_all_handshakes},
     types::{MessageRouting, ParticipantId, ParticipantInfo},
 };
+use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
@@ -18,7 +20,7 @@ async fn test_gossip_between_verified_peers() {
     info!("Starting gossip test between verified peers");
 
     // Create nodes with whitelisted keys
-    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(2, false).await;
     let mut node2 = nodes.pop().unwrap();
     let mut node1 = nodes.pop().unwrap();
 
@@ -86,7 +88,7 @@ async fn test_multi_node_gossip() {
     info!("Starting multi-node gossip test");
 
     // Create three nodes with all keys whitelisted
-    let mut nodes = create_whitelisted_nodes(3).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(3, false).await;
 
     info!("Starting all nodes");
     let mut handles: Vec<_> = Vec::new();
@@ -95,7 +97,7 @@ async fn test_multi_node_gossip() {
     }
 
     info!("Waiting for all handshakes to complete");
-    let handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let handles_refs: Vec<&mut NetworkServiceHandle<SpEcdsa>> = handles.iter_mut().collect();
     wait_for_all_handshakes(&handles_refs, TEST_TIMEOUT).await;
 
     // Create test message
@@ -157,8 +159,20 @@ async fn test_unverified_peer_gossip() {
     info!("Starting unverified peer gossip test");
 
     // Create two nodes with no whitelisted keys
-    let mut node1 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
-    let mut node2 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        "test-net",
+        "gossip-test",
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
+    let mut node2 = TestNode::<SpEcdsa>::new(
+        "test-net",
+        "gossip-test",
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");

@@ -1,8 +1,8 @@
 use dashmap::DashMap;
 use futures::{Sink, Stream};
+use gadget_crypto::KeyType;
 use gadget_networking::{
     discovery::peers::VerificationIdentifierKey,
-    key_types::InstanceMsgPublicKey,
     service_handle::NetworkServiceHandle,
     types::{ParticipantInfo, ProtocolMessage},
 };
@@ -19,13 +19,13 @@ use std::{
 };
 
 /// Wrapper to adapt [`NetworkServiceHandle`] to round-based protocols
-pub struct RoundBasedNetworkAdapter<M, T: KeyType> {
+pub struct RoundBasedNetworkAdapter<M, K: KeyType> {
     /// The underlying network handle
-    handle: NetworkServiceHandle,
+    handle: NetworkServiceHandle<K>,
     /// Current party's index
     party_index: PartyIndex,
     /// Mapping of party indices to their public keys
-    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<T>>>,
+    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<K>>>,
     /// Counter for message IDs
     next_msg_id: Arc<AtomicU64>,
     /// Protocol identifier
@@ -33,16 +33,16 @@ pub struct RoundBasedNetworkAdapter<M, T: KeyType> {
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M, T: KeyType> RoundBasedNetworkAdapter<M, T>
+impl<M, K: KeyType> RoundBasedNetworkAdapter<M, K>
 where
     M: Clone + Send + Sync + Unpin + 'static,
     M: Serialize + DeserializeOwned,
     M: round_based::ProtocolMessage,
 {
     pub fn new(
-        handle: NetworkServiceHandle,
+        handle: NetworkServiceHandle<K>,
         party_index: PartyIndex,
-        parties: HashMap<PartyIndex, VerificationIdentifierKey<T>>,
+        parties: HashMap<PartyIndex, VerificationIdentifierKey<K>>,
         protocol_id: impl Into<String>,
     ) -> Self {
         Self {
@@ -56,14 +56,15 @@ where
     }
 }
 
-impl<M> Delivery<M> for RoundBasedNetworkAdapter<M>
+impl<M, K: KeyType> Delivery<M> for RoundBasedNetworkAdapter<M, K>
 where
     M: Clone + Send + Sync + Unpin + 'static,
     M: Serialize + DeserializeOwned,
     M: round_based::ProtocolMessage,
+    K::Public: Unpin,
 {
-    type Send = RoundBasedSender<M>;
-    type Receive = RoundBasedReceiver<M>;
+    type Send = RoundBasedSender<M, K>;
+    type Receive = RoundBasedReceiver<M, K>;
     type SendError = NetworkError;
     type ReceiveError = NetworkError;
 
@@ -92,18 +93,19 @@ where
     }
 }
 
-pub struct RoundBasedSender<M, T: KeyType> {
-    handle: NetworkServiceHandle,
+pub struct RoundBasedSender<M, K: KeyType> {
+    handle: NetworkServiceHandle<K>,
     party_index: PartyIndex,
-    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<T>>>,
+    parties: Arc<DashMap<PartyIndex, VerificationIdentifierKey<K>>>,
     next_msg_id: Arc<AtomicU64>,
     protocol_id: String,
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M, T: KeyType> Sink<Outgoing<M>> for RoundBasedSender<M, T>
+impl<M, K: KeyType> Sink<Outgoing<M>> for RoundBasedSender<M, K>
 where
     M: Serialize + round_based::ProtocolMessage + Clone + Unpin,
+    K::Public: Unpin,
 {
     type Error = NetworkError;
 
@@ -128,7 +130,7 @@ where
         let (recipient, recipient_key) = match outgoing.recipient {
             MessageDestination::AllParties => (None, None),
             MessageDestination::OneParty(p) => {
-                let key = this.parties.get(&p).map(|k| *k);
+                let key = this.parties.get(&p).map(|k| k.clone());
                 (Some(p), key)
             }
         };
@@ -140,7 +142,7 @@ where
                 round_id: round,
                 sender: ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(this.party_index),
-                    verification_id_key: this.parties.get(&this.party_index).map(|k| *k),
+                    verification_id_key: this.parties.get(&this.party_index).map(|k| k.clone()),
                 },
                 recipient: recipient.map(|p| ParticipantInfo {
                     id: gadget_networking::types::ParticipantId(p),
@@ -171,14 +173,14 @@ where
     }
 }
 
-pub struct RoundBasedReceiver<M, T: KeyType> {
-    handle: NetworkServiceHandle<T>,
+pub struct RoundBasedReceiver<M, K: KeyType> {
+    handle: NetworkServiceHandle<K>,
     party_index: PartyIndex,
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M, T: KeyType> RoundBasedReceiver<M, T> {
-    fn new(handle: NetworkServiceHandle<T>, party_index: PartyIndex) -> Self {
+impl<M, K: KeyType> RoundBasedReceiver<M, K> {
+    fn new(handle: NetworkServiceHandle<K>, party_index: PartyIndex) -> Self {
         Self {
             handle,
             party_index,
@@ -187,9 +189,10 @@ impl<M, T: KeyType> RoundBasedReceiver<M, T> {
     }
 }
 
-impl<M, T: KeyType> Stream for RoundBasedReceiver<M, T>
+impl<M, K: KeyType> Stream for RoundBasedReceiver<M, K>
 where
     M: DeserializeOwned + round_based::ProtocolMessage + Unpin,
+    K::Public: Unpin,
 {
     type Item = Result<Incoming<M>, NetworkError>;
 

@@ -68,22 +68,22 @@ pub enum PeerEvent {
     PeerUnbanned { peer_id: PeerId },
 }
 
-pub struct PeerManager<T: KeyType> {
+pub struct PeerManager<K: KeyType> {
     /// Active peers and their information
     peers: DashMap<PeerId, PeerInfo>,
     /// Verified peers from completed handshakes
     verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
-    verification_id_keys_to_peer_ids: Arc<DashMap<VerificationIdentifierKey<T>, PeerId>>,
+    verification_id_keys_to_peer_ids: Arc<DashMap<VerificationIdentifierKey<K>, PeerId>>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
     /// Allowed public keys
-    whitelisted_keys: WhitelistedKeys<T>,
+    whitelisted_keys: WhitelistedKeys<K>,
     /// Event sender for peer updates
     event_tx: broadcast::Sender<PeerEvent>,
 }
 
-impl<T: KeyType> Default for PeerManager<T> {
+impl<K: KeyType> Default for PeerManager<K> {
     fn default() -> Self {
         Self::new(AllowedKeys::InstancePublicKeys(HashSet::default()))
     }
@@ -91,19 +91,19 @@ impl<T: KeyType> Default for PeerManager<T> {
 
 /// A collection of whitelisted keys
 #[derive(Debug, Clone)]
-pub enum WhitelistedKeys<T: KeyType> {
+pub enum WhitelistedKeys<K: KeyType> {
     EvmAddresses(DashSet<Address>),
-    InstancePublicKeys(DashSet<T::Public>),
+    InstancePublicKeys(DashSet<K::Public>),
 }
 
 /// A key that can be used to verify a peer
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum VerificationIdentifierKey<T: KeyType> {
+pub enum VerificationIdentifierKey<K: KeyType> {
     EvmAddress(Address),
-    InstancePublicKey(T::Public),
+    InstancePublicKey(K::Public),
 }
 
-impl<T: KeyType> VerificationIdentifierKey<T> {
+impl<K: KeyType> VerificationIdentifierKey<K> {
     pub fn verify(
         &self,
         msg: &[u8],
@@ -121,14 +121,14 @@ impl<T: KeyType> VerificationIdentifierKey<T> {
                 Ok(address_from_pk == *address)
             }
             VerificationIdentifierKey::InstancePublicKey(public_key) => {
-                let signature: T::Signature = T::Signature::from_bytes(signature)?;
-                Ok(T::verify(public_key, msg, &signature))
+                let signature = K::Signature::from_bytes(signature)?;
+                Ok(K::verify(public_key, msg, &signature))
             }
         }
     }
 }
 
-impl<T: KeyType> WhitelistedKeys<T> {
+impl<K: KeyType> WhitelistedKeys<K> {
     pub fn clear(&mut self) {
         match self {
             WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
@@ -136,7 +136,7 @@ impl<T: KeyType> WhitelistedKeys<T> {
         }
     }
 
-    pub fn contains(&self, key: &VerificationIdentifierKey<T>) -> bool {
+    pub fn contains(&self, key: &VerificationIdentifierKey<K>) -> bool {
         match key {
             VerificationIdentifierKey::EvmAddress(address) => {
                 self.get_addresses().contains(address)
@@ -154,7 +154,7 @@ impl<T: KeyType> WhitelistedKeys<T> {
         }
     }
 
-    pub fn get_instance_keys(&self) -> &DashSet<T::Public> {
+    pub fn get_instance_keys(&self) -> &DashSet<K::Public> {
         match self {
             WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
             WhitelistedKeys::InstancePublicKeys(keys) => keys,
@@ -162,9 +162,9 @@ impl<T: KeyType> WhitelistedKeys<T> {
     }
 }
 
-impl<T: KeyType> PeerManager<T> {
+impl<K: KeyType> PeerManager<K> {
     #[must_use]
-    pub fn new(allowed_keys: AllowedKeys<T>) -> Self {
+    pub fn new(allowed_keys: AllowedKeys<K>) -> Self {
         let (event_tx, _) = broadcast::channel(100);
         Self {
             peers: DashMap::default(),
@@ -183,7 +183,7 @@ impl<T: KeyType> PeerManager<T> {
         }
     }
 
-    pub fn update_whitelisted_keys(&self, keys: AllowedKeys<T>) {
+    pub fn update_whitelisted_keys(&self, keys: AllowedKeys<K>) {
         match keys {
             AllowedKeys::EvmAddresses(addresses) => {
                 let current_addresses = self.whitelisted_keys.get_addresses();
@@ -201,7 +201,7 @@ impl<T: KeyType> PeerManager<T> {
     }
 
     #[must_use]
-    pub fn is_key_whitelisted(&self, key: &VerificationIdentifierKey<T>) -> bool {
+    pub fn is_key_whitelisted(&self, key: &VerificationIdentifierKey<K>) -> bool {
         self.whitelisted_keys.contains(key)
     }
 
@@ -360,7 +360,7 @@ impl<T: KeyType> PeerManager<T> {
     pub fn link_peer_id_to_verification_id_key(
         &self,
         peer_id: &PeerId,
-        verification_id_key: &VerificationIdentifierKey<T>,
+        verification_id_key: &VerificationIdentifierKey<K>,
     ) {
         self.verification_id_keys_to_peer_ids
             .insert(verification_id_key.clone(), peer_id.clone());
@@ -375,7 +375,7 @@ impl<T: KeyType> PeerManager<T> {
     #[must_use]
     pub fn get_peer_id_from_verification_id_key(
         &self,
-        verification_id_key: &VerificationIdentifierKey<T>,
+        verification_id_key: &VerificationIdentifierKey<K>,
     ) -> Option<PeerId> {
         self.verification_id_keys_to_peer_ids
             .get(verification_id_key)

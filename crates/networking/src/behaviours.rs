@@ -1,4 +1,4 @@
-use crate::error::Result as NetworkingResult;
+use crate::error::Error;
 use crate::types::ProtocolMessage;
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
@@ -27,28 +27,28 @@ use tracing::{debug, info};
 
 /// Events that can be emitted by the `GadgetBehavior`
 #[derive(Debug)]
-pub enum GadgetEvent<T: KeyType> {
+pub enum GadgetEvent<K: KeyType> {
     /// Discovery-related events
     Discovery(DiscoveryEvent),
     /// Ping events for connection liveness
     Ping(ping::Event),
     /// Blueprint protocol events
-    Blueprint(BlueprintProtocolEvent<T>),
+    Blueprint(BlueprintProtocolEvent<K>),
 }
 
 #[derive(NetworkBehaviour)]
-pub struct GadgetBehaviour<T: KeyType> {
+pub struct GadgetBehaviour<K: KeyType> {
     /// Connection limits to prevent `DoS`
     connection_limits: connection_limits::Behaviour,
     /// Discovery mechanisms (Kademlia, mDNS, etc)
-    pub(super) discovery: DiscoveryBehaviour,
+    pub(super) discovery: DiscoveryBehaviour<K>,
     /// Direct P2P messaging and gossip
-    pub(super) blueprint_protocol: BlueprintProtocolBehaviour<T>,
+    pub(super) blueprint_protocol: BlueprintProtocolBehaviour<K>,
     /// Connection liveness checks
     ping: ping::Behaviour,
 }
 
-impl<T: KeyType> GadgetBehaviour<T> {
+impl<K: KeyType> GadgetBehaviour<K> {
     /// Create a new `GadgetBehaviour`
     ///
     /// # Errors
@@ -58,12 +58,12 @@ impl<T: KeyType> GadgetBehaviour<T> {
         network_name: &str,
         blueprint_protocol_name: &str,
         local_key: &Keypair,
-        instance_key_pair: &T::Secret,
+        instance_key_pair: &K::Secret,
         target_peer_count: u32,
-        peer_manager: Arc<PeerManager<T>>,
-        protocol_message_sender: Sender<ProtocolMessage<T>>,
+        peer_manager: Arc<PeerManager<K>>,
+        protocol_message_sender: Sender<ProtocolMessage<K>>,
         use_address_for_handshake_verification: bool,
-    ) -> NetworkingResult<Self> {
+    ) -> Result<Self, Error> {
         let connection_limits = connection_limits::Behaviour::new(
             ConnectionLimits::default()
                 .with_max_pending_incoming(Some(target_peer_count))
@@ -112,7 +112,7 @@ impl<T: KeyType> GadgetBehaviour<T> {
     /// # Errors
     ///
     /// See [`DiscoveryBehaviour::bootstrap()`]
-    pub fn bootstrap(&mut self) -> NetworkingResult<QueryId> {
+    pub fn bootstrap(&mut self) -> Result<QueryId, Error> {
         self.discovery.bootstrap()
     }
 

@@ -1,5 +1,7 @@
+use crate::service::AllowedKeys;
 use crate::tests::create_whitelisted_nodes;
 use crate::tests::TestNode;
+use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
@@ -23,7 +25,7 @@ async fn test_automatic_handshake() {
     info!("Starting automatic handshake test");
 
     // Create nodes with whitelisted keys
-    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(2, false).await;
     let mut node2 = nodes.pop().unwrap();
     let mut node1 = nodes.pop().unwrap();
 
@@ -74,12 +76,24 @@ async fn test_handshake_with_invalid_peer() {
     let instance_id = "test-instance";
 
     // Create node1 with empty whitelist
-    let mut node1 = TestNode::new(network_name, instance_id, HashSet::new(), vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
 
     // Create node2 with node1's key whitelisted (but node2's key is not whitelisted by node1)
     let mut allowed_keys2 = HashSet::new();
     allowed_keys2.insert(node1.instance_key_pair.public());
-    let mut node2 = TestNode::new(network_name, instance_id, allowed_keys2, vec![]);
+    let mut node2 = TestNode::<SpEcdsa>::new(
+        network_name,
+        instance_id,
+        AllowedKeys::InstancePublicKeys(allowed_keys2),
+        vec![],
+        false,
+    );
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");

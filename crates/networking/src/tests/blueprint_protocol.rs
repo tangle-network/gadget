@@ -2,14 +2,14 @@
 
 use crate::{
     discovery::peers::VerificationIdentifierKey,
-    key_types::Curve,
+    service::AllowedKeys,
     service_handle::NetworkServiceHandle,
     tests::{
         create_whitelisted_nodes, wait_for_all_handshakes, wait_for_handshake_completion, TestNode,
     },
     types::{MessageRouting, ParticipantId, ParticipantInfo, ProtocolMessage},
 };
-use gadget_crypto::KeyType;
+use gadget_crypto::{sp_core::SpEcdsa, KeyType};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
@@ -26,13 +26,13 @@ enum SummationMessage {
 }
 
 // Helper to create a protocol message
-fn create_protocol_message<T: Serialize>(
+fn create_protocol_message<K: KeyType, T: Serialize>(
     message: T,
     message_id: u64,
     round_id: u16,
-    sender: ParticipantInfo,
-    target_peer: Option<ParticipantInfo>,
-) -> (MessageRouting, Vec<u8>) {
+    sender: ParticipantInfo<K>,
+    target_peer: Option<ParticipantInfo<K>>,
+) -> (MessageRouting<K>, Vec<u8>) {
     let payload = bincode::serialize(&message).expect("Failed to serialize message");
     let routing = MessageRouting {
         message_id,
@@ -44,7 +44,7 @@ fn create_protocol_message<T: Serialize>(
 }
 
 // Helper to extract number from message
-fn extract_number_from_message(msg: &ProtocolMessage) -> u64 {
+fn extract_number_from_message<K: KeyType>(msg: &ProtocolMessage<K>) -> u64 {
     match bincode::deserialize::<SummationMessage>(&msg.payload).expect("Failed to deserialize") {
         SummationMessage::Number(n) => n,
         SummationMessage::Verification { .. } => panic!("Expected number message"),
@@ -52,7 +52,7 @@ fn extract_number_from_message(msg: &ProtocolMessage) -> u64 {
 }
 
 // Helper to extract sum from verification message
-fn extract_sum_from_verification(msg: &ProtocolMessage) -> u64 {
+fn extract_sum_from_verification<K: KeyType>(msg: &ProtocolMessage<K>) -> u64 {
     match bincode::deserialize::<SummationMessage>(&msg.payload).expect("Failed to deserialize") {
         SummationMessage::Verification { sum } => sum,
         SummationMessage::Number(_) => panic!("Expected verification message"),
@@ -65,21 +65,28 @@ async fn test_summation_protocol_basic() {
     info!("Starting summation protocol test");
 
     // Create nodes with whitelisted keys
-    let instance_key_pair2 = Curve::generate_with_seed(None).unwrap();
+    let instance_key_pair2 = SpEcdsa::generate_with_seed(None).unwrap();
     let mut allowed_keys1 = HashSet::new();
     allowed_keys1.insert(instance_key_pair2.public());
 
-    let mut node1 = TestNode::new("test-net", "sum-test", allowed_keys1, vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        "test-net",
+        "sum-test",
+        AllowedKeys::InstancePublicKeys(allowed_keys1),
+        vec![],
+        false,
+    );
 
     let mut allowed_keys2 = HashSet::new();
     allowed_keys2.insert(node1.instance_key_pair.public());
-    let mut node2 = TestNode::new_with_keys(
+    let mut node2 = TestNode::<SpEcdsa>::new_with_keys(
         "test-net",
         "sum-test",
-        allowed_keys2,
+        AllowedKeys::InstancePublicKeys(allowed_keys2),
         vec![],
         Some(instance_key_pair2),
         None,
+        false,
     );
 
     info!("Starting nodes");
@@ -258,7 +265,7 @@ async fn test_summation_protocol_multi_node() {
 
     // Create 3 nodes with whitelisted keys
     info!("Creating whitelisted nodes");
-    let mut nodes = create_whitelisted_nodes(3).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(3, false).await;
     info!("Created {} nodes successfully", nodes.len());
 
     // Start all nodes
@@ -272,7 +279,7 @@ async fn test_summation_protocol_multi_node() {
 
     // Convert handles to mutable references
     info!("Converting handles to mutable references");
-    let mut handles: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let mut handles: Vec<&mut NetworkServiceHandle<SpEcdsa>> = handles.iter_mut().collect();
     let handles_len = handles.len();
     info!("Converted {} handles", handles_len);
 

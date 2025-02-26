@@ -4,7 +4,7 @@ use gadget_std::fmt::Debug;
 use gadget_std::hash::Hash;
 use gadget_std::string::String;
 use gadget_std::vec::Vec;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum KeyTypeId {
@@ -80,13 +80,15 @@ pub trait KeyType:
     + PartialOrd
     + Hash
     + Sized
+    + Send
+    + Sync
     + Serialize
-    + for<'de> Deserialize<'de>
+    + DeserializeOwned
     + 'static
 {
     type Secret: Clone
         + Serialize
-        + for<'de> Deserialize<'de>
+        + DeserializeOwned
         + Ord
         + Send
         + Sync
@@ -96,7 +98,7 @@ pub trait KeyType:
         + Debug;
     type Public: Clone
         + Serialize
-        + for<'de> Deserialize<'de>
+        + DeserializeOwned
         + Ord
         + Send
         + Sync
@@ -108,7 +110,7 @@ pub trait KeyType:
 
     type Signature: Clone
         + Serialize
-        + for<'de> Deserialize<'de>
+        + DeserializeOwned
         + Ord
         + Send
         + Sync

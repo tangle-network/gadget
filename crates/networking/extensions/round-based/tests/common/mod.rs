@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 use gadget_crypto::KeyType;
 use gadget_networking::{
-    key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
-    service_handle::NetworkServiceHandle,
-    NetworkConfig, NetworkService,
+    service::AllowedKeys, service_handle::NetworkServiceHandle, NetworkConfig, NetworkService,
 };
 use libp2p::{
     identity::{self, Keypair},
@@ -25,21 +23,22 @@ pub fn init_tracing() {
 }
 
 /// Test node configuration for network tests
-pub struct TestNode {
-    pub service: Option<NetworkService>,
+pub struct TestNode<K: KeyType> {
+    pub service: Option<NetworkService<K>>,
     pub peer_id: PeerId,
     pub listen_addr: Option<Multiaddr>,
-    pub instance_key_pair: InstanceMsgKeyPair,
+    pub instance_key_pair: K::Secret,
     pub local_key: Keypair,
 }
 
-impl TestNode {
+impl<K: KeyType> TestNode<K> {
     /// Create a new test node with auto-generated keys
     pub fn new(
         network_name: &str,
         instance_id: &str,
-        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys<K>,
         bootstrap_peers: Vec<Multiaddr>,
+        using_evm_address_for_handshake_verification: bool,
     ) -> Self {
         Self::new_with_keys(
             network_name,
@@ -48,6 +47,7 @@ impl TestNode {
             bootstrap_peers,
             None,
             None,
+            using_evm_address_for_handshake_verification,
         )
     }
 
@@ -55,10 +55,11 @@ impl TestNode {
     pub fn new_with_keys(
         network_name: &str,
         instance_id: &str,
-        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys<K>,
         bootstrap_peers: Vec<Multiaddr>,
-        instance_key_pair: Option<InstanceMsgKeyPair>,
+        instance_key_pair: Option<K::Secret>,
         local_key: Option<Keypair>,
+        using_evm_address_for_handshake_verification: bool,
     ) -> Self {
         let local_key = local_key.unwrap_or_else(identity::Keypair::generate_ed25519);
         let peer_id = local_key.public().to_peer_id();
@@ -68,7 +69,7 @@ impl TestNode {
         info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
         let instance_key_pair =
-            instance_key_pair.unwrap_or_else(|| Curve::generate_with_seed(None).unwrap());
+            instance_key_pair.unwrap_or_else(|| K::generate_with_seed(None).unwrap());
 
         let config = NetworkConfig {
             network_name: network_name.to_string(),
@@ -80,6 +81,7 @@ impl TestNode {
             bootstrap_peers,
             enable_mdns: true,
             enable_kademlia: true,
+            using_evm_address_for_handshake_verification,
         };
 
         let service =
@@ -95,7 +97,7 @@ impl TestNode {
     }
 
     /// Start the node and wait for it to be fully initialized
-    pub async fn start(&mut self) -> Result<NetworkServiceHandle, &'static str> {
+    pub async fn start(&mut self) -> Result<NetworkServiceHandle<K>, &'static str> {
         // Take ownership of the service
         let service = self.service.take().ok_or("Service already started")?;
         let handle = service.start();
@@ -182,8 +184,8 @@ where
 }
 
 /// Wait for peers to discover each other
-pub async fn wait_for_peer_discovery(
-    handles: &[&NetworkServiceHandle],
+pub async fn wait_for_peer_discovery<K: KeyType>(
+    handles: &[&NetworkServiceHandle<K>],
     timeout: Duration,
 ) -> Result<(), &'static str> {
     info!("Waiting for peer discovery...");
@@ -207,9 +209,9 @@ pub async fn wait_for_peer_discovery(
 }
 
 /// Wait for peer info to be updated
-pub async fn wait_for_peer_info(
-    handle1: &NetworkServiceHandle,
-    handle2: &NetworkServiceHandle,
+pub async fn wait_for_peer_info<K: KeyType>(
+    handle1: &NetworkServiceHandle<K>,
+    handle2: &NetworkServiceHandle<K>,
     timeout: Duration,
 ) {
     info!("Waiting for identify info...");

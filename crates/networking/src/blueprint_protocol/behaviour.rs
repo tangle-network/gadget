@@ -1,9 +1,9 @@
 use super::{InstanceMessageRequest, InstanceMessageResponse};
 use crate::blueprint_protocol::HandshakeMessage;
 use crate::discovery::peers::VerificationIdentifierKey;
+use crate::discovery::utils::get_address_from_compressed_pubkey;
 use crate::discovery::PeerManager;
 use crate::types::ProtocolMessage;
-use alloy_primitives::keccak256;
 use bincode;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
@@ -28,28 +28,28 @@ use std::{
 use tracing::{debug, error, info, trace, warn};
 
 #[derive(NetworkBehaviour)]
-pub struct DerivedBlueprintProtocolBehaviour<T: KeyType> {
+pub struct DerivedBlueprintProtocolBehaviour<K: KeyType> {
     /// Request/response protocol for p2p messaging
     request_response:
-        request_response::cbor::Behaviour<InstanceMessageRequest<T>, InstanceMessageResponse<T>>,
+        request_response::cbor::Behaviour<InstanceMessageRequest<K>, InstanceMessageResponse<K>>,
     /// Gossipsub for broadcast messaging
     gossipsub: gossipsub::Behaviour,
 }
 
 /// Events emitted by the `BlueprintProtocolBehaviour`
 #[derive(Debug)]
-pub enum BlueprintProtocolEvent<T: KeyType> {
+pub enum BlueprintProtocolEvent<K: KeyType> {
     /// Request received from a peer
     Request {
         peer: PeerId,
-        request: InstanceMessageRequest<T>,
-        channel: ResponseChannel<InstanceMessageResponse<T>>,
+        request: InstanceMessageRequest<K>,
+        channel: ResponseChannel<InstanceMessageResponse<K>>,
     },
     /// Response received from a peer
     Response {
         peer: PeerId,
         request_id: OutboundRequestId,
-        response: InstanceMessageResponse<T>,
+        response: InstanceMessageResponse<K>,
     },
     /// Gossip message received
     GossipMessage {
@@ -60,17 +60,17 @@ pub enum BlueprintProtocolEvent<T: KeyType> {
 }
 
 /// Behaviour that handles the blueprint protocol request/response and gossip
-pub struct BlueprintProtocolBehaviour<T: KeyType> {
+pub struct BlueprintProtocolBehaviour<K: KeyType> {
     /// Request/response protocol for direct messaging
-    blueprint_protocol: DerivedBlueprintProtocolBehaviour<T>,
+    blueprint_protocol: DerivedBlueprintProtocolBehaviour<K>,
     /// Name of the blueprint protocol
     pub(crate) blueprint_protocol_name: String,
     /// Peer manager for tracking peer states
-    pub(crate) peer_manager: Arc<PeerManager<T>>,
+    pub(crate) peer_manager: Arc<PeerManager<K>>,
     /// Libp2p peer ID
     pub(crate) local_peer_id: PeerId,
     /// Instance key pair for handshakes and blueprint protocol
-    pub(crate) instance_key_pair: T::Secret,
+    pub(crate) instance_key_pair: K::Secret,
     /// Peers with pending inbound handshakes
     pub(crate) inbound_handshakes: DashMap<PeerId, Instant>,
     /// Peers with pending outbound handshakes
@@ -78,23 +78,23 @@ pub struct BlueprintProtocolBehaviour<T: KeyType> {
     /// Active response channels
     #[expect(dead_code)] // TODO
     pub(crate) response_channels:
-        DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse<T>>>,
+        DashMap<OutboundRequestId, ResponseChannel<InstanceMessageResponse<K>>>,
     /// Protocol message sender
-    pub(crate) protocol_message_sender: Sender<ProtocolMessage<T>>,
+    pub(crate) protocol_message_sender: Sender<ProtocolMessage<K>>,
     /// Flag for using addresses for whitelisting and handshake verification
     pub(crate) use_address_for_handshake_verification: bool,
 }
 
-impl<T: KeyType> BlueprintProtocolBehaviour<T> {
+impl<K: KeyType> BlueprintProtocolBehaviour<K> {
     /// Create a new blueprint protocol behaviour
     #[must_use]
     #[allow(clippy::missing_panics_doc)] // Known good gossipsub config
     pub fn new(
         local_key: &Keypair,
-        instance_key_pair: &T::Secret,
-        peer_manager: Arc<PeerManager<T>>,
+        instance_key_pair: &K::Secret,
+        peer_manager: Arc<PeerManager<K>>,
         blueprint_protocol_name: &str,
-        protocol_message_sender: Sender<ProtocolMessage<T>>,
+        protocol_message_sender: Sender<ProtocolMessage<K>>,
         use_address_for_handshake_verification: bool,
     ) -> Self {
         let blueprint_protocol_name = blueprint_protocol_name.to_string();
@@ -153,21 +153,21 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     #[allow(clippy::unused_self)]
     pub(crate) fn sign_handshake(
         &self,
-        key_pair: &mut T::Secret,
+        key_pair: &mut K::Secret,
         peer: &PeerId,
         handshake_msg: &HandshakeMessage,
-    ) -> Option<T::Signature> {
+    ) -> Option<K::Signature> {
         let msg = handshake_msg.to_bytes(peer);
-        match T::sign_with_secret(key_pair, &msg) {
+        match K::sign_with_secret(key_pair, &msg) {
             Ok(signature) => {
-                let public_key = T::public_from_secret(key_pair);
+                let public_key = K::public_from_secret(key_pair);
                 let hex_msg = hex::encode(msg);
 
                 debug!(%peer, ?hex_msg, ?public_key, ?signature, "signing handshake");
                 Some(signature)
             }
             Err(e) => {
-                warn!("Failed to sign handshake message: {e}");
+                warn!("Failed to sign handshake message: {e:?}");
                 None
             }
         }
@@ -177,7 +177,7 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     pub fn send_request(
         &mut self,
         peer: &PeerId,
-        request: InstanceMessageRequest<T>,
+        request: InstanceMessageRequest<K>,
     ) -> OutboundRequestId {
         debug!(%peer, ?request, "sending request");
         self.blueprint_protocol
@@ -192,9 +192,9 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     /// See [`libp2p::request_response::Behaviour::send_response`]
     pub fn send_response(
         &mut self,
-        channel: ResponseChannel<InstanceMessageResponse<T>>,
-        response: InstanceMessageResponse<T>,
-    ) -> Result<(), InstanceMessageResponse<T>> {
+        channel: ResponseChannel<InstanceMessageResponse<K>>,
+        response: InstanceMessageResponse<K>,
+    ) -> Result<(), InstanceMessageResponse<K>> {
         debug!(?response, "sending response");
         self.blueprint_protocol
             .request_response
@@ -233,9 +233,9 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     pub fn verify_handshake(
         &self,
         msg: &HandshakeMessage,
-        verification_id_key: &VerificationIdentifierKey<T>,
-        signature: &T::Signature,
-    ) -> Result<(), InstanceMessageResponse<T>> {
+        verification_id_key: &VerificationIdentifierKey<K>,
+        signature: &K::Signature,
+    ) -> Result<(), InstanceMessageResponse<K>> {
         if msg.is_expired(HandshakeMessage::MAX_AGE) {
             error!(%msg.sender, "Handshake message expired");
             return Err(InstanceMessageResponse::Error {
@@ -276,9 +276,9 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     pub fn handle_handshake(
         &self,
         msg: &HandshakeMessage,
-        verification_id_key: &VerificationIdentifierKey<T>,
-        signature: &T::Signature,
-    ) -> Result<(), InstanceMessageResponse<T>> {
+        verification_id_key: &VerificationIdentifierKey<K>,
+        signature: &K::Signature,
+    ) -> Result<(), InstanceMessageResponse<K>> {
         self.verify_handshake(msg, verification_id_key, signature)?;
         self.peer_manager
             .link_peer_id_to_verification_id_key(&msg.sender, verification_id_key);
@@ -318,7 +318,7 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
 
                 // Deserialize the protocol message
                 let Ok(protocol_message) =
-                    bincode::deserialize::<ProtocolMessage<T>>(&message.data)
+                    bincode::deserialize::<ProtocolMessage<K>>(&message.data)
                 else {
                     warn!(%propagation_source, "Failed to deserialize gossip message");
                     return;
@@ -340,11 +340,11 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     }
 }
 
-impl<T: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<T> {
+impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
     type ConnectionHandler =
-        <DerivedBlueprintProtocolBehaviour<T> as NetworkBehaviour>::ConnectionHandler;
+        <DerivedBlueprintProtocolBehaviour<K> as NetworkBehaviour>::ConnectionHandler;
 
-    type ToSwarm = BlueprintProtocolEvent<T>;
+    type ToSwarm = BlueprintProtocolEvent<K>;
 
     fn handle_established_inbound_connection(
         &mut self,
@@ -431,7 +431,7 @@ impl<T: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<T> {
                         return;
                     };
 
-                    let public_key = T::public_from_secret(&key_pair);
+                    let public_key = K::public_from_secret(&key_pair);
                     self.send_request(
                         &e.peer_id,
                         InstanceMessageRequest::Handshake {

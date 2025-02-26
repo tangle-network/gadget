@@ -68,7 +68,7 @@ features = [
 ]
 
 [dev-dependencies]
-gadget-networking = { workspace = true, features = ["sp-core-ecdsa"] }
+gadget-networking = { workspace = true }
 gadget-crypto = { workspace = true, features = ["sp-core"] }
 gadget-crypto-core = { workspace = true, features = ["tangle"] }
 tracing-subscriber = { workspace = true }
@@ -88,13 +88,6 @@ std = [
 	"serde_json/std",
 	"libsecp256k1/std",
 ]
-
-# Only one of these features should be enabled at a time.
-# If none are enabled, k256 ECDSA will be used by default.
-sp-core-ecdsa = ["gadget-crypto/sp-core"]
-sp-core-sr25519 = ["gadget-crypto/sp-core"]
-sp-core-ed25519 = ["gadget-crypto/sp-core"]
-bls381 = ["gadget-crypto/bls"]
 
 [lints]
 workspace = true

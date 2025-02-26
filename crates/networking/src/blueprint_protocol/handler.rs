@@ -14,11 +14,11 @@ use super::{BlueprintProtocolBehaviour, InstanceMessageRequest, InstanceMessageR
 const INBOUND_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 const OUTBOUND_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 
-impl<T: KeyType> BlueprintProtocolBehaviour<T> {
+impl<K: KeyType> BlueprintProtocolBehaviour<K> {
     #[allow(clippy::too_many_lines)]
     pub fn handle_request_response_event(
         &mut self,
-        event: request_response::Event<InstanceMessageRequest<T>, InstanceMessageResponse<T>>,
+        event: request_response::Event<InstanceMessageRequest<K>, InstanceMessageResponse<K>>,
     ) {
         match event {
             request_response::Event::Message {
@@ -65,7 +65,7 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
 
                         // Send handshake response
                         let mut key_pair = self.instance_key_pair.clone();
-                        let public_key = T::public_from_secret(&key_pair);
+                        let public_key = K::public_from_secret(&key_pair);
                         let self_verification_id_key =
                             if self.use_address_for_handshake_verification {
                                 let pre_truncation = keccak_256(public_key.to_bytes().as_ref());
@@ -180,7 +180,7 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
                     return;
                 }
 
-                let protocol_message: ProtocolMessage<T> = match bincode::deserialize(&payload) {
+                let protocol_message: ProtocolMessage<K> = match bincode::deserialize(&payload) {
                     Ok(message) => message,
                     Err(e) => {
                         warn!(%peer, "Failed to deserialize protocol message: {:?}", e);
@@ -271,7 +271,7 @@ impl<T: KeyType> BlueprintProtocolBehaviour<T> {
     fn complete_handshake(
         &mut self,
         peer: &PeerId,
-        verification_id_key: &VerificationIdentifierKey<T>,
+        verification_id_key: &VerificationIdentifierKey<K>,
     ) {
         debug!(%peer, ?verification_id_key, "Completed handshake");
 

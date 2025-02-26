@@ -1,9 +1,5 @@
-use crate::NetworkEvent;
-use gadget_crypto::KeyType;
-pub type Result<T> = core::result::Result<T, Error<T>>;
-
 #[derive(Debug, thiserror::Error)]
-pub enum Error<T: KeyType> {
+pub enum Error {
     #[error("Network error: {0}")]
     NetworkError(String),
 
@@ -72,8 +68,8 @@ pub enum Error<T: KeyType> {
     Multiaddr(#[from] libp2p::multiaddr::Error),
 
     #[error(transparent)]
-    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent<T>>),
+    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<String>),
 
     #[error(transparent)]
-    CrossbeamSendError(#[from] crossbeam_channel::SendError<NetworkEvent<T>>),
+    CrossbeamSendError(#[from] crossbeam_channel::SendError<String>),
 }

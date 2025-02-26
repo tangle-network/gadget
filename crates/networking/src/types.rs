@@ -33,36 +33,69 @@ pub enum MessageDelivery {
 }
 
 /// Message routing information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MessageRouting<T: KeyType> {
+#[derive(Debug, Clone, Serialize)]
+pub struct MessageRouting<K: KeyType> {
     /// Unique identifier for this message
     pub message_id: u64,
     /// The round/sequence number this message belongs to
     pub round_id: u16,
     /// The sender's information
-    pub sender: ParticipantInfo<T>,
+    pub sender: ParticipantInfo<K>,
     /// Optional recipient information for direct messages
-    pub recipient: Option<ParticipantInfo<T>>,
+    pub recipient: Option<ParticipantInfo<K>>,
+}
+
+impl<'de, K: KeyType> Deserialize<'de> for MessageRouting<K> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes = Vec::deserialize(deserializer)?;
+        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
+        Ok(message)
+    }
 }
 
 /// Information about a participant in the network
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParticipantInfo<T: KeyType> {
+#[derive(Debug, Clone, Serialize)]
+pub struct ParticipantInfo<K: KeyType> {
     /// The participant's unique ID
     pub id: ParticipantId,
     /// The participant's verification ID key (if known)
-    pub verification_id_key: Option<VerificationIdentifierKey<T>>,
+    pub verification_id_key: Option<VerificationIdentifierKey<K>>,
+}
+
+impl<'de, K: KeyType> Deserialize<'de> for ParticipantInfo<K> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes = Vec::deserialize(deserializer)?;
+        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
+        Ok(message)
+    }
 }
 
 /// A protocol message that can be sent over the network
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolMessage<T: KeyType> {
+#[derive(Debug, Clone, Serialize)]
+pub struct ProtocolMessage<K: KeyType> {
     /// The protocol name
     pub protocol: String,
     /// Routing information for the message
-    pub routing: MessageRouting<T>,
+    pub routing: MessageRouting<K>,
     /// The actual message payload
     pub payload: Vec<u8>,
+}
+
+impl<'de, K: KeyType> Deserialize<'de> for ProtocolMessage<K> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes = Vec::deserialize(deserializer)?;
+        let message = bincode::deserialize(&bytes).map_err(serde::de::Error::custom)?;
+        Ok(message)
+    }
 }
 
 impl Display for ParticipantId {
@@ -71,7 +104,7 @@ impl Display for ParticipantId {
     }
 }
 
-impl<T: KeyType> Display for MessageRouting<T> {
+impl<K: KeyType> Display for MessageRouting<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -84,7 +117,7 @@ impl<T: KeyType> Display for MessageRouting<T> {
     }
 }
 
-impl<T: KeyType> Display for ParticipantInfo<T> {
+impl<K: KeyType> Display for ParticipantInfo<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -99,7 +132,7 @@ impl<T: KeyType> Display for ParticipantInfo<T> {
     }
 }
 
-impl<T: KeyType> Display for ProtocolMessage<T> {
+impl<K: KeyType> Display for ProtocolMessage<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} payload_size={}", self.routing, self.payload.len())
     }

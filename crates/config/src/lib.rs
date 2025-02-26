@@ -14,6 +14,9 @@ pub mod supported_chains;
 pub use context_config::{ContextConfig, GadgetCLICoreSettings};
 pub use protocol::{Protocol, ProtocolSettings};
 
+#[cfg(feature = "networking")]
+use gadget_networking::KeyType;
+
 /// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -140,13 +143,11 @@ impl GadgetConfiguration {
     ///
     /// [`NetworkService::new()`]: gadget_networking::NetworkService::new
     #[cfg(feature = "networking")]
-    pub fn libp2p_start_network(
+    pub fn libp2p_start_network<K: KeyType>(
         &self,
-        network_config: gadget_networking::NetworkConfig,
-        allowed_keys: AllowedKeys,
-    ) -> Result<gadget_networking::service_handle::NetworkServiceHandle, Error> {
-        use gadget_networking::service::AllowedKeys;
-
+        network_config: gadget_networking::NetworkConfig<K>,
+        allowed_keys: gadget_networking::service::AllowedKeys<K>,
+    ) -> Result<gadget_networking::service_handle::NetworkServiceHandle<K>, Error> {
         let networking_service =
             gadget_networking::NetworkService::new(network_config, allowed_keys)?;
 
@@ -165,14 +166,13 @@ impl GadgetConfiguration {
     /// * `ECDSA`
     #[cfg(feature = "networking")]
     #[allow(clippy::missing_panics_doc)] // Known good Multiaddr
-    pub fn libp2p_network_config(
+    pub fn libp2p_network_config<K: KeyType>(
         &self,
         network_name: impl Into<String>,
-        use_evm_addresses: bool,
-    ) -> Result<gadget_networking::NetworkConfig, Error> {
+        using_evm_address_for_handshake_verification: bool,
+    ) -> Result<gadget_networking::NetworkConfig<K>, Error> {
         use gadget_keystore::backends::Backend;
         use gadget_keystore::crypto::sp_core::SpEd25519 as LibP2PKeyType;
-        use gadget_networking::key_types::Curve as InstanceMsgKeyPair;
 
         let keystore_config = gadget_keystore::KeystoreConfig::new().fs_root(&self.keystore_uri);
         let keystore = gadget_keystore::Keystore::new(keystore_config)
@@ -187,10 +187,10 @@ impl GadgetConfiguration {
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let ecdsa_pub_key = keystore
-            .first_local::<InstanceMsgKeyPair>()
+            .first_local::<K>()
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
         let ecdsa_pair = keystore
-            .get_secret::<InstanceMsgKeyPair>(&ecdsa_pub_key)
+            .get_secret::<K>(&ecdsa_pub_key)
             .map_err(|err| Error::ConfigurationError(err.to_string()))?;
 
         let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.network_bind_port)
@@ -208,7 +208,7 @@ impl GadgetConfiguration {
             bootstrap_peers: self.bootnodes.clone(),
             enable_mdns: self.enable_mdns,
             enable_kademlia: self.enable_kademlia,
-            use_evm_addresses,
+            using_evm_address_for_handshake_verification,
         };
 
         Ok(network_config)

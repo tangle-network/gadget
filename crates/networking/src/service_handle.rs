@@ -14,13 +14,13 @@ use tracing::debug;
 
 /// Handle for sending outgoing messages to the network
 #[derive(Clone)]
-pub struct NetworkSender<T: KeyType> {
-    network_message_sender: Sender<NetworkMessage<T>>,
+pub struct NetworkSender<K: KeyType> {
+    network_message_sender: Sender<NetworkMessage<K>>,
 }
 
-impl<T: KeyType> NetworkSender<T> {
+impl<K: KeyType> NetworkSender<K> {
     #[must_use]
-    pub fn new(network_message_sender: Sender<NetworkMessage<T>>) -> Self {
+    pub fn new(network_message_sender: Sender<NetworkMessage<K>>) -> Self {
         Self {
             network_message_sender,
         }
@@ -31,7 +31,7 @@ impl<T: KeyType> NetworkSender<T> {
     /// # Errors
     ///
     /// See [`crossbeam_channel::Sender::send`]
-    pub fn send_message(&self, message: NetworkMessage<T>) -> Result<(), String> {
+    pub fn send_message(&self, message: NetworkMessage<K>) -> Result<(), String> {
         self.network_message_sender
             .send(message)
             .map_err(|e| e.to_string())
@@ -39,13 +39,13 @@ impl<T: KeyType> NetworkSender<T> {
 }
 
 /// Handle for receiving incoming messages from the network
-pub struct NetworkReceiver<T: KeyType> {
-    protocol_message_receiver: Receiver<ProtocolMessage<T>>,
+pub struct NetworkReceiver<K: KeyType> {
+    protocol_message_receiver: Receiver<ProtocolMessage<K>>,
 }
 
-impl<T: KeyType> NetworkReceiver<T> {
+impl<K: KeyType> NetworkReceiver<K> {
     #[must_use]
-    pub fn new(protocol_message_receiver: Receiver<ProtocolMessage<T>>) -> Self {
+    pub fn new(protocol_message_receiver: Receiver<ProtocolMessage<K>>) -> Self {
         Self {
             protocol_message_receiver,
         }
@@ -56,21 +56,21 @@ impl<T: KeyType> NetworkReceiver<T> {
     /// # Errors
     ///
     /// See [`crossbeam_channel::Receiver::try_recv()`]
-    pub fn try_recv(&self) -> Result<ProtocolMessage<T>, crossbeam_channel::TryRecvError> {
+    pub fn try_recv(&self) -> Result<ProtocolMessage<K>, crossbeam_channel::TryRecvError> {
         self.protocol_message_receiver.try_recv()
     }
 }
 
 /// Combined handle for the network service
-pub struct NetworkServiceHandle<T: KeyType> {
+pub struct NetworkServiceHandle<K: KeyType> {
     pub local_peer_id: PeerId,
     pub blueprint_protocol_name: Arc<str>,
-    pub sender: NetworkSender<T>,
-    pub receiver: NetworkReceiver<T>,
-    pub peer_manager: Arc<PeerManager<T>>,
+    pub sender: NetworkSender<K>,
+    pub receiver: NetworkReceiver<K>,
+    pub peer_manager: Arc<PeerManager<K>>,
 }
 
-impl<T: KeyType> Clone for NetworkServiceHandle<T> {
+impl<K: KeyType> Clone for NetworkServiceHandle<K> {
     fn clone(&self) -> Self {
         Self {
             local_peer_id: self.local_peer_id,
@@ -82,14 +82,14 @@ impl<T: KeyType> Clone for NetworkServiceHandle<T> {
     }
 }
 
-impl<T: KeyType> NetworkServiceHandle<T> {
+impl<K: KeyType> NetworkServiceHandle<K> {
     #[must_use]
     pub fn new(
         local_peer_id: PeerId,
         blueprint_protocol_name: String,
-        peer_manager: Arc<PeerManager<T>>,
-        network_message_sender: Sender<NetworkMessage<T>>,
-        protocol_message_receiver: Receiver<ProtocolMessage<T>>,
+        peer_manager: Arc<PeerManager<K>>,
+        network_message_sender: Sender<NetworkMessage<K>>,
+        protocol_message_receiver: Receiver<ProtocolMessage<K>>,
     ) -> Self {
         Self {
             local_peer_id,
@@ -100,7 +100,7 @@ impl<T: KeyType> NetworkServiceHandle<T> {
         }
     }
 
-    pub fn next_protocol_message(&mut self) -> Option<ProtocolMessage<T>> {
+    pub fn next_protocol_message(&mut self) -> Option<ProtocolMessage<K>> {
         self.receiver.try_recv().ok()
     }
 
@@ -127,7 +127,7 @@ impl<T: KeyType> NetworkServiceHandle<T> {
     /// See [`crossbeam_channel::Sender::send`]
     pub fn send(
         &self,
-        routing: MessageRouting<T>,
+        routing: MessageRouting<K>,
         message: impl Into<Vec<u8>>,
     ) -> Result<(), String> {
         let protocol_message = ProtocolMessage {
@@ -176,7 +176,7 @@ impl<T: KeyType> NetworkServiceHandle<T> {
         Ok(())
     }
 
-    pub(crate) fn send_network_message(&self, message: NetworkMessage<T>) -> Result<(), String> {
+    pub(crate) fn send_network_message(&self, message: NetworkMessage<K>) -> Result<(), String> {
         self.sender.send_message(message)
     }
 
@@ -193,7 +193,7 @@ impl<T: KeyType> NetworkServiceHandle<T> {
 
     /// Split the handle into separate sender and receiver
     #[must_use]
-    pub fn split(self) -> (NetworkSender<T>, NetworkReceiver<T>) {
+    pub fn split(self) -> (NetworkSender<K>, NetworkReceiver<K>) {
         (self.sender, self.receiver)
     }
 }
