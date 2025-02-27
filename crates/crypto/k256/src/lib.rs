@@ -7,15 +7,17 @@ mod tests;
 
 use crate::error::{K256Error, Result};
 use alloy_signer_local::LocalSigner;
-use gadget_crypto_core::KeyEncoding;
+use gadget_crypto_core::BytesEncoding;
 use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::hash::{Hash, Hasher};
 use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
 use k256::ecdsa::signature::SignerMut;
 use k256::ecdsa::{SigningKey, VerifyingKey};
-use std::hash::{Hash, Hasher};
+use serde::{Deserialize, Serialize};
 
 /// ECDSA key type
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct K256Ecdsa;
 
 macro_rules! impl_serde_bytes {
@@ -35,7 +37,7 @@ macro_rules! impl_serde_bytes {
             }
         }
 
-        impl KeyEncoding for $wrapper {
+        impl BytesEncoding for $wrapper {
             fn to_bytes(&self) -> Vec<u8> {
                 self.to_bytes_impl().to_vec()
             }
@@ -62,7 +64,7 @@ macro_rules! impl_serde_bytes {
                 D: serde::Deserializer<'de>,
             {
                 let bytes = Vec::<u8>::deserialize(deserializer)?;
-                let ret = <$wrapper as KeyEncoding>::from_bytes(&bytes)
+                let ret = <$wrapper as BytesEncoding>::from_bytes(&bytes)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                 Ok(ret)
             }

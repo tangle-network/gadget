@@ -1,9 +1,12 @@
 use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
+    discovery::peers::VerificationIdentifierKey,
+    service::AllowedKeys,
     service_handle::NetworkServiceHandle,
     tests::{create_whitelisted_nodes, wait_for_all_handshakes},
     types::{MessageRouting, ParticipantId, ParticipantInfo},
 };
+use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
@@ -17,7 +20,7 @@ async fn test_gossip_between_verified_peers() {
     info!("Starting gossip test between verified peers");
 
     // Create nodes with whitelisted keys
-    let mut nodes = create_whitelisted_nodes(2).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(2, false).await;
     let mut node2 = nodes.pop().unwrap();
     let mut node1 = nodes.pop().unwrap();
 
@@ -37,7 +40,9 @@ async fn test_gossip_between_verified_peers() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         recipient: None, // No specific recipient for gossip
     };
@@ -67,8 +72,10 @@ async fn test_gossip_between_verified_peers() {
     assert_eq!(received_message.routing.message_id, 1);
     assert_eq!(received_message.routing.round_id, 0);
     assert_eq!(
-        received_message.routing.sender.public_key,
-        Some(node1.instance_key_pair.public())
+        received_message.routing.sender.verification_id_key,
+        Some(VerificationIdentifierKey::InstancePublicKey(
+            node1.instance_key_pair.public()
+        ))
     );
     assert!(received_message.routing.recipient.is_none());
 
@@ -81,7 +88,7 @@ async fn test_multi_node_gossip() {
     info!("Starting multi-node gossip test");
 
     // Create three nodes with all keys whitelisted
-    let mut nodes = create_whitelisted_nodes(3).await;
+    let mut nodes = create_whitelisted_nodes::<SpEcdsa>(3, false).await;
 
     info!("Starting all nodes");
     let mut handles: Vec<_> = Vec::new();
@@ -90,7 +97,7 @@ async fn test_multi_node_gossip() {
     }
 
     info!("Waiting for all handshakes to complete");
-    let handles_refs: Vec<&mut NetworkServiceHandle> = handles.iter_mut().collect();
+    let handles_refs: Vec<&mut NetworkServiceHandle<SpEcdsa>> = handles.iter_mut().collect();
     wait_for_all_handshakes(&handles_refs, TEST_TIMEOUT).await;
 
     // Create test message
@@ -100,7 +107,9 @@ async fn test_multi_node_gossip() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(0),
-            public_key: Some(nodes[0].instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                nodes[0].instance_key_pair.public(),
+            )),
         },
         recipient: None,
     };
@@ -130,8 +139,10 @@ async fn test_multi_node_gossip() {
             );
             assert_eq!(received.protocol, PROTOCOL_NAME);
             assert_eq!(
-                received.routing.sender.public_key,
-                Some(nodes[0].instance_key_pair.public())
+                received.routing.sender.verification_id_key,
+                Some(VerificationIdentifierKey::InstancePublicKey(
+                    nodes[0].instance_key_pair.public()
+                ))
             );
             info!("Node {} received the gossip message correctly", i);
         }
@@ -148,8 +159,20 @@ async fn test_unverified_peer_gossip() {
     info!("Starting unverified peer gossip test");
 
     // Create two nodes with no whitelisted keys
-    let mut node1 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
-    let mut node2 = TestNode::new("test-net", "gossip-test", HashSet::new(), vec![]);
+    let mut node1 = TestNode::<SpEcdsa>::new(
+        "test-net",
+        "gossip-test",
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
+    let mut node2 = TestNode::<SpEcdsa>::new(
+        "test-net",
+        "gossip-test",
+        AllowedKeys::InstancePublicKeys(HashSet::new()),
+        vec![],
+        false,
+    );
 
     info!("Starting nodes");
     let handle1 = node1.start().await.expect("Failed to start node1");
@@ -162,7 +185,9 @@ async fn test_unverified_peer_gossip() {
         round_id: 0,
         sender: ParticipantInfo {
             id: ParticipantId(1),
-            public_key: Some(node1.instance_key_pair.public()),
+            verification_id_key: Some(VerificationIdentifierKey::InstancePublicKey(
+                node1.instance_key_pair.public(),
+            )),
         },
         recipient: None,
     };

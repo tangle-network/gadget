@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    key_types::{Curve, InstanceMsgKeyPair, InstanceMsgPublicKey},
-    service_handle::NetworkServiceHandle,
-    NetworkConfig, NetworkService,
+    service::AllowedKeys, service_handle::NetworkServiceHandle, NetworkConfig, NetworkService,
 };
 use gadget_crypto::KeyType;
 use libp2p::{
@@ -30,21 +28,23 @@ fn init_tracing() {
 }
 
 /// Test node configuration for network tests
-pub struct TestNode {
-    pub service: Option<NetworkService>,
+pub struct TestNode<K: KeyType> {
+    pub service: Option<NetworkService<K>>,
     pub peer_id: PeerId,
     pub listen_addr: Option<Multiaddr>,
-    pub instance_key_pair: InstanceMsgKeyPair,
+    pub instance_key_pair: K::Secret,
     pub local_key: Keypair,
+    pub using_evm_address_for_handshake_verification: bool,
 }
 
-impl TestNode {
+impl<K: KeyType> TestNode<K> {
     /// Create a new test node with auto-generated keys
     pub fn new(
         network_name: &str,
         instance_id: &str,
-        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys<K>,
         bootstrap_peers: Vec<Multiaddr>,
+        using_evm_address_for_handshake_verification: bool,
     ) -> Self {
         Self::new_with_keys(
             network_name,
@@ -53,6 +53,7 @@ impl TestNode {
             bootstrap_peers,
             None,
             None,
+            using_evm_address_for_handshake_verification,
         )
     }
 
@@ -60,10 +61,11 @@ impl TestNode {
     pub fn new_with_keys(
         network_name: &str,
         instance_id: &str,
-        allowed_keys: HashSet<InstanceMsgPublicKey>,
+        allowed_keys: AllowedKeys<K>,
         bootstrap_peers: Vec<Multiaddr>,
-        instance_key_pair: Option<InstanceMsgKeyPair>,
+        instance_key_pair: Option<K::Secret>,
         local_key: Option<Keypair>,
+        using_evm_address_for_handshake_verification: bool,
     ) -> Self {
         let local_key = local_key.unwrap_or_else(identity::Keypair::generate_ed25519);
         let peer_id = local_key.public().to_peer_id();
@@ -73,7 +75,7 @@ impl TestNode {
         info!("Creating test node {peer_id} with TCP address: {listen_addr}");
 
         let instance_key_pair =
-            instance_key_pair.unwrap_or_else(|| Curve::generate_with_seed(None).unwrap());
+            instance_key_pair.unwrap_or_else(|| K::generate_with_seed(None).unwrap());
 
         let config = NetworkConfig {
             network_name: network_name.to_string(),
@@ -85,10 +87,12 @@ impl TestNode {
             bootstrap_peers,
             enable_mdns: true,
             enable_kademlia: true,
+            using_evm_address_for_handshake_verification,
         };
 
-        let service =
-            NetworkService::new(config, allowed_keys).expect("Failed to create network service");
+        let (_, allowed_keys_rx) = crossbeam_channel::unbounded();
+        let service = NetworkService::new(config, allowed_keys, allowed_keys_rx)
+            .expect("Failed to create network service");
 
         Self {
             service: Some(service),
@@ -96,11 +100,12 @@ impl TestNode {
             listen_addr: None,
             instance_key_pair,
             local_key,
+            using_evm_address_for_handshake_verification,
         }
     }
 
     /// Start the node and wait for it to be fully initialized
-    pub async fn start(&mut self) -> Result<NetworkServiceHandle, &'static str> {
+    pub async fn start(&mut self) -> Result<NetworkServiceHandle<K>, &'static str> {
         // Take ownership of the service
         let service = self.service.take().ok_or("Service already started")?;
         let handle = service.start();
@@ -171,7 +176,7 @@ impl TestNode {
     }
 
     /// Update the allowed keys for this node
-    pub fn update_allowed_keys(&self, allowed_keys: HashSet<InstanceMsgPublicKey>) {
+    pub fn update_allowed_keys(&self, allowed_keys: AllowedKeys<K>) {
         if let Some(service) = &self.service {
             service.peer_manager.update_whitelisted_keys(allowed_keys);
         }
@@ -194,8 +199,8 @@ where
 }
 
 /// Wait for peers to discover each other
-pub async fn wait_for_peer_discovery(
-    handles: &[&NetworkServiceHandle],
+pub async fn wait_for_peer_discovery<K: KeyType>(
+    handles: &[&NetworkServiceHandle<K>],
     timeout: Duration,
 ) -> Result<(), &'static str> {
     info!("Waiting for peer discovery...");
@@ -219,9 +224,9 @@ pub async fn wait_for_peer_discovery(
 }
 
 /// Wait for peer info to be updated
-pub async fn wait_for_peer_info(
-    handle1: &NetworkServiceHandle,
-    handle2: &NetworkServiceHandle,
+pub async fn wait_for_peer_info<K: KeyType>(
+    handle1: &NetworkServiceHandle<K>,
+    handle2: &NetworkServiceHandle<K>,
     timeout: Duration,
 ) {
     info!("Waiting for identify info...");
@@ -253,7 +258,10 @@ pub async fn wait_for_peer_info(
 }
 
 // Helper to wait for handshake completion between multiple nodes
-async fn wait_for_all_handshakes(handles: &[&mut NetworkServiceHandle], timeout_length: Duration) {
+async fn wait_for_all_handshakes<K: KeyType>(
+    handles: &[&mut NetworkServiceHandle<K>],
+    timeout_length: Duration,
+) {
     info!("Starting handshake wait for {} nodes", handles.len());
     timeout(timeout_length, async {
         loop {
@@ -287,9 +295,9 @@ async fn wait_for_all_handshakes(handles: &[&mut NetworkServiceHandle], timeout_
 }
 
 // Helper to wait for handshake completion between two nodes
-async fn wait_for_handshake_completion(
-    handle1: &NetworkServiceHandle,
-    handle2: &NetworkServiceHandle,
+async fn wait_for_handshake_completion<K: KeyType>(
+    handle1: &NetworkServiceHandle<K>,
+    handle2: &NetworkServiceHandle<K>,
     timeout_length: Duration,
 ) {
     timeout(timeout_length, async {
@@ -311,26 +319,38 @@ async fn wait_for_handshake_completion(
 }
 
 // Helper to create a whitelisted test node
-fn create_node_with_keys(
+fn create_node_with_keys<K: KeyType>(
     network: &str,
     instance: &str,
-    allowed_keys: HashSet<InstanceMsgPublicKey>,
-    key_pair: Option<InstanceMsgKeyPair>,
-) -> TestNode {
-    TestNode::new_with_keys(network, instance, allowed_keys, vec![], key_pair, None)
+    allowed_keys: AllowedKeys<K>,
+    key_pair: Option<K::Secret>,
+    using_evm_address_for_handshake_verification: bool,
+) -> TestNode<K> {
+    TestNode::new_with_keys(
+        network,
+        instance,
+        allowed_keys,
+        vec![],
+        key_pair,
+        None,
+        using_evm_address_for_handshake_verification,
+    )
 }
 
 // Helper to create a set of nodes with whitelisted keys
-async fn create_whitelisted_nodes(count: usize) -> Vec<TestNode> {
+async fn create_whitelisted_nodes<K: KeyType>(
+    count: usize,
+    using_evm_address_for_handshake_verification: bool,
+) -> Vec<TestNode<K>> {
     let mut nodes = Vec::with_capacity(count);
     let mut key_pairs = Vec::with_capacity(count);
     let mut allowed_keys = HashSet::new();
 
     // Generate all key pairs first
     for _ in 0..count {
-        let key_pair = Curve::generate_with_seed(None).unwrap();
+        let key_pair = K::generate_with_seed(None).unwrap();
         key_pairs.push(key_pair.clone());
-        allowed_keys.insert(key_pair.public());
+        allowed_keys.insert(K::public_from_secret(&key_pair));
     }
 
     // Create nodes with whitelisted keys
@@ -338,8 +358,9 @@ async fn create_whitelisted_nodes(count: usize) -> Vec<TestNode> {
         nodes.push(create_node_with_keys(
             "test-net",
             "sum-test",
-            allowed_keys.clone(),
+            AllowedKeys::InstancePublicKeys(allowed_keys.clone()),
             Some(key_pair),
+            using_evm_address_for_handshake_verification,
         ));
     }
 

@@ -4,7 +4,7 @@ pub mod error;
 #[cfg(test)]
 mod tests;
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+pub use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use gadget_std::vec::Vec;
 
 /// Serialize this to a vector of bytes.
@@ -42,6 +42,12 @@ macro_rules! impl_w3f_serde {
             }
         }
 
+        impl gadget_std::hash::Hash for $name {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.to_bytes().hash(state);
+            }
+        }
+
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> gadget_std::cmp::Ordering {
                 self.to_bytes().cmp(&other.to_bytes())
@@ -54,7 +60,7 @@ macro_rules! impl_w3f_serde {
             }
         }
 
-        impl KeyEncoding for $name {
+        impl BytesEncoding for $name {
             fn to_bytes(&self) -> Vec<u8> {
                 crate::to_bytes(self.0.clone())
             }
@@ -98,12 +104,13 @@ macro_rules! define_bls_key {
             pub mod [<$ty:lower>] {
                 use crate::error::{BlsError, Result};
                 use crate::from_bytes;
-                use gadget_crypto_core::{KeyType, KeyTypeId, KeyEncoding};
+                use gadget_crypto_core::{KeyType, KeyTypeId, BytesEncoding};
                 use gadget_std::{UniformRand, string::{String, ToString}};
                 use tnt_bls::{Message, PublicKey, SecretKey, SerializableToBytes, Signature, [<Tiny $ty:upper>]};
 
                 #[doc = $ty:upper]
                 /// key type
+                #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
                 pub struct [<W3f $ty>];
 
                 impl_w3f_serde!([<W3f $ty Public>], PublicKey<[<Tiny $ty:upper>]>);

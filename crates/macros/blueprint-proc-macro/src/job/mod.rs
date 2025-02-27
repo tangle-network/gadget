@@ -810,8 +810,8 @@ pub enum ResultsKind {
     Types(Vec<Type>),
 }
 
-impl std::fmt::Debug for ResultsKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl gadget_std::fmt::Debug for ResultsKind {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         match self {
             Self::Infered => write!(f, "Infered"),
             Self::Types(_) => write!(f, "Types"),

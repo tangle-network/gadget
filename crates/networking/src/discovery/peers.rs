@@ -1,14 +1,129 @@
+use crate::service::AllowedKeys;
+use alloy_primitives::Address;
+use crossbeam_channel::Receiver;
+use dashmap::{DashMap, DashSet};
+use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::BytesEncoding;
+use gadget_crypto::KeyType;
+use libp2p::{core::Multiaddr, identify, PeerId};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
 };
-
-use crate::InstanceMsgPublicKey;
-use dashmap::{DashMap, DashSet};
-use libp2p::{core::Multiaddr, identify, PeerId};
 use tokio::sync::broadcast;
 use tracing::debug;
+
+use super::utils::{get_address_from_pubkey, secp256k1_ecdsa_recover};
+
+/// A collection of whitelisted keys
+#[derive(Debug, Clone)]
+pub enum WhitelistedKeys<K: KeyType> {
+    EvmAddresses(DashSet<Address>),
+    InstancePublicKeys(DashSet<K::Public>),
+}
+
+/// A key that can be used to verify a peer
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum VerificationIdentifierKey<K: KeyType> {
+    EvmAddress(Address),
+    InstancePublicKey(K::Public),
+}
+
+impl<K: KeyType> VerificationIdentifierKey<K> {
+    /// Verify a signature against the verification identifier key
+    ///
+    /// # Arguments
+    /// * `msg` - The message to verify
+    /// * `signature` - The signature to verify
+    ///
+    /// # Returns
+    /// `true` if the signature is valid, `false` otherwise
+    ///
+    /// # Errors
+    /// Returns an error if the signature is invalid
+    pub fn verify(
+        &self,
+        msg: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn gadget_std::error::Error>> {
+        match self {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                let msg = keccak_256(msg);
+                let mut sig: [u8; 65] = [0u8; 65];
+                sig[..signature.len()].copy_from_slice(signature);
+
+                let pubkey = secp256k1_ecdsa_recover(&sig, &msg)?;
+
+                let address_from_pk = get_address_from_pubkey(&pubkey);
+                Ok(address_from_pk == *address)
+            }
+            VerificationIdentifierKey::InstancePublicKey(public_key) => {
+                let signature = K::Signature::from_bytes(signature)?;
+                Ok(K::verify(public_key, msg, &signature))
+            }
+        }
+    }
+}
+
+impl<K: KeyType> WhitelistedKeys<K> {
+    /// Clears all whitelisted keys, removing all addresses or instance public keys
+    pub fn clear(&mut self) {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
+        }
+    }
+
+    /// Checks if a verification identifier key is whitelisted
+    ///
+    /// # Arguments
+    /// * `key` - The verification identifier key to check
+    ///
+    /// # Returns
+    /// `true` if the key is whitelisted, `false` otherwise
+    pub fn contains(&self, key: &VerificationIdentifierKey<K>) -> bool {
+        match key {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                self.get_addresses().contains(address)
+            }
+            VerificationIdentifierKey::InstancePublicKey(key) => {
+                self.get_instance_keys().contains(key)
+            }
+        }
+    }
+
+    /// Gets the set of whitelisted Ethereum addresses
+    ///
+    /// # Panics
+    /// Panics if called on `WhitelistedKeys::InstancePublicKeys` variant
+    ///
+    /// # Returns
+    /// Reference to the set of whitelisted Ethereum addresses
+    #[must_use]
+    pub fn get_addresses(&self) -> &DashSet<Address> {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses,
+            WhitelistedKeys::InstancePublicKeys(_) => panic!("EvmAddresses expected"),
+        }
+    }
+
+    /// Gets the set of whitelisted instance public keys
+    ///
+    /// # Panics
+    /// Panics if called on `WhitelistedKeys::EvmAddresses` variant
+    ///
+    /// # Returns
+    /// Reference to the set of whitelisted instance public keys
+    #[must_use]
+    pub fn get_instance_keys(&self) -> &DashSet<K::Public> {
+        match self {
+            WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys,
+        }
+    }
+}
 
 /// Information about a peer's connection and behavior
 #[derive(Clone, Debug)]
@@ -62,50 +177,92 @@ pub enum PeerEvent {
     PeerUnbanned { peer_id: PeerId },
 }
 
-pub struct PeerManager {
+pub struct PeerManager<K: KeyType> {
     /// Active peers and their information
     peers: DashMap<PeerId, PeerInfo>,
     /// Verified peers from completed handshakes
     verified_peers: DashSet<PeerId>,
     /// Handshake keys to peer ids
-    public_keys_to_peer_ids: Arc<DashMap<InstanceMsgPublicKey, PeerId>>,
+    verification_id_keys_to_peer_ids: Arc<DashMap<VerificationIdentifierKey<K>, PeerId>>,
     /// Banned peers with optional expiration time
     banned_peers: DashMap<PeerId, Option<Instant>>,
     /// Allowed public keys
-    whitelisted_keys: DashSet<InstanceMsgPublicKey>,
+    whitelisted_keys: WhitelistedKeys<K>,
     /// Event sender for peer updates
     event_tx: broadcast::Sender<PeerEvent>,
 }
 
-impl Default for PeerManager {
+impl<K: KeyType> Default for PeerManager<K> {
     fn default() -> Self {
-        Self::new(HashSet::default())
+        Self::new(AllowedKeys::InstancePublicKeys(HashSet::default()))
     }
 }
 
-impl PeerManager {
+impl<K: KeyType> PeerManager<K> {
     #[must_use]
-    pub fn new(whitelisted_keys: HashSet<InstanceMsgPublicKey>) -> Self {
+    pub fn new(allowed_keys: AllowedKeys<K>) -> Self {
         let (event_tx, _) = broadcast::channel(100);
         Self {
             peers: DashMap::default(),
             banned_peers: DashMap::default(),
             verified_peers: DashSet::default(),
-            public_keys_to_peer_ids: Arc::new(DashMap::default()),
-            whitelisted_keys: DashSet::from_iter(whitelisted_keys),
+            verification_id_keys_to_peer_ids: Arc::new(DashMap::default()),
+            whitelisted_keys: match allowed_keys {
+                AllowedKeys::EvmAddresses(addresses) => {
+                    WhitelistedKeys::EvmAddresses(DashSet::from_iter(addresses))
+                }
+                AllowedKeys::InstancePublicKeys(keys) => {
+                    WhitelistedKeys::InstancePublicKeys(DashSet::from_iter(keys))
+                }
+            },
             event_tx,
         }
     }
 
-    pub fn update_whitelisted_keys(&self, keys: HashSet<InstanceMsgPublicKey>) {
-        self.whitelisted_keys.clear();
-        for key in keys {
-            self.whitelisted_keys.insert(key);
+    /// Run the allowed keys updater.
+    /// This will clear the whitelisted keys and update them with the new allowed keys.
+    ///
+    /// # Arguments
+    /// * `allowed_keys_rx` - A channel to receive allowed keys updates
+    pub fn run_allowed_keys_updater(&self, allowed_keys_rx: &Receiver<AllowedKeys<K>>) {
+        while let Ok(allowed_keys) = allowed_keys_rx.recv() {
+            self.clear_whitelisted_keys();
+            self.update_whitelisted_keys(allowed_keys);
+        }
+    }
+
+    /// Clears the whitelisted keys
+    pub fn clear_whitelisted_keys(&self) {
+        match &self.whitelisted_keys {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
+        }
+    }
+
+    /// Updates the whitelisted keys
+    /// This will update the whitelisted keys with the new allowed keys
+    ///
+    /// # Arguments
+    /// * `keys` - The allowed keys to update with
+    pub fn update_whitelisted_keys(&self, keys: AllowedKeys<K>) {
+        match keys {
+            AllowedKeys::EvmAddresses(addresses) => {
+                let current_addresses = self.whitelisted_keys.get_addresses();
+                for address in addresses {
+                    current_addresses.insert(address);
+                }
+            }
+            AllowedKeys::InstancePublicKeys(keys) => {
+                let current_keys = self.whitelisted_keys.get_instance_keys();
+                for key in keys {
+                    current_keys.insert(key);
+                }
+            }
         }
     }
 
     #[must_use]
-    pub fn is_key_whitelisted(&self, key: &InstanceMsgPublicKey) -> bool {
+    pub fn is_key_whitelisted(&self, key: &VerificationIdentifierKey<K>) -> bool {
         self.whitelisted_keys.contains(key)
     }
 
@@ -261,18 +418,29 @@ impl PeerManager {
     }
 
     /// Add a peer id to the public key to peer id map after verifying handshake
-    pub fn add_peer_id_to_public_key(&self, peer_id: &PeerId, public_key: &InstanceMsgPublicKey) {
-        self.public_keys_to_peer_ids.insert(*public_key, *peer_id);
+    pub fn link_peer_id_to_verification_id_key(
+        &self,
+        peer_id: &PeerId,
+        verification_id_key: &VerificationIdentifierKey<K>,
+    ) {
+        self.verification_id_keys_to_peer_ids
+            .insert(verification_id_key.clone(), *peer_id);
     }
 
     /// Remove a peer id from the public key to peer id map
-    pub fn remove_peer_id_from_public_key(&self, peer_id: &PeerId) {
-        self.public_keys_to_peer_ids.retain(|_, id| id != peer_id);
+    pub fn remove_peer_id_from_verification_id_key(&self, peer_id: &PeerId) {
+        self.verification_id_keys_to_peer_ids
+            .retain(|_, id| id != peer_id);
     }
 
     #[must_use]
-    pub fn get_peer_id_from_public_key(&self, public_key: &InstanceMsgPublicKey) -> Option<PeerId> {
-        self.public_keys_to_peer_ids.get(public_key).map(|id| *id)
+    pub fn get_peer_id_from_verification_id_key(
+        &self,
+        verification_id_key: &VerificationIdentifierKey<K>,
+    ) -> Option<PeerId> {
+        self.verification_id_keys_to_peer_ids
+            .get(verification_id_key)
+            .map(|id| *id)
     }
 }
 

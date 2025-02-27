@@ -1,7 +1,3 @@
-use crate::NetworkEvent;
-
-pub type Result<T> = core::result::Result<T, Error>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Network error: {0}")]
@@ -72,8 +68,8 @@ pub enum Error {
     Multiaddr(#[from] libp2p::multiaddr::Error),
 
     #[error(transparent)]
-    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<NetworkEvent>),
+    TokioSendError(#[from] tokio::sync::mpsc::error::SendError<String>),
 
     #[error(transparent)]
-    CrossbeamSendError(#[from] crossbeam_channel::SendError<NetworkEvent>),
+    CrossbeamSendError(#[from] crossbeam_channel::SendError<String>),
 }

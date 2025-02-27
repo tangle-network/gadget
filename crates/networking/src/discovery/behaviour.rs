@@ -5,7 +5,8 @@ use std::{
     time::Duration,
 };
 
-use crate::error::{Error, Result as NetworkingResult};
+use crate::error::Error;
+use gadget_crypto::KeyType;
 use libp2p::{
     autonat,
     core::Multiaddr,
@@ -57,7 +58,7 @@ pub enum DiscoveryEvent {
     Discovery(Box<DerivedDiscoveryBehaviourEvent>),
 }
 
-pub struct DiscoveryBehaviour {
+pub struct DiscoveryBehaviour<K: KeyType> {
     /// Discovery behaviour
     pub discovery: DerivedDiscoveryBehaviour,
     /// Stream that fires when we need to perform the next random Kademlia
@@ -78,15 +79,17 @@ pub struct DiscoveryBehaviour {
     pub target_peer_count: u32,
     /// Options to configure dials to known peers.
     pub pending_dial_opts: VecDeque<DialOpts>,
+    /// Phantom key type
+    pub _marker: gadget_std::marker::PhantomData<K>,
 }
 
-impl DiscoveryBehaviour {
+impl<K: KeyType> DiscoveryBehaviour<K> {
     /// Bootstrap Kademlia network
     ///
     /// # Errors
     ///
     /// * If Kademlia is not activated
-    pub fn bootstrap(&mut self) -> NetworkingResult<kad::QueryId> {
+    pub fn bootstrap(&mut self) -> Result<kad::QueryId, Error> {
         if let Some(active_kad) = self.discovery.kademlia.as_mut() {
             active_kad.bootstrap().map_err(Into::into)
         } else {
@@ -118,7 +121,7 @@ impl DiscoveryBehaviour {
     }
 }
 
-impl NetworkBehaviour for DiscoveryBehaviour {
+impl<K: KeyType> NetworkBehaviour for DiscoveryBehaviour<K> {
     type ConnectionHandler = <DerivedDiscoveryBehaviour as NetworkBehaviour>::ConnectionHandler;
     type ToSwarm = DiscoveryEvent;
 

@@ -20,7 +20,16 @@ quote = { workspace = true }
 proc-macro2 = { workspace = true }
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["std", "macros", "evm", "tangle", "eigenlayer", "testing", "networking", "networking-sp-core-ecdsa", "local-store"] }
+blueprint-sdk = { workspace = true, features = [
+    "std",
+    "macros",
+    "evm",
+    "tangle",
+    "eigenlayer",
+    "testing",
+    "networking",
+    "local-store"
+] }
 
 async-trait.workspace = true
 trybuild = { workspace = true }

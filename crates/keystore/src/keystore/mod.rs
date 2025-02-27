@@ -9,7 +9,7 @@ mod config;
 pub use config::KeystoreConfig;
 use gadget_crypto::KeyType;
 use gadget_crypto::KeyTypeId;
-use gadget_crypto::{IntoCryptoError, KeyEncoding};
+use gadget_crypto::{BytesEncoding, IntoCryptoError};
 
 use crate::error::{Error, Result};
 #[cfg(feature = "std")]

@@ -1,6 +1,6 @@
 use super::*;
 use error::K256Error;
-use gadget_crypto_core::{KeyEncoding, KeyType};
+use gadget_crypto_core::{BytesEncoding, KeyType};
 
 mod k256_crypto_tests {
     use super::*;

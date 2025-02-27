@@ -10,7 +10,7 @@ use gadget_crypto::sp_core::{
     SpSr25519Pair, SpSr25519Public,
 };
 use gadget_crypto::{bn254::ArkBlsBn254, KeyTypeId};
-use gadget_crypto_core::{KeyEncoding, KeyType};
+use gadget_crypto_core::{BytesEncoding, KeyType};
 use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
 use gadget_std::path::Path;
 
