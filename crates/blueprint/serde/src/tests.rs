@@ -455,9 +455,10 @@ mod primitives {
 mod sequences {
     use super::*;
     use alloc::vec::Vec;
+    use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
 
     fn expected_empty_bytes_field() -> Field<AccountId32> {
-        Field::List(BoundedVec(Vec::new()))
+        Field::List(FieldType::Uint8, BoundedVec(Vec::new()))
     }
 
     #[test]
@@ -491,11 +492,10 @@ mod sequences {
     }
 
     fn expected_bytes_field() -> Field<AccountId32> {
-        Field::List(BoundedVec(vec![
-            Field::Uint8(1),
-            Field::Uint8(2),
-            Field::Uint8(3),
-        ]))
+        Field::List(
+            FieldType::Uint8,
+            BoundedVec(vec![Field::Uint8(1), Field::Uint8(2), Field::Uint8(3)]),
+        )
     }
 
     #[test]
@@ -538,11 +538,10 @@ mod sequences {
     }
 
     fn expected_vec_field() -> Field<AccountId32> {
-        Field::List(BoundedVec(vec![
-            Field::Uint32(1),
-            Field::Uint32(2),
-            Field::Uint32(3),
-        ]))
+        Field::List(
+            FieldType::Uint32,
+            BoundedVec(vec![Field::Uint32(1), Field::Uint32(2), Field::Uint32(3)]),
+        )
     }
 
     #[test]
@@ -584,11 +583,10 @@ mod sequences {
     }
 
     fn expected_array_field() -> Field<AccountId32> {
-        Field::Array(BoundedVec(vec![
-            Field::Uint32(1),
-            Field::Uint32(2),
-            Field::Uint32(3),
-        ]))
+        Field::Array(
+            FieldType::Uint32,
+            BoundedVec(vec![Field::Uint32(1), Field::Uint32(2), Field::Uint32(3)]),
+        )
     }
 
     #[test]
@@ -630,11 +628,14 @@ mod sequences {
     }
 
     fn expected_same_type_field() -> Field<AccountId32> {
-        Field::Array(BoundedVec(vec![
-            Field::Uint32(1u32),
-            Field::Uint32(2u32),
-            Field::Uint32(3u32),
-        ]))
+        Field::Array(
+            FieldType::Uint32,
+            BoundedVec(vec![
+                Field::Uint32(1u32),
+                Field::Uint32(2u32),
+                Field::Uint32(3u32),
+            ]),
+        )
     }
 
     #[test]
@@ -676,11 +677,14 @@ mod sequences {
     }
 
     fn expected_different_type_field() -> Field<AccountId32> {
-        Field::Array(BoundedVec(vec![
-            Field::Uint32(1u32),
-            Field::Uint16(2u16),
-            Field::Uint8(3u8),
-        ]))
+        Field::Array(
+            FieldType::Void,
+            BoundedVec(vec![
+                Field::Uint32(1u32),
+                Field::Uint16(2u16),
+                Field::Uint8(3u8),
+            ]),
+        )
     }
 
     #[test]

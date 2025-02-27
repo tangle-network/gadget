@@ -6,9 +6,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde::ser;
 use serde::Serialize;
+use tangle_subxt::FieldExt;
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
 
 /// A serializer for [`Field`]
 ///
@@ -79,9 +80,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        Ok(Field::List(BoundedVec(
-            v.iter().map(|b| Field::Uint8(*b)).collect(),
-        )))
+        Ok(Field::List(
+            FieldType::Uint8,
+            BoundedVec(v.iter().map(|b| Field::Uint8(*b)).collect()),
+        ))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -96,7 +98,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        Ok(Field::None)
+        Ok(Field::Optional(FieldType::Void, Box::new(None)))
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
@@ -139,7 +141,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             None => vec = Vec::new(),
         }
 
-        Ok(SerializeSeq { ser: self, vec })
+        Ok(SerializeSeq {
+            ser: self,
+            determined_type: None,
+            vec,
+        })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -200,6 +206,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 pub struct SerializeSeq<'a> {
     ser: &'a mut Serializer,
     vec: Vec<Field<AccountId32>>,
+    determined_type: Option<FieldType>,
 }
 
 impl SerializeSeq<'_> {
@@ -229,7 +236,7 @@ impl SerializeSeq<'_> {
         }
 
         homogeneous_check!(
-            Field::None,
+            Field::Optional(..),
             Field::Bool(_),
             Field::Uint8(_),
             Field::Int8(_),
@@ -240,8 +247,8 @@ impl SerializeSeq<'_> {
             Field::Uint64(_),
             Field::Int64(_),
             Field::String(_),
-            Field::Array(_),
-            Field::List(_),
+            Field::Array(..),
+            Field::List(..),
             Field::AccountId(_),
         )
     }
@@ -256,12 +263,19 @@ impl ser::SerializeSeq for SerializeSeq<'_> {
         T: ?Sized + Serialize,
     {
         let value = value.serialize(&mut *self.ser)?;
+        if self.determined_type.is_none() {
+            self.determined_type = Some(value.field_type());
+        }
+
         self.vec.push(value);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Field::List(BoundedVec(self.vec)))
+        Ok(Field::List(
+            self.determined_type.unwrap_or(FieldType::Void),
+            BoundedVec(self.vec),
+        ))
     }
 }
 
@@ -280,7 +294,10 @@ impl ser::SerializeTuple for SerializeSeq<'_> {
     #[inline]
     fn end(self) -> Result<Self::Ok> {
         if self.is_homogeneous() {
-            return Ok(Field::Array(BoundedVec(self.vec)));
+            return Ok(Field::Array(
+                self.determined_type.unwrap_or(FieldType::Void),
+                BoundedVec(self.vec),
+            ));
         }
 
         Err(crate::error::Error::HeterogeneousTuple)

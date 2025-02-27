@@ -24,7 +24,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Field::None => visitor.visit_none(),
+            Field::Optional(_, val) => match *val {
+                Some(val) => visitor.visit_some(Deserializer(val)),
+                None => visitor.visit_none(),
+            },
             Field::Bool(b) => visitor.visit_bool(b),
             Field::Uint8(u) => visitor.visit_u8(u),
             Field::Int8(i) => visitor.visit_i8(i),
@@ -38,7 +41,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 let s = String::from_utf8(s.0 .0)?;
                 visitor.visit_string(s)
             }
-            Field::Array(seq) | Field::List(seq) => visit_seq(seq.0, visitor),
+            Field::Array(_, seq) | Field::List(_, seq) => visit_seq(seq.0, visitor),
             Field::Struct(_, fields) => visit_struct(*fields, visitor),
             Field::AccountId(a) => visitor.visit_string(a.to_string()),
         }
@@ -92,8 +95,11 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Field::None => visitor.visit_none(),
-            _ => visitor.visit_some(self),
+            Field::Optional(_, opt) => match *opt {
+                Some(val) => visitor.visit_some(Deserializer(val)),
+                None => visitor.visit_none(),
+            },
+            _ => Err(self.invalid_type(&visitor)),
         }
     }
 
@@ -102,7 +108,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Field::None => visitor.visit_unit(),
+            Field::Optional(_, val) if val.is_none() => visitor.visit_unit(),
             _ => Err(self.invalid_type(&visitor)),
         }
     }
@@ -194,7 +200,7 @@ impl Deserializer {
     #[cold]
     fn unexpected(&self) -> de::Unexpected<'_> {
         match &self.0 {
-            Field::None => de::Unexpected::Unit,
+            Field::Optional(..) => de::Unexpected::Option,
             Field::Bool(b) => de::Unexpected::Bool(*b),
 
             Field::Uint8(u) => de::Unexpected::Unsigned(u64::from(*u)),
@@ -208,7 +214,7 @@ impl Deserializer {
             Field::Int64(i) => de::Unexpected::Signed(*i),
 
             Field::String(s) => de::Unexpected::Str(core::str::from_utf8(&s.0 .0).unwrap_or("")),
-            Field::Array(_) | Field::List(_) => de::Unexpected::Seq,
+            Field::Array(..) | Field::List(..) => de::Unexpected::Seq,
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),
         }
