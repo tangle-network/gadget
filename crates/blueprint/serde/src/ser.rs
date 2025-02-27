@@ -80,9 +80,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        Ok(Field::List(FieldType::Uint8, BoundedVec(
-            v.iter().map(|b| Field::Uint8(*b)).collect(),
-        )))
+        Ok(Field::List(
+            FieldType::Uint8,
+            BoundedVec(v.iter().map(|b| Field::Uint8(*b)).collect()),
+        ))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -140,7 +141,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             None => vec = Vec::new(),
         }
 
-        Ok(SerializeSeq { ser: self, determined_type: None, vec })
+        Ok(SerializeSeq {
+            ser: self,
+            determined_type: None,
+            vec,
+        })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -267,7 +272,10 @@ impl ser::SerializeSeq for SerializeSeq<'_> {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Ok(Field::List(self.determined_type.unwrap_or(FieldType::Void), BoundedVec(self.vec)))
+        Ok(Field::List(
+            self.determined_type.unwrap_or(FieldType::Void),
+            BoundedVec(self.vec),
+        ))
     }
 }
 
@@ -286,7 +294,10 @@ impl ser::SerializeTuple for SerializeSeq<'_> {
     #[inline]
     fn end(self) -> Result<Self::Ok> {
         if self.is_homogeneous() {
-            return Ok(Field::Array(self.determined_type.unwrap_or(FieldType::Void), BoundedVec(self.vec)));
+            return Ok(Field::Array(
+                self.determined_type.unwrap_or(FieldType::Void),
+                BoundedVec(self.vec),
+            ));
         }
 
         Err(crate::error::Error::HeterogeneousTuple)

@@ -31,6 +31,7 @@ use blueprint_sdk::tokio::time::timeout;
 use blueprint_sdk::utils::evm::get_provider_http;
 use blueprint_sdk::utils::tangle::send;
 use color_eyre::Result;
+use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
 
 #[tokio::test]
 async fn test_eigenlayer_context() {
@@ -224,7 +225,10 @@ async fn test_services_context() -> Result<()> {
         .submit_job(
             service_id,
             3,
-            vec![InputValue::List(BoundedVec(vec![InputValue::Uint8(0)]))],
+            vec![InputValue::List(
+                FieldType::Uint8,
+                BoundedVec(vec![InputValue::Uint8(0)]),
+            )],
         )
         .await?;
 
