@@ -1,0 +1,23 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0](https://github.com/tangle-network/gadget/releases/tag/gadget-networking-round-based-extension-v0.1.0) - 2025-02-27
+
+### Added
+
+- new networking ([#664](https://github.com/tangle-network/gadget/pull/664))
+
+### Fixed
+
+- update some tests
+
+### Other
+
+- Generalize networking key type ([#685](https://github.com/tangle-network/gadget/pull/685))
+- Update to tangle main services ([#674](https://github.com/tangle-network/gadget/pull/674))

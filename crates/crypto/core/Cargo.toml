@@ -1,6 +1,6 @@
 [package]
 name = "gadget-crypto-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Core crypto primitives for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true
