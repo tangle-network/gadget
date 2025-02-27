@@ -4,10 +4,10 @@ use blueprint_core::__composite_rejection as composite_rejection;
 use blueprint_core::__define_rejection as define_rejection;
 
 use gadget_blueprint_serde::{Field, from_field};
+use tangle_subxt::FieldExt;
 use tangle_subxt::parity_scale_codec::Decode;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
-use tangle_subxt::FieldExt;
 
 define_rejection! {
     #[body = "Missing argument in the job call"]

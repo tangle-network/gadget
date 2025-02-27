@@ -1,28 +1,27 @@
-[package]
-name = "experimental-blueprint"
+[workspace]
+resolver = "2"
+members = ["experimental-blueprint-lib", "experimental-blueprint-bin"]
+
+[workspace.package]
 version = "0.1.1"
 description = "An experimental blueprint"
-edition = "2021"
+edition = "2024"
 
-[package.metadata.blueprint]
-manager = { Evm = "ExperimentalBlueprint" }
-master_revision = "Latest"
+[workspace.dependencies]
+experimental-blueprint-lib = { path = "experimental-blueprint-lib" }
 
-[dependencies]
-blueprint-tangle-extra.workspace = true
-blueprint-core.workspace = true
-blueprint-router.workspace = true
-blueprint-runner.workspace = true
-tokio.workspace = true
-tower = { version = "0.5.2", features = ["util"] }
-async-trait = "0.1.86"
-tangle-subxt.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-gadget-tangle-testing-utils = { workspace = true }
-gadget-core-testing-utils = { workspace = true }
+blueprint-core = { path = "../../crates/core", default-features = false }
+blueprint-router = { path = "../../crates/router", default-features = false }
+blueprint-runner = { path = "../../crates/runner", default-features = false }
+blueprint-tangle-extra = { path = "../../crates/tangle-extra", default-features = false }
+tokio = "1.43.0"
+tower = { version = "0.5.2", default-features = false }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tempfile = "3.13.0"
-tracing = { workspace = true }
+tracing = "0.1.41"
+async-trait = "0.1.86"
+tangle-subxt = "0.13.0"
 
-[[bin]]
-name = "experimental-blueprint"
-path = "src/main.rs"
+# Testing
+gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
+gadget-tangle-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
