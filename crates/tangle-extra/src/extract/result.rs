@@ -5,6 +5,8 @@ use gadget_blueprint_serde::Field;
 use gadget_blueprint_serde::to_field;
 use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
+use tangle_subxt::FieldExt;
 
 use blueprint_core::__define_rejection as define_rejection;
 
@@ -69,4 +71,25 @@ macro_rules! impl_tangle_results {
     };
 }
 
+macro_rules! impl_tangle_field_types {
+    (
+        $name:ident,
+        $($ty:ident),*
+    ) => {
+       impl<$($ty,)*> crate::metadata::IntoTangleFieldTypes for $name<$($ty,)*>
+        where
+            $($ty: Default + serde::Serialize,)*
+        {
+            fn into_tangle_fields() -> Vec<FieldType> {
+                let mut ret = Vec::with_capacity(crate::count!($($ty,)*));
+                $(
+                    ret.push(gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type());
+                )*
+                ret
+            }
+        }
+    }
+}
+
 all_the_tuples!(impl_tangle_results);
+all_the_tuples!(impl_tangle_field_types);

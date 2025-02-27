@@ -10,5 +10,21 @@ pub mod extract;
 pub mod filters;
 /// Tangle Specific layers
 pub mod layers;
+/// Tangle Blueprint Build Metadata
+pub mod metadata;
 /// Tangle Network Job Producers
 pub mod producer;
+
+macro_rules! count {
+    ($val:ident, $($rest:tt)*) => {
+        1 + crate::count!($($rest)*)
+    };
+    ($val:ident) => {
+        1
+    };
+    () => {
+        0
+    }
+}
+
+pub(crate) use count;

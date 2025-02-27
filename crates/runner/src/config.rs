@@ -8,7 +8,7 @@ use crate::BlueprintConfig;
 use core::fmt::{Debug, Display};
 use core::str::FromStr;
 use serde::{Deserialize, Serialize};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::PriceTargets as TanglePriceTargets;
 use url::Url;
 
 /// The protocol on which a gadget will be executed.

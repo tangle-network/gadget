@@ -30,6 +30,8 @@ macro_rules! __log_rejection {
 }
 
 #[rustfmt::skip]
+#[doc(hidden)]
+#[macro_export]
 macro_rules! all_the_tuples {
     ($name:ident) => {
         $name!([], T1);

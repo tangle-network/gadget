@@ -38,7 +38,7 @@ async fn main() -> Result<(), BoxError> {
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
     );
-    BlueprintRunner::new(eigenlayer_bls_config, GadgetConfiguration::default())
+    BlueprintRunner::builder(eigenlayer_bls_config, GadgetConfiguration::default())
         .router(create_contract_router(task_manager))
         .producer(task_producer)
         .with_shutdown_handler(async {

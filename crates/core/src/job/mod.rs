@@ -302,6 +302,7 @@ where
         let svc = self.job.with_context(state);
         let svc = self.layer.layer(svc);
 
+        #[allow(clippy::type_complexity)]
         let future: Map<
             _,
             fn(

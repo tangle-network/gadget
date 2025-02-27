@@ -1,7 +1,9 @@
 [package]
 name = "blueprint-tangle-extra"
 version = "0.1.0"
+description = "Tangle Network extra utilities for Blueprint framework"
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 blueprint-core.workspace = true
@@ -16,7 +18,10 @@ serde.workspace = true
 
 # optional dependencies
 tracing = { workspace = true, optional = true }
-pin-project-lite = { workspace = true}
+pin-project-lite = { workspace = true }
+
+[dev-dependencies]
+paste = { workspace = true }
 
 [features]
 default = ["std", "tracing"]
