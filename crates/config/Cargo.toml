@@ -23,6 +23,7 @@ libp2p = { workspace = true, optional = true }
 gadget-networking = { workspace = true, optional = true }
 gadget-keystore = { workspace = true, optional = true, features = ["sp-core", "std"] }
 alloy-primitives = { workspace = true, features = ["serde"], optional = true }
+crossbeam-channel = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["serde"] }
@@ -39,11 +40,17 @@ std = [
 	"gadget-std/std",
 	"serde/std",
 	"serde_json/std",
+	"crossbeam-channel?/std",
 ]
 eigenlayer = ["dep:alloy-primitives"]
 symbiotic = ["dep:alloy-primitives"]
 tangle = []
-networking = ["dep:libp2p", "dep:gadget-networking", "keystore"]
+networking = [
+	"dep:libp2p",
+	"dep:gadget-networking",
+	"keystore",
+	"dep:crossbeam-channel",
+]
 
 # Core feature groups
 keystore = [

@@ -15,7 +15,9 @@ pub use context_config::{ContextConfig, GadgetCLICoreSettings};
 pub use protocol::{Protocol, ProtocolSettings};
 
 #[cfg(feature = "networking")]
-use gadget_networking::KeyType;
+use crossbeam_channel::Receiver;
+#[cfg(feature = "networking")]
+use gadget_networking::{AllowedKeys, KeyType};
 
 /// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
@@ -147,9 +149,10 @@ impl GadgetConfiguration {
         &self,
         network_config: gadget_networking::NetworkConfig<K>,
         allowed_keys: gadget_networking::service::AllowedKeys<K>,
+        allowed_keys_rx: Receiver<AllowedKeys<K>>,
     ) -> Result<gadget_networking::service_handle::NetworkServiceHandle<K>, Error> {
         let networking_service =
-            gadget_networking::NetworkService::new(network_config, allowed_keys)?;
+            gadget_networking::NetworkService::new(network_config, allowed_keys, allowed_keys_rx)?;
 
         let handle = networking_service.start();
 

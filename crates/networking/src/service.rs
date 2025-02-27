@@ -1,5 +1,5 @@
 use crate::{
-    behaviours::{GadgetBehaviour, GadgetBehaviourEvent},
+    behaviours::{GadgetBehaviour, GadgetBehaviourConfig, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
     discovery::{
         behaviour::{DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
@@ -20,7 +20,7 @@ use libp2p::{
     swarm::{dial_opts::DialOpts, SwarmEvent},
     Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{collections::HashSet, fmt::Display, sync::Arc, time::Duration};
 use tracing::trace;
 use tracing::{debug, info, warn};
 
@@ -65,6 +65,7 @@ pub enum NetworkEvent<K: KeyType> {
     HandshakeFailed { peer: PeerId, reason: String },
 }
 
+#[derive(Debug)]
 pub enum NetworkEventSendError<K: KeyType> {
     PeerConnected(PeerId),
     PeerDisconnected(PeerId),
@@ -102,44 +103,49 @@ pub enum NetworkEventSendError<K: KeyType> {
     },
 }
 
-impl<K: KeyType> ToString for NetworkEventSendError<K> {
-    fn to_string(&self) -> String {
+impl<K: KeyType> Display for NetworkEventSendError<K> {
+    fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
         match self {
             NetworkEventSendError::PeerConnected(peer) => {
-                format!("Error sending Peer connected event: {}", peer)
+                write!(f, "Error sending Peer connected event: {}", peer)
             }
             NetworkEventSendError::PeerDisconnected(peer) => {
-                format!("Error sending Peer disconnected event: {}", peer)
+                write!(f, "Error sending Peer disconnected event: {}", peer)
             }
             NetworkEventSendError::HandshakeCompleted { peer } => {
-                format!("Error sending Handshake completed event: {}", peer)
+                write!(f, "Error sending Handshake completed event: {}", peer)
             }
             NetworkEventSendError::HandshakeFailed { peer, reason } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Handshake failed event: {} ({})",
                     peer, reason
                 )
             }
             NetworkEventSendError::InstanceRequestInbound { peer, request } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Instance request inbound event: {} ({:#?})",
                     peer, request
                 )
             }
             NetworkEventSendError::InstanceResponseInbound { peer, response } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Instance response inbound event: {} ({:#?})",
                     peer, response
                 )
             }
             NetworkEventSendError::InstanceRequestOutbound { peer, request } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Instance request outbound event: {} ({:#?})",
                     peer, request
                 )
             }
             NetworkEventSendError::InstanceResponseOutbound { peer, response } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Instance response outbound event: {} ({:#?})",
                     peer, response
                 )
@@ -149,13 +155,15 @@ impl<K: KeyType> ToString for NetworkEventSendError<K> {
                 topic,
                 message,
             } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Gossip received event on topic: {} from source: {} ({:#?})",
                     topic, source, message
                 )
             }
             NetworkEventSendError::GossipSent { topic, message } => {
-                format!(
+                write!(
+                    f,
                     "Error sending Gossip sent event on topic: {} ({:#?})",
                     topic, message
                 )
@@ -221,6 +229,8 @@ pub struct NetworkService<K: KeyType> {
     event_receiver: Receiver<NetworkEvent<K>>,
     /// Bootstrap peers
     bootstrap_peers: HashSet<Multiaddr>,
+    /// Channel for receiving allowed keys updates
+    allowed_keys_rx: Receiver<AllowedKeys<K>>,
 }
 
 pub enum AllowedKeys<K: KeyType> {
@@ -239,7 +249,7 @@ impl<K: KeyType> NetworkService<K> {
     pub fn new(
         config: NetworkConfig<K>,
         allowed_keys: AllowedKeys<K>,
-        // allowed_keys_rx: Receiver<HashSet<InstanceMsgPublicKey>>,
+        allowed_keys_rx: Receiver<AllowedKeys<K>>,
     ) -> Result<Self, Error> {
         let NetworkConfig::<K> {
             network_name,
@@ -263,16 +273,17 @@ impl<K: KeyType> NetworkService<K> {
         let (event_sender, event_receiver) = crossbeam_channel::unbounded();
 
         // Create the swarm
-        let behaviour = GadgetBehaviour::new(
-            &network_name,
-            &blueprint_protocol_name,
-            &local_key,
-            &instance_key_pair,
+        let gadget_behaviour_config = GadgetBehaviourConfig {
+            network_name,
+            blueprint_protocol_name: blueprint_protocol_name.clone(),
+            local_key: local_key.clone(),
+            instance_key_pair,
             target_peer_count,
-            peer_manager.clone(),
-            protocol_message_sender.clone(),
+            peer_manager: peer_manager.clone(),
+            protocol_message_sender,
             using_evm_address_for_handshake_verification,
-        )?;
+        };
+        let behaviour = GadgetBehaviour::new(gadget_behaviour_config)?;
 
         let mut swarm = SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
@@ -308,6 +319,7 @@ impl<K: KeyType> NetworkService<K> {
             event_sender,
             event_receiver,
             bootstrap_peers,
+            allowed_keys_rx,
         })
     }
 
@@ -340,6 +352,13 @@ impl<K: KeyType> NetworkService<K> {
             info.addresses.insert(addr.clone());
         }
         self.peer_manager.update_peer(local_peer_id, info);
+
+        // Start allowed keys updater
+        let peer_manager = self.peer_manager.clone();
+        let allowed_keys_rx = self.allowed_keys_rx.clone();
+        tokio::spawn(async move {
+            peer_manager.run_allowed_keys_updater(&allowed_keys_rx);
+        });
 
         // Spawn background task
         tokio::spawn(async move {

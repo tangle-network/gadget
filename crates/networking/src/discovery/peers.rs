@@ -1,5 +1,6 @@
 use crate::service::AllowedKeys;
 use alloy_primitives::Address;
+use crossbeam_channel::Receiver;
 use dashmap::{DashMap, DashSet};
 use gadget_crypto::hashing::keccak_256;
 use gadget_crypto::BytesEncoding;
@@ -15,6 +16,114 @@ use tokio::sync::broadcast;
 use tracing::debug;
 
 use super::utils::{get_address_from_pubkey, secp256k1_ecdsa_recover};
+
+/// A collection of whitelisted keys
+#[derive(Debug, Clone)]
+pub enum WhitelistedKeys<K: KeyType> {
+    EvmAddresses(DashSet<Address>),
+    InstancePublicKeys(DashSet<K::Public>),
+}
+
+/// A key that can be used to verify a peer
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum VerificationIdentifierKey<K: KeyType> {
+    EvmAddress(Address),
+    InstancePublicKey(K::Public),
+}
+
+impl<K: KeyType> VerificationIdentifierKey<K> {
+    /// Verify a signature against the verification identifier key
+    ///
+    /// # Arguments
+    /// * `msg` - The message to verify
+    /// * `signature` - The signature to verify
+    ///
+    /// # Returns
+    /// `true` if the signature is valid, `false` otherwise
+    ///
+    /// # Errors
+    /// Returns an error if the signature is invalid
+    pub fn verify(
+        &self,
+        msg: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn gadget_std::error::Error>> {
+        match self {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                let msg = keccak_256(msg);
+                let mut sig: [u8; 65] = [0u8; 65];
+                sig[..signature.len()].copy_from_slice(signature);
+
+                let pubkey = secp256k1_ecdsa_recover(&sig, &msg)?;
+
+                let address_from_pk = get_address_from_pubkey(&pubkey);
+                Ok(address_from_pk == *address)
+            }
+            VerificationIdentifierKey::InstancePublicKey(public_key) => {
+                let signature = K::Signature::from_bytes(signature)?;
+                Ok(K::verify(public_key, msg, &signature))
+            }
+        }
+    }
+}
+
+impl<K: KeyType> WhitelistedKeys<K> {
+    /// Clears all whitelisted keys, removing all addresses or instance public keys
+    pub fn clear(&mut self) {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
+        }
+    }
+
+    /// Checks if a verification identifier key is whitelisted
+    ///
+    /// # Arguments
+    /// * `key` - The verification identifier key to check
+    ///
+    /// # Returns
+    /// `true` if the key is whitelisted, `false` otherwise
+    pub fn contains(&self, key: &VerificationIdentifierKey<K>) -> bool {
+        match key {
+            VerificationIdentifierKey::EvmAddress(address) => {
+                self.get_addresses().contains(address)
+            }
+            VerificationIdentifierKey::InstancePublicKey(key) => {
+                self.get_instance_keys().contains(key)
+            }
+        }
+    }
+
+    /// Gets the set of whitelisted Ethereum addresses
+    ///
+    /// # Panics
+    /// Panics if called on `WhitelistedKeys::InstancePublicKeys` variant
+    ///
+    /// # Returns
+    /// Reference to the set of whitelisted Ethereum addresses
+    #[must_use]
+    pub fn get_addresses(&self) -> &DashSet<Address> {
+        match self {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses,
+            WhitelistedKeys::InstancePublicKeys(_) => panic!("EvmAddresses expected"),
+        }
+    }
+
+    /// Gets the set of whitelisted instance public keys
+    ///
+    /// # Panics
+    /// Panics if called on `WhitelistedKeys::EvmAddresses` variant
+    ///
+    /// # Returns
+    /// Reference to the set of whitelisted instance public keys
+    #[must_use]
+    pub fn get_instance_keys(&self) -> &DashSet<K::Public> {
+        match self {
+            WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys,
+        }
+    }
+}
 
 /// Information about a peer's connection and behavior
 #[derive(Clone, Debug)]
@@ -89,81 +198,6 @@ impl<K: KeyType> Default for PeerManager<K> {
     }
 }
 
-/// A collection of whitelisted keys
-#[derive(Debug, Clone)]
-pub enum WhitelistedKeys<K: KeyType> {
-    EvmAddresses(DashSet<Address>),
-    InstancePublicKeys(DashSet<K::Public>),
-}
-
-/// A key that can be used to verify a peer
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum VerificationIdentifierKey<K: KeyType> {
-    EvmAddress(Address),
-    InstancePublicKey(K::Public),
-}
-
-impl<K: KeyType> VerificationIdentifierKey<K> {
-    pub fn verify(
-        &self,
-        msg: &[u8],
-        signature: &[u8],
-    ) -> Result<bool, Box<dyn gadget_std::error::Error>> {
-        match self {
-            VerificationIdentifierKey::EvmAddress(address) => {
-                let msg = keccak_256(msg);
-                let mut sig: [u8; 65] = [0u8; 65];
-                sig[..signature.len()].copy_from_slice(signature);
-
-                let pubkey = secp256k1_ecdsa_recover(&sig, &msg)?;
-
-                let address_from_pk = get_address_from_pubkey(&pubkey);
-                Ok(address_from_pk == *address)
-            }
-            VerificationIdentifierKey::InstancePublicKey(public_key) => {
-                let signature = K::Signature::from_bytes(signature)?;
-                Ok(K::verify(public_key, msg, &signature))
-            }
-        }
-    }
-}
-
-impl<K: KeyType> WhitelistedKeys<K> {
-    pub fn clear(&mut self) {
-        match self {
-            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
-            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
-        }
-    }
-
-    pub fn contains(&self, key: &VerificationIdentifierKey<K>) -> bool {
-        match key {
-            VerificationIdentifierKey::EvmAddress(address) => {
-                self.get_addresses().contains(address)
-            }
-            VerificationIdentifierKey::InstancePublicKey(key) => {
-                self.get_instance_keys().contains(key)
-            }
-        }
-    }
-
-    #[must_use]
-    pub fn get_addresses(&self) -> &DashSet<Address> {
-        match self {
-            WhitelistedKeys::EvmAddresses(addresses) => addresses,
-            WhitelistedKeys::InstancePublicKeys(_) => panic!("EvmAddresses expected"),
-        }
-    }
-
-    #[must_use]
-    pub fn get_instance_keys(&self) -> &DashSet<K::Public> {
-        match self {
-            WhitelistedKeys::EvmAddresses(_) => panic!("InstancePublicKeys expected"),
-            WhitelistedKeys::InstancePublicKeys(keys) => keys,
-        }
-    }
-}
-
 impl<K: KeyType> PeerManager<K> {
     #[must_use]
     pub fn new(allowed_keys: AllowedKeys<K>) -> Self {
@@ -185,6 +219,31 @@ impl<K: KeyType> PeerManager<K> {
         }
     }
 
+    /// Run the allowed keys updater.
+    /// This will clear the whitelisted keys and update them with the new allowed keys.
+    ///
+    /// # Arguments
+    /// * `allowed_keys_rx` - A channel to receive allowed keys updates
+    pub fn run_allowed_keys_updater(&self, allowed_keys_rx: &Receiver<AllowedKeys<K>>) {
+        while let Ok(allowed_keys) = allowed_keys_rx.recv() {
+            self.clear_whitelisted_keys();
+            self.update_whitelisted_keys(allowed_keys);
+        }
+    }
+
+    /// Clears the whitelisted keys
+    pub fn clear_whitelisted_keys(&self) {
+        match &self.whitelisted_keys {
+            WhitelistedKeys::EvmAddresses(addresses) => addresses.clear(),
+            WhitelistedKeys::InstancePublicKeys(keys) => keys.clear(),
+        }
+    }
+
+    /// Updates the whitelisted keys
+    /// This will update the whitelisted keys with the new allowed keys
+    ///
+    /// # Arguments
+    /// * `keys` - The allowed keys to update with
     pub fn update_whitelisted_keys(&self, keys: AllowedKeys<K>) {
         match keys {
             AllowedKeys::EvmAddresses(addresses) => {

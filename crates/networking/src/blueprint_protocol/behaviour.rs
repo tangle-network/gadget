@@ -438,7 +438,7 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                         InstanceMessageRequest::Handshake {
                             verification_id_key: if self.use_address_for_handshake_verification {
                                 VerificationIdentifierKey::EvmAddress(
-                                    get_address_from_compressed_pubkey(public_key.to_bytes()),
+                                    get_address_from_compressed_pubkey(&public_key.to_bytes()),
                                 )
                             } else {
                                 VerificationIdentifierKey::InstancePublicKey(public_key)

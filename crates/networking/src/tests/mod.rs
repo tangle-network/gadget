@@ -90,8 +90,9 @@ impl<K: KeyType> TestNode<K> {
             using_evm_address_for_handshake_verification,
         };
 
-        let service =
-            NetworkService::new(config, allowed_keys).expect("Failed to create network service");
+        let (_, allowed_keys_rx) = crossbeam_channel::unbounded();
+        let service = NetworkService::new(config, allowed_keys, allowed_keys_rx)
+            .expect("Failed to create network service");
 
         Self {
             service: Some(service),
