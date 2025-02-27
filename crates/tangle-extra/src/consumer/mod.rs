@@ -1,6 +1,7 @@
 use crate::extract;
 use crate::extract::{InvalidCallId, InvalidServiceId};
 use crate::producer::TangleConfig;
+use crate::tracing;
 use blueprint_core::{BoxError, JobResult};
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -15,7 +16,6 @@ use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::submit_result::{
     CallId, Result as SubmitResult, ServiceId,
 };
-use tracing::debug;
 
 enum State {
     WaitingForResult,
@@ -159,11 +159,12 @@ where
     X: subxt::tx::Payload,
     <T::ExtrinsicParams as subxt::config::ExtrinsicParams<T>>::Params: Default,
 {
+    #[cfg(feature = "tracing")]
     if let Some(details) = xt.validation_details() {
-        debug!("Calling {}.{}", details.pallet_name, details.call_name);
+        tracing::debug!("Calling {}.{}", details.pallet_name, details.call_name);
     }
 
-    debug!("Waiting for the transaction to be included in a finalized block");
+    tracing::debug!("Waiting for the transaction to be included in a finalized block");
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&xt, &*signer)
@@ -171,9 +172,9 @@ where
 
     #[cfg(not(test))]
     {
-        debug!("Waiting for finalized success ...");
+        tracing::debug!("Waiting for finalized success ...");
         let result = progress.wait_for_finalized_success().await?;
-        debug!(
+        tracing::debug!(
             "Transaction with hash: {:?} has been finalized",
             result.extrinsic_hash()
         );
@@ -186,9 +187,9 @@ where
         // In tests, we don't wait for the transaction to be finalized.
         // This is because the test environment we will be using instant sealing.
         // Instead, we just wait for the transaction to be included in a block.
-        debug!("Waiting for in block success ...");
+        tracing::debug!("Waiting for in block success ...");
         let result = progress.wait_for_in_block_success().await?;
-        debug!(
+        tracing::debug!(
             "Transaction with hash: {:?} has been included in a block",
             result.extrinsic_hash()
         );

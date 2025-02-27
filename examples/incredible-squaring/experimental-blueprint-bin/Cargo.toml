@@ -1,0 +1,19 @@
+[package]
+name = "experimental-blueprint-bin"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+experimental-blueprint-lib.workspace = true
+
+blueprint-core.workspace = true
+blueprint-tangle-extra.workspace = true
+blueprint-runner.workspace = true
+blueprint-router.workspace = true
+gadget-tangle-testing-utils.workspace = true
+gadget-core-testing-utils.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tempfile = "3.13.0"
+tracing = { workspace = true }
+tower.workspace = true
