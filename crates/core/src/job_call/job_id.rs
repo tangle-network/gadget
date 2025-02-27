@@ -110,7 +110,7 @@ impl From<[u8; 32]> for JobId {
     #[inline]
     fn from(value: [u8; 32]) -> Self {
         // Safe because they are same size and layout
-        Self(unsafe { core::mem::transmute(value) })
+        Self(unsafe { core::mem::transmute::<[u8; 32], [u64; 4]>(value) })
     }
 }
 

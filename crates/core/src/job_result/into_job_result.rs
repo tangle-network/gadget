@@ -116,7 +116,7 @@ where
     T: IntoJobResult,
 {
     fn into_job_result(self) -> Option<JobResult> {
-        self.map(IntoJobResult::into_job_result).flatten()
+        self.and_then(IntoJobResult::into_job_result)
     }
 }
 

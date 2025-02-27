@@ -171,7 +171,7 @@ mod tests {
         let handle = tokio::spawn(submit_tasks(provider.clone(), *contract.address()));
 
         // Create and run the blueprint
-        BlueprintRunner::new(MockBlueprintConfig, Default::default())
+        BlueprintRunner::builder(MockBlueprintConfig, Default::default())
             .router(create_contract_router(*contract.address()))
             .producer(task_polling_producer)
             .run()

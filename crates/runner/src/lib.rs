@@ -153,7 +153,7 @@ where
 pub struct BlueprintRunner;
 
 impl BlueprintRunner {
-    pub fn new<C: BlueprintConfig + 'static>(
+    pub fn builder<C: BlueprintConfig + 'static>(
         config: C,
         env: GadgetConfiguration,
     ) -> BlueprintRunnerBuilder<impl Future<Output = ()> + Send + 'static> {

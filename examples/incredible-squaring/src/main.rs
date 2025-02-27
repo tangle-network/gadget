@@ -44,7 +44,7 @@ pub async fn square(
     CallId(call_id): CallId,
     Context(ctx): Context<MyContext>,
     TangleArg(x): TangleArg<u64>,
-) -> impl IntoJobResult {
+) -> TangleResult<u64> {
     println!("call_id: {}", call_id);
     println!("ctx.foo: {:?}", ctx.foo);
     println!("x: {}", x);
@@ -147,7 +147,7 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
     let tangle_producer = TangleProducer::finalized_blocks(tangle_client.clone()).await?;
     let tangle_consumer = TangleConsumer::new(tangle_client, harness.sr25519_signer.clone());
 
-    let result = BlueprintRunner::new(tangle_config, GadgetConfiguration::default())
+    let result = BlueprintRunner::builder(tangle_config, GadgetConfiguration::default())
         .router(
             // A router
             //

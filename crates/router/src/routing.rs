@@ -216,17 +216,17 @@ where
         tracing::trace!(?call, "routing a job call to inner routers");
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
             Ok(matched_call_future) => {
-                return Some(matched_call_future).into();
+                return Some(matched_call_future);
             }
             Err((call, context)) => (call, context),
         };
 
         // At this point, no route matched the job ID, and there are no always routes
 
-        match self.inner.job_id_router.call_fallback(call, context) {
-            Some(future) => Some(FuturesUnordered::from_iter(iter::once(future))).into(),
-            None => None,
-        }
+        self.inner
+            .job_id_router
+            .call_fallback(call, context)
+            .map(|future| FuturesUnordered::from_iter(iter::once(future)))
     }
 
     /// Convert the router into a borrowed [`Service`] with a fixed request body type, to aid type

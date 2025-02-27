@@ -8,14 +8,19 @@ use pin_project_lite::pin_project;
 use tower::Service;
 use tower::util::Oneshot;
 
+type ServiceFutureInner<F> = Map<F, fn(Option<JobResult>) -> Result<Option<JobResult>, BoxError>>;
+
 opaque_future! {
     /// The response future for [`IntoService`](super::IntoService).
-    pub type IntoServiceFuture<F> =
-        Map<
-            F,
-            fn(Option<JobResult>) -> Result<Option<JobResult>, BoxError>,
-        >;
+    pub type IntoServiceFuture<F> = ServiceFutureInner<F>;
 }
+
+type LayeredFutureInner<S> = Map<
+    Oneshot<S, JobCall>,
+    fn(
+        Result<<S as Service<JobCall>>::Response, <S as Service<JobCall>>::Error>,
+    ) -> Option<JobResult>,
+>;
 
 pin_project! {
     /// The response future for [`Layered`](super::Layered).
@@ -24,7 +29,7 @@ pin_project! {
         S: Service<JobCall>,
     {
         #[pin]
-        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> Option<JobResult>>,
+        inner: LayeredFutureInner<S>,
     }
 }
 
@@ -32,9 +37,7 @@ impl<S> LayeredFuture<S>
 where
     S: Service<JobCall>,
 {
-    pub(super) fn new(
-        inner: Map<Oneshot<S, JobCall>, fn(Result<S::Response, S::Error>) -> Option<JobResult>>,
-    ) -> Self {
+    pub(super) fn new(inner: LayeredFutureInner<S>) -> Self {
         Self { inner }
     }
 }
