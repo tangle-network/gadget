@@ -1,13 +1,18 @@
-use crate::node::testnet::{Error, SubstrateNode, TANGLE_NODE_ENV};
+use crate::testnet::{Error, SubstrateNode, TANGLE_NODE_ENV};
 use gadget_std::fs;
 use gadget_std::io::Write;
 use gadget_std::path::PathBuf;
 use reqwest;
+use tangle_subxt::subxt::utils::AccountId32;
 
+pub mod error;
 pub mod testnet;
 pub mod transactions;
 
 pub use testnet::NodeConfig;
+
+pub type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.10/tangle-testnet-manual-seal-darwin-amd64";
 const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.10/tangle-testnet-manual-seal-linux-amd64";

@@ -21,7 +21,7 @@ use blueprint_sdk::std::time::Duration;
 use blueprint_sdk::tangle_subxt::subxt::utils::AccountId32;
 use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::tx;
 use blueprint_sdk::testing::tempfile;
-use blueprint_sdk::testing::utils::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
+use gadget_chain_setup_anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use blueprint_sdk::testing::utils::anvil::{get_receipt, start_default_anvil_testnet};
 use blueprint_sdk::testing::utils::harness::TestHarness;
 use blueprint_sdk::testing::utils::tangle::{InputValue, TangleTestHarness};

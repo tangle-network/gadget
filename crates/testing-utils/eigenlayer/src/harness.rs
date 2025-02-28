@@ -3,8 +3,8 @@ use crate::Error;
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use alloy_transport::BoxTransport;
-use gadget_anvil_testing_utils::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
+use gadget_chain_setup::anvil::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
+use gadget_chain_setup::anvil::{start_default_anvil_testnet, Container};
 use gadget_config::{
     protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
     GadgetConfiguration,
