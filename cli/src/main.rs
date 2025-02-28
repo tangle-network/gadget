@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use crate::deploy::tangle::{Opts, deploy_to_tangle};
 use crate::keys::prompt_for_keys;
 use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
@@ -15,9 +14,27 @@ use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
+use tangle_subxt::subxt::blocks::ExtrinsicEvents;
+use tangle_subxt::subxt::client::OnlineClientT;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::subxt::tx::{Signer, TxProgress};
+use tangle_subxt::subxt_core::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{Asset, AssetSecurityCommitment, AssetSecurityRequirement, MembershipModel};
+use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
 use tokio::signal;
+use cargo_tangle::deploy::tangle::{deploy_to_tangle, Opts};
+use gadget_clients::tangle::client::TangleClient;
+use gadget_crypto::sp_core::SpSr25519;
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::{Keystore, KeystoreConfig};
+
+type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -175,6 +192,160 @@ pub enum BlueprintCommands {
         /// Path to the protocol settings env file
         #[arg(short = 'f', long, default_value = "./settings.env")]
         settings_file: Option<PathBuf>,
+    },
+
+    /// List service requests for a Tangle blueprint
+    #[command(visible_alias = "ls")]
+    ListRequests {
+        /// HTTP RPC URL to use
+        #[arg(long, env = "HTTP_RPC_URL")]
+        http_rpc_url: String,
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+    },
+
+    /// Accept a Tangle service request
+    #[command(visible_alias = "resp")]
+    AcceptRequest {
+        /// HTTP RPC URL to use
+        #[arg(long, env = "HTTP_RPC_URL")]
+        http_rpc_url: String,
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The service ID to request
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        // /// The asset to be used
+        // #[arg(long, value_enum)]
+        // asset: Asset<u128>,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The keystore password to use
+        #[arg(long, env = "KEYSTORE_PASSWORD")]
+        keystore_password: Option<String>,
+        /// The chain to request on
+        #[arg(long, env = "CHAIN")]
+        chain: SupportedChains,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+        /// The restaking percentage to use
+        #[arg(long, default_value = "50")]
+        restaking_percent: u8,
+    },
+
+    /// Reject a Tangle service request
+    #[command(visible_alias = "resp")]
+    RejectRequest {
+        /// HTTP RPC URL to use
+        #[arg(long, env = "HTTP_RPC_URL")]
+        http_rpc_url: String,
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The service ID to request
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The keystore password to use
+        #[arg(long, env = "KEYSTORE_PASSWORD")]
+        keystore_password: Option<String>,
+        /// The chain to request on
+        #[arg(long, env = "CHAIN")]
+        chain: SupportedChains,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+    },
+
+    /// Request a Tangle service
+    #[command(visible_alias = "req")]
+    RequestService {
+        /// HTTP RPC URL to use
+        #[arg(long, env = "HTTP_RPC_URL")]
+        http_rpc_url: String,
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The service ID to request
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        // /// The asset to be used
+        // #[arg(long, value_enum)]
+        // asset: Asset<u128>,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The target operators to request
+        #[arg(long)]
+        target_operators: Vec<AccountId32>,
+        /// The value to request
+        #[arg(long)]
+        value: u128,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The keystore password to use
+        #[arg(long, env = "KEYSTORE_PASSWORD")]
+        keystore_password: Option<String>,
+        /// The chain to request on
+        #[arg(long, env = "CHAIN")]
+        chain: SupportedChains,
+    },
+
+    /// Submit a job to a Tangle service
+    #[command(visible_alias = "job")]
+    SubmitJob {
+        /// HTTP RPC URL to use
+        #[arg(long, env = "HTTP_RPC_URL")]
+        http_rpc_url: String,
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The service ID to request
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The keystore password to use
+        #[arg(long, env = "KEYSTORE_PASSWORD")]
+        keystore_password: Option<String>,
+        /// The chain to request on
+        #[arg(long, env = "CHAIN")]
+        chain: SupportedChains,
+        /// The job ID to submit
+        #[arg(long)]
+        job: u8,
+        // /// The job inputs as JSON array
+        // #[arg(long)]
+        // inputs: Vec<InputValue>,
     },
 }
 
@@ -466,6 +637,201 @@ async fn main() -> color_eyre::Result<()> {
                     }
                 }
             }
+            BlueprintCommands::ListRequests {
+                http_rpc_url,
+                ws_rpc_url,
+            } => {}
+            BlueprintCommands::AcceptRequest {
+                http_rpc_url,
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                // asset,
+                min_exposure_percent,
+                max_exposure_percent,
+                restaking_percent,
+                keystore_uri,
+                keystore_password,
+                chain,
+                request_id,
+            } => {
+                let config = ContextConfig::create_tangle_config(
+                    http_rpc_url.parse().unwrap(),
+                    ws_rpc_url.parse().unwrap(),
+                    keystore_uri,
+                    keystore_password,
+                    chain,
+                    blueprint_id,
+                    service_id,
+                );
+                let config = load(config).unwrap();
+                let client = TangleClient::new(config.clone()).await.unwrap();
+                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
+                let keystore = Keystore::new(config).expect("Failed to create keystore");
+                let public = keystore.first_local::<SpSr25519>().unwrap();
+                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
+                let signer = TanglePairSigner::new(pair.0);
+
+                let native_security_commitments =
+                    vec![get_security_commitment(Asset::Custom(0), restaking_percent)];
+                // TODO: Add support for other assets
+
+                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
+                    .services()
+                    .approve(request_id, native_security_commitments);
+                let res = client
+                    .subxt_client()
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &signer)
+                    .await?;
+                wait_for_in_block_success(res).await;
+            }
+            BlueprintCommands::RejectRequest {
+                http_rpc_url,
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                keystore_uri,
+                keystore_password,
+                chain,
+                request_id,
+            } => {
+                let config = ContextConfig::create_tangle_config(
+                    http_rpc_url.parse().unwrap(),
+                    ws_rpc_url.parse().unwrap(),
+                    keystore_uri,
+                    keystore_password,
+                    chain,
+                    blueprint_id,
+                    service_id,
+                );
+                let config = load(config).unwrap();
+                let client = TangleClient::new(config.clone()).await.unwrap();
+                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
+                let keystore = Keystore::new(config).expect("Failed to create keystore");
+                let public = keystore.first_local::<SpSr25519>().unwrap();
+                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
+                let signer = TanglePairSigner::new(pair.0);
+
+                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
+                    .services()
+                    .reject(request_id);
+                let res = client
+                    .subxt_client()
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &signer)
+                    .await?;
+                wait_for_in_block_success(res).await;
+            }
+            BlueprintCommands::RequestService {
+                http_rpc_url,
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                // asset,
+                min_exposure_percent,
+                max_exposure_percent,
+                target_operators,
+                value,
+                keystore_uri,
+                keystore_password,
+                chain,
+            } => {
+                let config = ContextConfig::create_tangle_config(
+                    http_rpc_url.parse().unwrap(),
+                    ws_rpc_url.parse().unwrap(),
+                    keystore_uri,
+                    keystore_password,
+                    chain,
+                    blueprint_id,
+                    service_id,
+                );
+                let config = load(config).unwrap();
+                let client = TangleClient::new(config.clone()).await.unwrap();
+                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
+                let keystore = Keystore::new(config).expect("Failed to create keystore");
+                let public = keystore.first_local::<SpSr25519>().unwrap();
+                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
+                let signer = TanglePairSigner::new(pair.0);
+
+                let min_operators = 0u32;
+                let security_requirements = vec![AssetSecurityRequirement {
+                    asset: Asset::Custom(0), // TODO: Add asset
+                    min_exposure_percent: Percent(min_exposure_percent),
+                    max_exposure_percent: Percent(max_exposure_percent),
+                }];
+                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
+                    .services()
+                    .request(
+                        None,
+                        blueprint_id,
+                        Vec::new(),
+                        target_operators,
+                        Default::default(),
+                        security_requirements,
+                        1000,
+                        Asset::Custom(0), // TODO: Add asset
+                        value,
+                        MembershipModel::Fixed { min_operators },
+                    );
+                let res = client
+                    .subxt_client()
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &signer)
+                    .await?;
+                wait_for_in_block_success(res).await;
+            }
+            BlueprintCommands::SubmitJob {
+                http_rpc_url,
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                keystore_uri,
+                keystore_password,
+                chain,
+                job,
+                // inputs,
+            } => {
+                let config = ContextConfig::create_tangle_config(
+                    http_rpc_url.parse().unwrap(),
+                    ws_rpc_url.parse().unwrap(),
+                    keystore_uri,
+                    keystore_password,
+                    chain,
+                    blueprint_id,
+                    service_id,
+                );
+                let config = load(config).unwrap();
+                let client = TangleClient::new(config.clone()).await.unwrap();
+                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
+                let keystore = Keystore::new(config).expect("Failed to create keystore");
+                let public = keystore.first_local::<SpSr25519>().unwrap();
+                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
+                let signer = TanglePairSigner::new(pair.0);
+
+                let service_id = service_id.unwrap();
+
+                let call = api::tx().services().call(service_id, job, vec![]); // TODO: Add inputs
+                let events = client
+                    .subxt_client()
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &signer)
+                    .await?
+                    .wait_for_finalized_success()
+                    .await?;
+
+                let job_called_events = events.find::<JobCalled>().collect::<Vec<_>>();
+                for job_called in job_called_events {
+                    let job_called = job_called?;
+                    if job_called.service_id == service_id
+                        && job_called.job == job
+                        && signer.account_id() == job_called.caller
+                    {
+                        return Ok(());
+                    }
+                }
+                panic!("Job was not called");
+            }
         },
         Commands::Key { command } => match command {
             KeyCommands::Generate {
@@ -633,6 +999,27 @@ fn init_tracing_subscriber() {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(fmt_layer)
         .init();
+}
+
+pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
+    AssetSecurityCommitment {
+        asset: a,
+        exposure_percent: Percent(p),
+    }
+}
+
+pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
+    mut res: TxProgress<T, C>,
+) -> ExtrinsicEvents<T> {
+    let mut val = Err("Failed to get in block success".into());
+    while let Some(Ok(event)) = res.next().await {
+        let Some(block) = event.as_in_block() else {
+            continue;
+        };
+        val = block.wait_for_success().await;
+    }
+
+    val.unwrap()
 }
 
 #[cfg(test)]
