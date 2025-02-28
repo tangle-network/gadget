@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "experiment",
-    "description": "an experimental blueprint",
+    "description": "",
     "author": "",
     "category": null,
     "code_repository": "",
@@ -17,11 +17,15 @@
     {
       "job_id": 0,
       "metadata": {
-        "name": "square",
-        "description": "squares a number"
+        "name": "experimental_blueprint_lib::square",
+        "description": null
       },
-      "params": ["Uint64"],
-      "result": ["Uint64"]
+      "params": [
+        "Uint64"
+      ],
+      "result": [
+        "Uint64"
+      ]
     }
   ],
   "registration_params": [],
@@ -32,9 +36,9 @@
         {
           "fetcher": {
             "Testing": {
-              "cargo_package": "experimental-blueprint",
+              "cargo_package": "experimental-blueprint-bin",
               "cargo_bin": "main",
-              "base_path": "/home/alex/Projects/Contributions/blueprint-experimental/examples/incredible-squaring"
+              "base_path": "/home/alex/Projects/Contributions/blueprint-experimental/examples/incredible-squaring/experimental-blueprint-bin"
             }
           }
         }

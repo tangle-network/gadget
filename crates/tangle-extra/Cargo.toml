@@ -16,6 +16,14 @@ gadget-utils-tangle = { workspace = true, optional = true }
 tangle-subxt.workspace = true
 serde.workspace = true
 
+# Macros
+serde_json = { workspace = true, optional = true }
+cargo_metadata = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+# Metadata types
+cid = { workspace = true, features = ["serde", "alloc"], optional = true }
+
 # optional dependencies
 tracing = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }
@@ -24,7 +32,9 @@ pin-project-lite = { workspace = true }
 paste = { workspace = true }
 
 [features]
-default = ["std", "tracing"]
+default = ["std", "tracing", "macros"]
 std = ["dep:gadget-utils-tangle", "futures-util/std", "gadget-utils-tangle/std"]
 web = ["dep:gadget-utils-tangle", "futures-util/std", "gadget-utils-tangle/web"]
 tracing = ["dep:tracing"]
+metadata-types = ["dep:cid"]
+macros = ["dep:serde_json", "dep:cargo_metadata", "dep:thiserror", "metadata-types"]
