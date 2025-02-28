@@ -2321,6 +2321,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-build-utils"
+version = "0.1.0"
+source = "git+https://github.com/tangle-network/gadget.git?rev=9c0a037#9c0a0377187cb81869da390061238c6d12108ebb"
+dependencies = [
+ "gadget-std",
+]
+
+[[package]]
 name = "blueprint-core"
 version = "0.1.0"
 dependencies = [
@@ -2373,12 +2381,16 @@ version = "0.1.0"
 dependencies = [
  "blueprint-core",
  "bytes",
+ "cargo_metadata 0.19.1",
+ "cid",
  "futures-core",
  "futures-util",
  "gadget-blueprint-serde",
  "pin-project-lite",
  "serde",
+ "serde_json",
  "tangle-subxt",
+ "thiserror 2.0.11",
  "tower",
 ]
 
@@ -2980,6 +2992,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8769706aad5d996120af43197bf46ef6ad0fda35216b4505f926a365a232d924"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver 1.0.25",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -5342,6 +5368,7 @@ dependencies = [
 name = "experimental-blueprint-bin"
 version = "0.1.0"
 dependencies = [
+ "blueprint-build-utils",
  "blueprint-core",
  "blueprint-router",
  "blueprint-runner",

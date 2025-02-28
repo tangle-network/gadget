@@ -17,3 +17,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tempfile = "3.13.0"
 tracing = { workspace = true }
 tower.workspace = true
+
+[build-dependencies]
+experimental-blueprint-lib.workspace = true
+blueprint-build-utils = { workspace = true }
+blueprint-tangle-extra = { workspace = true, features = ["macros"] }

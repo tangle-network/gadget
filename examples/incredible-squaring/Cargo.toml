@@ -21,6 +21,7 @@ tempfile = "3.13.0"
 tracing = "0.1.41"
 async-trait = "0.1.86"
 tangle-subxt = "0.13.0"
+blueprint-build-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
 
 # Testing
 gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
