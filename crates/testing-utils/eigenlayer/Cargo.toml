@@ -18,6 +18,7 @@ futures = { workspace = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
+gadget-chain-setup = { workspace = true, features = ["std", "anvil"] }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["eigenlayer", "evm", "std"] }
 tempfile = { workspace = true }

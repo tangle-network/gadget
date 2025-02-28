@@ -640,13 +640,14 @@ async fn main() -> color_eyre::Result<()> {
             BlueprintCommands::ListRequests {
                 http_rpc_url,
                 ws_rpc_url,
-            } => {}
+            } => {
+                commands::list_requests(http_rpc_url, ws_rpc_url).await?;
+            }
             BlueprintCommands::AcceptRequest {
                 http_rpc_url,
                 ws_rpc_url,
                 service_id,
                 blueprint_id,
-                // asset,
                 min_exposure_percent,
                 max_exposure_percent,
                 restaking_percent,
@@ -655,36 +656,20 @@ async fn main() -> color_eyre::Result<()> {
                 chain,
                 request_id,
             } => {
-                let config = ContextConfig::create_tangle_config(
-                    http_rpc_url.parse().unwrap(),
-                    ws_rpc_url.parse().unwrap(),
+                commands::accept_request(
+                    http_rpc_url,
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    restaking_percent,
                     keystore_uri,
                     keystore_password,
                     chain,
-                    blueprint_id,
-                    service_id,
-                );
-                let config = load(config).unwrap();
-                let client = TangleClient::new(config.clone()).await.unwrap();
-                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
-                let keystore = Keystore::new(config).expect("Failed to create keystore");
-                let public = keystore.first_local::<SpSr25519>().unwrap();
-                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
-                let signer = TanglePairSigner::new(pair.0);
-
-                let native_security_commitments =
-                    vec![get_security_commitment(Asset::Custom(0), restaking_percent)];
-                // TODO: Add support for other assets
-
-                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
-                    .services()
-                    .approve(request_id, native_security_commitments);
-                let res = client
-                    .subxt_client()
-                    .tx()
-                    .sign_and_submit_then_watch_default(&call, &signer)
-                    .await?;
-                wait_for_in_block_success(res).await;
+                    request_id,
+                )
+                .await?;
             }
             BlueprintCommands::RejectRequest {
                 http_rpc_url,
@@ -696,39 +681,23 @@ async fn main() -> color_eyre::Result<()> {
                 chain,
                 request_id,
             } => {
-                let config = ContextConfig::create_tangle_config(
-                    http_rpc_url.parse().unwrap(),
-                    ws_rpc_url.parse().unwrap(),
+                commands::reject_request(
+                    http_rpc_url,
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
                     keystore_uri,
                     keystore_password,
                     chain,
-                    blueprint_id,
-                    service_id,
-                );
-                let config = load(config).unwrap();
-                let client = TangleClient::new(config.clone()).await.unwrap();
-                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
-                let keystore = Keystore::new(config).expect("Failed to create keystore");
-                let public = keystore.first_local::<SpSr25519>().unwrap();
-                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
-                let signer = TanglePairSigner::new(pair.0);
-
-                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
-                    .services()
-                    .reject(request_id);
-                let res = client
-                    .subxt_client()
-                    .tx()
-                    .sign_and_submit_then_watch_default(&call, &signer)
-                    .await?;
-                wait_for_in_block_success(res).await;
+                    request_id,
+                )
+                .await?;
             }
             BlueprintCommands::RequestService {
                 http_rpc_url,
                 ws_rpc_url,
                 service_id,
                 blueprint_id,
-                // asset,
                 min_exposure_percent,
                 max_exposure_percent,
                 target_operators,
@@ -737,49 +706,20 @@ async fn main() -> color_eyre::Result<()> {
                 keystore_password,
                 chain,
             } => {
-                let config = ContextConfig::create_tangle_config(
-                    http_rpc_url.parse().unwrap(),
-                    ws_rpc_url.parse().unwrap(),
+                commands::request_service(
+                    http_rpc_url,
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    target_operators,
+                    value,
                     keystore_uri,
                     keystore_password,
                     chain,
-                    blueprint_id,
-                    service_id,
-                );
-                let config = load(config).unwrap();
-                let client = TangleClient::new(config.clone()).await.unwrap();
-                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
-                let keystore = Keystore::new(config).expect("Failed to create keystore");
-                let public = keystore.first_local::<SpSr25519>().unwrap();
-                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
-                let signer = TanglePairSigner::new(pair.0);
-
-                let min_operators = 0u32;
-                let security_requirements = vec![AssetSecurityRequirement {
-                    asset: Asset::Custom(0), // TODO: Add asset
-                    min_exposure_percent: Percent(min_exposure_percent),
-                    max_exposure_percent: Percent(max_exposure_percent),
-                }];
-                let call = tangle_subxt::tangle_testnet_runtime::api::tx()
-                    .services()
-                    .request(
-                        None,
-                        blueprint_id,
-                        Vec::new(),
-                        target_operators,
-                        Default::default(),
-                        security_requirements,
-                        1000,
-                        Asset::Custom(0), // TODO: Add asset
-                        value,
-                        MembershipModel::Fixed { min_operators },
-                    );
-                let res = client
-                    .subxt_client()
-                    .tx()
-                    .sign_and_submit_then_watch_default(&call, &signer)
-                    .await?;
-                wait_for_in_block_success(res).await;
+                )
+                .await?;
             }
             BlueprintCommands::SubmitJob {
                 http_rpc_url,
@@ -790,47 +730,18 @@ async fn main() -> color_eyre::Result<()> {
                 keystore_password,
                 chain,
                 job,
-                // inputs,
             } => {
-                let config = ContextConfig::create_tangle_config(
-                    http_rpc_url.parse().unwrap(),
-                    ws_rpc_url.parse().unwrap(),
+                commands::submit_job(
+                    http_rpc_url,
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
                     keystore_uri,
                     keystore_password,
                     chain,
-                    blueprint_id,
-                    service_id,
-                );
-                let config = load(config).unwrap();
-                let client = TangleClient::new(config.clone()).await.unwrap();
-                let config = KeystoreConfig::new().fs_root(config.keystore_uri.clone());
-                let keystore = Keystore::new(config).expect("Failed to create keystore");
-                let public = keystore.first_local::<SpSr25519>().unwrap();
-                let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
-                let signer = TanglePairSigner::new(pair.0);
-
-                let service_id = service_id.unwrap();
-
-                let call = api::tx().services().call(service_id, job, vec![]); // TODO: Add inputs
-                let events = client
-                    .subxt_client()
-                    .tx()
-                    .sign_and_submit_then_watch_default(&call, &signer)
-                    .await?
-                    .wait_for_finalized_success()
-                    .await?;
-
-                let job_called_events = events.find::<JobCalled>().collect::<Vec<_>>();
-                for job_called in job_called_events {
-                    let job_called = job_called?;
-                    if job_called.service_id == service_id
-                        && job_called.job == job
-                        && signer.account_id() == job_called.caller
-                    {
-                        return Ok(());
-                    }
-                }
-                panic!("Job was not called");
+                    job,
+                )
+                .await?;
             }
         },
         Commands::Key { command } => match command {

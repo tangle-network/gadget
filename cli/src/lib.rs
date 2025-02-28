@@ -1,5 +1,7 @@
 #[cfg(feature = "eigenlayer")]
 pub mod anvil;
+#[cfg(feature = "tangle")]
+pub mod commands;
 pub mod create;
 pub mod deploy;
 pub mod foundry;

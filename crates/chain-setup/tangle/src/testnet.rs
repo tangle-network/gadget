@@ -1,24 +1,17 @@
 // Original: https://github.com/paritytech/subxt/blob/3219659f12a36fe6b7408bf4ac1db184414c6c0c/testing/substrate-runner/src/lib.rs
 #![allow(unused, clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::io::{self, BufRead, BufReader, Read};
-use std::process::{self, Child, Command};
-use std::sync::mpsc;
-use std::thread;
+use crate::error::Error;
+use gadget_std::borrow::Cow;
+use gadget_std::collections::HashMap;
+use gadget_std::ffi::OsString;
+use gadget_std::io::{self, BufRead, BufReader, Read};
+use gadget_std::process::{self, Child, Command};
+use gadget_std::sync::mpsc;
+use gadget_std::thread;
 
 /// Environment variable to set the path to the binary.
 pub const TANGLE_NODE_ENV: &str = "TANGLE_NODE";
-
-#[derive(Debug)]
-pub enum Error {
-    Io(io::Error),
-    CouldNotExtractPort(String),
-    CouldNotExtractP2pAddress(String),
-    CouldNotExtractP2pPort(String),
-}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

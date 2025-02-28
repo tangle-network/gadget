@@ -1,3 +1,5 @@
+use crate::error::Error;
+use crate::state::{AnvilState, get_default_state_json};
 use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_provider::Provider;
 use alloy_provider::network::Ethereum;
@@ -11,9 +13,6 @@ use testcontainers::{
     runners::AsyncRunner,
 };
 use tokio::io::AsyncBufReadExt;
-
-use crate::error::Error;
-use crate::state::{AnvilState, get_default_state_json};
 
 pub type Container = ContainerAsync<GenericImage>;
 
