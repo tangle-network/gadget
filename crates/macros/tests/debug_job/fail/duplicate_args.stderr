@@ -1,0 +1,5 @@
+error: `context` specified more than once
+ --> tests/debug_job/fail/duplicate_args.rs:3:27
+  |
+3 | #[debug_job(context = (), context = ())]
+  |                           ^^^^^^^

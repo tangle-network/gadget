@@ -1,5 +1,19 @@
 //! Blueprint SDK
 
+// == Core utilities ==
+
+// Expose the core module to the outside world
+pub use blueprint_core::*;
+
+/// Re-export the core extractors from the `blueprint_core` crate.
+pub mod extract {
+    #[cfg(feature = "macros")]
+    pub use blueprint_macros::FromRef;
+
+    pub use blueprint_core::extract::*;
+}
+pub use blueprint_router::{IntoMakeService, Router, ServiceExt};
+
 #[cfg(feature = "tangle")]
 pub use tangle_subxt;
 
@@ -41,13 +55,7 @@ pub mod networking {
 pub use gadget_event_listeners as event_listeners;
 
 #[cfg(feature = "macros")]
-mod macros_feat {
-    pub use gadget_macros as macros;
-    pub use gadget_macros::job;
-    pub use gadget_macros::main;
-}
-#[cfg(feature = "macros")]
-pub use macros_feat::*;
+pub use blueprint_macros::debug_job;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;

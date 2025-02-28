@@ -1,0 +1,5 @@
+error: expected `context`
+ --> tests/debug_job/fail/invalid_attrs.rs:3:13
+  |
+3 | #[debug_job(foo)]
+  |             ^^^
