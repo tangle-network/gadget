@@ -35,7 +35,7 @@ gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
-gadget-config = { workspace = true, features = ["std", "networking"] }
+gadget-config = { workspace = true, features = ["std", "networking", "keystore"] }
 dialoguer = { workspace = true, default-features = true }
 
 # Optional client dependencies
