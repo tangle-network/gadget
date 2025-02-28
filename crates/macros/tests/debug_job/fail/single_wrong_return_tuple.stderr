@@ -1,0 +1,21 @@
+error[E0277]: the trait bound `NotIntoJobResult: IntoJobResult` is not satisfied
+ --> tests/debug_job/fail/single_wrong_return_tuple.rs:6:19
+  |
+6 | async fn job() -> (NotIntoJobResult) {
+  |                   ^^^^^^^^^^^^^^^^^^ the trait `IntoJobResult` is not implemented for `NotIntoJobResult`
+  |
+  = help: the following other types implement trait `IntoJobResult`:
+            &'static [u8; N]
+            &'static [u8]
+            &'static str
+            ()
+            (JobResult<()>, R)
+            (JobResult<()>, T1, R)
+            (JobResult<()>, T1, T2, R)
+            (JobResult<()>, T1, T2, T3, R)
+          and $N others
+note: required by a bound in `__blueprint_macros_check_job_into_job_result::{closure#0}::check`
+ --> tests/debug_job/fail/single_wrong_return_tuple.rs:6:19
+  |
+6 | async fn job() -> (NotIntoJobResult) {
+  |                   ^^^^^^^^^^^^^^^^^^ required by this bound in `check`

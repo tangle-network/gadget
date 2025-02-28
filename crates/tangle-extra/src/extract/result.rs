@@ -81,11 +81,11 @@ macro_rules! impl_tangle_field_types {
             $($ty: Default + serde::Serialize,)*
         {
             fn into_tangle_fields() -> Vec<FieldType> {
-                let mut ret = Vec::with_capacity(crate::count!($($ty,)*));
-                $(
-                    ret.push(gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type());
-                )*
-                ret
+                vec![
+                    $(
+                        gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type()
+                    ),*
+                ]
             }
         }
     }

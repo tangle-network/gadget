@@ -63,9 +63,10 @@ macro_rules! impl_tangle_job_args {
         ///
         /// This will work for any type that implements [`serde::de::DeserializeOwned`].
         #[derive(Debug, Clone)]
+        #[allow(clippy::type_complexity)]
         pub struct $name<$($ty,)*>($(pub $ty,)*);
 
-        #[allow(non_snake_case, unused_mut)]
+        #[allow(non_snake_case, unused_mut, clippy::type_complexity)]
         impl<Ctx, $($ty,)*> FromJobCall<Ctx> for $name<$($ty,)*>
         where
             Ctx: Send + Sync,
@@ -100,11 +101,11 @@ macro_rules! impl_tangle_field_types {
             $($ty: core::default::Default + serde::Serialize,)*
         {
             fn into_tangle_fields() -> Vec<FieldType> {
-                let mut ret = Vec::with_capacity(crate::count!($($ty,)*));
-                $(
-                    ret.push(gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type());
-                )*
-                ret
+              vec![
+                    $(
+                        gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type()
+                    ),*
+                ]
             }
         }
     }

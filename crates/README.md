@@ -10,13 +10,13 @@ Each sub-crate provides a specific functionality of the framework, and they are 
 
 ### Project crates
 
-- [`blueprint-core`](./core): The core functionality of the framework, including the core data structures and the core traits that is used and shared across the framework.
-- [`blueprint-router`](./router): Includes the job routing functionality of the framework, this usually used hand in hand with the [`blueprint-runner`](./runner) crate.
-- [`blueprint-runner`](./runner): Includes the job execution functionality of the framework, which is your entry point to your blueprint.
-- [`blueprint-tangle-extra`](./tangle-extra): This crate provides extra functionality to use the Blueprint SDK with the Tangle Network.
-- [`blueprint-evm-extra`](./evm-extra): This crate provides extra functionality to use the Blueprint SDK with any EVM compatible network.
-- [`blueprint-sdk`](./sdk): This the most outer layer for the Blueprint Framework which acts as an umbrella crate for the framework.
-
+-   [`blueprint-core`](./core): The core functionality of the framework, including the core data structures and the core traits that is used and shared across the framework.
+-   [`blueprint-router`](./router): Includes the job routing functionality of the framework, this usually used hand in hand with the [`blueprint-runner`](./runner) crate.
+-   [`blueprint-runner`](./runner): Includes the job execution functionality of the framework, which is your entry point to your blueprint.
+-   [`blueprint-tangle-extra`](./tangle-extra): This crate provides extra functionality to use the Blueprint SDK with the Tangle Network.
+-   [`blueprint-evm-extra`](./evm-extra): This crate provides extra functionality to use the Blueprint SDK with any EVM compatible network.
+-   [`blueprint-sdk`](./sdk): This the most outer layer for the Blueprint Framework which acts as an umbrella crate for the framework.
+-   [`blueprint-macros`](./macros): This crate provides the procedural macros that are used across the framework.
 
 ### Crate Naming Conventions
 

@@ -87,7 +87,7 @@ gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-list
 gadget-executor = { version = "0.1.0", path = "./crates/executor", default-features = false }
 
 # Macros
-gadget-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
+blueprint-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
 gadget-blueprint-proc-macro-core = { version = "0.4.0", path = "./crates/macros/core", default-features = false }
 gadget-blueprint-proc-macro = { version = "0.6.0", path = "./crates/macros/blueprint-proc-macro", default-features = false }
 gadget-blueprint-proc-macro-playground = { version = "0.1.1", path = "./crates/macros/playground", default-features = false }

@@ -1,0 +1,5 @@
+error: Jobs must be `async fn`s
+ --> tests/debug_job/fail/not_async.rs:4:1
+  |
+4 | fn handler() {}
+  | ^^

@@ -168,6 +168,7 @@ mod tests {
 
                 paste::paste! {
                     #[allow(unused_variables)]
+                    #[allow(clippy::type_complexity)]
                     async fn [<$func _with_context>](Context(ctx): Context<MyContext>, $args_ty($($args),*): $ty) -> TangleResult<u64> {
                         eprintln!("ctx: {:?}", ctx.foo);
                         todo!()

@@ -1,103 +1,42 @@
 [package]
-name = "gadget-macros"
+name = "blueprint-macros"
 version = "0.1.0"
-description = "Proc-macros metapackage for Tangle Blueprints"
-authors.workspace = true
+description = "Macros for blueprint sdk"
 edition.workspace = true
-license.workspace = true
 homepage.workspace = true
-repository.workspace = true
-
-[dependencies]
-gadget-blueprint-proc-macro-core = { workspace = true }
-gadget-blueprint-proc-macro = { workspace = true }
-gadget-context-derive = { workspace = true }
-
-gadget-std = { workspace = true }
-gadget-config = { workspace = true }
-gadget-contexts = { workspace = true }
-gadget-keystore = { workspace = true }
-gadget-clients = { workspace = true, optional = true }
-gadget-event-listeners = { workspace = true, optional = true }
-gadget-logging = { workspace = true, optional = true }
-gadget-crypto = { workspace = true, optional = true }
-
-# Misc. re-exports
-async-trait.workspace = true
-clap = { workspace = true, optional = true }
-futures.workspace = true
-tokio = { workspace = true, optional = true }
-
-# Tangle re-exports
-gadget-blueprint-serde = { workspace = true, optional = true }
-tangle-subxt = { workspace = true, optional = true }
-
-# EVM re-exports
-alloy-network = { workspace = true, optional = true }
-alloy-transport = { workspace = true, optional = true }
-alloy-provider = { workspace = true, optional = true }
+license.workspace = true
 
 [features]
-default = ["std"]
-std = [
-	"dep:clap",
-	"gadget-blueprint-proc-macro-core/std",
-	"gadget-blueprint-proc-macro/std",
-	"gadget-blueprint-serde?/std",
-	"gadget-clients?/std",
-	"gadget-context-derive/std",
-	"gadget-contexts/std",
-	"gadget-crypto?/std",
-	"gadget-event-listeners?/std",
-	"gadget-logging?/std",
-	"gadget-std/std",
-	"tangle-subxt?/std",
-]
+default = []
+__private = ["syn/visit-mut"]
 
-web = [
-	"gadget-clients?/web",
-	"gadget-event-listeners?/web",
-	"tangle-subxt?/web",
-]
+[lib]
+proc-macro = true
 
-tangle = [
-	"dep:gadget-blueprint-serde",
-	"dep:gadget-clients",
-	"dep:gadget-crypto",
-	"dep:gadget-event-listeners",
-	"dep:gadget-logging",
-	"dep:tangle-subxt",
-	"dep:tokio",
-	"gadget-clients?/tangle",
-	"gadget-context-derive/tangle",
-	"gadget-contexts/tangle",
-	"gadget-crypto/tangle-pair-signer",
-	"gadget-keystore/tangle",
-	"gadget-event-listeners/tangle",
-	"gadget-blueprint-proc-macro/tangle",
-]
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = [
+    "full",
+    "parsing",
+    # needed for `Hash` impls
+    "extra-traits",
+] }
 
-evm = [
-	"dep:alloy-network",
-	"dep:alloy-transport",
-	"dep:alloy-provider",
-	"dep:gadget-clients",
-	"dep:gadget-event-listeners",
-	"dep:gadget-logging",
-	"dep:tokio",
-	"gadget-clients?/evm",
-	"gadget-context-derive/evm",
-	"gadget-contexts/evm",
-	"gadget-event-listeners/evm",
-	"gadget-blueprint-proc-macro/evm",
-]
-
-eigenlayer = [
-	"gadget-contexts/eigenlayer",
-	"dep:tokio",
-]
-
-networking = ["gadget-context-derive/networking", "gadget-contexts/networking"]
+[dev-dependencies]
+blueprint-sdk = { workspace = true, features = ["macros"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+tokio = { workspace = true, features = ["full"] }
+trybuild = "1.0"
+rustversion = "1.0"
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-public-api-crates]
+allowed = []
+
+[package.metadata.docs.rs]
+all-features = true
