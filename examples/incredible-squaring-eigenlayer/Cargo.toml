@@ -35,7 +35,6 @@ alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true }
 
 # Async dependencies
-async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tower = { workspace = true }

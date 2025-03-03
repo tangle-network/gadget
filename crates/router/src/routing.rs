@@ -222,6 +222,10 @@ where
         };
 
         // At this point, no route matched the job ID, and there are no always routes
+        blueprint_core::trace!(
+            ?call,
+            "No explicit or always route caught this job call, passing to fallback"
+        );
 
         self.inner
             .job_id_router
