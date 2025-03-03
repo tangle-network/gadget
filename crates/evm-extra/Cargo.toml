@@ -19,7 +19,6 @@ alloy-transport-http = { workspace = true }
 
 # Async dependencies
 async-stream = { workspace = true }
-async-trait = { workspace = true }
 futures = { workspace = true }
 futures-util = { workspace = true }
 pin-project-lite = { workspace = true }

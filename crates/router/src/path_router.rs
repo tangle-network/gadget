@@ -190,10 +190,14 @@ where
     ) -> Result<FuturesUnordered<RouteFuture<BoxError>>, (JobCall, Ctx)> {
         let (parts, body) = call.into_parts();
         let Some(route) = self.node.get(parts.job_id) else {
-            let catch_all_futures =
-                self.call_always_routes(JobCall::from_parts(parts, body), context)?;
+            let call = JobCall::from_parts(parts, body);
+
+            blueprint_core::trace!(?call, "No job found, checking always routes");
+            let catch_all_futures = self.call_always_routes(call, context)?;
             return Ok(FuturesUnordered::from_iter(catch_all_futures));
         };
+
+        blueprint_core::trace!("Job found for id {:?}", parts.job_id);
 
         let handler = self
             .routes
