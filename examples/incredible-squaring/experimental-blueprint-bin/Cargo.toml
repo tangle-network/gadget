@@ -8,7 +8,7 @@ experimental-blueprint-lib.workspace = true
 
 blueprint-core.workspace = true
 blueprint-tangle-extra.workspace = true
-blueprint-runner.workspace = true
+blueprint-runner = { workspace = true, features = ["tangle"] }
 blueprint-router.workspace = true
 gadget-tangle-testing-utils.workspace = true
 gadget-core-testing-utils.workspace = true

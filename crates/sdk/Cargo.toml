@@ -12,7 +12,9 @@ repository.workspace = true
 # Required dependencies
 blueprint-core = { workspace = true }
 blueprint-router = { workspace = true }
+blueprint-runner = { workspace = true }
 blueprint-macros = { workspace = true, optional = true }
+blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-config = { workspace = true }
 gadget-clients = { workspace = true }
@@ -23,17 +25,19 @@ gadget-runners = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 
-# K, V Stores
-gadget-stores = { workspace = true, optional = true }
-
-# Tangle
+# Tangle-specific extras
+blueprint-tangle-extra = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
 
-# EigenLayer and EVM
+# Eigenlayer and EVM-specific extras
+blueprint-evm-extra = { workspace = true, optional = true }
 alloy = { workspace = true, optional = true, features = ["full"] }
 alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
+
+# K, V Stores
+gadget-stores = { workspace = true, optional = true }
 
 # Error Handling
 thiserror = { workspace = true }
@@ -62,88 +66,68 @@ blueprint-build-utils = { workspace = true, optional = true }
 
 [features]
 default = ["std", "tracing"]
-std = [
-	# Core
-	"gadget-keystore/std",
-	"gadget-config/std",
-	"gadget-clients/std",
-	"gadget-event-listeners/std",
-	"gadget-crypto/std",
-	"gadget-logging/std",
-	"gadget-runners/std",
-    "blueprint-core/std",
-    "blueprint-router/std",
-	# Tangle
-	"tangle-subxt?/std",
-	# Macros
-	"gadget-macros?/std",
+std = ["blueprint-core/std", "blueprint-router/std"]
+tracing = [
+    "blueprint-core/tracing",
+    "blueprint-router/tracing",
+    "blueprint-producers-extra/tracing",
+    "blueprint-tangle-extra?/tracing",
 ]
 
-web = [
-	# Core
-	"gadget-clients/web",
-	# Tangle
-	"tangle-subxt?/web",
-	# Macros
-	"gadget-macros?/web",
-]
-
-tracing = ["blueprint-core/tracing", "blueprint-router/tracing"]
-
-macros = ["dep:blueprint-macros", "dep:gadget-context-derive"]
+macros = ["dep:blueprint-macros"]
 
 build = ["dep:blueprint-metadata", "dep:blueprint-build-utils"]
 
 tangle = [
-	"dep:tangle-subxt",
-	"dep:gadget-crypto-tangle-pair-signer",
-	"gadget-clients/tangle",
-	"gadget-runners/tangle",
-	"gadget-macros?/tangle",
-	"gadget-testing-utils?/tangle",
-	"gadget-utils/tangle",
-	"gadget-event-listeners/tangle",
+    "dep:blueprint-tangle-extra",
+    "dep:tangle-subxt",
+    "dep:gadget-crypto-tangle-pair-signer",
+    "gadget-clients/tangle",
+    "gadget-testing-utils?/tangle",
+    "gadget-utils/tangle",
+    "blueprint-runner/tangle"
 ]
 
 evm = [
-	"dep:alloy",
-	"dep:alloy-json-abi",
-	"gadget-clients/evm",
-	"gadget-crypto-tangle-pair-signer?/evm",
-	"gadget-utils/evm",
-	"gadget-testing-utils?/anvil",
-	"gadget-macros?/evm",
-	"gadget-event-listeners/evm",
+    "dep:blueprint-evm-extra",
+    "dep:alloy",
+    "dep:alloy-json-abi",
+    "gadget-clients/evm",
+    "gadget-crypto-tangle-pair-signer?/evm",
+    "gadget-utils/evm",
+    "gadget-testing-utils?/anvil",
 ]
 
 eigenlayer = [
-	"dep:alloy",
-	"dep:alloy-json-abi",
-	"dep:eigensdk",
-	"gadget-clients/eigenlayer",
-	"gadget-runners/eigenlayer",
-	"gadget-testing-utils?/eigenlayer",
-	"gadget-utils/eigenlayer",
-	"gadget-macros?/eigenlayer",
-	"gadget-event-listeners/evm",
+    "dep:alloy",
+    "dep:alloy-json-abi",
+    "dep:eigensdk",
+    "gadget-clients/eigenlayer",
+    "gadget-runners/eigenlayer",
+    "gadget-testing-utils?/eigenlayer",
+    "gadget-utils/eigenlayer",
+    "gadget-macros?/eigenlayer",
+    "gadget-event-listeners/evm",
 ]
 
 testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]
 
 networking = [
-	"dep:gadget-networking",
-	"gadget-contexts/networking",
-	"gadget-keystore/std",
-	"gadget-config/networking",
-	"gadget-macros?/networking",
-	"gadget-context-derive?/networking",
+    "dep:gadget-networking",
+    "gadget-contexts/networking",
+    "gadget-keystore/std",
+    "gadget-config/networking",
+    "gadget-macros?/networking",
+    "gadget-context-derive?/networking",
 ]
 
 local-store = ["gadget-stores/local"]
 
 round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
-cronjob = ["gadget-event-listeners/cronjob"]
+# Extra producers
+cronjob = ["blueprint-producers-extra/cron"]
 
-[lints.clippy]
-large_enum_variant = "allow" # TODO
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

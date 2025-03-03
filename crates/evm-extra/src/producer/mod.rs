@@ -24,7 +24,7 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
                 .or_insert(Vec::new())
                 .push(log);
         } else {
-            tracing::warn!(?log, "Missing block number");
+            blueprint_core::warn!(?log, "Missing block number");
             continue;
         }
     }
@@ -35,11 +35,11 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
         }
         let log0 = &logs[0];
         let Some(block_hash) = log0.block_hash else {
-            tracing::warn!(?log0, "Missing block hash");
+            blueprint_core::warn!(?log0, "Missing block hash");
             continue;
         };
         let Some(block_timestamp) = log0.block_timestamp else {
-            tracing::warn!(?log0, "Missing block timestamp");
+            blueprint_core::warn!(?log0, "Missing block timestamp");
             continue;
         };
         let mut extensions = Extensions::new();
@@ -48,7 +48,7 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
         metadata.insert(BlockHash::METADATA_KEY, *block_hash);
         metadata.insert(BlockTimestamp::METADATA_KEY, block_timestamp);
         extensions.insert(logs.clone());
-        tracing::trace!(?block_number, "Processing logs");
+        blueprint_core::trace!(?block_number, "Processing logs");
 
         for log in logs {
             let id = match log.topic0() {

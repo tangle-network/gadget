@@ -12,7 +12,21 @@ pub mod extract {
 
     pub use blueprint_core::extract::*;
 }
-pub use blueprint_router::{IntoMakeService, Router, ServiceExt};
+
+#[cfg(feature = "tangle")]
+pub use blueprint_tangle_extra as tangle;
+
+#[cfg(feature = "evm")]
+pub use blueprint_evm_extra as evm;
+
+pub use blueprint_runner as runner;
+
+pub mod producers {
+    #[cfg(feature = "cronjob")]
+    pub use blueprint_producers_extra::cron::CronJob;
+}
+
+pub use blueprint_router::Router;
 
 #[cfg(feature = "tangle")]
 pub use tangle_subxt;

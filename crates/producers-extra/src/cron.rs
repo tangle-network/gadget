@@ -19,8 +19,8 @@ use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 /// use blueprint_producers_extra::cron::CronJob;
 /// use chrono::Utc;
 /// use futures::StreamExt;
-/// use tokio::time::Instant;
 /// use std::time::Duration;
+/// use tokio::time::Instant;
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), tokio_cron_scheduler::JobSchedulerError> {
@@ -50,10 +50,7 @@ pub struct CronJob {
 
 impl CronJob {
     /// Create a new [`CronJob`], using the [`Utc`] timezone
-    pub async fn new<I, S>(
-        job_id: I,
-        schedule: S,
-    ) -> Result<Self, JobSchedulerError>
+    pub async fn new<I, S>(job_id: I, schedule: S) -> Result<Self, JobSchedulerError>
     where
         I: IntoJobId,
         S: AsRef<str>,
@@ -78,8 +75,7 @@ impl CronJob {
         scheduler
             .add(Job::new_tz(schedule.as_ref(), timezone, move |_, _| {
                 if let Err(e) = tx.send(()) {
-                    #[cfg(feature = "tracing")]
-                    tracing::error!("Failed to send cron job message: {e}");
+                    blueprint_core::error!("Failed to send cron job message: {e}");
                 }
             })?)
             .await?;
@@ -97,7 +93,10 @@ impl CronJob {
 impl Stream for CronJob {
     type Item = Result<JobCall, BoxError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         match self.as_mut().rx.poll_recv(cx) {
             Poll::Ready(Some(())) => Poll::Ready(Some(Ok(JobCall::new(self.job_id, Bytes::new())))),
             Poll::Ready(None) => Poll::Ready(None),
