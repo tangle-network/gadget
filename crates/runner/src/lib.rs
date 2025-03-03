@@ -1,34 +1,30 @@
+extern crate alloc;
+
 pub mod config;
 pub mod error;
+
+#[cfg(feature = "eigenlayer")]
+pub mod eigenlayer;
+#[cfg(feature = "symbiotic")]
+mod symbiotic;
+#[cfg(feature = "tangle")]
+pub mod tangle;
 
 use blueprint_core::{BoxError, JobCall, JobResult};
 use blueprint_router::Router;
 use config::GadgetConfiguration;
+use core::future::{self, poll_fn};
 use core::pin::Pin;
 use error::RunnerError as Error;
 use futures::{Future, Sink};
 use futures_core::Stream;
 use futures_util::{SinkExt, StreamExt, TryStreamExt, stream};
-use std::future;
-use std::future::poll_fn;
 use tokio::sync::oneshot;
 use tower::Service;
 
-pub trait CloneableConfig: Send + Sync {
-    fn clone_box(&self) -> Box<dyn BlueprintConfig>;
-}
-
-impl<T> CloneableConfig for T
-where
-    T: BlueprintConfig + Clone,
-{
-    fn clone_box(&self) -> Box<dyn BlueprintConfig> {
-        Box::new(self.clone())
-    }
-}
-
-#[async_trait::async_trait]
-pub trait BlueprintConfig: Send + Sync + CloneableConfig + 'static {
+#[allow(async_fn_in_trait)]
+#[dynosaur::dynosaur(DynBlueprintConfig)]
+pub trait BlueprintConfig: Send + Sync {
     async fn register(&self, _env: &GadgetConfiguration) -> Result<(), Error> {
         Ok(())
     }
@@ -36,6 +32,7 @@ pub trait BlueprintConfig: Send + Sync + CloneableConfig + 'static {
     async fn requires_registration(&self, _env: &GadgetConfiguration) -> Result<bool, Error> {
         Ok(true)
     }
+
     /// Controls whether the runner should exit after registration
     ///
     /// Returns true if the runner should exit after registration, false if it should continue
@@ -44,37 +41,30 @@ pub trait BlueprintConfig: Send + Sync + CloneableConfig + 'static {
     }
 }
 
+unsafe impl Send for DynBlueprintConfig<'_> {}
+unsafe impl Sync for DynBlueprintConfig<'_> {}
+
 impl BlueprintConfig for () {}
 
-// Clone traits with distinct names
-pub trait CloneableService: Send {
-    fn clone_box(&self) -> Box<dyn BackgroundService>;
-}
-
-impl<T> CloneableService for T
-where
-    T: BackgroundService + Clone,
-{
-    fn clone_box(&self) -> Box<dyn BackgroundService> {
-        Box::new(self.clone())
-    }
-}
-
-#[async_trait::async_trait]
-pub trait BackgroundService: Send + Sync + CloneableService + 'static {
+#[allow(async_fn_in_trait)]
+#[dynosaur::dynosaur(DynBackgroundService)]
+pub trait BackgroundService: Send + Sync {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), Error>>, Error>;
 }
+
+unsafe impl Send for DynBackgroundService<'_> {}
+unsafe impl Sync for DynBackgroundService<'_> {}
 
 type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Unpin + 'static>;
 type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'static>;
 
 pub struct BlueprintRunnerBuilder<F> {
-    config: Box<dyn BlueprintConfig>,
+    config: Box<DynBlueprintConfig<'static>>,
     env: GadgetConfiguration,
     producers: Vec<Producer>,
     consumers: Vec<Consumer>,
     router: Option<Router>,
-    background_services: Vec<Box<dyn BackgroundService>>,
+    background_services: Vec<Box<DynBackgroundService<'static>>>,
     shutdown_handler: F,
 }
 
@@ -111,8 +101,8 @@ where
         self
     }
 
-    pub fn background_service(mut self, service: impl BackgroundService) -> Self {
-        self.background_services.push(Box::new(service));
+    pub fn background_service(mut self, service: impl BackgroundService + 'static) -> Self {
+        self.background_services.push(DynBackgroundService::boxed(service));
         self
     }
 
@@ -158,7 +148,7 @@ impl BlueprintRunner {
         env: GadgetConfiguration,
     ) -> BlueprintRunnerBuilder<impl Future<Output = ()> + Send + 'static> {
         BlueprintRunnerBuilder {
-            config: Box::new(config),
+            config: DynBlueprintConfig::boxed(config),
             env,
             producers: Vec::new(),
             consumers: Vec::new(),
@@ -170,12 +160,12 @@ impl BlueprintRunner {
 }
 
 struct FinalizedBlueprintRunner<F> {
-    config: Box<dyn BlueprintConfig>,
+    config: Box<DynBlueprintConfig<'static>>,
     producers: Vec<Producer>,
     consumers: Vec<Consumer>,
     router: Router,
     env: GadgetConfiguration,
-    background_services: Vec<Box<dyn BackgroundService>>,
+    background_services: Vec<Box<DynBackgroundService<'static>>>,
     shutdown_handler: F,
 }
 
@@ -226,7 +216,7 @@ where
         let (mut shutdown_tx, shutdown_rx) = oneshot::channel();
         tokio::spawn(async move {
             let _ = shutdown_rx.await;
-            tracing::info!("Received graceful shutdown signal. Calling shutdown handler");
+            blueprint_core::info!("Received graceful shutdown signal. Calling shutdown handler");
             shutdown_handler.await;
         });
 
@@ -266,22 +256,22 @@ where
                                     }
                                 },
                                 Ok(None) => {
-                                    tracing::debug!("Job call was ignored by router");
+                                    blueprint_core::debug!("Job call was ignored by router");
                                 },
                                 Err(e) => {
-                                    tracing::error!("Job call failed: {:?}", e);
+                                    blueprint_core::error!("Job call failed: {:?}", e);
                                     let _ = shutdown_tx.send(true);
                                     return Err(Error::JobCall(e.to_string()));
                                 },
                             }
                         }
                         Some(Err(e)) => {
-                            tracing::error!("Producer error: {:?}", e);
+                            blueprint_core::error!("Producer error: {:?}", e);
                             let _ = shutdown_tx.send(true);
                             return Err(Error::JobCall(e.to_string()));
                         }
                         None => {
-                            tracing::error!("Producer stream ended unexpectedly");
+                            blueprint_core::error!("Producer stream ended unexpectedly");
                             let _ = shutdown_tx.send(true);
                             return Err(Error::JobCall("Producer stream ended".into()));
                         }
@@ -291,17 +281,17 @@ where
                     let (result, _, remaining_background_services) = result;
                     match result {
                         Ok(()) => {
-                            tracing::warn!("A background service has finished running");
+                            blueprint_core::warn!("A background service has finished running");
                         },
                         Err(e) => {
-                            tracing::error!("A background service failed: {:?}", e);
+                            blueprint_core::error!("A background service failed: {:?}", e);
                             let _ = shutdown_tx.send(true);
                             return Err(e);
                         }
                     }
 
                     if remaining_background_services.is_empty() {
-                        tracing::warn!("All background services have ended");
+                        blueprint_core::warn!("All background services have ended");
                         continue;
                     }
 

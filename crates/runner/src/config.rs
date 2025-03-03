@@ -1,43 +1,66 @@
 #![allow(unused_variables, unreachable_code)]
 
-use std::string::{String, ToString};
-
 use std::path::PathBuf;
 
-use crate::BlueprintConfig;
+use crate::error::ConfigError;
+use alloc::string::{String, ToString};
 use core::fmt::{Debug, Display};
 use core::str::FromStr;
+use gadget_keystore::{Keystore, KeystoreConfig};
 use serde::{Deserialize, Serialize};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::PriceTargets as TanglePriceTargets;
 use url::Url;
 
+pub trait ProtocolSettingsT: Sized + 'static {
+    type Settings;
+
+    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
+    fn protocol(&self) -> &'static str;
+    fn settings(&self) -> &Self::Settings;
+}
+
 /// The protocol on which a gadget will be executed.
-#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, clap::ValueEnum)]
-#[clap(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "std",
+    derive(clap::ValueEnum),
+    clap(rename_all = "lowercase")
+)]
+#[non_exhaustive]
 pub enum Protocol {
-    #[default]
+    #[cfg(feature = "tangle")]
     Tangle,
+    #[cfg(feature = "eigenlayer")]
+    Eigenlayer,
+    #[cfg(feature = "symbiotic")]
+    Symbiotic,
 }
 
 impl Protocol {
     /// Returns the protocol from the environment variable `PROTOCOL`.
     ///
-    /// If the environment variable is not set, it defaults to `Protocol::Tangle`.
+    /// If the environment variable is not set, it will return `None`.
     ///
     /// # Errors
     ///
     /// * [`Error::UnsupportedProtocol`] if the protocol is unknown. See [`Protocol`].
-    pub fn from_env() -> Result<Self, Error> {
+    pub fn from_env() -> Result<Option<Self>, ConfigError> {
         if let Ok(protocol) = std::env::var("PROTOCOL") {
-            return protocol.to_ascii_lowercase().parse::<Protocol>();
+            return protocol.to_ascii_lowercase().parse::<Protocol>().map(Some);
         }
 
-        Ok(Protocol::default())
+        Ok(None)
     }
 
     pub fn as_str(&self) -> &'static str {
+        #[allow(unreachable_patterns)]
         match self {
+            #[cfg(feature = "tangle")]
             Self::Tangle => "tangle",
+            #[cfg(feature = "eigenlayer")]
+            Self::Eigenlayer => "eigenlayer",
+            #[cfg(feature = "symbiotic")]
+            Self::Symbiotic => "symbiotic",
+            _ => unreachable!("should be exhaustive"),
         }
     }
 }
@@ -49,139 +72,120 @@ impl core::fmt::Display for Protocol {
 }
 
 impl core::str::FromStr for Protocol {
-    type Err = Error;
+    type Err = ConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
+            #[cfg(feature = "tangle")]
             "tangle" => Ok(Self::Tangle),
-            _ => Err(Error::UnsupportedProtocol(s.to_string())),
+            #[cfg(feature = "eigenlayer")]
+            "eigenlayer" => Ok(Self::Eigenlayer),
+            #[cfg(feature = "symbiotic")]
+            "symbiotic" => Ok(Self::Symbiotic),
+            _ => Err(ConfigError::UnsupportedProtocol(s.to_string())),
         }
     }
 }
 
 #[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct TangleInstanceSettings {
-    /// The blueprint ID for the Tangle blueprint
-    pub blueprint_id: u64,
-    /// The service ID for the Tangle blueprint instance
-    ///
-    /// Note: This will be `None` in case this gadget is running in Registration Mode.
-    pub service_id: Option<u64>,
-}
-
-#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct EigenlayerAddresses {
-    pub registry_coordinator_address: alloy_primitives::Address,
-    pub operator_state_retriever_address: alloy_primitives::Address,
-    pub delegation_manager_address: alloy_primitives::Address,
-    pub strategy_manager_address: alloy_primitives::Address,
-    pub rewards_coordinator_address: alloy_primitives::Address,
-    pub avs_directory_address: alloy_primitives::Address,
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum ProtocolSettings {
+    #[default]
     None,
-    Tangle(TangleInstanceSettings),
-    Eigenlayer(EigenlayerAddresses),
+    #[cfg(feature = "tangle")]
+    Tangle(crate::tangle::config::TangleProtocolSettings),
+    #[cfg(feature = "eigenlayer")]
+    Eigenlayer(crate::eigenlayer::config::EigenlayerProtocolSettings),
+    #[cfg(feature = "symbiotic")]
+    Symbiotic,
 }
 
-impl Default for ProtocolSettings {
-    fn default() -> Self {
-        Self::None
+impl ProtocolSettingsT for ProtocolSettings {
+    type Settings = Self;
+
+    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>> {
+        #[allow(unreachable_patterns)]
+        let protocol_settings = match settings.protocol {
+            #[cfg(feature = "tangle")]
+            Some(Protocol::Tangle) => {
+                use crate::tangle::config::TangleProtocolSettings;
+                let settings = TangleProtocolSettings::load(settings)?;
+                ProtocolSettings::Tangle(settings)
+            }
+            #[cfg(feature = "eigenlayer")]
+            Some(Protocol::Eigenlayer) => {
+                use crate::eigenlayer::config::EigenlayerProtocolSettings;
+                let settings = EigenlayerProtocolSettings::load(settings)?;
+                ProtocolSettings::Eigenlayer(settings)
+            }
+            #[cfg(feature = "symbiotic")]
+            Some(Protocol::Symbiotic) => {
+                todo!()
+            }
+            None => ProtocolSettings::None,
+            _ => unreachable!("should be exhaustive"),
+        };
+
+        Ok(protocol_settings)
+    }
+
+    fn protocol(&self) -> &'static str {
+        match self {
+            #[cfg(feature = "tangle")]
+            ProtocolSettings::Tangle(val) => val.protocol(),
+            #[cfg(feature = "eigenlayer")]
+            ProtocolSettings::Eigenlayer(val) => val.protocol(),
+            #[cfg(feature = "symbiotic")]
+            ProtocolSettings::Symbiotic => "symbiotic",
+            _ => unreachable!("should be exhaustive"),
+        }
+    }
+
+    fn settings(&self) -> &Self::Settings {
+        self
     }
 }
 
 impl ProtocolSettings {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Tangle(_) => "tangle",
-            Self::Eigenlayer(_) => "eigenlayer",
-            Self::None => "none",
-        }
-    }
-
-    pub fn tangle(&self) -> Result<&TangleInstanceSettings, Error> {
+    /// Attempt to extract the [`TangleInstanceSettings`]
+    ///
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Tangle`]
+    #[cfg(feature = "tangle")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
+    pub fn tangle(&self) -> Result<&crate::tangle::config::TangleProtocolSettings, ConfigError> {
         match self {
             Self::Tangle(settings) => Ok(settings),
-            _ => Err(Error::UnexpectedProtocol("Tangle")),
+            _ => Err(ConfigError::UnexpectedProtocol("Tangle")),
         }
     }
 
-    pub fn eigenlayer(&self) -> Result<&EigenlayerAddresses, Error> {
+    /// Attempt to extract the [`EigenlayerContractAddresses`]
+    ///
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Eigenlayer`]
+    #[cfg(feature = "eigenlayer")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
+    pub fn eigenlayer(
+        &self,
+    ) -> Result<&crate::eigenlayer::config::EigenlayerProtocolSettings, ConfigError> {
         match self {
             Self::Eigenlayer(settings) => Ok(settings),
-            _ => Err(Error::UnexpectedProtocol("Eigenlayer")),
+            _ => Err(ConfigError::UnexpectedProtocol("Eigenlayer")),
         }
     }
 
-    pub fn from_tangle(settings: TangleInstanceSettings) -> Self {
-        Self::Tangle(settings)
-    }
-
-    pub fn from_eigenlayer(settings: EigenlayerAddresses) -> Self {
-        Self::Eigenlayer(settings)
-    }
-}
-
-/// Errors that can occur while loading and using the gadget configuration.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// Missing `RPC_URL` environment variable.
-    #[error("Missing Tangle RPC endpoint")]
-    MissingTangleRpcEndpoint,
-    /// Missing `KEYSTORE_URI` environment
-    #[error("Missing keystore URI")]
-    MissingKeystoreUri,
-    /// Missing `BLUEPRINT_ID` environment variable
-    #[error("Missing blueprint ID")]
-    MissingBlueprintId,
-    /// Missing `SERVICE_ID` environment variable
-    #[error("Missing service ID")]
-    MissingServiceId,
-    /// Error parsing the blueprint ID.
-    #[error(transparent)]
-    MalformedBlueprintId(core::num::ParseIntError),
-    /// Error parsing the service ID.
-    #[error(transparent)]
-    MalformedServiceId(core::num::ParseIntError),
-    /// Unsupported keystore URI.
-    #[error("Unsupported keystore URI: {0}")]
-    UnsupportedKeystoreUri(String),
-    /// Error parsing the protocol, from the `PROTOCOL` environment variable.
-    #[error("Unsupported protocol: {0}")]
-    UnsupportedProtocol(String),
-    /// Attempting to load the [`ProtocolSettings`] of a protocol differing from the target
+    /// Attempt to extract the [`SymbioticContractAddresses`]
     ///
-    /// [`ProtocolSettings`]: crate::ProtocolSettings
-    #[error("Unexpect protocol, expected {0}")]
-    UnexpectedProtocol(&'static str),
-    /// No Sr25519 keypair found in the keystore.
-    #[error("No Sr25519 keypair found in the keystore")]
-    NoSr25519Keypair,
-    /// Invalid Sr25519 keypair found in the keystore.
-    #[error("Invalid Sr25519 keypair found in the keystore")]
-    InvalidSr25519Keypair,
-    /// No ECDSA keypair found in the keystore.
-    #[error("No ECDSA keypair found in the keystore")]
-    NoEcdsaKeypair,
-    /// Invalid ECDSA keypair found in the keystore.
-    #[error("Invalid ECDSA keypair found in the keystore")]
-    InvalidEcdsaKeypair,
-    /// Test setup error
-    #[error("Test setup error: {0}")]
-    TestSetup(String),
-    /// Missing `EigenlayerContractAddresses`
-    #[error("Missing EigenlayerContractAddresses")]
-    MissingEigenlayerContractAddresses,
-    /// Missing `SymbioticContractAddresses`
-    #[error("Missing SymbioticContractAddresses")]
-    MissingSymbioticContractAddresses,
-    #[error("Bad RPC Connection: {0}")]
-    BadRpcConnection(String),
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    /// # Errors
+    ///
+    /// `self` is not [`ProtocolSettings::Symbiotic`]
+    #[cfg(feature = "symbiotic")]
+    #[allow(clippy::match_wildcard_for_single_variants)]
+    pub fn symbiotic(&self) -> Result<(), ConfigError> {
+        todo!()
+    }
 }
 
 /// Gadget environment.
@@ -198,43 +202,39 @@ pub struct GadgetConfiguration {
     ///
     /// This will be `None` if the blueprint manager was not provided a base directory.
     pub data_dir: Option<PathBuf>,
-    /// The type of protocol the gadget is executing on.
-    pub protocol: Protocol,
     /// Protocol-specific settings
     pub protocol_settings: ProtocolSettings,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
 }
 
-/// Loads the [`GadgetConfiguration`] from the current environment.
-/// # Errors
-///
-/// This function will return an error if any of the required environment variables are missing.
-pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
-    load_inner(config)
+impl GadgetConfiguration {
+    /// Loads the [`GadgetConfiguration`] from the current environment.
+    /// # Errors
+    ///
+    /// This function will return an error if any of the required environment variables are missing.
+    pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError> {
+        load_inner(config)
+    }
+
+    pub fn keystore(&self) -> Keystore {
+        let config = KeystoreConfig::new().fs_root(self.keystore_uri.clone());
+        Keystore::new(config).expect("Failed to create keystore")
+    }
 }
 
-fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
-    tracing::info_span!("gadget");
+fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError> {
     let ContextConfig {
-        gadget_core_settings:
-            GadgetCLICoreSettings::Run {
-                test_mode,
-                http_rpc_url,
-                ws_rpc_url,
-                keystore_uri,
-                protocol,
-                blueprint_id,
-                service_id,
-                ..
-            },
+        gadget_core_settings: GadgetCLICoreSettings::Run(settings),
         ..
     } = config;
 
-    let protocol_settings = ProtocolSettings::from_tangle(TangleInstanceSettings {
-        blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
-        service_id: Some(service_id.ok_or(Error::MissingServiceId)?),
-    });
+    let test_mode = settings.test_mode;
+    let http_rpc_url = settings.http_rpc_url.clone();
+    let ws_rpc_url = settings.ws_rpc_url.clone();
+    let keystore_uri = settings.keystore_uri.clone();
+
+    let protocol_settings = ProtocolSettings::load(settings)?;
 
     Ok(GadgetConfiguration {
         test_mode,
@@ -242,7 +242,6 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
-        protocol,
         protocol_settings,
     })
 }
@@ -258,52 +257,142 @@ pub struct ContextConfig {
 #[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
 pub enum GadgetCLICoreSettings {
     #[command(name = "run")]
-    Run {
-        #[arg(long, short = 't', env)]
-        test_mode: bool,
-        #[arg(long, env)]
-        #[serde(default = "default_http_rpc_url")]
-        http_rpc_url: Url,
-        #[arg(long, env)]
-        #[serde(default = "default_ws_rpc_url")]
-        ws_rpc_url: Url,
-        #[arg(long, short = 'd', env)]
-        keystore_uri: String,
-        #[arg(long, value_enum, env)]
-        chain: SupportedChains,
-        #[arg(long, short = 'v', global = true, action = clap::ArgAction::Count)]
-        verbose: u8,
-        /// Whether to use pretty logging
-        #[arg(long, env)]
-        pretty: bool,
-        #[arg(long, env)]
-        keystore_password: Option<String>,
-        /// The protocol to use
-        #[arg(long, value_enum, env)]
-        #[serde(default = "default_protocol")]
-        protocol: Protocol,
-        /// The blueprint ID for Tangle protocol
-        #[arg(
-            long,
-            value_name = "ID",
-            env = "BLUEPRINT_ID",
-            required_if_eq("protocol", Protocol::Tangle.as_str())
-        )]
-        blueprint_id: Option<u64>,
-        /// The service ID for Tangle protocol
-        #[arg(
-            long,
-            value_name = "ID",
-            env = "SERVICE_ID",
-            required_if_eq("protocol", Protocol::Tangle.as_str())
-        )]
-        service_id: Option<u64>,
-    },
+    Run(GadgetSettings),
 }
 
 impl Default for GadgetCLICoreSettings {
     fn default() -> Self {
-        Self::Run {
+        GadgetCLICoreSettings::Run(GadgetSettings::default())
+    }
+}
+
+#[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
+pub struct GadgetSettings {
+    #[arg(long, short = 't', env)]
+    pub test_mode: bool,
+    #[arg(long, env)]
+    #[serde(default = "default_http_rpc_url")]
+    pub http_rpc_url: Url,
+    #[arg(long, env)]
+    #[serde(default = "default_ws_rpc_url")]
+    pub ws_rpc_url: Url,
+    #[arg(long, short = 'd', env)]
+    pub keystore_uri: String,
+    #[arg(long, value_enum, env)]
+    pub chain: SupportedChains,
+    #[arg(long, short = 'v', global = true, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+    /// Whether to use pretty logging
+    #[arg(long, env)]
+    pub pretty: bool,
+    #[arg(long, env)]
+    pub keystore_password: Option<String>,
+    /// The protocol to use
+    #[arg(long, value_enum, env)]
+    pub protocol: Option<Protocol>,
+
+    // =======
+    // TANGLE
+    // =======
+    #[cfg(feature = "tangle")]
+    /// The blueprint ID for Tangle protocol
+    #[arg(
+        long,
+        value_name = "ID",
+        env = "BLUEPRINT_ID",
+        required_if_eq("protocol", Protocol::Tangle.as_str())
+    )]
+    pub blueprint_id: Option<u64>,
+    #[cfg(feature = "tangle")]
+    /// The service ID for Tangle protocol
+    #[arg(
+        long,
+        value_name = "ID",
+        env = "SERVICE_ID",
+        required_if_eq("protocol", Protocol::Tangle.as_str())
+    )]
+    pub service_id: Option<u64>,
+
+    // ========
+    // EIGENLAYER
+    // ========
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the registry coordinator
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "REGISTRY_COORDINATOR_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+    )]
+    pub registry_coordinator: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the operator state retriever
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "OPERATOR_STATE_RETRIEVER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub operator_state_retriever: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the delegation manager
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "DELEGATION_MANAGER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub delegation_manager: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the strategy manager
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "STRATEGY_MANAGER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub strategy_manager: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the Service Manager
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "SERVICE_MANAGER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub service_manager: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the Stake Registry
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "STAKE_REGISTRY_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub stake_registry: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the AVS directory
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "AVS_DIRECTORY_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub avs_directory: Option<alloy_primitives::Address>,
+    #[cfg(feature = "eigenlayer")]
+    /// The address of the rewards coordinator
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "REWARDS_COORDINATOR_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+    )]
+    pub rewards_coordinator: Option<alloy_primitives::Address>,
+}
+
+impl Default for GadgetSettings {
+    fn default() -> Self {
+        Self {
             test_mode: false,
             http_rpc_url: default_http_rpc_url(),
             ws_rpc_url: default_ws_rpc_url(),
@@ -312,117 +401,37 @@ impl Default for GadgetCLICoreSettings {
             verbose: 0,
             pretty: false,
             keystore_password: None,
-            protocol: Protocol::default(),
-            blueprint_id: Some(1),
-            service_id: Some(1),
+            protocol: None,
+
+            // =======
+            // TANGLE
+            // =======
+            #[cfg(feature = "tangle")]
+            blueprint_id: None,
+            #[cfg(feature = "tangle")]
+            service_id: None,
+
+            // ========
+            // EIGENLAYER
+            // ========
+            #[cfg(feature = "eigenlayer")]
+            registry_coordinator: None,
+            #[cfg(feature = "eigenlayer")]
+            operator_state_retriever: None,
+            #[cfg(feature = "eigenlayer")]
+            delegation_manager: None,
+            #[cfg(feature = "eigenlayer")]
+            strategy_manager: None,
+            #[cfg(feature = "eigenlayer")]
+            service_manager: None,
+            #[cfg(feature = "eigenlayer")]
+            stake_registry: None,
+            #[cfg(feature = "eigenlayer")]
+            avs_directory: None,
+            #[cfg(feature = "eigenlayer")]
+            rewards_coordinator: None,
         }
     }
-}
-
-impl ContextConfig {
-    /// Creates a new context config with the given parameters
-    ///
-    /// # Arguments
-    /// - `http_rpc_url`: The HTTP RPC URL of the target chain
-    /// - `ws_rpc_url`: The WebSocket RPC URL of the target chain
-    /// - `use_secure_url`: Whether to use a secure URL (ws/wss and http/https)
-    /// - `keystore_uri`: The keystore URI as a string
-    /// - `chain`: The [`chain`](SupportedChains)
-    /// - `protocol`: The [`Protocol`]
-    /// - `eigenlayer_contract_addresses`: The [`contract addresses`](EigenlayerContractAddresses) for the necessary EigenLayer contracts
-    /// - `symbiotic_contract_addresses`: The [`contract addresses`](SymbioticContractAddresses) for the necessary Symbiotic contracts
-    /// - `blueprint_id`: The blueprint ID - only required for Tangle
-    /// - `service_id`: The service ID - only required for Tangle
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_config(
-        http_rpc_url: Url,
-        ws_rpc_url: Url,
-        keystore_uri: String,
-        keystore_password: Option<String>,
-        chain: SupportedChains,
-        protocol: Protocol,
-        protocol_settings: ProtocolSettings,
-    ) -> Self {
-        // Tangle settings
-        let tangle_settings = match protocol_settings {
-            ProtocolSettings::Tangle(settings) => Some(settings),
-            _ => None,
-        };
-        let blueprint_id = tangle_settings.map(|s| s.blueprint_id);
-        let service_id = tangle_settings.and_then(|s| s.service_id);
-
-        ContextConfig {
-            gadget_core_settings: GadgetCLICoreSettings::Run {
-                test_mode: false,
-                http_rpc_url,
-                keystore_uri,
-                chain,
-                verbose: 3,
-                pretty: true,
-                keystore_password,
-                protocol,
-                ws_rpc_url,
-                blueprint_id,
-                service_id,
-            },
-        }
-    }
-
-    /// Creates a new context config with the given parameters
-    ///
-    /// # Defaults
-    /// - `target_addr`: The same host address as the given http_rpc_url, defaulting to 127.0.0.1 if an error occurs
-    /// - `target_port`: The same port as the given http_rpc_url, defaulting to 0 if an error occurs
-    /// - `skip_registration`: false
-    /// - `keystore_password`: None
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_config_with_defaults(
-        http_rpc_url: Url,
-        ws_rpc_url: Url,
-        keystore_uri: String,
-        keystore_password: Option<String>,
-        chain: SupportedChains,
-        protocol: Protocol,
-        protocol_settings: ProtocolSettings,
-    ) -> Self {
-        ContextConfig::create_config(
-            http_rpc_url,
-            ws_rpc_url,
-            keystore_uri,
-            keystore_password,
-            chain,
-            protocol,
-            protocol_settings,
-        )
-    }
-
-    /// Creates a new context config with defaults for Tangle
-    pub fn create_tangle_config(
-        http_rpc_url: Url,
-        ws_rpc_url: Url,
-        keystore_uri: String,
-        keystore_password: Option<String>,
-        chain: SupportedChains,
-        blueprint_id: u64,
-        service_id: Option<u64>,
-    ) -> Self {
-        Self::create_config_with_defaults(
-            http_rpc_url,
-            ws_rpc_url,
-            keystore_uri,
-            keystore_password,
-            chain,
-            Protocol::Tangle,
-            ProtocolSettings::Tangle(TangleInstanceSettings {
-                blueprint_id,
-                service_id,
-            }),
-        )
-    }
-}
-
-fn default_protocol() -> Protocol {
-    Protocol::Tangle
 }
 
 fn default_http_rpc_url() -> Url {
@@ -466,66 +475,5 @@ impl Display for SupportedChains {
             SupportedChains::Testnet => write!(f, "testnet"),
             SupportedChains::Mainnet => write!(f, "mainnet"),
         }
-    }
-}
-
-/// Wrapper for `tangle_subxt`'s [`PriceTargets`]
-///
-/// This provides a [`Default`] impl for a zeroed-out [`PriceTargets`].
-///
-/// [`PriceTargets`]: tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets
-#[derive(Clone)]
-pub struct PriceTargets(pub TanglePriceTargets);
-
-impl From<TanglePriceTargets> for PriceTargets {
-    fn from(t: TanglePriceTargets) -> Self {
-        PriceTargets(t)
-    }
-}
-
-impl Default for PriceTargets {
-    fn default() -> Self {
-        Self(TanglePriceTargets {
-            cpu: 0,
-            mem: 0,
-            storage_hdd: 0,
-            storage_ssd: 0,
-            storage_nvme: 0,
-        })
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct TangleConfig {
-    pub price_targets: PriceTargets,
-    pub exit_after_register: bool,
-}
-
-impl TangleConfig {
-    pub fn new(price_targets: PriceTargets) -> Self {
-        Self {
-            price_targets,
-            exit_after_register: true,
-        }
-    }
-
-    pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
-        self.exit_after_register = should_exit_after_registration;
-        self
-    }
-}
-
-#[async_trait::async_trait]
-impl BlueprintConfig for TangleConfig {
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), crate::Error> {
-        todo!()
-    }
-
-    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, crate::Error> {
-        Ok(false) // TODO
-    }
-
-    fn should_exit_after_registration(&self) -> bool {
-        self.exit_after_register
     }
 }

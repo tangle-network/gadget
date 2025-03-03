@@ -109,7 +109,7 @@ impl<P: Provider> PollingProducer<P> {
             .from_block(initial_start_block)
             .to_block(initial_start_block + config.step);
 
-        tracing::info!(
+        blueprint_core::info!(
             start_block = initial_start_block,
             step = config.step,
             confirmations = config.confirmations,
@@ -151,7 +151,9 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                 match sleep.poll_unpin(cx) {
                     Poll::Ready(_) => {
                         // Transition to fetching block number
-                        tracing::debug!("Polling interval elapsed, fetching current block number");
+                        blueprint_core::debug!(
+                            "Polling interval elapsed, fetching current block number"
+                        );
                         let fut = get_block_number(provider.clone());
                         *state = PollingState::FetchingBlockNumber(Box::pin(fut));
                         cx.waker().wake_by_ref();
@@ -172,7 +174,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                         let proposed_to_block = last_queried.saturating_add(config.step);
                         let next_to_block = proposed_to_block.min(safe_block);
 
-                        tracing::debug!(
+                        blueprint_core::debug!(
                             current_block,
                             safe_block,
                             next_from_block,
@@ -182,7 +184,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
 
                         // Check if we have new blocks to process
                         if next_from_block > safe_block {
-                            tracing::debug!(
+                            blueprint_core::debug!(
                                 "No new blocks to process yet, waiting for next interval"
                             );
                             *state = PollingState::Idle(Box::pin(tokio::time::sleep(
@@ -197,7 +199,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                             .from_block(next_from_block)
                             .to_block(next_to_block);
 
-                        tracing::info!(
+                        blueprint_core::info!(
                             from_block = next_from_block,
                             to_block = next_to_block,
                             current_block,
@@ -211,7 +213,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                         Poll::Pending
                     }
                     Poll::Ready(Err(e)) => {
-                        tracing::error!(
+                        blueprint_core::error!(
                             error = ?e,
                             "Failed to fetch current block number, retrying after interval"
                         );
@@ -225,7 +227,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
             PollingState::FetchingLogs(fut) => {
                 match fut.poll_unpin(cx) {
                     Poll::Ready(Ok(logs)) => {
-                        tracing::info!(
+                        blueprint_core::info!(
                             logs_count = logs.len(),
                             from_block = ?filter.get_from_block(),
                             to_block = ?filter.get_to_block(),
@@ -255,7 +257,7 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                         }
                     }
                     Poll::Ready(Err(e)) => {
-                        tracing::error!(
+                        blueprint_core::error!(
                             error = ?e,
                             from_block = ?filter.get_from_block(),
                             to_block = ?filter.get_to_block(),
@@ -279,7 +281,7 @@ async fn get_block_number<P: Provider>(provider: P) -> Result<u64, TransportErro
 
 /// Fetches logs from the provider for the specified filter range
 async fn get_logs<P: Provider>(provider: P, filter: Filter) -> Result<Vec<Log>, TransportError> {
-    tracing::debug!(
+    blueprint_core::debug!(
         from_block = ?filter.get_from_block(),
         to_block = ?filter.get_to_block(),
         "Fetching logs from provider"

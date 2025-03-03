@@ -14,7 +14,7 @@ pub mod layers;
 pub mod metadata;
 /// Tangle Network Job Producers
 pub mod producer;
-pub(crate) mod tracing;
+pub mod util;
 
 macro_rules! count {
     ($val:ident, $($rest:tt)*) => {

@@ -37,3 +37,29 @@ pub use job::Job;
 pub type JobResult<T = Bytes> = crate::job_result::JobResult<T>;
 /// A type representing a job call with a body of type `bytes::Bytes`.
 pub type JobCall<T = Bytes> = crate::job_call::JobCall<T>;
+
+// Feature-gated tracing macros, used by the entire SDK
+macro_rules! tracing_macros {
+    ($d:tt $($name:ident),*) => {
+        $(
+            #[doc(hidden)]
+            #[cfg(feature = "tracing")]
+            pub use tracing::$name;
+
+            #[doc(hidden)]
+            #[cfg(not(feature = "tracing"))]
+            #[macro_export]
+            macro_rules! debug {
+                ($d($d tt:tt)*) => {};
+            }
+        )*
+    }
+}
+
+tracing_macros!($
+    info,
+    warn,
+    error,
+    debug,
+    trace
+);

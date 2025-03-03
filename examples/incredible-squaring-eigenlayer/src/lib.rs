@@ -76,7 +76,6 @@ mod tests {
     #[derive(Debug, Clone, Copy)]
     struct MockBlueprintConfig;
 
-    #[async_trait::async_trait]
     impl BlueprintConfig for MockBlueprintConfig {
         async fn requires_registration(
             &self,

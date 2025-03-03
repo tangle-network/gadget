@@ -4,18 +4,40 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-alloy-primitives = { workspace = true, features = ["serde"] }
 blueprint-core.workspace = true
 blueprint-router.workspace = true
+gadget-keystore = { workspace = true }
 futures-core.workspace = true
 futures-util.workspace = true
 tower.workspace = true
 tokio = { workspace = true, features = ["full"] }
 serde.workspace = true
-tangle-subxt.workspace = true
 tracing.workspace = true
 clap = { workspace = true, features = ["derive"] }
-async-trait.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 url.workspace = true
+dynosaur = { workspace = true }
+
+gadget-utils.workspace = true
+
+# Tangle
+blueprint-tangle-extra = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true }
+k256 = { workspace = true, optional = true }
+
+# Eigenlayer
+alloy-contract = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, features = ["serde"], optional = true }
+alloy-signer-local = { workspace = true, optional = true }
+alloy-signer = { workspace = true, optional = true }
+eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"], optional = true }
+gadget-eigenlayer-bindings = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = []
+
+tangle = ["dep:tangle-subxt", "dep:blueprint-tangle-extra", "dep:k256", "gadget-utils/tangle"]
+eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "dep:gadget-eigenlayer-bindings", "gadget-utils/evm"]
+symbiotic = []

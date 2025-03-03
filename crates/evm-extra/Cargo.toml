@@ -29,8 +29,13 @@ tower = { workspace = true, features = ["filter"] }
 # Utils
 bytes = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tracing-subscriber = { workspace = true }
+
+[features]
+default = ["std", "tracing"]
+std = []
+
+tracing = ["blueprint-core/tracing"]

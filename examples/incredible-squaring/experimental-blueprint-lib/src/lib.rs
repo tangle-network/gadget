@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use blueprint_core::Context;
 use blueprint_core::IntoJobResult;
 use blueprint_runner::BackgroundService;
@@ -102,7 +101,6 @@ pub async fn manual_event_handling(
 #[derive(Clone)]
 pub struct FooBackgroundService;
 
-#[async_trait]
 impl BackgroundService for FooBackgroundService {
     async fn start(&self) -> Result<Receiver<Result<(), RunnerError>>, RunnerError> {
         let (tx, rx) = oneshot::channel();

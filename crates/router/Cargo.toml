@@ -11,9 +11,6 @@ tower.workspace = true
 hashbrown = { workspace = true, default-features = false, features = ["default-hasher", "inline-more"] }
 futures = { workspace = true, features = ["alloc"] }
 
-# optional dependencies
-tracing = { workspace = true, optional = true }
-
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 serde = { workspace = true, features = ["derive"] }
@@ -27,4 +24,4 @@ features = ["util", "timeout", "limit", "load-shed", "steer", "filter"]
 [features]
 default = ["std", "tracing"]
 std = ["blueprint-core/std"]
-tracing = ["dep:tracing"]
+tracing = ["blueprint-core/tracing"]

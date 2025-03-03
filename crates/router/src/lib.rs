@@ -5,7 +5,7 @@ extern crate alloc;
 #[doc(hidden)]
 pub mod __private {
     #[cfg(feature = "tracing")]
-    pub use tracing;
+    pub use blueprint_core::__private::tracing;
 }
 
 mod boxed;

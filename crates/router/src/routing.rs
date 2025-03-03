@@ -213,7 +213,7 @@ where
         call: JobCall,
         context: Ctx,
     ) -> Option<FuturesUnordered<RouteFuture<BoxError>>> {
-        tracing::trace!(?call, "routing a job call to inner routers");
+        blueprint_core::trace!(?call, "routing a job call to inner routers");
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
             Ok(matched_call_future) => {
                 return Some(matched_call_future);

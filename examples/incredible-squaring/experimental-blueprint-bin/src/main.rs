@@ -1,7 +1,8 @@
 use blueprint_core::Job;
 use blueprint_router::Router;
 use blueprint_runner::BlueprintRunner;
-use blueprint_runner::config::{GadgetConfiguration, TangleConfig};
+use blueprint_runner::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, GadgetSettings, Protocol, SupportedChains};
+use blueprint_runner::tangle::config::TangleConfig;
 use blueprint_tangle_extra::consumer::TangleConsumer;
 use blueprint_tangle_extra::filters::MatchesServiceId;
 use blueprint_tangle_extra::layers::TangleLayer;
@@ -32,12 +33,29 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
     let tangle_client = harness.client().subxt_client().clone();
     let tangle_config = TangleConfig::default();
 
-    let (_test_env, service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
+    let (_test_env, service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
 
     let tangle_producer = TangleProducer::finalized_blocks(tangle_client.clone()).await?;
     let tangle_consumer = TangleConsumer::new(tangle_client, harness.sr25519_signer.clone());
 
-    let result = BlueprintRunner::builder(tangle_config, GadgetConfiguration::default())
+    // TODO: This is temporary until the harness is updated to use our `GadgetConfiguration`
+    let context_config = ContextConfig {
+        gadget_core_settings: GadgetCLICoreSettings::Run(GadgetSettings {
+            test_mode: false,
+            http_rpc_url: harness.http_endpoint.clone(),
+            ws_rpc_url: harness.ws_endpoint.clone(),
+            keystore_uri: harness.env().keystore_uri.clone(),
+            chain: SupportedChains::LocalTestnet,
+            verbose: 0,
+            pretty: false,
+            keystore_password: None,
+            protocol: Some(Protocol::Tangle),
+            blueprint_id: Some(blueprint_id),
+            service_id: Some(service_id),
+        }),
+    };
+
+    let result = BlueprintRunner::builder(tangle_config, GadgetConfiguration::load(context_config)?)
         .router(
             // A router
             //

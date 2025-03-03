@@ -16,7 +16,7 @@ path = "src/main.rs"
 # Blueprint dependencies
 blueprint-core = { workspace = true }
 blueprint-router = { workspace = true }
-blueprint-runner = { workspace = true }
+blueprint-runner = { workspace = true, features = ["eigenlayer"] }
 blueprint-evm-extra = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true }
 serde = { workspace = true }

@@ -1,7 +1,6 @@
 use crate::extract;
 use crate::extract::{InvalidCallId, InvalidServiceId};
 use crate::producer::TangleConfig;
-use crate::tracing;
 use blueprint_core::{BoxError, JobResult};
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -118,7 +117,8 @@ where
                     let tx = api::tx()
                         .services()
                         .submit_result(service_id, call_id, result);
-                    let fut = send(consumer.client.clone(), consumer.signer.clone(), tx);
+                    let fut =
+                        crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
                     consumer.state = State::ProcessingBlock(Box::pin(fut));
                     continue;
                 }
@@ -140,59 +140,5 @@ where
         } else {
             Poll::Pending
         }
-    }
-}
-
-/// Send a transaction to the Tangle network.
-///
-/// # Errors
-///
-/// Returns a [`subxt::Error`] if the transaction fails.
-async fn send<T, S, X>(
-    client: Arc<subxt::OnlineClient<T>>,
-    signer: Arc<S>,
-    xt: X,
-) -> Result<subxt::blocks::ExtrinsicEvents<T>, subxt::Error>
-where
-    T: subxt::Config,
-    S: subxt::tx::Signer<T>,
-    X: subxt::tx::Payload,
-    <T::ExtrinsicParams as subxt::config::ExtrinsicParams<T>>::Params: Default,
-{
-    #[cfg(feature = "tracing")]
-    if let Some(details) = xt.validation_details() {
-        tracing::debug!("Calling {}.{}", details.pallet_name, details.call_name);
-    }
-
-    tracing::debug!("Waiting for the transaction to be included in a finalized block");
-    let progress = client
-        .tx()
-        .sign_and_submit_then_watch_default(&xt, &*signer)
-        .await?;
-
-    #[cfg(not(test))]
-    {
-        tracing::debug!("Waiting for finalized success ...");
-        let result = progress.wait_for_finalized_success().await?;
-        tracing::debug!(
-            "Transaction with hash: {:?} has been finalized",
-            result.extrinsic_hash()
-        );
-        Ok(result)
-    }
-    #[cfg(test)]
-    {
-        use gadget_utils_tangle::tx_progress::TxProgressExt;
-
-        // In tests, we don't wait for the transaction to be finalized.
-        // This is because the test environment we will be using instant sealing.
-        // Instead, we just wait for the transaction to be included in a block.
-        tracing::debug!("Waiting for in block success ...");
-        let result = progress.wait_for_in_block_success().await?;
-        tracing::debug!(
-            "Transaction with hash: {:?} has been included in a block",
-            result.extrinsic_hash()
-        );
-        Ok(result)
     }
 }
