@@ -1,11 +1,13 @@
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::eyre::{Result, eyre};
-use gadget_blueprint_manager::executor::run_blueprint_manager;
-use gadget_client_tangle::client::TangleClient;
+use blueprint_manager::config::BlueprintManagerConfig;
+use blueprint_manager::executor::run_blueprint_manager;
+use color_eyre::eyre::{eyre, Result};
+use gadget_config::GadgetConfiguration;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_logging::info;
 use sp_core::sr25519;
-use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::{self, call::Job};
-use tangle_subxt::tangle_testnet_runtime::api::services::events::{JobCalled, JobResultSubmitted};
+use std::path::PathBuf;
+use tokio::signal;
 
 #[derive(Clone)]
 pub struct RunOpts {
@@ -19,74 +21,58 @@ pub struct RunOpts {
     pub signer_evm: Option<PrivateKeySigner>,
     /// The blueprint ID to run
     pub blueprint_id: Option<u64>,
-}
-
-/// Lists all service requests for the current account
-pub async fn list_service_requests(client: &TangleClient) -> Result<Vec<types::ServiceRequest>> {
-    let requests = client.get_service_requests().await?;
-    Ok(requests)
-}
-
-/// Responds to a service request
-pub async fn respond_to_service_request(
-    client: &TangleClient,
-    request_id: u64,
-    accept: bool,
-) -> Result<()> {
-    if accept {
-        client.accept_service_request(request_id).await?;
-    } else {
-        client.reject_service_request(request_id).await?;
-    }
-    Ok(())
-}
-
-/// Submits a new service request
-pub async fn request_service(
-    client: &TangleClient,
-    service_id: u64,
-    preferences: types::register::Preferences,
-) -> Result<u64> {
-    let request_id = client.request_service(service_id, preferences).await?;
-    Ok(request_id)
-}
-
-/// Submits a job to a service
-pub async fn submit_job(
-    client: &TangleClient,
-    service_id: u64,
-    job_id: u8,
-    inputs: Vec<types::JobInput>,
-) -> Result<JobCalled> {
-    let job = Job { id: job_id, inputs };
-    let submitted = client.submit_job(service_id, job).await?;
-    Ok(submitted)
-}
-
-/// Waits for a job to complete and returns the result
-pub async fn wait_for_job_result(
-    client: &TangleClient,
-    service_id: u64,
-    job: JobCalled,
-) -> Result<JobResultSubmitted> {
-    let result = client.wait_for_job_result(service_id, job).await?;
-    Ok(result)
+    /// The keystore path
+    pub keystore_path: Option<String>,
+    /// The data directory path
+    pub data_dir: Option<PathBuf>,
 }
 
 /// Runs a blueprint using the blueprint manager
 pub async fn run_blueprint(opts: RunOpts) -> Result<()> {
-    let blueprint_id = opts.blueprint_id.ok_or_else(|| eyre!("Blueprint ID is required"))?;
-    
-    // Initialize the blueprint manager configuration
-    let config = gadget_blueprint_manager::config::Config {
-        http_rpc_url: opts.http_rpc_url,
-        ws_rpc_url: opts.ws_rpc_url,
-        blueprint_id,
-        signer: opts.signer,
-        signer_evm: opts.signer_evm,
+    let blueprint_id = opts
+        .blueprint_id
+        .ok_or_else(|| eyre!("Blueprint ID is required"))?;
+
+    let mut gadget_config = GadgetConfiguration::default();
+    gadget_config.http_rpc_endpoint = opts.http_rpc_url.clone();
+    gadget_config.ws_rpc_endpoint = opts.ws_rpc_url.clone();
+
+    if let Some(keystore_path) = opts.keystore_path {
+        gadget_config.keystore_uri = keystore_path;
+    }
+
+    gadget_config.data_dir = opts.data_dir;
+
+    let blueprint_manager_config = BlueprintManagerConfig {
+        gadget_config: None,
+        keystore_uri: gadget_config.keystore_uri.clone(),
+        data_dir: gadget_config
+            .data_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("./data")),
+        verbose: 2,
+        pretty: true,
+        instance_id: Some(format!("Blueprint-{}", blueprint_id)),
+        test_mode: false,
     };
 
-    // Run the blueprint manager
-    run_blueprint_manager(config).await?;
+    info!(
+        "Starting blueprint manager for blueprint ID: {}",
+        blueprint_id
+    );
+
+    let shutdown_signal = async move {
+        let _ = signal::ctrl_c().await;
+        info!("Received shutdown signal, stopping blueprint manager");
+    };
+
+    let mut handle =
+        run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
+
+    handle.start()?;
+
+    handle.await?;
+
+    info!("Blueprint manager has stopped");
     Ok(())
 }

@@ -56,9 +56,11 @@ blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-
 blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
+gadget-blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
 
 # Chain Setup
 gadget-chain-setup = { version = "0.1.0", path = "./crates/chain-setup", default-features = false }
+gadget-chain-setup-common = { version = "0.1.0", path = "./crates/chain-setup/common", default-features = false }
 gadget-chain-setup-tangle = { version = "0.1.0", path = "./crates/chain-setup/tangle", default-features = false }
 gadget-chain-setup-anvil = { version = "0.1.0", path = "./crates/chain-setup/anvil", default-features = false }
 

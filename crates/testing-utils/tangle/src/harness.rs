@@ -1,11 +1,10 @@
-use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
+use crate::Error;
+use crate::{keys::inject_tangle_key, InputValue, OutputValue};
+use gadget_chain_setup::tangle::testnet::SubstrateNode;
+use gadget_chain_setup::tangle::transactions;
+use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
 use crate::node::transactions::setup_operator_and_service_multiple;
-use crate::{
-    InputValue, OutputValue,
-    keys::inject_tangle_key,
-    node::{NodeConfig, run, transactions},
-};
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::ContextConfig;
 use blueprint_runner::config::SupportedChains;
@@ -60,7 +59,7 @@ pub struct TangleTestHarness<Ctx> {
     config: TangleTestConfig,
     context: Ctx,
     temp_dir: tempfile::TempDir,
-    _node: crate::node::testnet::SubstrateNode,
+    _node: SubstrateNode,
 }
 
 pub(crate) async fn generate_env_from_node_id(
@@ -107,9 +106,10 @@ where
 
     async fn setup(test_dir: TempDir, context: Self::Context) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false))
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?;
+        let node =
+            gadget_chain_setup::tangle::run(gadget_chain_setup::tangle::NodeConfig::new(false))
+                .await
+                .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
@@ -288,7 +288,7 @@ where
     pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
         let opts = self.create_deploy_opts(manifest_path)?;
-        let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts)
+        let blueprint_id = gadget_chain_setup::tangle::deploy::deploy_to_tangle(opts)
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         Ok(blueprint_id)

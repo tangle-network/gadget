@@ -5,11 +5,11 @@ use blueprint_runner::config::SupportedChains;
 use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use color_eyre::eyre::Result;
+use gadget_chain_setup::anvil::start_default_anvil_testnet;
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
-use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use tempfile::TempDir;
 
 #[tokio::test]

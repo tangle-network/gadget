@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 gadget-chain-setup-tangle = { workspace = true, optional = true }
 gadget-chain-setup-anvil = { workspace = true, optional = true }
+gadget-chain-setup-common = { workspace = true }
 
 [features]
 default = ["std"]

@@ -5,7 +5,7 @@ use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_anvil_testing_utils::get_receipt;
+use gadget_chain_setup::anvil::get_receipt;
 use gadget_logging::info;
 use gadget_utils::evm::get_provider_http;
 

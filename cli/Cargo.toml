@@ -39,10 +39,12 @@ gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
+gadget-chain-setup = { workspace = true, features = ["std", "tangle", "anvil"] }
+blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
 
 # Optional client dependencies
-gadget-clients = { workspace = true, optional = true }
+gadget-clients = { workspace = true, optional = false }
 gadget-crypto = { workspace = true, features = [
     "k256",
     "sr25519-schnorrkel",
@@ -82,7 +84,7 @@ alloy-rpc-types-eth = { workspace = true, optional = true }
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = { workspace = true }
-gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
+gadget-testing-utils = { workspace = true, features = ["tangle", "anvil", "eigenlayer"] }
 gadget-utils = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }

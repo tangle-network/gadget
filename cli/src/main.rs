@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use crate::keys::prompt_for_keys;
 use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
@@ -10,16 +9,15 @@ use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_to_eigenlayer};
 use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
-use cargo_tangle::{create, deploy, keys};
+use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
 use tangle_subxt::subxt::client::OnlineClientT;
 use tangle_subxt::subxt::Config;
-use tangle_subxt::subxt::tx::{Signer, TxProgress};
+use tangle_subxt::subxt::tx::TxProgress;
 use tangle_subxt::subxt_core::utils::AccountId32;
-use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{Asset, AssetSecurityCommitment, AssetSecurityRequirement, MembershipModel};
@@ -27,14 +25,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
 use tokio::signal;
-use cargo_tangle::deploy::tangle::{deploy_to_tangle, Opts};
-use gadget_clients::tangle::client::TangleClient;
-use gadget_crypto::sp_core::SpSr25519;
-use gadget_crypto::tangle_pair_signer::TanglePairSigner;
-use gadget_keystore::backends::Backend;
-use gadget_keystore::{Keystore, KeystoreConfig};
-
-type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+use gadget_chain_setup::tangle::deploy::{deploy_to_tangle, Opts};
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -433,10 +424,10 @@ async fn main() -> color_eyre::Result<()> {
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
                     let _ = deploy_to_tangle(Opts {
+                        pkg_name: package,
                         http_rpc_url,
                         ws_rpc_url,
                         manifest_path,
-                        pkg_name: package,
                         signer: None,
                         signer_evm: None,
                     })
@@ -629,8 +620,23 @@ async fn main() -> color_eyre::Result<()> {
                         run_eigenlayer_avs(config, chain, binary_path).await?;
                     }
                     Protocol::Tangle => {
-                        // Tangle implementation will go here
-                        unimplemented!("Tangle protocol implementation not yet available");
+                        // Create the run options for the Tangle blueprint
+                        let run_opts = cargo_tangle::run::tangle::RunOpts {
+                            http_rpc_url: config.http_rpc_endpoint.clone(),
+                            ws_rpc_url: config.ws_rpc_endpoint.clone(),
+                            signer: None, // We'll get the signer from the keystore
+                            signer_evm: None, // We'll get the signer from the keystore
+                            blueprint_id: Some(
+                                protocol_settings
+                                    .tangle().map(|t| t.blueprint_id)
+                                    .map_err(|e| color_eyre::Report::msg(format!("Blueprint ID is required in the protocol settings: {e:?}")))?,
+                            ),
+                            keystore_path: Some(config.keystore_uri.clone()),
+                            data_dir: config.data_dir.clone(),
+                        };
+
+                        // Run the blueprint
+                        cargo_tangle::run::tangle::run_blueprint(run_opts).await?;
                     }
                     _ => {
                         return Err(ConfigError::UnsupportedProtocol(protocol.to_string()).into());
