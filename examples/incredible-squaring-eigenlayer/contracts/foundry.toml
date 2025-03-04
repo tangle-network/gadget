@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib", "dependencies"]
+evm_version = "shanghai"
 
 [soldeer]
 recursive_deps = true

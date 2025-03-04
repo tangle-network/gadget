@@ -3,9 +3,10 @@
 //! Monitors TaskManager events for task creation and completion.
 
 use alloy_primitives::Address;
-use blueprint_core::*;
 use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
 use blueprint_runner::{config::GadgetConfiguration, BlueprintRunner};
+use blueprint_sdk::error::BoxError;
+use blueprint_sdk::*;
 use incredible_squaring_eigenlayer::config::{get_provider_http, EigenlayerBLSConfig};
 use incredible_squaring_eigenlayer::create_contract_router;
 use std::{str::FromStr, sync::Arc, time::Duration};
@@ -24,9 +25,10 @@ async fn main() -> Result<(), BoxError> {
     let rpc_url = std::env::var("RPC_URL").expect("RPC_URL must be set");
     let client = get_provider_http(&rpc_url);
 
+    let client = Arc::new(client);
     // Create producer for task events
     let task_producer = PollingProducer::new(
-        Arc::new(client.clone()),
+        client.clone(),
         PollingConfig {
             poll_interval: Duration::from_secs(1),
             ..Default::default()
@@ -38,8 +40,9 @@ async fn main() -> Result<(), BoxError> {
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
     );
+    let ctx = todo!();
     BlueprintRunner::builder(eigenlayer_bls_config, GadgetConfiguration::default())
-        .router(create_contract_router(task_manager))
+        .router(create_contract_router(ctx, task_manager))
         .producer(task_producer)
         .with_shutdown_handler(async {
             tracing::info!("Shutting down task manager service");

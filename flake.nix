@@ -11,7 +11,7 @@
       };
     };
     foundry = {
-      url = "github:shazow/foundry.nix/monthly";
+      url = "github:shazow/foundry.nix/stable";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";

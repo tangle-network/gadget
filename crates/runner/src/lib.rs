@@ -10,7 +10,8 @@ mod symbiotic;
 #[cfg(feature = "tangle")]
 pub mod tangle;
 
-use blueprint_core::{BoxError, JobCall, JobResult};
+use blueprint_core::error::BoxError;
+use blueprint_core::{JobCall, JobResult};
 use blueprint_router::Router;
 use config::GadgetConfiguration;
 use core::future::{self, poll_fn};
@@ -240,6 +241,10 @@ where
                         Some(Ok(job_call)) => {
                             match router.call(job_call).await {
                                 Ok(Some(results)) => {
+                                    blueprint_core::trace!(
+                                        count = %results.len(),
+                                        "Job call(s) was processed by router"
+                                    );
                                     let result_stream = stream::iter(results.into_iter().map(Ok));
 
                                     // Broadcast results to all consumers
@@ -251,6 +256,10 @@ where
                                     });
 
                                     let result = futures::future::try_join_all(send_futures).await;
+                                    blueprint_core::trace!(
+                                        results = ?result.as_ref().map(|_| "success"),
+                                        "Job call results were broadcasted to consumers"
+                                    );
                                     if let Err(e) = result {
                                         let _ = shutdown_tx.send(true);
                                         return Err(Error::Consumer(e));

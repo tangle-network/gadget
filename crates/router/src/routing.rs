@@ -4,7 +4,7 @@ use crate::future::{Route, RouteFuture};
 use alloc::boxed::Box;
 
 use crate::IntoMakeService;
-use crate::path_router::JobIdRouter;
+use crate::job_router::JobIdRouter;
 use crate::util::try_downcast;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobResult};
 
@@ -213,9 +213,18 @@ where
         call: JobCall,
         context: Ctx,
     ) -> Option<FuturesUnordered<RouteFuture<BoxError>>> {
-        blueprint_core::trace!(?call, "routing a job call to inner routers");
+        blueprint_core::trace!(
+            job_id = %call.job_id(),
+            metadata = ?call.metadata(),
+            body = ?call.body(),
+            "routing a job call to inner routers"
+        );
         let (call, context) = match self.inner.job_id_router.call_with_context(call, context) {
             Ok(matched_call_future) => {
+                blueprint_core::trace!(
+                    matched_calls = matched_call_future.len(),
+                    "A route matched this job call"
+                );
                 return Some(matched_call_future);
             }
             Err((call, context)) => (call, context),
@@ -339,11 +348,15 @@ where
         Box::pin(async move {
             let mut results = Vec::with_capacity(futures.len());
             while let Some(item) = futures.next().await {
+                blueprint_core::trace!(outcome = ?item, "Job finished with outcome");
                 match item {
                     Ok(Some(job)) => results.push(job),
                     // Job produced nothing, and didn't error. Don't include it.
                     Ok(None) => continue,
-                    Err(e) => return Err(e),
+                    Err(e) => {
+                        blueprint_core::error!(?e, "Job failed");
+                        return Err(e);
+                    }
                 }
             }
 

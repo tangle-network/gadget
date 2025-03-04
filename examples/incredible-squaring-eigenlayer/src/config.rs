@@ -1,8 +1,12 @@
-use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
 use blueprint_runner::{config::GadgetConfiguration, error::RunnerError as Error, BlueprintConfig};
+use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
+use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
+use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
+use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::{
     client_avsregistry::writer::AvsRegistryChainWriter,
     client_elcontracts::{reader::ELChainReader, writer::ELChainWriter},
@@ -23,6 +27,10 @@ pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
     provider
 }
 
+pub type BlsAggServiceInMemory = BlsAggregatorService<
+    AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+>;
+
 pub fn get_wallet_provider_http(
     http_endpoint: &str,
     signer: alloy_signer_local::PrivateKeySigner,
@@ -38,7 +46,7 @@ pub fn get_wallet_provider_http(
     provider
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Keystore {
     ecdsa_key: String,
     bls_keypair: BlsKeyPair,
@@ -47,7 +55,7 @@ pub struct Keystore {
 impl Default for Keystore {
     fn default() -> Self {
         // Use first Anvil private key
-        let ecdsa_key = hex::encode(ANVIL_PRIVATE_KEYS[0]);
+        let ecdsa_key = ANVIL_PRIVATE_KEYS[0].to_string();
 
         // Hardcoded BLS private key for testing
         let bls_private_key =
@@ -110,8 +118,7 @@ impl BlueprintConfig for EigenlayerBLSConfig {
         let contract_addresses = env.protocol_settings.eigenlayer()?;
 
         // Use ANVIL private key for testing
-        let operator_private_key =
-            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        let operator_private_key = self.keystore.ecdsa_private_key();
         let provider = get_provider_http(&env.http_rpc_endpoint);
 
         let delegation_manager =

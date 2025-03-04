@@ -70,9 +70,15 @@ where
                 let result = ready!(future.poll(cx)?);
                 match result {
                     Some(mut result) => {
-                        let metadata = result.metadata_mut();
-                        metadata.insert(extract::CallId::METADATA_KEY, call_id.0);
-                        metadata.insert(extract::ServiceId::METADATA_KEY, service_id.0);
+                        let JobResult::Ok { head, .. } = &mut result else {
+                            // Result is an error, ignore
+                            return Poll::Ready(Ok(Some(result)));
+                        };
+
+                        head.metadata
+                            .insert(extract::CallId::METADATA_KEY, call_id.0);
+                        head.metadata
+                            .insert(extract::ServiceId::METADATA_KEY, service_id.0);
                         Poll::Ready(Ok(Some(result)))
                     }
                     None => Poll::Ready(Ok(None)),

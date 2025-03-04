@@ -1,6 +1,7 @@
 use super::Job;
 
 use crate::JobResult;
+use crate::error::BoxError;
 use crate::job_call::JobCall;
 use bytes::Bytes;
 use core::{
@@ -8,7 +9,7 @@ use core::{
     marker::PhantomData,
     task::{Context, Poll},
 };
-use tower::{BoxError, Service};
+use tower::Service;
 
 /// An adapter that makes a [`Job`] into a [`Service`].
 ///

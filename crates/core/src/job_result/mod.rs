@@ -1,5 +1,5 @@
+use crate::error::Error;
 use crate::metadata::{MetadataMap, MetadataValue};
-use crate::BoxError;
 
 mod into_job_result;
 mod into_job_result_parts;
@@ -15,7 +15,7 @@ pub use into_job_result_parts::JobResultParts;
 pub struct Void;
 
 #[derive(Debug, Clone)]
-pub enum JobResult<T, E = BoxError> {
+pub enum JobResult<T, E = Error> {
     Ok { head: Parts, body: T },
     Err(E),
 }

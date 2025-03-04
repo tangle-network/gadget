@@ -1,4 +1,4 @@
-use blueprint_core::BoxError;
+use blueprint_core::error::BoxError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

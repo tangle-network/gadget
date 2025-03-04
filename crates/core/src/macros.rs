@@ -263,14 +263,14 @@ macro_rules! __define_rejection {
     ) => {
         $(#[$m])*
         #[derive(Debug)]
-        pub struct $name(pub(crate) $crate::Error);
+        pub struct $name(pub(crate) $crate::error::Error);
 
         impl $name {
             pub(crate) fn from_err<E>(err: E) -> Self
             where
-                E: Into<$crate::BoxError>,
+                E: Into<$crate::error::BoxError>,
             {
-                Self($crate::Error::new(err))
+                Self($crate::error::Error::new(err))
             }
 
             /// Get the response body text used for this rejection.

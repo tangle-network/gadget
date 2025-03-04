@@ -1,7 +1,8 @@
 use crate::extract;
 use crate::extract::{InvalidCallId, InvalidServiceId};
 use crate::producer::TangleConfig;
-use blueprint_core::{BoxError, JobResult};
+use blueprint_core::JobResult;
+use blueprint_core::error::BoxError;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use futures_util::Sink;
@@ -75,10 +76,14 @@ where
     }
 
     fn start_send(self: Pin<&mut Self>, item: JobResult) -> Result<(), Self::Error> {
-        let metadata = item.metadata();
+        let JobResult::Ok { head, body } = &item else {
+            // We don't care about errors here
+            return Ok(());
+        };
+
         let (Some(call_id_raw), Some(service_id_raw)) = (
-            metadata.get(extract::CallId::METADATA_KEY),
-            metadata.get(extract::ServiceId::METADATA_KEY),
+            head.metadata.get(extract::CallId::METADATA_KEY),
+            head.metadata.get(extract::ServiceId::METADATA_KEY),
         ) else {
             // Not a tangle job result
             return Ok(());
@@ -86,7 +91,7 @@ where
 
         let call_id: CallId = call_id_raw.try_into().map_err(|_| InvalidCallId)?;
         let service_id: ServiceId = service_id_raw.try_into().map_err(|_| InvalidServiceId)?;
-        let result: SubmitResult = SubmitResult::decode(&mut (&**item.body()))?;
+        let result: SubmitResult = SubmitResult::decode(&mut (&**body))?;
 
         self.get_mut().buffer.push_back(DerivedJobResult {
             call_id,

@@ -1,10 +1,10 @@
 use alloc::string::ToString;
 use core::{convert::Infallible, fmt};
 
-use crate::metadata::{MetadataMap, MetadataValue};
-
 use super::IntoJobResult;
-use crate::{BoxError, JobResult};
+use crate::JobResult;
+use crate::error::BoxError;
+use crate::metadata::{MetadataMap, MetadataValue};
 
 /// Trait for adding headers and extensions to a response.
 ///
@@ -149,11 +149,9 @@ impl IntoJobResultParts for MetadataMap<MetadataValue> {
 impl<K, V, const N: usize> IntoJobResultParts for [(K, V); N]
 where
     K: TryInto<&'static str>,
-    K::Error: Into<BoxError> + 'static,
-    <K as TryInto<&'static str>>::Error: core::error::Error + Send + Sync,
+    <K as TryInto<&'static str>>::Error: core::error::Error + Send + Sync + 'static,
     V: TryInto<MetadataValue>,
-    V::Error: Into<BoxError> + 'static,
-    <V as TryInto<MetadataValue>>::Error: core::error::Error + Send + Sync,
+    <V as TryInto<MetadataValue>>::Error: core::error::Error + Send + Sync + 'static,
 {
     type Error = TryIntoMetadataError<K::Error, V::Error>;
 

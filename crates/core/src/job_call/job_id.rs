@@ -5,6 +5,8 @@
 //!
 //! A Job Id can be anything that implements `Into<JobId>`, and it is implemented for various primitive types.
 
+use alloc::string::ToString;
+
 /// Helper trait to convert types into `JobId`.
 ///
 /// This trait can be implemented by types that can be converted into a `JobId`.
@@ -29,9 +31,24 @@ impl<T: Into<JobId>> IntoJobId for T {
 }
 
 /// Job Identifier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
 #[repr(C)]
 pub struct JobId(pub [u64; 4]);
+
+impl core::fmt::Debug for JobId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("JobId").field(&self.to_string()).finish()
+    }
+}
+
+impl core::fmt::Display for JobId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for limb in self.0.iter() {
+            write!(f, "{:016x}", limb)?;
+        }
+        Ok(())
+    }
+}
 
 impl Default for JobId {
     #[inline]
@@ -67,7 +84,7 @@ macro_rules! impl_from_numbers {
 				#[inline]
 				fn from(value: $ty) -> Self {
 					let mut id = [0; 4];
-					id[0] = value as u64;
+					id[3] = value as u64;
 					Self(id)
 				}
 			}
@@ -87,8 +104,8 @@ macro_rules! impl_from_numbers {
 				#[inline]
 				fn from(value: $ty) -> Self {
 					let mut id = [0; 4];
-					id[0] = value as u64;
-					id[1] = (value >> 64) as u64;
+					id[3] = value as u64;
+					id[2] = (value >> 64) as u64;
 					Self(id)
 				}
 			}

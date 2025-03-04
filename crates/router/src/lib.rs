@@ -11,8 +11,8 @@ pub mod __private {
 mod boxed;
 pub mod future;
 mod into_make_service;
+mod job_router;
 mod nop;
-mod path_router;
 pub mod routing;
 pub mod service_ext;
 mod util;

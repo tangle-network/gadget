@@ -1,7 +1,8 @@
 //! Handler future types.
 
+use crate::JobCall;
 use crate::JobResult;
-use crate::{BoxError, JobCall};
+use crate::error::BoxError;
 use core::{future::Future, pin::Pin, task::Context};
 use futures_util::future::Map;
 use pin_project_lite::pin_project;
