@@ -1,6 +1,7 @@
 use core::pin::Pin;
 
-use blueprint_core::{BoxError, JobCall};
+use blueprint_core::JobCall;
+use blueprint_core::error::BoxError;
 use futures_util::TryFutureExt;
 use tangle_subxt::subxt_signer::bip39::core::future::Future;
 use tower::{Layer, Service};

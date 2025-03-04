@@ -2,9 +2,6 @@
 
 extern crate alloc;
 
-/// Alias for a type-erased error type.
-pub type BoxError = alloc::boxed::Box<dyn core::error::Error + Send + Sync>;
-
 #[macro_use]
 pub(crate) mod macros;
 
@@ -15,7 +12,7 @@ pub mod __private {
 }
 
 pub mod context;
-mod error;
+pub mod error;
 pub mod ext_traits;
 pub mod extensions;
 pub mod extract;

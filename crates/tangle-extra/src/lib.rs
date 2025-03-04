@@ -16,16 +16,5 @@ pub mod metadata;
 pub mod producer;
 pub mod util;
 
-macro_rules! count {
-    ($val:ident, $($rest:tt)*) => {
-        1 + crate::count!($($rest)*)
-    };
-    ($val:ident) => {
-        1
-    };
-    () => {
-        0
-    }
-}
-
-pub(crate) use count;
+#[macro_use]
+pub(crate) mod macros;

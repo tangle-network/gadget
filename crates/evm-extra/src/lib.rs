@@ -17,6 +17,7 @@
     missing_docs
 )]
 
+pub mod consumer;
 pub mod extract;
 pub mod filters;
 pub mod producer;

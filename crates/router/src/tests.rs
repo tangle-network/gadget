@@ -2,7 +2,7 @@ extern crate std;
 
 use crate::Router;
 use crate::test_helpers::setup_log;
-use blueprint_core::BoxError;
+use blueprint_core::error::BoxError;
 use blueprint_core::job_call::JobCall;
 use bytes::Bytes;
 use tower::Service;

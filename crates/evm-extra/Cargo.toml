@@ -13,8 +13,10 @@ alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true, features = ["pubsub"] }
 alloy-rpc-client = { workspace = true }
 alloy-rpc-types = { workspace = true }
-alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-rlp = { workspace = true }
 alloy-transport-http = { workspace = true }
 
 # Async dependencies
@@ -28,6 +30,7 @@ tower = { workspace = true, features = ["filter"] }
 # Utils
 bytes = { workspace = true }
 thiserror = { workspace = true }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -35,6 +38,6 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["std", "tracing"]
-std = []
+std = ["serde_json/std"]
 
 tracing = ["blueprint-core/tracing"]

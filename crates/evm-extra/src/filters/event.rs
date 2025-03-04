@@ -1,5 +1,6 @@
 use alloy_primitives::B256;
-use blueprint_core::{BoxError, JobCall};
+use blueprint_core::JobCall;
+use blueprint_core::error::BoxError;
 use tower::filter::Predicate;
 
 /// A [`Predicate`] that checks if the event matches a specific event signature.

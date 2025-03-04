@@ -1,12 +1,13 @@
 use super::{IntoJobResultParts, JobResultParts, Void};
+use crate::JobResult;
+use crate::error::{BoxError, Error};
 use crate::job_result::Parts;
 use crate::metadata::{MetadataMap, MetadataValue};
-use crate::{BoxError, JobResult};
 use alloc::boxed::Box;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::{borrow::Cow, vec::Vec};
 use bytes::{Bytes, BytesMut};
-use core::{convert::Infallible, fmt};
+use core::convert::Infallible;
 
 /// Trait for generating JobResults.
 ///
@@ -128,7 +129,7 @@ where
     fn into_job_result(self) -> Option<JobResult> {
         match self {
             Ok(value) => value.into_job_result(),
-            Err(err) => Some(JobResult::Err(err.into())),
+            Err(err) => Some(JobResult::Err(Error::new(err))),
         }
     }
 }
@@ -299,7 +300,7 @@ macro_rules! impl_into_job_result {
                     let parts = match $ty.into_job_result_parts(parts) {
                         Ok(parts) => parts,
                         Err(err) => {
-                            return Some(JobResult::Err(err.into()));
+                            return Some(JobResult::Err(Error::new(err)));
                         }
                     };
                 )*
@@ -324,7 +325,7 @@ macro_rules! impl_into_job_result {
                     let parts = match $ty.into_job_result_parts(parts) {
                         Ok(parts) => parts,
                         Err(err) => {
-                            return Some(JobResult::Err(err.into()));
+                            return Some(JobResult::Err(Error::new(err)));
                         }
                     };
                 )*
@@ -345,7 +346,7 @@ macro_rules! impl_into_job_result {
                     Ok((parts, ())) => {
                         (parts, $($ty),*, res).into_job_result()
                     },
-                    Err(err) => Some(JobResult::Err(err.into()))
+                    Err(err) => Some(JobResult::Err(Error::new(err)))
                 }
             }
         }

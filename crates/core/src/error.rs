@@ -1,22 +1,25 @@
-use crate::BoxError;
 use core::{error::Error as StdError, fmt};
 
+/// Alias for a type-erased error type.
+pub type BoxError = alloc::boxed::Box<dyn core::error::Error + Send + Sync>;
+pub type CloneableError = alloc::sync::Arc<dyn core::error::Error + Send + Sync>;
+
 /// Errors that can happen when using axum.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
-    inner: BoxError,
+    inner: CloneableError,
 }
 
 impl Error {
     /// Create a new `Error` from a boxable error.
     pub fn new(error: impl Into<BoxError>) -> Self {
         Self {
-            inner: error.into(),
+            inner: CloneableError::from(error.into()),
         }
     }
 
-    /// Convert an `Error` back into the underlying boxed trait object.
-    pub fn into_inner(self) -> BoxError {
+    /// Convert an `Error` back into the underlying trait object.
+    pub fn into_inner(self) -> CloneableError {
         self.inner
     }
 }

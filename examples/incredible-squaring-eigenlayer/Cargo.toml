@@ -14,8 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Blueprint dependencies
-blueprint-core = { workspace = true }
-blueprint-router = { workspace = true }
+blueprint-sdk = { workspace = true, features = ["macros"] }
 blueprint-runner = { workspace = true, features = ["eigenlayer"] }
 blueprint-evm-extra = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true }
@@ -39,6 +38,7 @@ futures = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tower = { workspace = true }
 reqwest = { workspace = true }
+num-bigint = { workspace = true }
 
 # Eigenlayer dependencies
 eigensdk = { workspace = true, features = [
@@ -48,6 +48,9 @@ eigensdk = { workspace = true, features = [
     "logging",
     "client-avsregistry",
     "crypto-bls",
+    "services-blsaggregation",
+    "services-operatorsinfo",
+    "services-avsregistry",
 ] }
 
 # Misc
@@ -59,3 +62,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 gadget-logging = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
 testcontainers = { workspace = true }
+tokio-util = { workspace = true }
