@@ -1,9 +1,9 @@
 use super::{IntoJobResultParts, JobResultParts, Void};
-use crate::JobResult;
 use crate::job_result::Parts;
 use crate::metadata::{MetadataMap, MetadataValue};
+use crate::{BoxError, JobResult};
 use alloc::boxed::Box;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::{borrow::Cow, vec::Vec};
 use bytes::{Bytes, BytesMut};
 use core::{convert::Infallible, fmt};
@@ -123,12 +123,12 @@ where
 impl<T, E> IntoJobResult for Result<T, E>
 where
     T: IntoJobResult,
-    E: IntoJobResult,
+    E: Into<BoxError>,
 {
     fn into_job_result(self) -> Option<JobResult> {
         match self {
             Ok(value) => value.into_job_result(),
-            Err(err) => err.into_job_result(),
+            Err(err) => Some(JobResult::Err(err.into())),
         }
     }
 }
@@ -223,7 +223,10 @@ impl IntoJobResult for Cow<'static, [u8]> {
 impl IntoJobResult for MetadataMap<MetadataValue> {
     fn into_job_result(self) -> Option<JobResult> {
         let mut res = ().into_job_result()?;
-        *res.metadata_mut() = self;
+        if let Some(metadata) = res.metadata_mut() {
+            *metadata = self;
+        }
+
         Some(res)
     }
 }
@@ -231,9 +234,9 @@ impl IntoJobResult for MetadataMap<MetadataValue> {
 impl<K, V, const N: usize> IntoJobResult for [(K, V); N]
 where
     K: TryInto<&'static str>,
-    K::Error: fmt::Display,
+    K::Error: core::error::Error + Send + Sync + Into<BoxError> + 'static,
     V: TryInto<MetadataValue>,
-    V::Error: fmt::Display,
+    V::Error: core::error::Error + Send + Sync + Into<BoxError> + 'static,
 {
     fn into_job_result(self) -> Option<JobResult> {
         (self, ()).into_job_result()
@@ -247,7 +250,10 @@ where
     fn into_job_result(self) -> Option<JobResult> {
         let (parts, res) = self;
         let mut org = res.into_job_result()?;
-        org.metadata_mut().extend(parts.metadata);
+        if let Some(metadata) = org.metadata_mut() {
+            metadata.extend(parts.metadata);
+        }
+
         Some(org)
     }
 }
@@ -258,8 +264,10 @@ where
 {
     fn into_job_result(self) -> Option<JobResult> {
         let (template, res) = self;
-        let (parts, ()) = template.into_parts();
-        (parts, res).into_job_result()
+        match template.into_parts() {
+            Ok((parts, ())) => (parts, res).into_job_result(),
+            Err(e) => Some(JobResult::Err(e)),
+        }
     }
 }
 
@@ -291,7 +299,7 @@ macro_rules! impl_into_job_result {
                     let parts = match $ty.into_job_result_parts(parts) {
                         Ok(parts) => parts,
                         Err(err) => {
-                            return err.into_job_result();
+                            return Some(JobResult::Err(err.into()));
                         }
                     };
                 )*
@@ -316,7 +324,7 @@ macro_rules! impl_into_job_result {
                     let parts = match $ty.into_job_result_parts(parts) {
                         Ok(parts) => parts,
                         Err(err) => {
-                            return err.into_job_result();
+                            return Some(JobResult::Err(err.into()));
                         }
                     };
                 )*
@@ -333,8 +341,12 @@ macro_rules! impl_into_job_result {
         {
             fn into_job_result(self) -> Option<JobResult> {
                 let (template, $($ty),*, res) = self;
-                let (parts, ()) = template.into_parts();
-                (parts, $($ty),*, res).into_job_result()
+                match template.into_parts() {
+                    Ok((parts, ())) => {
+                        (parts, $($ty),*, res).into_job_result()
+                    },
+                    Err(err) => Some(JobResult::Err(err.into()))
+                }
             }
         }
     }
