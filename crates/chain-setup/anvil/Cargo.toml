@@ -22,6 +22,10 @@ tokio = { workspace = true }
 url = { workspace = true }
 futures = { workspace = true }
 tempfile = { workspace = true}
+color-eyre = { workspace = true }
+dialoguer = { workspace = true }
+indicatif = { workspace = true }
+
 
 [features]
 default = ["std"]

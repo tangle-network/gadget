@@ -1,6 +1,7 @@
+#![allow(clippy::too_many_arguments)]
 use color_eyre::Result;
 use gadget_config::{load, ContextConfig};
-use gadget_clients::tangle::client::TangleClient;
+use gadget_clients::tangle::client::{BlueprintId, TangleClient};
 use gadget_crypto::sp_core::SpSr25519;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::{Keystore, KeystoreConfig};
@@ -8,11 +9,19 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{
     Asset, AssetSecurityCommitment, AssetSecurityRequirement, MembershipModel,
 };
-use tangle_subxt::subxt::tx::TxProgress;
+use tangle_subxt::subxt::tx::{Signer, TxProgress};
 use tangle_subxt::subxt::Config;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
+use tangle_subxt::subxt::client::OnlineClientT;
+use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+use gadget_config::supported_chains::SupportedChains;
+use gadget_keystore::backends::Backend;
+use gadget_utils_tangle::TxProgressExt;
 
-pub async fn list_requests(http_rpc_url: String, ws_rpc_url: String) -> Result<()> {
+pub async fn list_requests(_http_rpc_url: String, _ws_rpc_url: String) -> Result<()> {
     // TODO: Implement list requests functionality
     Ok(())
 }
@@ -20,15 +29,15 @@ pub async fn list_requests(http_rpc_url: String, ws_rpc_url: String) -> Result<(
 pub async fn accept_request(
     http_rpc_url: String,
     ws_rpc_url: String,
-    service_id: String,
-    blueprint_id: u32,
-    min_exposure_percent: u8,
-    max_exposure_percent: u8,
+    service_id: Option<u64>,
+    blueprint_id: u64,
+    _min_exposure_percent: u8,
+    _max_exposure_percent: u8,
     restaking_percent: u8,
     keystore_uri: String,
     keystore_password: Option<String>,
-    chain: String,
-    request_id: u32,
+    chain: SupportedChains,
+    request_id: u64,
 ) -> Result<()> {
     let config = ContextConfig::create_tangle_config(
         http_rpc_url.parse().unwrap(),
@@ -65,12 +74,12 @@ pub async fn accept_request(
 pub async fn reject_request(
     http_rpc_url: String,
     ws_rpc_url: String,
-    service_id: String,
-    blueprint_id: u32,
+    service_id: Option<u64>,
+    blueprint_id: u64,
     keystore_uri: String,
     keystore_password: Option<String>,
-    chain: String,
-    request_id: u32,
+    chain: SupportedChains,
+    request_id: u64,
 ) -> Result<()> {
     let config = ContextConfig::create_tangle_config(
         http_rpc_url.parse().unwrap(),
@@ -104,15 +113,15 @@ pub async fn reject_request(
 pub async fn request_service(
     http_rpc_url: String,
     ws_rpc_url: String,
-    service_id: String,
-    blueprint_id: u32,
+    service_id: Option<u64>,
+    blueprint_id: u64,
     min_exposure_percent: u8,
     max_exposure_percent: u8,
-    target_operators: Vec<String>,
+    target_operators: Vec<AccountId32>,
     value: u128,
     keystore_uri: String,
     keystore_password: Option<String>,
-    chain: String,
+    chain: SupportedChains,
 ) -> Result<()> {
     let config = ContextConfig::create_tangle_config(
         http_rpc_url.parse().unwrap(),
@@ -141,7 +150,7 @@ pub async fn request_service(
         .services()
         .request(
             None,
-            blueprint_id,
+            blueprint_id as BlueprintId,
             Vec::new(),
             target_operators,
             Default::default(),
@@ -163,12 +172,12 @@ pub async fn request_service(
 pub async fn submit_job(
     http_rpc_url: String,
     ws_rpc_url: String,
-    service_id: String,
-    blueprint_id: u32,
+    service_id: Option<u64>,
+    blueprint_id: u64,
     keystore_uri: String,
     keystore_password: Option<String>,
-    chain: String,
-    job: String,
+    chain: SupportedChains,
+    job: u8,
 ) -> Result<()> {
     let config = ContextConfig::create_tangle_config(
         http_rpc_url.parse().unwrap(),
@@ -187,25 +196,36 @@ pub async fn submit_job(
     let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
     let signer = TanglePairSigner::new(pair.0);
 
-    let call = tangle_subxt::tangle_testnet_runtime::api::tx()
-        .services()
-        .submit_job(job.into_bytes());
-    let res = client
+    let service_id = service_id.unwrap();
+    let call = api::tx().services().call(service_id, job, vec![]); // TODO: Add inputs
+    let events = client
         .subxt_client()
         .tx()
         .sign_and_submit_then_watch_default(&call, &signer)
+        .await?
+        .wait_for_finalized_success()
         .await?;
-    wait_for_in_block_success(res).await;
-    Ok(())
+
+    let job_called_events = events.find::<JobCalled>().collect::<Vec<_>>();
+    for job_called in job_called_events {
+        let job_called = job_called?;
+        if job_called.service_id == service_id
+            && job_called.job == job
+            && signer.account_id() == job_called.caller
+        {
+            return Ok(());
+        }
+    }
+    panic!("Job was not called");
 }
 
 async fn wait_for_in_block_success<T: Config>(
-    mut res: TxProgress<T, impl OnlineClientT<T>>,
+    res: TxProgress<T, impl OnlineClientT<T>>,
 ) -> ExtrinsicEvents<T> {
     res.wait_for_in_block()
         .await
         .unwrap()
-        .wait_for_success()
+        .fetch_events()
         .await
         .unwrap()
 }
@@ -213,6 +233,6 @@ async fn wait_for_in_block_success<T: Config>(
 fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
     AssetSecurityCommitment {
         asset: a,
-        commitment_percent: Percent(p),
+        exposure_percent: Percent(p),
     }
 }

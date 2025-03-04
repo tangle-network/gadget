@@ -1,11 +1,13 @@
-use crate::testnet::{Error, SubstrateNode, TANGLE_NODE_ENV};
+use crate::error::Error;
+use crate::testnet::{SubstrateNode, TANGLE_NODE_ENV};
 use gadget_std::fs;
 use gadget_std::io::Write;
 use gadget_std::path::PathBuf;
-use reqwest;
 use tangle_subxt::subxt::utils::AccountId32;
 
+pub mod deploy;
 pub mod error;
+pub mod foundry;
 pub mod testnet;
 pub mod transactions;
 

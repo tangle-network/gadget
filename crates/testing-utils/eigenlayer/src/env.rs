@@ -4,7 +4,7 @@ use alloy_provider::Provider;
 use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
 use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
 use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_anvil_testing_utils::get_receipt;
+use gadget_chain_setup::anvil::get_receipt;
 use gadget_config::protocol::EigenlayerContractAddresses;
 use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
 use gadget_logging::info;
