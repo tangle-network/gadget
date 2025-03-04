@@ -1,6 +1,7 @@
 use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
 use crate::run::eigenlayer::run_eigenlayer_avs;
 use color_eyre::eyre::Result;
+use gadget_chain_setup::anvil::start_default_anvil_testnet;
 use gadget_config::supported_chains::SupportedChains;
 use gadget_config::{
     protocol::EigenlayerContractAddresses, protocol::ProtocolSettings, ContextConfig, Protocol,
@@ -9,7 +10,6 @@ use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
-use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use tempfile::TempDir;
 
 #[tokio::test]

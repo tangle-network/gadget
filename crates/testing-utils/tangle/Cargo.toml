@@ -9,12 +9,12 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }
 gadget-config = { workspace = true, features = ["tangle", "std", "networking"] }
 gadget-contexts = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
+gadget-chain-setup = { workspace = true, features = ["tangle", "std"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std", "evm"] }
 gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
