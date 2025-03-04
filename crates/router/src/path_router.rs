@@ -210,10 +210,12 @@ where
             Handler::Boxed(boxed) => boxed.clone().into_route(context.clone()).call(call.clone()),
         };
 
-        let catch_all_futures = self.call_always_routes(call, context)?;
-        Ok(FuturesUnordered::from_iter(
-            iter::once(matched_call_future).chain(catch_all_futures),
-        ))
+        match self.call_always_routes(call, context) {
+            Ok(catch_all_futures) => Ok(FuturesUnordered::from_iter(
+                iter::once(matched_call_future).chain(catch_all_futures),
+            )),
+            Err(_) => Ok(FuturesUnordered::from_iter(iter::once(matched_call_future))),
+        }
     }
 
     fn call_always_routes(

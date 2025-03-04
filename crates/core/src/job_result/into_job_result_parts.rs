@@ -4,7 +4,7 @@ use core::{convert::Infallible, fmt};
 use crate::metadata::{MetadataMap, MetadataValue};
 
 use super::IntoJobResult;
-use crate::JobResult;
+use crate::{BoxError, JobResult};
 
 /// Trait for adding headers and extensions to a response.
 ///
@@ -83,7 +83,7 @@ pub trait IntoJobResultParts {
     /// The type returned in the event of an error.
     ///
     /// This can be used to fallibly convert types into metadata.
-    type Error: IntoJobResult;
+    type Error: Into<BoxError> + 'static;
 
     /// Set parts of the response
     fn into_job_result_parts(self, res: JobResultParts) -> Result<JobResultParts, Self::Error>;
@@ -114,23 +114,34 @@ pub struct JobResultParts {
 
 impl JobResultParts {
     /// Gets a reference to the job result metadata.
+    ///
+    /// # Returns
+    ///
+    /// This will return `None` if the result is [`JobResult::Err`].
     #[must_use]
-    pub fn metadata(&self) -> &MetadataMap<MetadataValue> {
+    pub fn metadata(&self) -> Option<&MetadataMap<MetadataValue>> {
         self.res.metadata()
     }
 
     /// Gets a mutable reference to the job result metadata.
+    ///
+    /// # Returns
+    ///
+    /// This will return `None` if the result is [`JobResult::Err`].
     #[must_use]
-    pub fn metadata_mut(&mut self) -> &mut MetadataMap<MetadataValue> {
+    pub fn metadata_mut(&mut self) -> Option<&mut MetadataMap<MetadataValue>> {
         self.res.metadata_mut()
     }
 }
 
 impl IntoJobResultParts for MetadataMap<MetadataValue> {
-    type Error = Infallible;
+    type Error = BoxError;
 
     fn into_job_result_parts(self, mut res: JobResultParts) -> Result<JobResultParts, Self::Error> {
-        res.metadata_mut().extend(self);
+        if let Some(metadata) = res.metadata_mut() {
+            metadata.extend(self);
+        }
+
         Ok(res)
     }
 }
@@ -138,17 +149,23 @@ impl IntoJobResultParts for MetadataMap<MetadataValue> {
 impl<K, V, const N: usize> IntoJobResultParts for [(K, V); N]
 where
     K: TryInto<&'static str>,
-    K::Error: fmt::Display,
+    K::Error: Into<BoxError> + 'static,
+    <K as TryInto<&'static str>>::Error: core::error::Error + Send + Sync,
     V: TryInto<MetadataValue>,
-    V::Error: fmt::Display,
+    V::Error: Into<BoxError> + 'static,
+    <V as TryInto<MetadataValue>>::Error: core::error::Error + Send + Sync,
 {
     type Error = TryIntoMetadataError<K::Error, V::Error>;
 
     fn into_job_result_parts(self, mut res: JobResultParts) -> Result<JobResultParts, Self::Error> {
+        let Some(metadata) = res.metadata_mut() else {
+            return Ok(res);
+        };
+
         for (key, value) in self {
             let key = key.try_into().map_err(TryIntoMetadataError::key)?;
             let value = value.try_into().map_err(TryIntoMetadataError::value)?;
-            res.metadata_mut().insert(key, value);
+            metadata.insert(key, value);
         }
 
         Ok(res)
@@ -194,12 +211,18 @@ where
     }
 }
 
-impl<K, V> fmt::Display for TryIntoMetadataError<K, V> {
+impl<K, V> fmt::Display for TryIntoMetadataError<K, V>
+where
+    K: fmt::Display,
+    V: fmt::Display,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            TryIntoMetadataErrorKind::Key(_) => write!(f, "failed to convert key to a header name"),
-            TryIntoMetadataErrorKind::Value(_) => {
-                write!(f, "failed to convert value to a header value")
+        match &self.kind {
+            TryIntoMetadataErrorKind::Key(key) => {
+                write!(f, "failed to convert key `{key}` to a header name")
+            }
+            TryIntoMetadataErrorKind::Value(val) => {
+                write!(f, "failed to convert value `{val}` to a header value")
             }
         }
     }
@@ -223,20 +246,18 @@ macro_rules! impl_into_response_parts {
         #[allow(non_snake_case)]
         impl<$($ty,)*> IntoJobResultParts for ($($ty,)*)
         where
-            $( $ty: IntoJobResultParts, )*
+            $(
+            $ty: IntoJobResultParts,
+            <$ty as IntoJobResultParts>::Error: core::error::Error + Send + Sync + Into<BoxError>,
+            )*
         {
-            type Error = Option<JobResult>;
+            type Error = BoxError;
 
             fn into_job_result_parts(self, res: JobResultParts) -> Result<JobResultParts, Self::Error> {
                 let ($($ty,)*) = self;
 
                 $(
-                    let res = match $ty.into_job_result_parts(res) {
-                        Ok(res) => res,
-                        Err(err) => {
-                            return Err(err.into_job_result());
-                        }
-                    };
+                    let res = $ty.into_job_result_parts(res)?;
                 )*
 
                 Ok(res)

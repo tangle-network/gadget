@@ -1,4 +1,5 @@
 use crate::metadata::{MetadataMap, MetadataValue};
+use crate::BoxError;
 
 mod into_job_result;
 mod into_job_result_parts;
@@ -14,9 +15,9 @@ pub use into_job_result_parts::JobResultParts;
 pub struct Void;
 
 #[derive(Debug, Clone)]
-pub struct JobResult<T> {
-    head: Parts,
-    body: T,
+pub enum JobResult<T, E = BoxError> {
+    Ok { head: Parts, body: T },
+    Err(E),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -34,58 +35,91 @@ impl Parts {
     }
 }
 
-impl<T> JobResult<T> {
+impl<T, E> JobResult<T, E> {
     pub fn empty() -> Self
     where
         T: Default,
     {
-        Self {
+        Self::Ok {
             head: Parts::new(),
             body: Default::default(),
         }
     }
+
     pub fn new(body: T) -> Self {
-        Self {
+        Self::Ok {
             head: Parts::new(),
             body,
         }
     }
 
     pub fn from_parts(parts: Parts, body: T) -> Self {
-        Self { head: parts, body }
+        Self::Ok { head: parts, body }
     }
 
-    pub fn metadata(&self) -> &MetadataMap<MetadataValue> {
-        &self.head.metadata
+    pub fn is_ok(&self) -> bool {
+        matches!(self, JobResult::Ok { .. })
     }
 
-    pub fn metadata_mut(&mut self) -> &mut MetadataMap<MetadataValue> {
-        &mut self.head.metadata
+    pub fn is_err(&self) -> bool {
+        matches!(self, JobResult::Err { .. })
     }
 
-    pub fn body_mut(&mut self) -> &mut T {
-        &mut self.body
+    pub fn metadata(&self) -> Option<&MetadataMap<MetadataValue>> {
+        match self {
+            JobResult::Ok { head, .. } => Some(&head.metadata),
+            JobResult::Err(_) => None,
+        }
     }
 
-    pub fn body(&self) -> &T {
-        &self.body
+    pub fn metadata_mut(&mut self) -> Option<&mut MetadataMap<MetadataValue>> {
+        match self {
+            JobResult::Ok { head, .. } => Some(&mut head.metadata),
+            JobResult::Err(_) => None,
+        }
     }
 
-    pub fn into_body(self) -> T {
-        self.body
+    pub fn body_mut(&mut self) -> Result<&mut T, &E> {
+        match self {
+            JobResult::Ok { body, .. } => Ok(body),
+            JobResult::Err(e) => Err(e),
+        }
     }
 
-    pub fn into_parts(self) -> (Parts, T) {
-        (self.head, self.body)
+    pub fn body(&self) -> Result<(&Parts, &T), &E> {
+        match self {
+            JobResult::Ok { head, body } => Ok((head, body)),
+            JobResult::Err(err) => Err(err),
+        }
     }
 
-    pub fn map<F, U>(self, f: F) -> JobResult<U>
+    pub fn into_parts(self) -> Result<(Parts, T), E> {
+        match self {
+            JobResult::Ok { head, body } => Ok((head, body)),
+            JobResult::Err(err) => Err(err),
+        }
+    }
+
+    pub fn map<F, U>(self, f: F) -> JobResult<U, E>
     where
         F: FnOnce(T) -> U,
     {
-        JobResult {
-            head: self.head,
-            body: f(self.body),
+        match self {
+            JobResult::Ok { head, body } => JobResult::Ok {
+                head,
+                body: f(body),
+            },
+            JobResult::Err(err) => JobResult::Err(err),
+        }
+    }
+
+    pub fn map_err<F, U>(self, f: F) -> JobResult<T, U>
+    where
+        F: FnOnce(E) -> U,
+    {
+        match self {
+            JobResult::Ok { head, body } => JobResult::Ok { head, body },
+            JobResult::Err(err) => JobResult::Err(f(err)),
         }
     }
 }

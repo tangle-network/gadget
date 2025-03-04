@@ -15,9 +15,12 @@ mod nop;
 mod path_router;
 pub mod routing;
 pub mod service_ext;
+mod util;
+
 #[cfg(test)]
 pub(crate) mod test_helpers;
-mod util;
+#[cfg(test)]
+mod tests;
 
 pub use into_make_service::IntoMakeService;
 pub use routing::Router;
