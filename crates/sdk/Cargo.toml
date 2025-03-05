@@ -19,6 +19,7 @@ gadget-logging = { workspace = true }
 gadget-runners = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
+gadget-chain-setup = { workspace = true }
 
 # K, V Stores
 gadget-stores = { workspace = true, optional = true }
@@ -73,6 +74,7 @@ std = [
 	"tangle-subxt?/std",
 	# Macros
 	"gadget-macros?/std",
+	"gadget-chain-setup/std",
 ]
 
 web = [
@@ -97,6 +99,7 @@ tangle = [
 	"gadget-testing-utils?/tangle",
 	"gadget-utils/tangle",
 	"gadget-event-listeners/tangle",
+	"gadget-chain-setup/tangle",
 ]
 
 evm = [
@@ -108,6 +111,7 @@ evm = [
 	"gadget-testing-utils?/anvil",
 	"gadget-macros?/evm",
 	"gadget-event-listeners/evm",
+	"gadget-chain-setup/anvil",
 ]
 
 eigenlayer = [
@@ -120,6 +124,7 @@ eigenlayer = [
 	"gadget-utils/eigenlayer",
 	"gadget-macros?/eigenlayer",
 	"gadget-event-listeners/evm",
+	"gadget-chain-setup/anvil",
 ]
 
 testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]

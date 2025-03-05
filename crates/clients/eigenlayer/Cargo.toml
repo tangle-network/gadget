@@ -38,6 +38,7 @@ url = { workspace = true }
 
 [dev-dependencies]
 gadget-anvil-testing-utils = { workspace = true }
+gadget-chain-setup-anvil = { workspace = true }
 gadget-utils-evm = { workspace = true }
 alloy-primitives = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
