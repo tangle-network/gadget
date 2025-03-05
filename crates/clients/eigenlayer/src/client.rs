@@ -192,7 +192,8 @@ impl EigenlayerClient {
             .await?
             .get_operators_stake_in_quorums_at_block(block_number.into(), quorum_numbers)
             .await
-            .map_err(Into::into)
+            .unwrap();
+            todo!()
     }
 
     /// Get an Operator's stake in Quorums at current block.

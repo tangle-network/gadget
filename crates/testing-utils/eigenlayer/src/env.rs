@@ -100,14 +100,16 @@ pub async fn setup_eigenlayer_test_environment(
         multiplier: Uint::from(1),
     };
 
-    info!("Creating Quorum");
-    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
+    info!("Creating Quorum...");
+    let receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         vec![strategy_params],
     ))
     .await
     .unwrap();
+
+    dbg!(receipt);
 
     info!("Setup Eigenlayer test environment");
 
