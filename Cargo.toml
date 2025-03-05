@@ -47,9 +47,6 @@ blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", 
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
 
-# Bindings
-gadget-eigenlayer-bindings = { version = "0.1.0", path = "./crates/eigenlayer-bindings", default-features = false }
-
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
 gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
