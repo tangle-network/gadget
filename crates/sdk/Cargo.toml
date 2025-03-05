@@ -25,6 +25,7 @@ gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
+gadget-chain-setup = { workspace = true }
 document-features = { workspace = true }
 async-trait = { workspace = true }
 
@@ -86,7 +87,8 @@ std = [
     "tangle-subxt/std",
     # Extras
     "blueprint-tangle-extra?/std",
-    "blueprint-evm-extra?/std"
+    "blueprint-evm-extra?/std",
+    "gadget-chain-setup/std",
 ]
 
 ## Enable support for web targets
@@ -141,6 +143,7 @@ tangle = [
     "gadget-testing-utils?/tangle",
     "gadget-utils/tangle",
     "blueprint-runner/tangle",
+    "gadget-chain-setup/tangle",
 ]
 
 ## Enable EVM support
@@ -154,6 +157,7 @@ evm = [
     "gadget-utils/evm",
     "blueprint-macros?/evm",
     "gadget-testing-utils?/anvil",
+    "gadget-chain-setup/anvil",
 ]
 
 ## Enable [Eigenlayer] support

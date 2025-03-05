@@ -1,5 +1,5 @@
-use crate::anvil::{print_info, print_section_header, print_success};
 use crate::keys::{generate_key, import_key};
+use crate::utils::{print_info, print_section_header, print_success};
 use alloy_primitives::Address;
 use blueprint_runner::config::{Protocol, SupportedChains};
 use color_eyre::Result;

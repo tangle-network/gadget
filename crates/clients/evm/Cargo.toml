@@ -43,6 +43,7 @@ gadget-rpc-calls = { workspace = true }
 [dev-dependencies]
 gadget-utils-evm = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true }
+gadget-chain-setup-anvil = { workspace = true }
 alloy-signer-local = { workspace = true }
 testcontainers = { workspace = true }
 
