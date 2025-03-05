@@ -1,5 +1,5 @@
 {
-  description = "Tangle Gadgets development environment";
+  description = "Tangle Blueprints development environment";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -42,7 +42,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "gadgets";
+          name = "blueprints";
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.clang

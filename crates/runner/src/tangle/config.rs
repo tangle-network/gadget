@@ -1,5 +1,5 @@
 use crate::BlueprintConfig;
-use crate::config::{GadgetConfiguration, GadgetSettings, ProtocolSettingsT};
+use crate::config::{BlueprintEnvironment, BlueprintSettings, ProtocolSettingsT};
 use crate::error::{ConfigError, RunnerError};
 use crate::tangle::error::TangleError;
 use futures_util::future::select_ok;
@@ -24,14 +24,14 @@ pub struct TangleProtocolSettings {
     pub blueprint_id: u64,
     /// The service ID for the Tangle blueprint instance
     ///
-    /// Note: This will be `None` in case this gadget is running in Registration Mode.
+    /// Note: This will be `None` in case this blueprint is running in Registration Mode.
     pub service_id: Option<u64>,
 }
 
 impl ProtocolSettingsT for TangleProtocolSettings {
     type Settings = Self;
 
-    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn Error + Send + Sync>> {
+    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn Error + Send + Sync>> {
         Ok(Self {
             blueprint_id: settings
                 .blueprint_id
@@ -96,11 +96,11 @@ impl TangleConfig {
 }
 
 impl BlueprintConfig for TangleConfig {
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), RunnerError> {
+    async fn register(&self, env: &BlueprintEnvironment) -> Result<(), RunnerError> {
         register_impl(self.price_targets.clone(), vec![], env).await
     }
 
-    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+    async fn requires_registration(&self, env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
         requires_registration_impl(env).await
     }
 
@@ -109,7 +109,7 @@ impl BlueprintConfig for TangleConfig {
     }
 }
 
-pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
     let settings = env.protocol_settings.tangle()?;
 
     // Check if the operator is already registered
@@ -152,7 +152,7 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
 pub async fn register_impl(
     price_targets: PriceTargets,
     registration_args: RegistrationArgs,
-    env: &GadgetConfiguration,
+    env: &BlueprintEnvironment,
 ) -> Result<(), RunnerError> {
     let settings = env.protocol_settings.tangle()?;
 

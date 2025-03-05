@@ -161,7 +161,7 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
     use blueprint_evm_extra::consumer::EVMConsumer;
     use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
-    use blueprint_runner::config::{GadgetConfiguration, ProtocolSettings};
+    use blueprint_runner::config::{BlueprintEnvironment, ProtocolSettings};
     use blueprint_runner::BlueprintRunner;
     use blueprint_sdk::error::BoxError;
     use gadget_anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
@@ -219,7 +219,7 @@ mod tests {
     async fn task_monitoring() -> Result<(), BoxError> {
         setup_log();
         let (anvil_container, rpc_url, ws_url) = start_default_anvil_testnet(false).await;
-        let mut env = GadgetConfiguration::default();
+        let mut env = BlueprintEnvironment::default();
         env.http_rpc_endpoint = rpc_url.clone();
         env.ws_rpc_endpoint = ws_url.clone();
         let el_settings = Default::default();

@@ -13,7 +13,7 @@ pub mod tangle;
 use blueprint_core::error::BoxError;
 use blueprint_core::{JobCall, JobResult};
 use blueprint_router::Router;
-use config::GadgetConfiguration;
+use config::BlueprintEnvironment;
 use core::future::{self, poll_fn};
 use core::pin::Pin;
 use error::RunnerError as Error;
@@ -26,11 +26,11 @@ use tower::Service;
 #[allow(async_fn_in_trait)]
 #[dynosaur::dynosaur(DynBlueprintConfig)]
 pub trait BlueprintConfig: Send + Sync {
-    async fn register(&self, _env: &GadgetConfiguration) -> Result<(), Error> {
+    async fn register(&self, _env: &BlueprintEnvironment) -> Result<(), Error> {
         Ok(())
     }
 
-    async fn requires_registration(&self, _env: &GadgetConfiguration) -> Result<bool, Error> {
+    async fn requires_registration(&self, _env: &BlueprintEnvironment) -> Result<bool, Error> {
         Ok(true)
     }
 
@@ -61,7 +61,7 @@ type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'stat
 
 pub struct BlueprintRunnerBuilder<F> {
     config: Box<DynBlueprintConfig<'static>>,
-    env: GadgetConfiguration,
+    env: BlueprintEnvironment,
     producers: Vec<Producer>,
     consumers: Vec<Consumer>,
     router: Option<Router>,
@@ -147,7 +147,7 @@ pub struct BlueprintRunner;
 impl BlueprintRunner {
     pub fn builder<C: BlueprintConfig + 'static>(
         config: C,
-        env: GadgetConfiguration,
+        env: BlueprintEnvironment,
     ) -> BlueprintRunnerBuilder<impl Future<Output = ()> + Send + 'static> {
         BlueprintRunnerBuilder {
             config: DynBlueprintConfig::boxed(config),
@@ -166,7 +166,7 @@ struct FinalizedBlueprintRunner<F> {
     producers: Vec<Producer>,
     consumers: Vec<Consumer>,
     router: Router,
-    env: GadgetConfiguration,
+    env: BlueprintEnvironment,
     background_services: Vec<Box<DynBackgroundService<'static>>>,
     shutdown_handler: F,
 }

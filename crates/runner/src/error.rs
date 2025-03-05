@@ -58,7 +58,7 @@ pub enum RunnerError {
 // Convenience Result type
 pub type Result<T> = std::result::Result<T, RunnerError>;
 
-/// Errors that can occur while loading and using the gadget configuration.
+/// Errors that can occur while loading and using the blueprint configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ConfigError {

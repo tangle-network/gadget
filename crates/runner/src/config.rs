@@ -13,12 +13,12 @@ use url::Url;
 pub trait ProtocolSettingsT: Sized + 'static {
     type Settings;
 
-    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
+    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
     fn protocol(&self) -> &'static str;
     fn settings(&self) -> &Self::Settings;
 }
 
-/// The protocol on which a gadget will be executed.
+/// The protocol on which a blueprint will be executed.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(
     feature = "std",
@@ -102,7 +102,7 @@ pub enum ProtocolSettings {
 impl ProtocolSettingsT for ProtocolSettings {
     type Settings = Self;
 
-    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>> {
+    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>> {
         #[allow(unreachable_patterns)]
         let protocol_settings = match settings.protocol {
             #[cfg(feature = "tangle")]
@@ -188,32 +188,32 @@ impl ProtocolSettings {
     }
 }
 
-/// Gadget environment.
+/// Description of the environment in which the blueprint is running
 #[non_exhaustive]
 #[derive(Debug, Clone, Default)]
-pub struct GadgetConfiguration {
+pub struct BlueprintEnvironment {
     /// HTTP RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
     pub http_rpc_endpoint: String,
     /// WS RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
     pub ws_rpc_endpoint: String,
-    /// The keystore URI for the gadget
+    /// The keystore URI for the blueprint
     pub keystore_uri: String,
-    /// Data directory exclusively for this gadget
+    /// Data directory exclusively for this blueprint
     ///
     /// This will be `None` if the blueprint manager was not provided a base directory.
     pub data_dir: Option<PathBuf>,
     /// Protocol-specific settings
     pub protocol_settings: ProtocolSettings,
-    /// Whether the gadget is in test mode
+    /// Whether the blueprint is in test mode
     pub test_mode: bool,
 }
 
-impl GadgetConfiguration {
-    /// Loads the [`GadgetConfiguration`] from the current environment.
+impl BlueprintEnvironment {
+    /// Loads the [`BlueprintEnvironment`] from the current environment.
     /// # Errors
     ///
     /// This function will return an error if any of the required environment variables are missing.
-    pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError> {
+    pub fn load(config: ContextConfig) -> Result<BlueprintEnvironment, ConfigError> {
         load_inner(config)
     }
 
@@ -223,9 +223,9 @@ impl GadgetConfiguration {
     }
 }
 
-fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError> {
+fn load_inner(config: ContextConfig) -> Result<BlueprintEnvironment, ConfigError> {
     let ContextConfig {
-        gadget_core_settings: GadgetCLICoreSettings::Run(settings),
+        blueprint_core_settings: BlueprintCliCoreSettings::Run(settings),
         ..
     } = config;
 
@@ -236,7 +236,7 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError>
 
     let protocol_settings = ProtocolSettings::load(settings)?;
 
-    Ok(GadgetConfiguration {
+    Ok(BlueprintEnvironment {
         test_mode,
         http_rpc_endpoint: http_rpc_url.to_string(),
         ws_rpc_endpoint: ws_rpc_url.to_string(),
@@ -251,23 +251,23 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, ConfigError>
 pub struct ContextConfig {
     /// Pass through arguments to another command
     #[command(subcommand)]
-    pub gadget_core_settings: GadgetCLICoreSettings,
+    pub blueprint_core_settings: BlueprintCliCoreSettings,
 }
 
 #[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
-pub enum GadgetCLICoreSettings {
+pub enum BlueprintCliCoreSettings {
     #[command(name = "run")]
-    Run(GadgetSettings),
+    Run(BlueprintSettings),
 }
 
-impl Default for GadgetCLICoreSettings {
+impl Default for BlueprintCliCoreSettings {
     fn default() -> Self {
-        GadgetCLICoreSettings::Run(GadgetSettings::default())
+        BlueprintCliCoreSettings::Run(BlueprintSettings::default())
     }
 }
 
 #[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
-pub struct GadgetSettings {
+pub struct BlueprintSettings {
     #[arg(long, short = 't', env)]
     pub test_mode: bool,
     #[arg(long, env)]
@@ -390,7 +390,7 @@ pub struct GadgetSettings {
     pub rewards_coordinator: Option<alloy_primitives::Address>,
 }
 
-impl Default for GadgetSettings {
+impl Default for BlueprintSettings {
     fn default() -> Self {
         Self {
             test_mode: false,

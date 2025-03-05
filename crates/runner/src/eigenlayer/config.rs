@@ -1,4 +1,4 @@
-use crate::config::{GadgetSettings, ProtocolSettingsT};
+use crate::config::{BlueprintSettings, ProtocolSettingsT};
 use crate::error::ConfigError;
 use alloy_primitives::{Address, address};
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ pub struct EigenlayerProtocolSettings {
 impl ProtocolSettingsT for EigenlayerProtocolSettings {
     type Settings = Self;
 
-    fn load(settings: GadgetSettings) -> Result<Self, Box<dyn Error + Send + Sync>> {
+    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn Error + Send + Sync>> {
         Ok(EigenlayerProtocolSettings {
             registry_coordinator_address: settings
                 .registry_coordinator
