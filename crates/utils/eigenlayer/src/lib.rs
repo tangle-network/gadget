@@ -8,25 +8,25 @@ pub enum Error {
     Contract(#[from] alloy_contract::Error),
 }
 
-/// Get the slasher address from the `DelegationManager` contract
+/// Get the allocation manager address from the `DelegationManager` contract
 ///
 /// # Returns
-/// - [`Address`] - The slasher address
+/// - [`Address`] - The allocation manager address
 ///
 /// # Errors
 /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
-pub async fn get_slasher_address(
+pub async fn get_allocation_manager_address(
     delegation_manager_addr: Address,
     http_endpoint: &str,
 ) -> Result<Address, Error> {
     let provider = get_provider_http(http_endpoint);
     let delegation_manager =
-        eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+        eigensdk::utils::slashing::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
             delegation_manager_addr,
             provider,
         );
     delegation_manager
-        .slasher()
+        .allocationManager()
         .call()
         .await
         .map(|a| a._0)

@@ -275,9 +275,6 @@ pub fn list_keys(keystore_path: &Path) -> Result<Vec<(KeyTypeId, String)>> {
     for key in keystore.list_local::<SpEcdsa>()? {
         keys.push((KeyTypeId::Ecdsa, hex::encode(key.to_bytes())));
     }
-    for key in keystore.list_local::<K256Ecdsa>()? {
-        keys.push((KeyTypeId::Ecdsa, hex::encode(key.to_bytes())));
-    }
     for key in keystore.list_local::<SpBls381>()? {
         keys.push((KeyTypeId::Bls381, hex::encode(key.to_bytes())));
     }

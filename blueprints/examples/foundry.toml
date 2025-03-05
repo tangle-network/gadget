@@ -7,4 +7,4 @@ auto_detect_remappings = true
 solc_version = "0.8.20"
 
 [dependencies]
-tnt-core = "0.2.0"
+tnt-core = "0.3.0"

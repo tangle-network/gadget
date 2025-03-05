@@ -552,6 +552,14 @@ fn load_protocol_settings(
     match protocol {
         Protocol::Eigenlayer => {
             let addresses = EigenlayerContractAddresses {
+                allocation_manager_address: env::var("ALLOCATION_MANAGER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing ALLOCATION_MANAGER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid ALLOCATION_MANAGER_ADDRESS".into())
+                    })?,
                 registry_coordinator_address: env::var("REGISTRY_COORDINATOR_ADDRESS")
                     .map_err(|_| {
                         Error::ConfigurationError("Missing REGISTRY_COORDINATOR_ADDRESS".into())
@@ -613,6 +621,14 @@ fn load_protocol_settings(
                     .parse()
                     .map_err(|_| {
                         Error::ConfigurationError("Invalid REWARDS_COORDINATOR_ADDRESS".into())
+                    })?,
+                permission_controller_address: env::var("PERMISSION_CONTROLLER_ADDRESS")
+                    .map_err(|_| {
+                        Error::ConfigurationError("Missing PERMISSION_CONTROLLER_ADDRESS".into())
+                    })?
+                    .parse()
+                    .map_err(|_| {
+                        Error::ConfigurationError("Invalid PERMISSION_CONTROLLER_ADDRESS".into())
                     })?,
             };
             Ok(ProtocolSettings::from_eigenlayer(addresses))

@@ -82,6 +82,15 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Tangle.as_str())
         )]
         service_id: Option<u64>,
+        /// The address of the allocation manager
+        #[cfg(feature = "eigenlayer")]
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "ALLOCATION_MANAGER_ADDRESS",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+        )]
+        allocation_manager: Option<alloy_primitives::Address>,
         /// The address of the registry coordinator
         #[cfg(feature = "eigenlayer")]
         #[arg(
@@ -154,6 +163,15 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         rewards_coordinator: Option<alloy_primitives::Address>,
+        /// The address of the permission controller
+        #[cfg(feature = "eigenlayer")]
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "PERMISSION_CONTROLLER_ADDRESS",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+        )]
+        permission_controller: Option<alloy_primitives::Address>,
         /// The address of the operator registry
         #[cfg(feature = "symbiotic")]
         #[arg(
@@ -247,6 +265,8 @@ impl Default for GadgetCLICoreSettings {
             #[cfg(feature = "tangle")]
             service_id: Some(1),
             #[cfg(feature = "eigenlayer")]
+            allocation_manager: None,
+            #[cfg(feature = "eigenlayer")]
             registry_coordinator: None,
             #[cfg(feature = "eigenlayer")]
             operator_state_retriever: None,
@@ -262,6 +282,8 @@ impl Default for GadgetCLICoreSettings {
             avs_directory: None,
             #[cfg(feature = "eigenlayer")]
             rewards_coordinator: None,
+            #[cfg(feature = "eigenlayer")]
+            permission_controller: None,
             #[cfg(feature = "symbiotic")]
             operator_registry: None,
             #[cfg(feature = "symbiotic")]
@@ -316,6 +338,8 @@ impl ContextConfig {
             _ => None,
         };
         #[cfg(feature = "eigenlayer")]
+        let allocation_manager = eigenlayer_settings.map(|s| s.allocation_manager_address);
+        #[cfg(feature = "eigenlayer")]
         let registry_coordinator = eigenlayer_settings.map(|s| s.registry_coordinator_address);
         #[cfg(feature = "eigenlayer")]
         let operator_state_retriever =
@@ -332,6 +356,8 @@ impl ContextConfig {
         let avs_directory = eigenlayer_settings.map(|s| s.avs_directory_address);
         #[cfg(feature = "eigenlayer")]
         let rewards_coordinator = eigenlayer_settings.map(|s| s.rewards_coordinator_address);
+        #[cfg(feature = "eigenlayer")]
+        let permission_controller = eigenlayer_settings.map(|s| s.permission_controller_address);
 
         // Symbiotic addresses
         #[cfg(feature = "symbiotic")]
@@ -396,6 +422,8 @@ impl ContextConfig {
                 #[cfg(feature = "tangle")]
                 service_id,
                 #[cfg(feature = "eigenlayer")]
+                allocation_manager,
+                #[cfg(feature = "eigenlayer")]
                 registry_coordinator,
                 #[cfg(feature = "eigenlayer")]
                 operator_state_retriever,
@@ -411,6 +439,8 @@ impl ContextConfig {
                 avs_directory,
                 #[cfg(feature = "eigenlayer")]
                 rewards_coordinator,
+                #[cfg(feature = "eigenlayer")]
+                permission_controller,
                 #[cfg(feature = "symbiotic")]
                 operator_registry,
                 #[cfg(feature = "symbiotic")]

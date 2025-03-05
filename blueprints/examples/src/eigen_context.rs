@@ -159,20 +159,6 @@ pub async fn handle_job(
     println!("Stake at Block Number: {:?}", stake_at_block_number);
     assert!(!stake_at_block_number.is_zero());
 
-    // Get an Operator's details.
-    let operator = ctx
-        .eigenlayer_client()
-        .await?
-        .get_operator_details(operator_addr)
-        .await?;
-    println!("Operator Details: \n\tAddress: {:?},\n\tEarnings receiver address: {:?},\n\tDelegation approver address: {:?},\n\tMetadata URL: {:?},\n\tStaker Opt Out Window Blocks: {:?}",
-             operator.address,
-             operator.earnings_receiver_address,
-             operator.delegation_approver_address,
-             operator.metadata_url,
-             operator.staker_opt_out_window_blocks);
-    assert_eq!(operator.address, operator_addr);
-
     // Get an Operator's latest stake update.
     let latest_stake_update = ctx
         .eigenlayer_client()

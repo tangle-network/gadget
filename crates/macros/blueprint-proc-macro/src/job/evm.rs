@@ -60,8 +60,8 @@ pub(crate) fn get_evm_instance_data(
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
     let instance = quote! {
         #instance_base::#instance_name<
-            ::blueprint_sdk::macros::ext::event_listeners::evm::BoxTransport,
-            ::blueprint_sdk::macros::ext::event_listeners::evm::AlloyRootProvider,
+            (),
+            ::blueprint_sdk::macros::ext::event_listeners::evm::RootProvider,
             ::blueprint_sdk::macros::ext::event_listeners::evm::Ethereum
         >
     };

@@ -5,6 +5,8 @@ use crate::{
 };
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::logging::info;
+use eigensdk::services_blsaggregation::bls_agg::TaskMetadata;
+use eigensdk::types::operator::QuorumThresholdPercentage;
 use std::convert::Infallible;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
@@ -33,17 +35,22 @@ pub async fn initialize_bls_task(
     let time_to_expiry =
         std::time::Duration::from_secs((TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into());
 
-    if let Some(service) = &ctx.bls_aggregation_service {
+    let quorum_threshold_percentage =
+        vec![QuorumThresholdPercentage::try_from(task.quorumThresholdPercentage).unwrap()];
+
+    let task_metadata = TaskMetadata::new(
+        task_index,
+        task.taskCreatedBlock as u64,
+        task.quorumNumbers.0.to_vec(),
+        quorum_threshold_percentage,
+        time_to_expiry,
+    );
+
+    if let Some(service) = &ctx.service_handle {
         service
             .lock()
             .await
-            .initialize_new_task(
-                task_index,
-                task.taskCreatedBlock,
-                task.quorumNumbers.to_vec(),
-                vec![task.quorumThresholdPercentage.try_into().unwrap(); task.quorumNumbers.len()],
-                time_to_expiry,
-            )
+            .initialize_task(task_metadata)
             .await
             .unwrap()
     }

@@ -5,18 +5,16 @@ use alloy_contract::ContractInstance;
 use alloy_contract::Event;
 pub use alloy_network::Ethereum;
 use alloy_provider::Provider;
-use alloy_provider::RootProvider;
+pub use alloy_provider::RootProvider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
-pub use alloy_transport::BoxTransport;
 use gadget_event_listeners_core::{Error as CoreError, EventListener};
 use gadget_std::collections::VecDeque;
 use gadget_std::time::Duration;
 use gadget_stores::local_database::LocalDatabase;
 use uuid::Uuid;
 
-pub type AlloyRootProvider = RootProvider<BoxTransport>;
-pub type AlloyContractInstance = ContractInstance<BoxTransport, AlloyRootProvider, Ethereum>;
+pub type AlloyContractInstance = ContractInstance<RootProvider, Ethereum>;
 
 pub struct EvmContractEventListener<Ctx: Send + 'static, E: SolEvent + Send + 'static> {
     instance: AlloyContractInstance,
@@ -99,7 +97,7 @@ where
         let dest_block = core::cmp::min(block + step, target_block_number);
 
         // Query events
-        let events_filter = Event::new(contract.provider(), Filter::new())
+        let events_filter: Event<(), _, E, _> = Event::new(contract.provider(), Filter::new())
             .address(*contract.address())
             .from_block(BlockNumberOrTag::Number(block + 1))
             .to_block(BlockNumberOrTag::Number(dest_block))

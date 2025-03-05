@@ -78,6 +78,7 @@ impl Forge {
 
         let mut child = Command::new("forge")
             .arg("build")
+            .arg("--via-ir")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;

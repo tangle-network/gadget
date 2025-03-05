@@ -75,7 +75,6 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
 
     let wallet = alloy_provider::network::EthereumWallet::from(signer_evm);
     let provider = alloy_provider::ProviderBuilder::new()
-        .with_recommended_fillers()
         .network::<AnyNetwork>()
         .wallet(wallet)
         .on_ws(WsConnect::new(evm_rpc_endpoint))

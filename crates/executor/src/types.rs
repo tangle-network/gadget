@@ -107,6 +107,19 @@ impl GadgetProcess {
 
     pub async fn read_until_timeout(&mut self, timeout: u64) -> Result<ProcessOutput, Error> {
         let mut messages = Vec::new();
+        gadget_logging::info!(
+            "{} : PROCESS STATUS : {:?}",
+            self.process_name.to_string_lossy(),
+            self.status
+        );
+        if self.status != Status::Active {
+            gadget_logging::info!(
+                "{} : PROCESS IS NOT ACTIVE",
+                self.process_name.to_string_lossy()
+            );
+            return Ok(ProcessOutput::Exhausted(messages));
+        }
+
         if let Some(stream) = &mut self.stream {
             // Read lines until we time out, meaning we are still waiting for output - continue for now
             loop {

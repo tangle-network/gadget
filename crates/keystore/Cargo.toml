@@ -58,7 +58,7 @@ alloy-signer-gcp = { workspace = true, optional = true }
 alloy-signer-ledger = { workspace = true, features = ["eip712"], optional = true }
 aws-config = { workspace = true, optional = true }
 aws-sdk-kms = { workspace = true, optional = true }
-gcloud-sdk = { workspace = true, optional = true }
+gcloud-sdk = { workspace = true, features = ["google-cloud-kms-v1"], optional = true }
 ripemd = { workspace = true, optional = true }
 
 [dev-dependencies]
