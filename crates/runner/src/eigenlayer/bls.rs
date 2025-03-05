@@ -7,7 +7,7 @@ use eigensdk::types::operator::Operator;
 
 use super::error::EigenlayerError;
 use crate::BlueprintConfig;
-use crate::config::GadgetConfiguration;
+use crate::config::BlueprintEnvironment;
 use crate::error::RunnerError;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::backends::bn254::Bn254Backend;
@@ -43,7 +43,7 @@ impl EigenlayerBLSConfig {
 }
 
 impl BlueprintConfig for EigenlayerBLSConfig {
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), RunnerError> {
+    async fn register(&self, env: &BlueprintEnvironment) -> Result<(), RunnerError> {
         register_bls_impl(
             env,
             self.earnings_receiver_address,
@@ -52,7 +52,7 @@ impl BlueprintConfig for EigenlayerBLSConfig {
         .await
     }
 
-    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+    async fn requires_registration(&self, env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
         requires_registration_bls_impl(env).await
     }
 
@@ -61,7 +61,7 @@ impl BlueprintConfig for EigenlayerBLSConfig {
     }
 }
 
-async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+async fn requires_registration_bls_impl(env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
     let contract_addresses = env.protocol_settings.eigenlayer()?;
     let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
@@ -99,7 +99,7 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
 }
 
 async fn register_bls_impl(
-    env: &GadgetConfiguration,
+    env: &BlueprintEnvironment,
     earnings_receiver_address: Address,
     delegation_approver_address: Address,
 ) -> Result<(), RunnerError> {

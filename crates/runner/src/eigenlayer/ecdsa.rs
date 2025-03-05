@@ -1,5 +1,5 @@
 use crate::BlueprintConfig;
-use crate::config::GadgetConfiguration;
+use crate::config::BlueprintEnvironment;
 use crate::error::RunnerError;
 use alloy_primitives::{Address, FixedBytes, U256, hex};
 use alloy_signer::Signer;
@@ -31,7 +31,7 @@ impl EigenlayerECDSAConfig {
 }
 
 impl BlueprintConfig for EigenlayerECDSAConfig {
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), RunnerError> {
+    async fn register(&self, env: &BlueprintEnvironment) -> Result<(), RunnerError> {
         register_ecdsa_impl(
             env,
             self.earnings_receiver_address,
@@ -40,12 +40,12 @@ impl BlueprintConfig for EigenlayerECDSAConfig {
         .await
     }
 
-    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+    async fn requires_registration(&self, env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
         requires_registration_ecdsa_impl(env).await
     }
 }
 
-async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<bool, RunnerError> {
+async fn requires_registration_ecdsa_impl(env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
     let provider = get_provider_http(&env.http_rpc_endpoint);
     let contract_addresses = env.protocol_settings.eigenlayer()?;
 
@@ -78,7 +78,7 @@ async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<b
 }
 
 async fn register_ecdsa_impl(
-    env: &GadgetConfiguration,
+    env: &BlueprintEnvironment,
     earnings_receiver_address: Address,
     delegation_approver_address: Address,
 ) -> Result<(), RunnerError> {

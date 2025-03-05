@@ -2,7 +2,7 @@ use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
-use blueprint_runner::{config::GadgetConfiguration, error::RunnerError as Error, BlueprintConfig};
+use blueprint_runner::{config::BlueprintEnvironment, error::RunnerError as Error, BlueprintConfig};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
 use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
@@ -114,7 +114,7 @@ impl EigenlayerBLSConfig {
 }
 
 impl BlueprintConfig for EigenlayerBLSConfig {
-    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
+    async fn register(&self, env: &BlueprintEnvironment) -> Result<(), Error> {
         let contract_addresses = env.protocol_settings.eigenlayer()?;
 
         // Use ANVIL private key for testing
@@ -205,7 +205,7 @@ impl BlueprintConfig for EigenlayerBLSConfig {
         Ok(())
     }
 
-    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
+    async fn requires_registration(&self, env: &BlueprintEnvironment) -> Result<bool, Error> {
         let contract_addresses = env
             .protocol_settings
             .eigenlayer()

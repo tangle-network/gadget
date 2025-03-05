@@ -1,7 +1,7 @@
 use blueprint_core::Job;
 use blueprint_router::Router;
 use blueprint_runner::BlueprintRunner;
-use blueprint_runner::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, GadgetSettings, Protocol, SupportedChains};
+use blueprint_runner::config::{ContextConfig, BlueprintCliCoreSettings, BlueprintSettings, Protocol, SupportedChains, BlueprintEnvironment};
 use blueprint_runner::tangle::config::TangleConfig;
 use blueprint_tangle_extra::consumer::TangleConsumer;
 use blueprint_tangle_extra::filters::MatchesServiceId;
@@ -16,9 +16,10 @@ use gadget_tangle_testing_utils::harness::TangleTestHarness;
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
+use blueprint_core::error::BoxError;
 
 #[tokio::main]
-async fn main() -> Result<(), blueprint_core::BoxError> {
+async fn main() -> Result<(), BoxError> {
     setup_log();
 
     // Sets up the tangle node for the producer
@@ -38,9 +39,9 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
     let tangle_producer = TangleProducer::finalized_blocks(tangle_client.clone()).await?;
     let tangle_consumer = TangleConsumer::new(tangle_client, harness.sr25519_signer.clone());
 
-    // TODO: This is temporary until the harness is updated to use our `GadgetConfiguration`
+    // TODO: This is temporary until the harness is updated to use our `BlueprintEnvironment`
     let context_config = ContextConfig {
-        gadget_core_settings: GadgetCLICoreSettings::Run(GadgetSettings {
+        blueprint_core_settings: BlueprintCliCoreSettings::Run(BlueprintSettings {
             test_mode: false,
             http_rpc_url: harness.http_endpoint.clone(),
             ws_rpc_url: harness.ws_endpoint.clone(),
@@ -55,7 +56,7 @@ async fn main() -> Result<(), blueprint_core::BoxError> {
         }),
     };
 
-    let result = BlueprintRunner::builder(tangle_config, GadgetConfiguration::load(context_config)?)
+    let result = BlueprintRunner::builder(tangle_config, BlueprintEnvironment::load(context_config)?)
         .router(
             // A router
             //

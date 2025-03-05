@@ -4,7 +4,7 @@
 
 use alloy_primitives::Address;
 use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
-use blueprint_runner::{config::GadgetConfiguration, BlueprintRunner};
+use blueprint_runner::{config::BlueprintEnvironment, BlueprintRunner};
 use blueprint_sdk::error::BoxError;
 use blueprint_sdk::*;
 use incredible_squaring_eigenlayer::config::{get_provider_http, EigenlayerBLSConfig};
@@ -41,7 +41,7 @@ async fn main() -> Result<(), BoxError> {
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
     );
     let ctx = todo!();
-    BlueprintRunner::builder(eigenlayer_bls_config, GadgetConfiguration::default())
+    BlueprintRunner::builder(eigenlayer_bls_config, BlueprintEnvironment::default())
         .router(create_contract_router(ctx, task_manager))
         .producer(task_producer)
         .with_shutdown_handler(async {
