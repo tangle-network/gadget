@@ -338,6 +338,8 @@ impl ContextConfig {
             _ => None,
         };
         #[cfg(feature = "eigenlayer")]
+        let allocation_manager = eigenlayer_settings.map(|s| s.allocation_manager_address);
+        #[cfg(feature = "eigenlayer")]
         let registry_coordinator = eigenlayer_settings.map(|s| s.registry_coordinator_address);
         #[cfg(feature = "eigenlayer")]
         let operator_state_retriever =
@@ -354,6 +356,8 @@ impl ContextConfig {
         let avs_directory = eigenlayer_settings.map(|s| s.avs_directory_address);
         #[cfg(feature = "eigenlayer")]
         let rewards_coordinator = eigenlayer_settings.map(|s| s.rewards_coordinator_address);
+        #[cfg(feature = "eigenlayer")]
+        let permission_controller = eigenlayer_settings.map(|s| s.permission_controller_address);
 
         // Symbiotic addresses
         #[cfg(feature = "symbiotic")]
@@ -418,7 +422,7 @@ impl ContextConfig {
                 #[cfg(feature = "tangle")]
                 service_id,
                 #[cfg(feature = "eigenlayer")]
-                allocation_manager: None,
+                allocation_manager,
                 #[cfg(feature = "eigenlayer")]
                 registry_coordinator,
                 #[cfg(feature = "eigenlayer")]
@@ -436,7 +440,7 @@ impl ContextConfig {
                 #[cfg(feature = "eigenlayer")]
                 rewards_coordinator,
                 #[cfg(feature = "eigenlayer")]
-                permission_controller: None,
+                permission_controller,
                 #[cfg(feature = "symbiotic")]
                 operator_registry,
                 #[cfg(feature = "symbiotic")]

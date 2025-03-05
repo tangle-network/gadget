@@ -14,7 +14,6 @@ use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::k256::K256Ecdsa;
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::RunnerError as Error;
-use gadget_utils::evm::get_provider_http;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerBLSConfig {
@@ -120,7 +119,6 @@ async fn register_bls_impl(
             ));
         }
     };
-    let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let allocation_manager_address = contract_addresses.allocation_manager_address;
     let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
@@ -144,13 +142,6 @@ async fn register_bls_impl(
         .map_err(|e| Error::Eigenlayer(e.to_string()))?;
 
     let operator_private_key = hex::encode(ecdsa_secret.0.to_bytes());
-    let provider = get_provider_http(&env.http_rpc_endpoint);
-
-    let delegation_manager =
-        eigensdk::utils::slashing::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
-            delegation_manager_address,
-            provider.clone(),
-        );
 
     let logger = get_test_logger();
     let avs_registry_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(

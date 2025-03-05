@@ -19,7 +19,6 @@ pub struct EigenlayerTestConfig {
     pub http_endpoint: Option<Url>,
     pub ws_endpoint: Option<Url>,
     pub eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
-    pub pauser_registry_address: Option<Address>,
 }
 
 /// Test harness for Eigenlayer network tests
@@ -29,7 +28,6 @@ pub struct EigenlayerTestHarness {
     pub ws_endpoint: Url,
     pub accounts: Vec<Address>,
     pub eigenlayer_contract_addresses: EigenlayerContractAddresses,
-    pub pauser_registry_address: Address,
     _temp_dir: tempfile::TempDir,
     _container: Container,
 }
@@ -49,7 +47,6 @@ impl TestHarness for EigenlayerTestHarness {
             http_endpoint,
             ws_endpoint,
             eigenlayer_contract_addresses,
-            pauser_registry_address,
         } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 
         // Setup temporary testing keystore
@@ -74,7 +71,6 @@ impl TestHarness for EigenlayerTestHarness {
             http_endpoint: Some(Url::parse(&http_endpoint)?),
             ws_endpoint: Some(Url::parse(&ws_endpoint)?),
             eigenlayer_contract_addresses: Some(eigenlayer_contract_addresses),
-            pauser_registry_address: Some(pauser_registry_address),
         };
 
         let base = BaseTestHarness::new(env, config);
@@ -85,7 +81,6 @@ impl TestHarness for EigenlayerTestHarness {
             ws_endpoint: Url::parse(&ws_endpoint)?,
             accounts,
             eigenlayer_contract_addresses,
-            pauser_registry_address,
             _temp_dir: test_dir,
             _container: container,
         })

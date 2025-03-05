@@ -21,7 +21,7 @@ remappings_location = "txt"
 remappings_version = false
 
 [dependencies]
-eigenlayer-middleware = { version = "0.5.4", git = "https://github.com/Layr-Labs/eigenlayer-middleware", rev = "9785099277870df97843b4b88262bfef227663b6" }
+eigenlayer-middleware = { version = "0.5.4", git = "https://github.com/Layr-Labs/eigenlayer-middleware", rev = "848032a7e22b2e6a2ab7835a45e9b39bb16d41a5" }
 forge-std = "1.9.5"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

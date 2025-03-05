@@ -12,6 +12,7 @@ use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
 use std::fs::{self};
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
 use tempfile::TempDir;
 use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},
@@ -56,14 +57,13 @@ pub fn print_info(message: &str) {
 fn write_and_display_settings(
     http_endpoint: &str,
     ws_endpoint: &str,
-    pauser_registry: &str,
     ecdsa_registry: &str,
 ) -> std::io::Result<()> {
     // Display current deployment variables
     print_section_header("Deployment Variables");
     let deployment_vars = format!(
-        "# Network Settings\nANVIL_HTTP_ENDPOINT={}\nANVIL_WS_ENDPOINT={}\n\n# Contract Registry\nPAUSER_REGISTRY_ADDRESS={}\nECDSA_STAKE_REGISTRY_ADDRESS={}\n",
-        http_endpoint, ws_endpoint, pauser_registry, ecdsa_registry
+        "# Network Settings\nANVIL_HTTP_ENDPOINT={}\nANVIL_WS_ENDPOINT={}\n\n# Contract Registry\nECDSA_STAKE_REGISTRY_ADDRESS={}\n",
+        http_endpoint, ws_endpoint, ecdsa_registry
     );
     println!("{}", style(deployment_vars.trim()).dim());
 
@@ -257,7 +257,7 @@ pub async fn start_anvil_container(
     print_info("Deploying core contracts...");
 
     // Some setup is required before we can interact with the contract
-    let accounts = provider.get_accounts().await.unwrap();
+    // let accounts = provider.get_accounts().await.unwrap();
     // let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
     //     .await
     //     .unwrap();
@@ -342,7 +342,6 @@ pub async fn start_anvil_container(
     if let Err(e) = write_and_display_settings(
         &http_endpoint,
         &ws_endpoint,
-        &pauser_registry_address.to_string(),
         &ecdsa_stake_registry_address.to_string(),
     ) {
         error!("Failed to write settings: {}", e);

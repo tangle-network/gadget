@@ -17,7 +17,6 @@ gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["eigenlayer", "evm", "std"] }
 gadget-macros = { workspace = true, features = ["evm", "std"] }
 gadget-runners = { workspace = true, features = ["eigenlayer", "std"] }
-gadget-eigenlayer-bindings = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["evm", "std"] }
 tempfile = { workspace = true }
 async-trait = { workspace = true }

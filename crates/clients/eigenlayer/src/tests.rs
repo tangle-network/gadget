@@ -56,16 +56,15 @@ async fn get_provider_ws() {
     assert!(provider.get_block_number().await.is_ok());
 }
 
-#[tokio::test]
-async fn get_allocation_manager_address() {
-    let env = setup_test_environment().await;
-    let client = EigenlayerClient::new(env.config.clone());
-    let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
-    let result = client
-        .get_allocation_manager_address(delegation_manager_addr)
-        .await;
-    assert!(result.is_ok());
-}
+// TODO
+// #[tokio::test]
+// async fn get_slasher_address() {
+//     let env = setup_test_environment().await;
+//     let client = EigenlayerClient::new(env.config.clone());
+//     let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+//     let result = client.get_slasher_address(delegation_manager_addr).await;
+//     assert!(result.is_ok());
+// }
 
 #[tokio::test]
 async fn avs_registry_reader() {

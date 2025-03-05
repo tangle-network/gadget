@@ -382,26 +382,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-node-bindings"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81a3906afb50446392eb798dae4b918ba4ffcca47542efda7215776ddc8b5037"
-dependencies = [
- "alloy-genesis",
- "alloy-network",
- "alloy-primitives 0.8.21",
- "alloy-signer",
- "alloy-signer-local",
- "k256",
- "rand 0.8.5",
- "serde_json",
- "tempfile",
- "thiserror 2.0.11",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "alloy-primitives"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3270,7 +3250,6 @@ dependencies = [
  "gadget-config",
  "gadget-crypto",
  "gadget-crypto-core",
- "gadget-eigenlayer-bindings",
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
@@ -7037,29 +7016,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-eigenlayer-bindings"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-json-abi",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives 0.8.21",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types 0.8.21",
- "alloy-transport",
- "alloy-transport-http",
- "serde",
-]
-
-[[package]]
 name = "gadget-eigenlayer-testing-utils"
 version = "0.1.0"
 dependencies = [
@@ -7073,7 +7029,6 @@ dependencies = [
  "gadget-anvil-testing-utils",
  "gadget-config",
  "gadget-core-testing-utils",
- "gadget-eigenlayer-bindings",
  "gadget-event-listeners",
  "gadget-logging",
  "gadget-macros",
@@ -7367,7 +7322,6 @@ dependencies = [
  "eigensdk",
  "gadget-config",
  "gadget-contexts",
- "gadget-eigenlayer-bindings",
  "gadget-keystore",
  "gadget-logging",
  "gadget-runner-core",

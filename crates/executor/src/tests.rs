@@ -64,7 +64,7 @@ async fn test_invalid_command() {
     println!("process: {:#?}", process);
 
     let output = process.read_until_timeout(3).await;
-    // assert!(output.is_err());
+    assert!(output.is_err());
 }
 
 #[tokio::test]

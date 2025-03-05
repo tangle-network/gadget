@@ -6,8 +6,6 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_contexts::keystore::KeystoreContext;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::SignatureWithSaltAndExpiry;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::k256::K256Ecdsa;
@@ -16,6 +14,8 @@ use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_utils::evm::get_provider_http;
 use std::str::FromStr;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ISignatureUtils::SignatureWithSaltAndExpiry;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerECDSAConfig {
@@ -129,12 +129,6 @@ async fn register_ecdsa_impl(
         .map_err(|_| Error::Keystore("Invalid private key".into()))?;
 
     let provider = get_provider_http(&env.http_rpc_endpoint);
-
-    let delegation_manager =
-        eigensdk::utils::slashing::core::delegationmanager::DelegationManager::new(
-            delegation_manager_address,
-            provider.clone(),
-        );
 
     let logger = get_test_logger();
     let el_chain_reader = ELChainReader::new(

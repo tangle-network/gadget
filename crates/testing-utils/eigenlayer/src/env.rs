@@ -6,7 +6,6 @@ use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTy
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_anvil_testing_utils::get_receipt;
 use gadget_config::protocol::EigenlayerContractAddresses;
-use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
 use gadget_logging::info;
 use gadget_utils::evm::get_provider_http;
 
@@ -36,7 +35,6 @@ pub struct EigenlayerTestEnvironment {
     pub ws_endpoint: String,
     pub accounts: Vec<Address>,
     pub eigenlayer_contract_addresses: EigenlayerContractAddresses,
-    pub pauser_registry_address: Address,
 }
 
 /// Sets up the test environment for the EigenLayer Blueprint.
@@ -89,11 +87,6 @@ pub async fn setup_eigenlayer_test_environment(
     let erc20_mock_address = address!("eC4cFde48EAdca2bC63E94BB437BbeAcE1371bF3");
     std::env::set_var("ERC20_MOCK_ADDR", erc20_mock_address.to_string());
 
-    let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
-        .await
-        .unwrap();
-    let pauser_registry_address = *pauser_registry.address();
-
     let registry_coordinator =
         RegistryCoordinator::new(registry_coordinator_address, provider.clone());
 
@@ -134,6 +127,5 @@ pub async fn setup_eigenlayer_test_environment(
             rewards_coordinator_address: Default::default(),
             permission_controller_address,
         },
-        pauser_registry_address,
     }
 }

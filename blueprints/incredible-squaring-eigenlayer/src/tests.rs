@@ -154,10 +154,8 @@ pub async fn deploy_task_manager(harness: &EigenlayerTestHarness) -> Address {
     let registry_coordinator_address = harness
         .eigenlayer_contract_addresses
         .registry_coordinator_address;
-    let pauser_registry_address = harness.pauser_registry_address;
     let owner_address = harness.owner_account();
     let aggregator_address = harness.aggregator_account();
-    let task_generator_address = harness.task_generator_account();
 
     let provider = get_provider_http(http_endpoint);
     let deploy_call = IncredibleSquaringTaskManager::deploy_builder(
@@ -189,10 +187,8 @@ pub async fn deploy_task_manager(harness: &EigenlayerTestHarness) -> Address {
     // Initialize the Incredible Squaring Task Manager
     info!("Initializing Incredible Squaring Task Manager");
     let init_call = task_manager.initialize(
-        pauser_registry_address,
         owner_address,
         aggregator_address,
-        task_generator_address,
     );
     let init_receipt = get_receipt(init_call).await.unwrap();
     assert!(init_receipt.status());

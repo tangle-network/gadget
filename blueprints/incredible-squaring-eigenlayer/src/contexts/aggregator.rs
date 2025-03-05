@@ -1,4 +1,4 @@
-use crate::IBLSSignatureChecker::NonSignerStakesAndSignature;
+use crate::IBLSSignatureCheckerTypes::NonSignerStakesAndSignature;
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::BN254::G1Point;
@@ -44,8 +44,8 @@ pub struct AggregatorContext {
     pub task_manager_address: Address,
     pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
     pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
-    pub service_handle: Option<Arc<Mutex<ServiceHandle>>>,
-    pub aggregate_receiver: Option<Arc<Mutex<AggregateReceiver>>>,
+    pub service_handle: Option<Arc<Mutex<bls_agg::ServiceHandle>>>,
+    pub aggregate_receiver: Option<Arc<Mutex<bls_agg::AggregateReceiver>>>,
     pub http_rpc_url: String,
     pub wallet: EthereumWallet,
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
