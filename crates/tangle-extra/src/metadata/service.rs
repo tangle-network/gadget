@@ -8,6 +8,7 @@
 //! # Examples
 //!
 //! ```
+//! use gadget_blueprint_serde::new_bounded_string;
 //! use blueprint_tangle_extra::metadata::IntoServiceMetadata;
 //! use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceMetadata;
 //!
@@ -22,9 +23,9 @@
 //!         // Convert the MyService instance into ServiceMetadata
 //!         // Implementation details would go here
 //!         ServiceMetadata {
-//!             name: self.name.into(),
-//!             description: self.description,
-//!             author: self.author,
+//!             name: new_bounded_string(self.name),
+//!             description: self.description.map(new_bounded_string),
+//!             author: self.author.map(new_bounded_string),
 //!             category: None,
 //!             code_repository: None,
 //!             logo: None,

@@ -1,27 +1,26 @@
 //! Async functions that can be used to handle jobs.
-//#![doc = include_str!("../docs/handlers_intro.md")]
+// TODO: #![doc = include_str!("../docs/handlers_intro.md")]
 //!
-//! Some examples of handlers:
+//! Some examples of jobs:
 //!
 //! ```rust
 //! use blueprint_sdk::Bytes;
 //!
-//! // Handler that immediately returns an empty `200 OK` response.
-//! async fn unit_handler() {}
+//! // Job that immediately returns an empty result.
+//! async fn unit() {}
 //!
-//! // Handler that immediately returns a `200 OK` response with a plain text
-//! // body.
-//! async fn string_handler() -> String {
+//! // Job that immediately returns a result with a body of "Hello, World!".
+//! async fn string() -> String {
 //!     "Hello, World!".to_string()
 //! }
 //!
-//! // Handler that buffers the request body and returns it.
+//! // Job that buffers the request body and returns it.
 //! //
-//! // This works because `Bytes` implements `FromRequest`
+//! // This works because `Bytes` implements `FromJobCall`
 //! // and therefore can be used as an extractor.
 //! //
-//! // `String` and `StatusCode` both implement `IntoResponse` and
-//! // therefore `Result<String, StatusCode>` also implements `IntoResponse`
+//! // `String` implements `IntoJobResult` and therefore `Result<String, String>`
+//! // also implements `IntoJobResult`
 //! async fn echo(body: Bytes) -> Result<String, String> {
 //!     if let Ok(string) = String::from_utf8(body.to_vec()) {
 //!         Ok(string)
@@ -32,15 +31,15 @@
 //! ```
 //!
 //! Instead of a direct `String`, it makes sense to use intermediate error type
-//! that can ultimately be converted to `Response`. This allows using `?` operator
-//! in handlers. See those examples:
+//! that can ultimately be converted to `JobResult`. This allows using `?` operator
+//! in jobs. See those examples:
 //!
 //! * [`anyhow-error-response`][anyhow] for generic boxed errors
 //! * [`error-handling`][error-handling] for application-specific detailed errors
 //!
 //! [anyhow]: https://github.com/tokio-rs/axum/blob/main/examples/anyhow-error-response/src/main.rs
 //! [error-handling]: https://github.com/tokio-rs/axum/blob/main/examples/error-handling/src/main.rs
-//#![doc = include_str!("../docs/debugging_handler_type_errors.md")]
+// TODO: #![doc = include_str!("../docs/debugging_handler_type_errors.md")]
 
 use crate::{
     JobCall, JobResult,
@@ -61,29 +60,30 @@ pub use self::service::JobService;
 /// You shouldn't need to depend on this trait directly. It is automatically
 /// implemented to closures of the right types.
 ///
-/// See the [module docs](crate::handler) for more details.
+/// See the [module docs](crate::job) for more details.
 ///
-/// # Converting `Handler`s into [`Service`]s
+/// # Converting `Job`s into [`Service`]s
 ///
-/// To convert `Handler`s into [`Service`]s you have to call either
-/// [`HandlerWithoutStateExt::into_service`] or [`Handler::with_state`]:
+/// To convert `Job`s into [`Service`]s you have to call either
+/// [`JobWithoutContextExt::into_service`] or [`Job::with_context`]:
 ///
 /// ```
+/// use blueprint_sdk::extract::Context;
 /// use blueprint_sdk::job::JobWithoutContextExt;
-/// use blueprint_sdk::{Context, Job, JobCall};
+/// use blueprint_sdk::{Job, JobCall};
 /// use tower::Service;
 ///
-/// // this handler doesn't require any state
+/// // this job doesn't require any state
 /// async fn one() {}
-/// // so it can be converted to a service with `HandlerWithoutStateExt::into_service`
+/// // so it can be converted to a service with `JobWithoutContextExt::into_service`
 /// assert_service(one.into_service());
 ///
-/// // this handler requires a context
+/// // this job requires a context
 /// async fn two(_: Context<String>) {}
 /// // so we have to provide it
-/// let handler_with_state = two.with_context(String::new());
+/// let job_with_state = two.with_context(String::new());
 /// // which gives us a `Service`
-/// assert_service(handler_with_state);
+/// assert_service(job_with_state);
 ///
 /// // helper to check that a value implements `Service`
 /// fn assert_service<S>(service: S)
@@ -92,11 +92,11 @@ pub use self::service::JobService;
 /// {
 /// }
 /// ```
-//#[doc = include_str!("../docs/debugging_handler_type_errors.md")]
+// TODO: #[doc = include_str!("../docs/debugging_handler_type_errors.md")]
 ///
-/// # Handlers that aren't functions
+/// # Jobs that aren't functions
 ///
-/// The `Handler` trait is also implemented for `T: IntoResponse`. That allows easily returning
+/// The `Job` trait is also implemented for `T: IntoJobResult`. That allows easily returning
 /// fixed data for routes:
 ///
 /// ```
@@ -114,22 +114,22 @@ pub use self::service::JobService;
 /// # let _: Router = app;
 /// ```
 #[diagnostic::on_unimplemented(
-    note = "Consider using `#[blueprint_sdk::debug_handler]` to improve the error message"
+    note = "Consider using `#[blueprint_sdk::debug_job]` to improve the error message"
 )]
 pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
-    /// The type of future calling this handler returns.
+    /// The type of future calling this job returns.
     type Future: Future<Output = Option<JobResult>> + Send + 'static;
 
-    /// Call the handler with the given request.
+    /// Call the job with the given request.
     fn call(self, call: JobCall, ctx: Ctx) -> Self::Future;
 
-    /// Apply a [`tower::Layer`] to the handler.
+    /// Apply a [`tower::Layer`] to the job.
     ///
-    /// All requests to the handler will be processed by the layer's
+    /// All requests to the job will be processed by the layer's
     /// corresponding middleware.
     ///
     /// This can be used to add additional processing to a request for a single
-    /// handler.
+    /// job.
     ///
     /// Note this differs from [`routing::Router::layer`](crate::routing::Router::layer)
     /// which adds a middleware to a group of routes.
@@ -140,20 +140,20 @@ pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
     ///
     /// # Example
     ///
-    /// Adding the [`tower::limit::ConcurrencyLimit`] middleware to a handler
+    /// Adding the [`tower::limit::ConcurrencyLimit`] middleware to a job
     /// can be done like so:
     ///
     /// ```rust
     /// use blueprint_sdk::{Job, Router};
     /// use tower::limit::{ConcurrencyLimit, ConcurrencyLimitLayer};
     ///
-    /// async fn handler() { /* ... */
+    /// async fn job() { /* ... */
     /// }
     ///
     /// const MY_JOB_ID: u32 = 0;
     ///
-    /// let layered_handler = handler.layer(ConcurrencyLimitLayer::new(64));
-    /// let app = Router::new().route(MY_JOB_ID, layered_handler);
+    /// let layered_job = job.layer(ConcurrencyLimitLayer::new(64));
+    /// let app = Router::new().route(MY_JOB_ID, layered_job);
     /// # let _: Router = app;
     /// ```
     fn layer<L>(self, layer: L) -> Layered<L, Self, T, Ctx>
@@ -168,7 +168,7 @@ pub trait Job<T, Ctx>: Clone + Send + Sync + Sized + 'static {
         }
     }
 
-    /// Convert the handler into a [`Service`] by providing the context
+    /// Convert the job into a [`Service`] by providing the context
     fn with_context(self, ctx: Ctx) -> JobService<Self, T, Ctx> {
         JobService::new(self, ctx)
     }
@@ -203,21 +203,21 @@ macro_rules! impl_job {
         {
             type Future = Pin<Box<dyn Future<Output = Option<JobResult>> + Send>>;
 
-            fn call(self, call: JobCall, state: Ctx) -> Self::Future {
+            fn call(self, call: JobCall, context: Ctx) -> Self::Future {
                 Box::pin(async move {
                     let (mut parts, body) = call.into_parts();
-                    let state = &state;
+                    let context = &context;
 
                     $(
-                        let $ty = match $ty::from_job_call_parts(&mut parts, state).await {
+                        let $ty = match $ty::from_job_call_parts(&mut parts, context).await {
                             Ok(value) => value,
                             Err(rejection) => return rejection.into_job_result(),
                         };
                     )*
 
-                    let req = JobCall::from_parts(parts, body);
+                    let call = JobCall::from_parts(parts, body);
 
-                    let $last = match $last::from_job_call(req, state).await {
+                    let $last = match $last::from_job_call(call, context).await {
                         Ok(value) => value,
                         Err(rejection) => return rejection.into_job_result(),
                     };
@@ -234,7 +234,7 @@ macro_rules! impl_job {
 all_the_tuples!(impl_job);
 
 mod private {
-    // Marker type for `impl<T: IntoResponse> Job for T`
+    // Marker type for `impl<T: IntoJobResult> Job for T`
     #[allow(missing_debug_implementations)]
     pub enum IntoJobResultHandler {}
 }
@@ -296,10 +296,10 @@ where
 {
     type Future = future::LayeredFuture<L::Service>;
 
-    fn call(self, req: JobCall, state: Ctx) -> Self::Future {
+    fn call(self, call: JobCall, context: Ctx) -> Self::Future {
         use futures_util::future::{FutureExt, Map};
 
-        let svc = self.job.with_context(state);
+        let svc = self.job.with_context(context);
         let svc = self.layer.layer(svc);
 
         #[allow(clippy::type_complexity)]
@@ -311,7 +311,7 @@ where
                     <L::Service as Service<JobCall>>::Error,
                 >,
             ) -> _,
-        > = svc.oneshot(req).map(|result| match result {
+        > = svc.oneshot(call).map(|result| match result {
             Ok(res) => res.into_job_result(),
             Err(_err) => todo!("JobService needs to return a result"),
         });
@@ -320,13 +320,13 @@ where
     }
 }
 
-/// Extension trait for [`Job`]s that don't have state.
+/// Extension trait for [`Job`]s that don't have context.
 ///
 /// This provides convenience methods to convert the [`Job`] into a [`Service`] or [`MakeService`].
 ///
 /// [`MakeService`]: tower::make::MakeService
 pub trait JobWithoutContextExt<T>: Job<T, ()> {
-    /// Convert the handler into a [`Service`] and no state.
+    /// Convert the handler into a [`Service`] and no context.
     fn into_service(self) -> JobService<Self, T, ()>;
 }
 

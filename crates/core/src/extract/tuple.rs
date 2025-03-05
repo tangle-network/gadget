@@ -53,16 +53,16 @@ macro_rules! impl_from_job_call {
         {
             type Rejection = Option<JobResult>;
 
-            async fn from_job_call(req: JobCall, ctx: &Ctx) -> Result<Self, Self::Rejection> {
-                let (mut parts, body) = req.into_parts();
+            async fn from_job_call(call: JobCall, ctx: &Ctx) -> Result<Self, Self::Rejection> {
+                let (mut parts, body) = call.into_parts();
 
                 $(
                     let $ty = $ty::from_job_call_parts(&mut parts, ctx).await.map_err(|err| err.into_job_result())?;
                 )*
 
-                let req = JobCall::from_parts(parts, body);
+                let call = JobCall::from_parts(parts, body);
 
-                let $last = $last::from_job_call(req, ctx).await.map_err(|err| err.into_job_result())?;
+                let $last = $last::from_job_call(call, ctx).await.map_err(|err| err.into_job_result())?;
 
                 Ok(($($ty,)* $last,))
             }

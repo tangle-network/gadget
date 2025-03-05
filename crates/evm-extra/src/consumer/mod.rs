@@ -1,8 +1,8 @@
 //! EVM Consumer(s)
 
+use alloc::collections::VecDeque;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use std::collections::VecDeque;
 
 use alloy_provider::fillers::{FillProvider, JoinFill, RecommendedFillers, WalletFiller};
 use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet, ReceiptResponse};

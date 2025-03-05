@@ -1,4 +1,4 @@
-//! Handler future types.
+//! Job future types.
 
 use crate::JobCall;
 use crate::JobResult;

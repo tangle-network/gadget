@@ -29,6 +29,7 @@ tower = { workspace = true, features = ["filter"] }
 
 # Utils
 bytes = { workspace = true }
+document-features = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 
@@ -38,6 +39,13 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["std", "tracing"]
+
+#! ### Core
+
+## Enable standard library support. Currently unused
 std = ["serde_json/std"]
 
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
 tracing = ["blueprint-core/tracing"]

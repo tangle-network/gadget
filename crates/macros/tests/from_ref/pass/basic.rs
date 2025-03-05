@@ -1,4 +1,4 @@
-use blueprint_sdk::{Context, Router, extract::FromRef};
+use blueprint_sdk::{Router, extract::{FromRef, Context}};
 
 // This will implement `FromRef` for each field in the struct.
 #[derive(Clone, FromRef)]

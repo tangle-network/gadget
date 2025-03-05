@@ -1,10 +1,9 @@
-//! Routing between [`Service`]s and handlers.
+//! Routing between [`Service`]s and jobs.
 
 use crate::future::{Route, RouteFuture};
 use alloc::boxed::Box;
 
-use crate::IntoMakeService;
-use crate::job_router::JobIdRouter;
+use crate::job_id_router::JobIdRouter;
 use crate::util::try_downcast;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobResult};
 
@@ -31,7 +30,7 @@ macro_rules! panic_on_err {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct RouteId(pub u32);
 
-/// The router type for composing handlers and services.
+/// The router type for composing jobs and services.
 #[must_use]
 pub struct Router<Ctx = ()> {
     inner: Arc<RouterInner<Ctx>>,
@@ -97,8 +96,7 @@ where
 {
     /// Create a new `Router`.
     ///
-    /// Unless you add additional routes this will respond with `404 Not Found` to
-    /// all requests.
+    /// Unless you add additional routes this will ignore all requests.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RouterInner {
@@ -136,10 +134,7 @@ where
     {
         let service = match try_downcast::<Router<Ctx>, _>(service) {
             Ok(_) => {
-                panic!(
-                    "Invalid route: `Router::route_service` cannot be used with `Router`s. \
-                     Use `Router::nest` instead"
-                );
+                panic!("Invalid route: `Router::route_service` cannot be used with `Router`s.");
             }
             Err(service) => service,
         };
@@ -258,17 +253,14 @@ where
     /// For example:
     ///
     /// ```compile_fail
-    /// use axum::{
-    ///     Router,
-    ///     routing::get,
-    ///     http::Request,
-    ///     body::Body,
-    /// };
+    /// use blueprint_sdk::{Router, JobCall, Bytes};
     /// use tower::{Service, ServiceExt};
     ///
-    /// # async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut router = Router::new().route("/", get(|| async {}));
-    /// let request = Request::new(Body::empty());
+    /// const MY_JOB_ID: u8 = 0;
+    ///
+    /// # async fn async_main() -> Result<(), blueprint_sdk::error::BoxError> {
+    /// let mut router = Router::new().route(MY_JOB_ID, || async {});
+    /// let request = JobCall::new(MY_JOB_ID, Bytes::new());
     /// let response = router.ready().await?.call(request).await?;
     /// # Ok(())
     /// # }
@@ -283,7 +275,7 @@ where
     ///
     /// const MY_JOB_ID: u32 = 0;
     ///
-    /// # async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn async_main() -> Result<(), blueprint_sdk::error::BoxError> {
     /// let mut router = Router::new().route(MY_JOB_ID, || async {});
     /// let request = JobCall::new(MY_JOB_ID, Bytes::new());
     /// let response = router.as_service().ready().await?.call(request).await?;
@@ -292,37 +284,12 @@ where
     /// ```
     ///
     /// This is mainly used when calling `Router` in tests. It shouldn't be necessary when running
-    /// the `Router` normally via [`Router::into_make_service`].
+    /// the `Router` normally via the blueprint runner.
     pub fn as_service<B>(&mut self) -> RouterAsService<'_, B, Ctx> {
         RouterAsService {
             router: self,
             _marker: PhantomData,
         }
-    }
-}
-
-impl Router {
-    /// Convert this router into a [`MakeService`], that is a [`Service`] whose
-    /// response is another service.
-    ///
-    /// ```
-    /// use blueprint_sdk::Router;
-    ///
-    /// const MY_JOB_ID: u32 = 0;
-    ///
-    /// let app = Router::new().route(MY_JOB_ID, || async { "Hi!" });
-    ///
-    /// # async {
-    /// let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    /// axum::serve(listener, app).await.unwrap();
-    /// # };
-    /// ```
-    ///
-    /// [`MakeService`]: tower::make::MakeService
-    pub fn into_make_service(self) -> IntoMakeService<Self> {
-        // call `Router::with_state` such that everything is turned into `Route` eagerly
-        // rather than doing that per request
-        IntoMakeService::new(self.with_context(()))
     }
 }
 

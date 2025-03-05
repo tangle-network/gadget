@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 blueprint-core.workspace = true
 bytes.workspace = true
+document-features = { workspace = true }
 futures-core.workspace = true
 futures-util.workspace = true
 tower = { workspace = true, features = ["filter"] }
@@ -30,8 +31,24 @@ paste = { workspace = true }
 
 [features]
 default = ["std", "tracing", "macros"]
+
+#! ### Core
+
+## Enable standard library support
 std = ["dep:gadget-utils", "futures-util/std", "gadget-utils/std"]
+
+## Enable support for web targets
 web = ["dep:gadget-utils", "futures-util/std", "gadget-utils/web"]
+
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
 tracing = ["blueprint-core/tracing"]
+
+#! ### Other
+
+## Enable access to the metadata types used in `blueprint.json` generation
 metadata-types = ["dep:cid"]
+
+## Enable access to the [`blueprint!`](crate::blueprint) macro
 macros = ["dep:serde_json", "dep:cargo_metadata", "dep:thiserror", "metadata-types"]

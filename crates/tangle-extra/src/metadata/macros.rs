@@ -202,8 +202,9 @@ fn generate_gadget_for_current_crate() -> Result<Gadget<'static>, Error> {
 /// ```rust
 /// use blueprint_tangle_extra::blueprint;
 ///
-/// # async fn foo() {}
-/// # async fn bar() {}
+/// # use blueprint_tangle_extra::extract::TangleResult;
+/// # async fn foo() -> TangleResult<u8> { TangleResult(0) }
+/// # async fn bar() -> TangleResult<u8> { TangleResult(0) }
 ///
 /// let blueprint = blueprint! {
 ///     name: "MyBlueprint",

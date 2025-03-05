@@ -10,7 +10,7 @@
 //! # Examples
 //!
 //! ```
-//! use blueprint_core::Context;
+//! use blueprint_core::extract::Context;
 //! use blueprint_tangle_extra::extract::TangleArg;
 //! use blueprint_tangle_extra::extract::TangleResult;
 //! use blueprint_tangle_extra::metadata::IntoJobDefinition;
@@ -127,7 +127,7 @@ blueprint_core::all_the_tuples!(impl_into_job_definition);
 
 #[cfg(test)]
 mod tests {
-    use blueprint_core::Context;
+    use blueprint_core::extract::Context;
 
     use super::*;
     use crate::extract::{
@@ -135,6 +135,18 @@ mod tests {
         TangleArgs8, TangleArgs9, TangleArgs10, TangleArgs11, TangleArgs12, TangleArgs13,
         TangleArgs14, TangleArgs15, TangleArgs16, TangleResult,
     };
+
+    macro_rules! count {
+        ($val:ident, $($rest:tt)*) => {
+            1 + count!($($rest)*)
+        };
+        ($val:ident) => {
+            1
+        };
+        () => {
+            0
+        }
+    }
 
     async fn empty() -> TangleResult<u64> {
         TangleResult(0)
@@ -181,7 +193,7 @@ mod tests {
                             def.metadata.name.0.0,
                             format!("blueprint_tangle_extra::metadata::job_definition::tests::{}", stringify!($func)).as_bytes(),
                         );
-                        assert_eq!(def.params.0.len(), crate::count!($($args),*));
+                        assert_eq!(def.params.0.len(), count!($($args),*));
                         assert_eq!(def.result.0.len(), 1);
                         assert!(def.params.0.iter().all(|ty| ty.clone() == FieldType::Uint64));
                         assert_eq!(def.result.0[0], FieldType::Uint64);
@@ -191,7 +203,7 @@ mod tests {
                             def2.metadata.name.0.0,
                             format!("blueprint_tangle_extra::metadata::job_definition::tests::{}", stringify!([<$func _with_context>])).as_bytes(),
                         );
-                        assert_eq!(def2.params.0.len(), crate::count!($($args),*));
+                        assert_eq!(def2.params.0.len(), count!($($args),*));
                         assert_eq!(def2.result.0.len(), 1);
                         assert!(def2.params.0.iter().all(|ty| ty.clone() == FieldType::Uint64));
                         assert_eq!(def2.result.0[0], FieldType::Uint64);

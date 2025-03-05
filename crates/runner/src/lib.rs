@@ -1,3 +1,12 @@
+//! Blueprint SDK job runners
+//!
+//! This crate provides the core functionality for configuring and running blueprints.
+//!
+//! ## Features
+#![doc = document_features::document_features!()]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![warn(missing_docs)]
+
 extern crate alloc;
 
 pub mod config;
@@ -23,6 +32,7 @@ use futures_util::{SinkExt, StreamExt, TryStreamExt, stream};
 use tokio::sync::oneshot;
 use tower::Service;
 
+/// Configuration for the blueprint registration procedure
 #[allow(async_fn_in_trait)]
 #[dynosaur::dynosaur(DynBlueprintConfig)]
 pub trait BlueprintConfig: Send + Sync {
@@ -36,7 +46,7 @@ pub trait BlueprintConfig: Send + Sync {
 
     /// Controls whether the runner should exit after registration
     ///
-    /// Returns true if the runner should exit after registration, false if it should continue
+    /// Returns `true` if the runner should exit after registration, or `false` if it should continue
     fn should_exit_after_registration(&self) -> bool {
         true // By default, runners exit after registration
     }
@@ -59,6 +69,7 @@ unsafe impl Sync for DynBackgroundService<'_> {}
 type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Unpin + 'static>;
 type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'static>;
 
+/// A builder for a [`BlueprintRunner`]
 pub struct BlueprintRunnerBuilder<F> {
     config: Box<DynBlueprintConfig<'static>>,
     env: BlueprintEnvironment,
@@ -73,11 +84,17 @@ impl<F> BlueprintRunnerBuilder<F>
 where
     F: Future<Output = ()> + Send + 'static,
 {
+    /// Set the [`Router`] for this runner
+    ///
+    /// A [`Router`] is the only required field in a [`BlueprintRunner`].
     pub fn router(mut self, router: Router) -> Self {
         self.router = Some(router);
         self
     }
 
+    /// Append a [producer] to the list
+    ///
+    /// [producer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/producers/index.html
     pub fn producer<E>(
         mut self,
         producer: impl Stream<Item = Result<JobCall, E>> + Send + Unpin + 'static,
@@ -90,6 +107,9 @@ where
         self
     }
 
+    /// Append a [consumer] to the list
+    ///
+    /// [consumer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/consumers/index.html
     pub fn consumer<E>(
         mut self,
         consumer: impl Sink<JobResult, Error = E> + Send + Unpin + 'static,
@@ -102,12 +122,26 @@ where
         self
     }
 
+    /// Append a background service to the list
     pub fn background_service(mut self, service: impl BackgroundService + 'static) -> Self {
         self.background_services
             .push(DynBackgroundService::boxed(service));
         self
     }
 
+    /// Set the shutdown handler
+    ///
+    /// This will be run **before** the runner terminates any of the following:
+    ///
+    /// * [Producers]
+    /// * [Consumers]
+    /// * [Background Services]
+    ///
+    /// Meaning it is a good place to do cleanup logic, such as finalizing database transactions.
+    ///
+    /// [Producers]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/producers/index.html
+    /// [Consumers]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/consumers/index.html
+    /// [Background Services]: crate::BackgroundService
     pub fn with_shutdown_handler<F2>(self, handler: F2) -> BlueprintRunnerBuilder<F2>
     where
         F2: Future<Output = ()> + Send + 'static,
@@ -123,6 +157,14 @@ where
         }
     }
 
+    /// Start the runner
+    ///
+    /// This will block until the runner finishes.
+    ///
+    /// # Errors
+    ///
+    /// If at any point the runner fails, an error will be returned. See [`Self::with_shutdown_handler`]
+    /// to understand what this means for your running services.
     pub async fn run(self) -> Result<(), Error> {
         let Some(router) = self.router else {
             return Err(Error::NoRouter);
@@ -142,9 +184,108 @@ where
     }
 }
 
+/// The blueprint runner
+///
+/// This is responsible for orchestrating the following:
+///
+/// * [Producers]
+/// * [Consumers]
+/// * [Background Services](crate::BackgroundService)
+/// * [`Router`]
+///
+/// # Usage
+///
+/// Note that this is a **full** example. All fields, with the exception of the [`Router`] can be
+/// omitted.
+///
+/// ```no_run
+/// use blueprint_router::Router;
+/// use blueprint_runner::config::BlueprintEnvironment;
+/// use blueprint_runner::error::RunnerError;
+/// use blueprint_runner::{BackgroundService, BlueprintRunner};
+/// use futures::future;
+/// use tokio::sync::oneshot;
+/// use tokio::sync::oneshot::Receiver;
+///
+/// // A dummy background service that immediately returns
+/// #[derive(Clone)]
+/// pub struct FooBackgroundService;
+///
+/// impl BackgroundService for FooBackgroundService {
+///     async fn start(&self) -> Result<Receiver<Result<(), RunnerError>>, RunnerError> {
+///         let (tx, rx) = oneshot::channel();
+///         tokio::spawn(async move {
+///             let _ = tx.send(Ok(()));
+///         });
+///         Ok(rx)
+///     }
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     // The config is any type implementing the [BlueprintConfig] trait.
+///     // In this case, () works.
+///     let config = ();
+///
+///     // Load the blueprint environment
+///     let blueprint_env = BlueprintEnvironment::default();
+///
+///     // Create some producer(s)
+///     let some_producer = /* ... */
+///     # blueprint_sdk::tangle::producer::TangleProducer::finalized_blocks(todo!()).await.unwrap();
+///     # struct S;
+///     # use blueprint_sdk::tangle::subxt_core::config::{PolkadotConfig, Config};
+///     # impl blueprint_sdk::tangle::subxt_core::tx::signer::Signer<PolkadotConfig> for S {
+///     #     fn account_id(&self) -> <PolkadotConfig as Config>::AccountId {
+///     #         todo!()
+///     #     }
+///     #
+///     #     fn address(&self) -> <PolkadotConfig as Config>::Address {
+///     #         todo!()
+///     #     }
+///     #
+///     #     fn sign(&self, signer_payload: &[u8]) -> <PolkadotConfig as Config>::Signature {
+///     #         todo!()
+///     #     }
+///     # }
+///     // Create some consumer(s)
+///     let some_consumer = /* ... */
+///     # blueprint_sdk::tangle::consumer::TangleConsumer::<S>::new(todo!(), todo!());
+///
+///     let result = BlueprintRunner::builder(config, blueprint_env)
+///         .router(
+///             // Add a `Router`, where each "route" is a job ID and the job function.
+///             Router::new().route(0, async || "Hello, world!"),
+///         )
+///         // Add potentially many producers
+///         .producer(some_producer)
+///         // Add potentially many consumers
+///         .consumer(some_consumer)
+///         // Add potentially many background services
+///         .background_service(FooBackgroundService)
+///         // Specify what to do when an error occurs and the runner is shutting down.
+///         // That can be cleanup logic, finalizing database transactions, etc.
+///         .with_shutdown_handler(async { println!("Shutting down!") })
+///         // Then start it up...
+///         .run()
+///         .await;
+///
+///     // The runner, after running the shutdown handler, will return
+///     // an error if something goes wrong
+///     if let Err(e) = result {
+///         eprintln!("Runner failed! {e:?}");
+///     }
+/// }
+/// ```
+///
+/// [Consumers]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/consumers/index.html
+/// [Producers]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/producers/index.html
 pub struct BlueprintRunner;
 
 impl BlueprintRunner {
+    /// Create a new [`BlueprintRunnerBuilder`]
+    ///
+    /// See the usage section of [`BlueprintRunner`]
     pub fn builder<C: BlueprintConfig + 'static>(
         config: C,
         env: BlueprintEnvironment,

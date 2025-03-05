@@ -2,7 +2,9 @@ use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
-use blueprint_runner::{config::BlueprintEnvironment, error::RunnerError as Error, BlueprintConfig};
+use blueprint_runner::{
+    config::BlueprintEnvironment, error::RunnerError as Error, BlueprintConfig,
+};
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
 use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;

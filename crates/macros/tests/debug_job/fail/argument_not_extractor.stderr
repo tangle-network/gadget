@@ -4,8 +4,8 @@ error[E0277]: the trait bound `bool: FromJobCall<(), blueprint_core::extract::pr
 4 | async fn job(_foo: bool) {}
   |                    ^^^^ the trait `FromJobCallParts<()>` is not implemented for `bool`
   |
-  = note: Function argument is not a valid blueprint extractor.
-          See `https://docs.rs/axum/0.8/axum/extract/index.html` for details
+  = note: Function argument is not a valid extractor.
+          See `https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html` for details
   = help: the following other types implement trait `FromJobCallParts<Ctx>`:
             `()` implements `FromJobCallParts<Ctx>`
             `(T1, T2)` implements `FromJobCallParts<Ctx>`

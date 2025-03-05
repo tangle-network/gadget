@@ -32,15 +32,16 @@ use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 /// // Verify that we're producing something
 /// assert!(cron.next().await.is_some());
 ///
-/// // Verify that we're producing every 10 seconds
+/// // Verify that we're producing every 5 seconds
 /// let before = Instant::now();
 /// let next_call = cron.next().await;
 /// let after = Instant::now();
 ///
-/// assert!(after.duration_since(before) >= Duration::from_secs(10));
+/// assert!(after.duration_since(before) >= Duration::from_secs(5));
 /// # Ok(()) }
 /// ```
 ///
+/// [`Context`]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/struct.Context.html
 /// [cron]: https://en.wikipedia.org/wiki/Cron
 pub struct CronJob {
     job_id: JobId,
@@ -55,7 +56,7 @@ impl CronJob {
         I: IntoJobId,
         S: AsRef<str>,
     {
-        Self::new_tz(job_id, schedule, Utc)
+        Self::new_tz(job_id, schedule, Utc).await
     }
 
     /// Create a new [`CronJob`] with the specified `timezone`

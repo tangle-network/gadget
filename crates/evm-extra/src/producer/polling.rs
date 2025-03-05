@@ -19,6 +19,8 @@
 //! 4. Converts logs to job calls
 //! 5. Maintains a buffer of pending jobs
 
+use alloc::collections::VecDeque;
+use alloc::sync::Arc;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Filter, Log};
 use alloy_transport::TransportError;
@@ -30,8 +32,6 @@ use core::{
     time::Duration,
 };
 use futures::Stream;
-use std::collections::VecDeque;
-use std::sync::Arc;
 use tokio::time::Sleep;
 
 /// Configuration parameters for the polling producer

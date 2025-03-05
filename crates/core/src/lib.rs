@@ -1,3 +1,6 @@
+#![doc(
+    html_logo_url = "https://cdn.prod.website-files.com/6494562b44a28080aafcbad4/65aaf8b0818b1d504cbdf81b_Tnt%20Logo.png"
+)]
 #![no_std]
 
 extern crate alloc;
@@ -11,7 +14,6 @@ pub mod __private {
     pub use tracing;
 }
 
-pub mod context;
 pub mod error;
 pub mod ext_traits;
 pub mod extensions;
@@ -27,7 +29,6 @@ pub use self::extract::{FromJobCall, FromJobCallParts};
 pub use self::job_call::job_id::{IntoJobId, JobId};
 pub use self::job_result::{IntoJobResult, IntoJobResultParts};
 pub use bytes::Bytes;
-pub use context::Context;
 pub use job::Job;
 
 /// A type representing a job result with a body of type `bytes::Bytes`.

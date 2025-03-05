@@ -7,9 +7,7 @@
 ///
 /// This trait can be derived using `#[derive(FromRef)]`.
 ///
-/// [`Context`]: https://docs.rs/axum/0.8/axum/extract/struct.Context.html
-// NOTE: This trait is defined in axum-core, even though it is mainly used with `Context` which is
-// defined in axum. That allows crate authors to use it when implementing extractors.
+/// [`Context`]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/struct.Context.html
 pub trait FromRef<T> {
     /// Converts to this type from a reference to the input type.
     fn from_ref(input: &T) -> Self;

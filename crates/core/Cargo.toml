@@ -15,9 +15,10 @@ tiny-keccak = { workspace = true, features = ["keccak"] }
 # optional dependencies
 tracing = { workspace = true, optional = true }
 
-[dev-dependencies.tower]
-workspace = true
-features = ["util", "timeout", "limit", "load-shed", "steer", "filter"]
+[dev-dependencies]
+blueprint-sdk.workspace = true
+serde_json.workspace = true
+tower = { workspace = true, features = ["util", "timeout", "limit", "load-shed", "steer", "filter"] }
 
 [features]
 default = ["std", "tracing"]

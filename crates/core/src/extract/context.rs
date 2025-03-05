@@ -19,7 +19,8 @@ use core::{
 /// # With `Router`
 ///
 /// ```
-/// use blueprint_sdk::{Context, Job, Router};
+/// use blueprint_sdk::extract::Context;
+/// use blueprint_sdk::{Job, Router};
 ///
 /// // the application context
 /// //
@@ -53,76 +54,11 @@ use core::{
 ///
 /// [order-of-extractors]: crate::extract#the-order-of-extractors
 ///
-/// ## Combining stateful routers
-///
-/// Multiple [`Router`]s can be combined with [`Router::nest`] or [`Router::merge`]
-/// When combining [`Router`]s with one of these methods, the [`Router`]s must have
-/// the same context type. Generally, this can be inferred automatically:
-///
-/// ```
-/// use blueprint_sdk::Context;
-/// use blueprint_sdk::{Router, extract::context, routing::get};
-///
-/// #[derive(Clone)]
-/// struct AppContext {}
-///
-/// let context = AppContext {};
-///
-/// // create a `Router` that will be nested within another
-/// let api = Router::new().route("/posts", get(posts_handler));
-///
-/// let app = Router::new().nest("/api", api).with_context(context);
-///
-/// async fn posts_handler(Context(context): Context<AppContext>) {
-///     // use `context`...
-/// }
-/// # let _: axum::Router = app;
-/// ```
-///
-/// However, if you are composing [`Router`]s that are defined in separate scopes,
-/// you may need to annotate the [`context`] type explicitly:
-///
-/// ```
-/// use blueprint_sdk::{Router, routing::get};
-/// use blueprint_sdk::Context;
-///
-/// #[derive(Clone)]
-/// struct AppContext {}
-///
-/// fn make_app() -> Router {
-///     let context = AppContext {};
-///
-///     Router::new()
-///         .nest("/api", make_api())
-///         .with_state(context) // the outer Router's context is inferred
-/// }
-///
-/// // the inner Router must specify its context type to compose with the
-/// // outer router
-/// fn make_api() -> Router<AppContext> {
-///     Router::new()
-///         .route("/posts", get(posts_handler))
-/// }
-///
-/// async fn posts_handler(Context(context): Context<AppContext>) {
-///     // use `context`...
-/// }
-/// # let _: axum::Router = make_app();
-/// ```
-///
-/// In short, a [`Router`]'s generic context type defaults to `()`
-/// (no context) unless [`Router::with_state`] is called or the value
-/// of the generic type is given explicitly.
-///
-/// [`Router`]: crate::Router
-/// [`Router::merge`]: crate::Router::merge
-/// [`Router::nest`]: crate::Router::nest
-/// [`Router::with_state`]: crate::Router::with_state
-///
 /// # With `Job`
 ///
 /// ```
-/// use blueprint_sdk::{Context, Job};
+/// use blueprint_sdk::Job;
+/// use blueprint_sdk::extract::Context;
 ///
 /// #[derive(Clone)]
 /// struct AppContext {}
@@ -133,15 +69,8 @@ use core::{
 ///     // use `context`...
 /// }
 ///
-/// // provide the context so the handler can access it
-/// let handler_with_state = job.with_context(context);
-///
-/// # async {
-/// let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-/// axum::serve(listener, handler_with_state.into_make_service())
-///     .await
-///     .unwrap();
-/// # };
+/// // provide the context so the job can access it
+/// let job_with_context = job.with_context(context);
 /// ```
 ///
 /// # Substates
@@ -149,8 +78,8 @@ use core::{
 /// [`context`] only allows a single context type but you can use [`FromRef`] to extract "substates":
 ///
 /// ```
-/// use blueprint_sdk::extract::FromRef;
-/// use blueprint_sdk::{Context, Router};
+/// use blueprint_sdk::Router;
+/// use blueprint_sdk::extract::{Context, FromRef};
 ///
 /// // the application context
 /// #[derive(Clone)]
@@ -247,13 +176,14 @@ use core::{
 /// your use case. See [the tokio docs] for more details.
 ///
 /// Note that holding a locked `std::sync::Mutex` across `.await` points will result in `!Send`
-/// futures which are incompatible with axum. If you need to hold a mutex across `.await` points,
+/// futures which are incompatible with `blueprint_sdk`. If you need to hold a mutex across `.await` points,
 /// consider using a `tokio::sync::Mutex` instead.
 ///
 /// ## Example
 ///
 /// ```
-/// use blueprint_sdk::{Context, Router, routing::get};
+/// use blueprint_sdk::Router;
+/// use blueprint_sdk::extract::Context;
 /// use std::sync::{Arc, Mutex};
 ///
 /// #[derive(Clone)]
@@ -261,7 +191,7 @@ use core::{
 ///     data: Arc<Mutex<String>>,
 /// }
 ///
-/// async fn handler(Context(context): Context<AppContext>) {
+/// async fn job(Context(context): Context<AppContext>) {
 ///     {
 ///         let mut data = context.data.lock().expect("mutex was poisoned");
 ///         *data = "updated foo".to_owned();
@@ -274,7 +204,7 @@ use core::{
 ///     data: Arc::new(Mutex::new("foo".to_owned())),
 /// };
 ///
-/// let app = Router::new().route("/", get(handler)).with_state(context);
+/// let app = Router::new().route("/", job).with_context(context);
 /// # let _: Router = app;
 /// ```
 ///

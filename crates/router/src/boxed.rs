@@ -1,5 +1,4 @@
 use crate::future::Route;
-use crate::future::RouteFuture;
 use alloc::boxed::Box;
 use blueprint_core::{IntoJobResult, Job, JobCall};
 
@@ -20,25 +19,12 @@ where
     {
         Self(Box::new(MakeErasedJob {
             job,
-            into_route: |handler, context| Route::new(Job::with_context(handler, context)),
+            into_route: |job, context| Route::new(Job::with_context(job, context)),
         }))
     }
 }
 
 impl<Ctx, E> BoxedIntoRoute<Ctx, E> {
-    pub(crate) fn map<F, E2>(self, f: F) -> BoxedIntoRoute<Ctx, E2>
-    where
-        Ctx: 'static,
-        E: 'static,
-        F: FnOnce(Route<E>) -> Route<E2> + Clone + Send + Sync + 'static,
-        E2: 'static,
-    {
-        BoxedIntoRoute(Box::new(Map {
-            inner: self.0,
-            layer: Box::new(f),
-        }))
-    }
-
     pub(crate) fn into_route(self, context: Ctx) -> Route<E> {
         self.0.into_route(context)
     }
@@ -81,9 +67,6 @@ pub(crate) trait ErasedIntoRoute<Ctx, E>: Send + Sync {
     fn clone_box(&self) -> Box<dyn ErasedIntoRoute<Ctx, E>>;
 
     fn into_route(self: Box<Self>, context: Ctx) -> Route<E>;
-
-    #[allow(dead_code)]
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<E>;
 }
 
 pub(crate) struct MakeErasedJob<J, Ctx> {
@@ -102,10 +85,6 @@ where
 
     fn into_route(self: Box<Self>, context: Ctx) -> Route {
         (self.into_route)(self.job, context)
-    }
-
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<BoxError> {
-        self.into_route(context).call(call)
     }
 }
 
@@ -141,10 +120,6 @@ where
 
     fn into_route(self: Box<Self>, context: Ctx) -> Route<E2> {
         (self.layer)(self.inner.into_route(context))
-    }
-
-    fn call_with_context(self: Box<Self>, call: JobCall, context: Ctx) -> RouteFuture<E2> {
-        (self.layer)(self.inner.into_route(context)).call(call)
     }
 }
 

@@ -1,8 +1,8 @@
 //! Types and traits for extracting data from requests.
 //!
-//! See [`axum::extract`] for more details.
+//! See [`blueprint_sdk::extract`] for more details.
 //!
-//! [`axum::extract`]: https://docs.rs/axum/0.8/axum/extract/index.html
+//! [`blueprint_sdk::extract`]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html
 
 use crate::JobCall;
 use crate::job_call::Parts;
@@ -12,12 +12,14 @@ use core::future::Future;
 
 pub mod rejection;
 
+mod context;
 mod from_ref;
 mod job_call_parts;
 mod option;
 mod tuple;
 
 pub use self::{
+    context::Context,
     from_ref::FromRef,
     option::{OptionalFromJobCall, OptionalFromJobCallParts},
     rejection::InvalidUtf8,
@@ -34,16 +36,16 @@ mod private {
 /// Types that can be created from job calls.
 ///
 /// Extractors that implement `FromJobCall` can consume the job call body and can thus only be run
-/// once for handlers.
+/// once for jobs.
 ///
 /// If your extractor doesn't need to consume the job call body then you should implement
 /// [`FromJobCallParts`] and not [`FromJobCall`].
 ///
-/// See [`axum::extract`] for more general docs about extractors.
+/// See [`blueprint_sdk::extract`] for more general docs about extractors.
 ///
-/// [`axum::extract`]: https://docs.rs/axum/0.8/axum/extract/index.html
+/// [`blueprint_sdk::extract`]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html
 #[diagnostic::on_unimplemented(
-    note = "Function argument is not a valid blueprint extractor. \nSee `https://docs.rs/axum/0.8/axum/extract/index.html` for details"
+    note = "Function argument is not a valid extractor. \nSee `https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html` for details"
 )]
 pub trait FromJobCallParts<Ctx>: Sized {
     /// If the extractor fails it'll use this "rejection" type. A rejection is
@@ -60,16 +62,16 @@ pub trait FromJobCallParts<Ctx>: Sized {
 /// Types that can be created from job calls.
 ///
 /// Extractors that implement `FromJobCall` can consume the job call body and can thus only be run
-/// once for handlers.
+/// once for jobs.
 ///
 /// If your extractor doesn't need to consume the job call body then you should implement
 /// [`FromJobCallParts`] and not [`FromJobCall`].
 ///
-/// See [`axum::extract`] for more general docs about extractors.
+/// See [`blueprint_sdk::extract`] for more general docs about extractors.
 ///
-/// [`axum::extract`]: https://docs.rs/axum/0.8/axum/extract/index.html
+/// [`blueprint_sdk::extract`]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html
 #[diagnostic::on_unimplemented(
-    note = "Function argument is not a valid blueprint extractor. \nSee `https://docs.rs/axum/0.8/axum/extract/index.html` for details"
+    note = "Function argument is not a valid extractor. \nSee `https://docs.rs/blueprint_sdk/latest/blueprint_sdk/extract/index.html` for details"
 )]
 pub trait FromJobCall<Ctx, M = private::ViaJobCall>: Sized {
     /// If the extractor fails it'll use this "rejection" type. A rejection is

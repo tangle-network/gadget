@@ -11,50 +11,59 @@ use core::convert::Infallible;
 
 /// Trait for generating JobResults.
 ///
-/// Types that implement `IntoJobResult` can be returned from job handlers.
+/// Types that implement `IntoJobResult` can be returned from [`Job`]s.
 ///
-/// # Implementing `IntoJobResult`
+/// # Optional return value
 ///
-/// You generally shouldn't have to implement `IntoJobResult` manually, as axum
-/// provides implementations for many common types.
+/// The [`into_job_result`] method returns `Option<JobResult>`, as certain values can be considered
+/// "void", meaning that they don't produce a result. This is useful in the case of [`Job`]s that
+/// multiple parties are running, but only one party should submit the result. In this case, the
+/// other parties should return [`Void`] from their [`Job`]s.
 ///
-/// However it might be necessary if you have a custom error type that you want
-/// to return from handlers:
+/// # Results
+///
+/// A special case exists for [`Result`], allowing you to return any [`Error`] from a [`Job`], so
+/// long as it implements [`Send`] and [`Sync`].
 ///
 /// ```rust
 /// use blueprint_sdk::Router;
 /// use blueprint_sdk::job::JobWithoutContextExt;
 /// use blueprint_sdk::{IntoJobResult, JobResult};
 ///
+/// #[derive(Debug)]
 /// enum MyError {
 ///     SomethingWentWrong,
 ///     SomethingElseWentWrong,
 /// }
 ///
-/// impl IntoJobResult for MyError {
-///     fn into_job_result(self) -> JobResult {
-///         let body = match self {
-///             MyError::SomethingWentWrong => "something went wrong",
-///             MyError::SomethingElseWentWrong => "something else went wrong",
-///         };
-///
-///         body.into_job_result()
+/// impl core::fmt::Display for MyError {
+///     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+///         match self {
+///             MyError::SomethingWentWrong => write!(f, "something went wrong"),
+///             MyError::SomethingElseWentWrong => write!(f, "something else went wrong"),
+///         }
 ///     }
 /// }
 ///
-/// const HANDLER_JOB_ID: u32 = 0;
+/// impl core::error::Error for MyError {}
 ///
-/// // `Result<impl IntoJobResult, MyError>` can now be returned from handlers
-/// let app = Router::new().route(HANDLER_JOB_ID, handler);
+/// const JOB_ID: u32 = 0;
 ///
-/// async fn handler() -> Result<(), MyError> {
+/// // `Result<impl IntoJobResult, MyError>` can now be returned from jobs
+/// let app = Router::new().route(JOB_ID, job);
+///
+/// async fn job() -> Result<(), MyError> {
 ///     Err(MyError::SomethingWentWrong)
 /// }
 /// # let _: Router = app;
 /// ```
 ///
-/// Or if you have a custom body type you'll also need to implement
-/// `IntoJobResult` for it:
+/// # Implementing `IntoJobResult`
+///
+/// You generally shouldn't have to implement `IntoJobResult` manually, as `blueprint_sdk`
+/// provides implementations for many common types.
+///
+/// However, it might be necessary if you have a custom body type you want to return from a [`Job`]:
 ///
 /// ```rust
 /// use blueprint_sdk::job::JobWithoutContextExt;
@@ -76,17 +85,19 @@ use core::convert::Infallible;
 ///
 /// // Now we can implement `IntoJobResult` directly for `MyBody`
 /// impl IntoJobResult for SendHello {
-///     fn into_job_result(self) -> JobResult {
-///         JobResult::new(self.hello_bytes())
+///     fn into_job_result(self) -> Option<JobResult> {
+///         Some(JobResult::new(self.hello_bytes()))
 ///     }
 /// }
 ///
 /// const JOB_ID: u32 = 0;
 ///
-/// // `MyBody` can now be returned from handlers.
-/// let app = Router::new().route(JOB_ID, (|| async { SendHello }).into_service());
+/// // `MyBody` can now be returned from jobs.
+/// let app = Router::new().route(JOB_ID, || async { SendHello });
 /// # let _: Router = app;
 /// ```
+///
+/// [`Job`]: crate::job::Job
 pub trait IntoJobResult {
     /// Create a JobResult.
     #[must_use]
