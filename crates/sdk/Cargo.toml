@@ -22,6 +22,7 @@ gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
+gadget-chain-setup = { workspace = true }
 document-features = { workspace = true }
 
 # Tangle-specific extras
@@ -79,7 +80,8 @@ std = [
     "gadget-logging/std",
     # Extras
     "blueprint-tangle-extra?/std",
-    "blueprint-evm-extra?/std"
+    "blueprint-evm-extra?/std",
+    "gadget-chain-setup/std",
 ]
 
 ## Enable [tracing] support
@@ -121,7 +123,8 @@ tangle = [
     "gadget-clients/tangle",
     "gadget-testing-utils?/tangle",
     "gadget-utils/tangle",
-    "blueprint-runner/tangle"
+    "blueprint-runner/tangle",
+    "gadget-chain-setup/tangle",
 ]
 
 ## Enable EVM support
@@ -133,6 +136,7 @@ evm = [
     "gadget-crypto-tangle-pair-signer?/evm",
     "gadget-utils/evm",
     "gadget-testing-utils?/anvil",
+    "gadget-chain-setup/anvil",
 ]
 
 ## Enable build-time utilities

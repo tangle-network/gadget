@@ -2,7 +2,7 @@ use super::*;
 use alloy_primitives::address;
 use alloy_provider::Provider;
 use client::EigenlayerClient;
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
+use gadget_chain_setup_anvil::{start_default_anvil_testnet, Container};
 use gadget_config::{
     load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
     GadgetConfiguration,
