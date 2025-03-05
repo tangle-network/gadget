@@ -57,11 +57,13 @@ async fn get_provider_ws() {
 }
 
 #[tokio::test]
-async fn get_slasher_address() {
+async fn get_allocation_manager_address() {
     let env = setup_test_environment().await;
     let client = EigenlayerClient::new(env.config.clone());
     let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
-    let result = client.get_slasher_address(delegation_manager_addr).await;
+    let result = client
+        .get_allocation_manager_address(delegation_manager_addr)
+        .await;
     assert!(result.is_ok());
 }
 
@@ -106,14 +108,5 @@ async fn get_operator_id() {
     let client = EigenlayerClient::new(env.config.clone());
     let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     let result = client.get_operator_id(operator_addr).await;
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-async fn get_operator_details() {
-    let env = setup_test_environment().await;
-    let client = EigenlayerClient::new(env.config.clone());
-    let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
-    let result = client.get_operator_details(operator_addr).await;
     assert!(result.is_ok());
 }

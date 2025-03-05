@@ -2,7 +2,6 @@ use crate::env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
 use crate::Error;
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
-use alloy_transport::BoxTransport;
 use gadget_anvil_testing_utils::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
 use gadget_config::{
@@ -99,7 +98,7 @@ impl TestHarness for EigenlayerTestHarness {
 
 impl EigenlayerTestHarness {
     /// Gets a provider for the HTTP endpoint
-    pub fn provider(&self) -> RootProvider<BoxTransport> {
+    pub fn provider(&self) -> RootProvider {
         get_provider_http(self.http_endpoint.as_str())
     }
 

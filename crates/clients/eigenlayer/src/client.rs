@@ -1,8 +1,6 @@
 use crate::error::Result;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::{Provider, RootProvider};
-use alloy_pubsub::PubSubFrontend;
-use alloy_transport::BoxTransport;
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use eigensdk::common::get_ws_provider;
 use eigensdk::logging::get_test_logger;
@@ -34,19 +32,16 @@ impl EigenlayerClient {
     /// Get the provider for this client's http endpoint
     ///
     /// # Returns
-    /// - [`The HTTP provider`](RootProvider<BoxTransport>)
-    pub fn get_provider_http(&self) -> RootProvider<BoxTransport> {
+    /// - [`The HTTP provider`](RootProvider)
+    pub fn get_provider_http(&self) -> RootProvider {
         get_provider_http(&self.config.http_rpc_endpoint)
     }
 
     /// Get the provider for this client's http endpoint with the specified [`Wallet`](EthereumWallet)
     ///
     /// # Returns
-    /// - [`The HTTP wallet provider`](RootProvider<BoxTransport>)
-    pub fn get_wallet_provider_http(
-        &self,
-        wallet: alloy_network::EthereumWallet,
-    ) -> RootProvider<BoxTransport> {
+    /// - [`The HTTP wallet provider`](RootProvider)
+    pub fn get_wallet_provider_http(&self, wallet: alloy_network::EthereumWallet) -> RootProvider {
         get_wallet_provider_http(&self.config.http_rpc_endpoint, wallet)
     }
 
@@ -54,7 +49,7 @@ impl EigenlayerClient {
     ///
     /// # Returns
     /// - [`The WS provider`](RootProvider<BoxTransport>)
-    pub async fn get_provider_ws(&self) -> Result<RootProvider<PubSubFrontend>> {
+    pub async fn get_provider_ws(&self) -> Result<RootProvider> {
         get_ws_provider(&self.config.ws_rpc_endpoint)
             .await
             .map_err(Into::into)

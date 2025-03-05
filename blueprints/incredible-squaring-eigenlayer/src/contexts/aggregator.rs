@@ -25,9 +25,10 @@ use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::common::get_provider;
 use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
-use eigensdk::services_blsaggregation::bls_agg::{AggregateReceiver, ServiceHandle, TaskSignature};
+use eigensdk::services_blsaggregation::bls_agg::TaskSignature;
 use eigensdk::services_blsaggregation::{
-    bls_agg::BlsAggregatorService, bls_aggregation_service_response::BlsAggregationServiceResponse,
+    bls_agg, bls_agg::BlsAggregatorService,
+    bls_aggregation_service_response::BlsAggregationServiceResponse,
 };
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
@@ -43,7 +44,6 @@ pub struct AggregatorContext {
     pub task_manager_address: Address,
     pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
     pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
-    bls_aggregation_service: Option<Arc<Mutex<BlsAggServiceInMemory>>>,
     pub service_handle: Option<Arc<Mutex<ServiceHandle>>>,
     pub aggregate_receiver: Option<Arc<Mutex<AggregateReceiver>>>,
     pub http_rpc_url: String,
@@ -66,7 +66,6 @@ impl AggregatorContext {
             task_manager_address,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             tasks_responses: Arc::new(Mutex::new(HashMap::new())),
-            bls_aggregation_service: None,
             service_handle: None,
             aggregate_receiver: None,
             http_rpc_url: sdk_config.http_rpc_endpoint.clone(),

@@ -1,9 +1,9 @@
 use alloy_primitives::Uint;
 use alloy_primitives::{address, Address};
 use alloy_provider::Provider;
-use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
-use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
-use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
+use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
+use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
+use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_anvil_testing_utils::get_receipt;
 use gadget_config::protocol::EigenlayerContractAddresses;
 use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
@@ -108,7 +108,7 @@ pub async fn setup_eigenlayer_test_environment(
     };
 
     info!("Creating Quorum");
-    let _receipt = get_receipt(registry_coordinator.createQuorum(
+    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         vec![strategy_params],

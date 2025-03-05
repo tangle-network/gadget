@@ -3,8 +3,10 @@ use alloy_primitives::{address, Uint};
 use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
-use alloy_transport::Transport;
 use dialoguer::console::style;
+use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
+use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
+use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
@@ -297,7 +299,7 @@ pub async fn start_anvil_container(
     let strategies = vec![strategy_params];
 
     print_info("Creating Quorum...");
-    let _receipt = get_receipt(registry_coordinator.createQuorum(
+    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         strategies,
@@ -410,8 +412,7 @@ pub async fn get_receipt<T, P, D>(
     call: CallBuilder<T, P, D, Ethereum>,
 ) -> Result<TransactionReceipt, Error>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum>,
+    P: Provider<Ethereum>,
     D: CallDecoder,
 {
     let pending_tx = match call.send().await {
