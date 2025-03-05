@@ -4,15 +4,15 @@ use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
 use dialoguer::console::style;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
-use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
 use std::fs::{self};
-use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
 use tempfile::TempDir;
 use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},

@@ -186,10 +186,7 @@ pub async fn deploy_task_manager(harness: &EigenlayerTestHarness) -> Address {
     let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
     // Initialize the Incredible Squaring Task Manager
     info!("Initializing Incredible Squaring Task Manager");
-    let init_call = task_manager.initialize(
-        owner_address,
-        aggregator_address,
-    );
+    let init_call = task_manager.initialize(owner_address, aggregator_address);
     let init_receipt = get_receipt(init_call).await.unwrap();
     assert!(init_receipt.status());
     info!("Initialized Incredible Squaring Task Manager");

@@ -4,6 +4,8 @@ use alloy_signer_local::PrivateKeySigner;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ISignatureUtils::SignatureWithSaltAndExpiry;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_contexts::keystore::KeystoreContext;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
@@ -14,8 +16,6 @@ use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_utils::evm::get_provider_http;
 use std::str::FromStr;
-use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
-use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ISignatureUtils::SignatureWithSaltAndExpiry;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerECDSAConfig {
