@@ -54,7 +54,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// assert!(ext.insert(5i32).is_none());
     /// assert!(ext.insert(4u8).is_none());
@@ -72,7 +72,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// assert!(ext.get::<i32>().is_none());
     /// ext.insert(5i32);
@@ -91,7 +91,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// ext.insert(String::from("Hello"));
     /// ext.get_mut::<String>().unwrap().push_str(" World");
@@ -111,7 +111,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// *ext.get_or_insert(1i32) += 2;
     ///
@@ -127,7 +127,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// *ext.get_or_insert_with(|| 1i32) += 2;
     ///
@@ -151,7 +151,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// *ext.get_or_insert_default::<i32>() += 2;
     ///
@@ -168,7 +168,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// ext.insert(5i32);
     /// assert_eq!(ext.remove::<i32>(), Some(5i32));
@@ -186,7 +186,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// ext.insert(5i32);
     /// ext.clear();
@@ -205,7 +205,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// assert!(ext.is_empty());
     /// ext.insert(5i32);
@@ -221,7 +221,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext = Extensions::new();
     /// assert_eq!(ext.len(), 0);
     /// ext.insert(5i32);
@@ -240,7 +240,7 @@ impl Extensions {
     /// # Example
     ///
     /// ```
-    /// # use http::Extensions;
+    /// # use blueprint_sdk::extensions::Extensions;
     /// let mut ext_a = Extensions::new();
     /// ext_a.insert(8u8);
     /// ext_a.insert(16u16);

@@ -2510,11 +2510,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "blueprint-producers-extra"
+version = "0.1.0"
+dependencies = [
+ "blueprint-core",
+ "document-features",
+ "futures",
+]
+
+[[package]]
 name = "blueprint-router"
 version = "0.1.0"
 dependencies = [
  "blueprint-core",
  "bytes",
+ "document-features",
  "futures",
  "hashbrown 0.15.2",
  "pin-project-lite",
@@ -2529,6 +2548,7 @@ dependencies = [
  "blueprint-router",
  "blueprint-tangle-extra",
  "clap",
+ "document-features",
  "dynosaur",
  "futures",
  "futures-core",
@@ -2546,6 +2566,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-sdk"
+version = "0.1.0"
+dependencies = [
+ "blueprint-core",
+ "blueprint-macros",
+ "blueprint-producers-extra",
+ "blueprint-router",
+ "blueprint-runner",
+ "blueprint-tangle-extra",
+ "document-features",
+]
+
+[[package]]
 name = "blueprint-tangle-extra"
 version = "0.1.0"
 dependencies = [
@@ -2553,6 +2586,7 @@ dependencies = [
  "bytes",
  "cargo_metadata 0.19.2",
  "cid",
+ "document-features",
  "futures-core",
  "futures-util",
  "gadget-blueprint-serde",
@@ -4646,6 +4680,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac81fa3e28d21450aa4d2ac065992ba96a1d7303efbce51a95f4fd175b67562"
 
 [[package]]
+name = "document-features"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5584,10 +5627,7 @@ name = "experimental-blueprint-bin"
 version = "0.1.0"
 dependencies = [
  "blueprint-build-utils",
- "blueprint-core",
- "blueprint-router",
- "blueprint-runner",
- "blueprint-tangle-extra",
+ "blueprint-sdk",
  "experimental-blueprint-lib",
  "gadget-core-testing-utils",
  "gadget-tangle-testing-utils",
@@ -5603,9 +5643,7 @@ name = "experimental-blueprint-lib"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "blueprint-core",
- "blueprint-runner",
- "blueprint-tangle-extra",
+ "blueprint-sdk",
  "tangle-subxt",
  "tokio",
 ]
@@ -9444,6 +9482,12 @@ name = "litemap"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"

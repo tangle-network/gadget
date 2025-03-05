@@ -1,8 +1,9 @@
 //! Macros for [`blueprint_sdk`].
 //!
 //! [`blueprint_sdk`]: https://crates.io/crates/blueprint_sdk
-
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc(
+    html_logo_url = "https://cdn.prod.website-files.com/6494562b44a28080aafcbad4/65aaf8b0818b1d504cbdf81b_Tnt%20Logo.png"
+)]
 #![cfg_attr(test, allow(clippy::float_cmp))]
 #![cfg_attr(not(test), warn(clippy::print_stdout, clippy::dbg_macro))]
 
@@ -81,7 +82,8 @@ mod with_position;
 /// [`blueprint_sdk::Context`] argument:
 ///
 /// ```
-/// use blueprint_sdk::{Context, debug_job};
+/// use blueprint_sdk::debug_job;
+/// use blueprint_sdk::extract::Context;
 ///
 /// #[debug_job]
 /// async fn job(
@@ -98,7 +100,8 @@ mod with_position;
 /// customize the context type you can set it with `#[debug_job(context = ...)]`:
 ///
 /// ```
-/// use blueprint_sdk::{Context, debug_job, extract::FromRef};
+/// use blueprint_sdk::extract::Context;
+/// use blueprint_sdk::{debug_job, extract::FromRef};
 ///
 /// #[debug_job(context = AppContext)]
 /// async fn job(Context(app_ctx): Context<AppContext>, Context(inner_ctx): Context<InnerContext>) {
@@ -170,7 +173,10 @@ pub fn debug_job(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// # Example
 ///
 /// ```
-/// use blueprint_sdk::{Context, Router, extract::FromRef};
+/// use blueprint_sdk::{
+///     Router,
+///     extract::{Context, FromRef},
+/// };
 ///
 /// #
 /// # type Keystore = String;

@@ -1,13 +1,3 @@
-use pin_project_lite::pin_project;
-
-pin_project! {
-    #[project = EitherProj]
-    pub(crate) enum Either<A, B> {
-        A { #[pin] inner: A },
-        B { #[pin] inner: B },
-    }
-}
-
 pub(crate) fn try_downcast<T, K>(k: K) -> Result<T, K>
 where
     T: 'static,

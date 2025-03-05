@@ -10,10 +10,7 @@ edition = "2024"
 [workspace.dependencies]
 experimental-blueprint-lib = { path = "experimental-blueprint-lib" }
 
-blueprint-core = { path = "../../crates/core", default-features = false }
-blueprint-router = { path = "../../crates/router", default-features = false }
-blueprint-runner = { path = "../../crates/runner", default-features = false }
-blueprint-tangle-extra = { path = "../../crates/tangle-extra", default-features = false }
+blueprint-sdk = { path = "../../crates/sdk", default-features = false }
 tokio = "1.43.0"
 tower = { version = "0.5.2", default-features = false }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

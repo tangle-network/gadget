@@ -16,6 +16,7 @@ use alloy_sol_types::{SolEvent, SolType, SolValue};
 use alloy_transport::BoxTransport;
 use blueprint_evm_extra::extract::{BlockNumber, ContractAddress, FirstEvent, Tx};
 use blueprint_evm_extra::filters::{contract::MatchesContract, event::MatchesEvent};
+use blueprint_sdk::extract::Context;
 use blueprint_sdk::*;
 use eigensdk::crypto_bls::{
     convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point, BlsKeyPair,

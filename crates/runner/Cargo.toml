@@ -18,6 +18,7 @@ futures.workspace = true
 thiserror.workspace = true
 url.workspace = true
 dynosaur = { workspace = true }
+document-features = { workspace = true }
 
 gadget-utils.workspace = true
 
@@ -34,10 +35,30 @@ alloy-signer = { workspace = true, optional = true }
 eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"], optional = true }
 gadget-eigenlayer-bindings = { workspace = true, optional = true }
 
+[dev-dependencies]
+blueprint-sdk = { workspace = true, features = ["tangle"] }
+
 [features]
 default = ["std"]
+
+#! ### Core
+
+## Enable standard library support. Currently unused
 std = []
 
+#! ### Protocols
+
+## Enable [Tangle] support
+##
+## [Tangle]: https://tangle.tools
 tangle = ["dep:tangle-subxt", "dep:blueprint-tangle-extra", "dep:k256", "gadget-utils/tangle"]
+
+## Enable [Eigenlayer] support
+##
+## [Eigenlayer]: https://eigenlayer.xyz
 eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "dep:gadget-eigenlayer-bindings", "gadget-utils/evm"]
+
+## Enable [Symbiotic] support **(CURRENTLY UNUSED)**
+##
+## [Symbiotic]: https://symbiotic.fi
 symbiotic = []

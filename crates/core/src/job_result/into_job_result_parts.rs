@@ -11,72 +11,55 @@ use crate::metadata::{MetadataMap, MetadataValue};
 /// # Example
 ///
 /// ```rust
-/// use axum::{
-///     http::{
-///         StatusCode,
-///         header::{HeaderName, HeaderValue},
-///     },
-///     response::{IntoJobResultParts, IntoResponse, Response, ResponseParts},
-/// };
+/// use blueprint_sdk::job_result::JobResultParts;
+/// use blueprint_sdk::{IntoJobResult, IntoJobResultParts, JobResult};
 ///
-/// use blueprint_sdk::IntoJobResultParts;
+/// // Hypothetical helper type for setting a single metadata value
+/// struct SetMetadata<'a>(&'a str, &'a str);
 ///
-/// // Hypothetical helper type for setting a single header
-/// struct SetHeader<'a>(&'a str, &'a str);
-///
-/// impl<'a> IntoJobResultParts for SetHeader<'a> {
-///     type Error = (StatusCode, String);
+/// impl<'a> IntoJobResultParts for SetMetadata<'a> {
+///     type Error = String;
 ///
 ///     fn into_job_result_parts(
 ///         self,
-///         mut res: ResponseParts,
-///     ) -> Result<ResponseParts, Self::Error> {
-///         match (self.0.parse::<HeaderName>(), self.1.parse::<HeaderValue>()) {
-///             (Ok(name), Ok(value)) => {
-///                 res.headers_mut().insert(name, value);
-///             }
-///             (Err(_), _) => {
-///                 return Err((
-///                     StatusCode::INTERNAL_SERVER_ERROR,
-///                     format!("Invalid header name {}", self.0),
-///                 ));
-///             }
-///             (_, Err(_)) => {
-///                 return Err((
-///                     StatusCode::INTERNAL_SERVER_ERROR,
-///                     format!("Invalid header value {}", self.1),
-///                 ));
-///             }
+///         mut res: JobResultParts,
+///     ) -> Result<JobResultParts, Self::Error> {
+///         if self.0 != "blueprint-sdk" {
+///             return Err(format!("Invalid header name {}", self.0));
+///         }
+///
+///         if let Some(metadata) = res.metadata_mut() {
+///             metadata.insert(self.0.to_string(), self.1.to_string());
 ///         }
 ///
 ///         Ok(res)
 ///     }
 /// }
 ///
-/// // It's also recommended to implement `IntoResponse` so `SetHeader` can be used on its own as
+/// // It's also recommended to implement `IntoJobResult` so `SetMetadata` can be used on its own as
 /// // the response
-/// impl<'a> IntoResponse for SetHeader<'a> {
-///     fn into_response(self) -> Response {
+/// impl<'a> IntoJobResult for SetMetadata<'a> {
+///     fn into_job_result(self) -> Option<JobResult> {
 ///         // This gives an empty response with the header
-///         (self, ()).into_response()
+///         (self, ()).into_job_result()
 ///     }
 /// }
 ///
-/// // We can now return `SetHeader` in responses
+/// // We can now return `SetMetadata` in responses
 /// //
-/// // Note that returning `impl IntoResponse` might be easier if the response has many parts to
+/// // Note that returning `impl IntoJobResult` might be easier if the result has many parts to
 /// // it. The return type is written out here for clarity.
-/// async fn handler() -> (SetHeader<'static>, SetHeader<'static>, &'static str) {
+/// async fn job() -> (SetMetadata<'static>, SetMetadata<'static>, &'static str) {
 ///     (
-///         SetHeader("server", "axum"),
-///         SetHeader("x-foo", "custom"),
+///         SetMetadata("server", "blueprint-sdk"),
+///         SetMetadata("x-foo", "custom"),
 ///         "body",
 ///     )
 /// }
 ///
 /// // Or on its own as the whole response
-/// async fn other_handler() -> SetHeader<'static> {
-///     SetHeader("x-foo", "custom")
+/// async fn other_job() -> SetMetadata<'static> {
+///     SetMetadata("x-foo", "custom")
 /// }
 /// ```
 pub trait IntoJobResultParts {
@@ -239,7 +222,7 @@ where
     }
 }
 
-macro_rules! impl_into_response_parts {
+macro_rules! impl_into_job_result_parts {
     ( $($ty:ident),* $(,)? ) => {
         #[allow(non_snake_case)]
         impl<$($ty,)*> IntoJobResultParts for ($($ty,)*)
@@ -264,7 +247,7 @@ macro_rules! impl_into_response_parts {
     }
 }
 
-all_the_tuples_no_last_special_case!(impl_into_response_parts);
+all_the_tuples_no_last_special_case!(impl_into_job_result_parts);
 
 impl IntoJobResultParts for () {
     type Error = Infallible;

@@ -4,7 +4,7 @@
 
 mod polling;
 
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
 
 use alloy_primitives::FixedBytes;
 use alloy_rpc_types::Log;

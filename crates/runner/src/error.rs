@@ -112,10 +112,6 @@ pub enum ConfigError {
     /// Missing `SymbioticContractAddresses`
     #[error("Missing SymbioticContractAddresses")]
     MissingSymbioticContractAddresses,
-    #[error("Bad RPC Connection: {0}")]
-    BadRpcConnection(String),
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
 
     #[error("{0}")]
     Other(#[from] Box<dyn core::error::Error + Send + Sync>),

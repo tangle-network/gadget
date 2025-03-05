@@ -2,7 +2,6 @@ use crate::boxed::BoxedIntoRoute;
 use crate::future::{Route, RouteFuture};
 use crate::routing::RouteId;
 use alloc::borrow::Cow;
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobId};
 use core::{fmt, iter};
@@ -52,7 +51,8 @@ impl<Ctx> Clone for Handler<Ctx> {
 
 pub(super) struct JobIdRouter<Ctx> {
     routes: HashMap<RouteId, Handler<Ctx>>,
-    node: Arc<Node>,
+    job_to_route_id: HashMap<JobId, RouteId>,
+
     prev_route_id: RouteId,
     // Routes that are *always* called, regardless of job ID
     always_routes: Vec<Handler<Ctx>>,
@@ -71,7 +71,7 @@ where
         T: 'static,
     {
         let id = self.next_route_id();
-        self.set_node(job_id.into_job_id(), id);
+        self.job_to_route_id.insert(job_id.into_job_id(), id);
         self.routes
             .insert(id, Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
@@ -90,7 +90,7 @@ where
         T::Future: Send + 'static,
     {
         let id = self.next_route_id();
-        self.set_node(job_id.into_job_id(), id);
+        self.job_to_route_id.insert(job_id.into_job_id(), id);
         self.routes.insert(id, Handler::Route(Route::new(service)));
         Ok(())
     }
@@ -105,11 +105,6 @@ where
             .push(Handler::Boxed(BoxedIntoRoute::from_job(job)));
 
         Ok(())
-    }
-
-    fn set_node(&mut self, job_id: JobId, id: RouteId) {
-        let node = Arc::make_mut(&mut self.node);
-        node.insert(job_id, id);
     }
 
     pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx>
@@ -139,7 +134,7 @@ where
 
         JobIdRouter {
             routes,
-            node: self.node,
+            job_to_route_id: self.job_to_route_id,
             prev_route_id: self.prev_route_id,
             always_routes,
             fallback,
@@ -176,7 +171,7 @@ where
 
         JobIdRouter {
             routes,
-            node: self.node,
+            job_to_route_id: self.job_to_route_id,
             prev_route_id: self.prev_route_id,
             always_routes,
             fallback,
@@ -189,7 +184,7 @@ where
         context: Ctx,
     ) -> Result<FuturesUnordered<RouteFuture<BoxError>>, (JobCall, Ctx)> {
         let (parts, body) = call.into_parts();
-        let Some(route) = self.node.get(parts.job_id) else {
+        let Some(route) = self.job_to_route_id.get(&parts.job_id) else {
             let call = JobCall::from_parts(parts, body);
 
             blueprint_core::trace!(?call, "No job found, checking always routes");
@@ -201,8 +196,8 @@ where
 
         let handler = self
             .routes
-            .get(&route)
-            .expect("no route for id. This is a bug in axum. Please file an issue");
+            .get(route)
+            .expect("no route for id. This is a bug in blueprint-sdk. Please file an issue");
 
         let call = JobCall::from_parts(parts, body);
         let matched_call_future = match handler {
@@ -275,7 +270,7 @@ impl<Ctx> Default for JobIdRouter<Ctx> {
     fn default() -> Self {
         Self {
             routes: Default::default(),
-            node: Default::default(),
+            job_to_route_id: Default::default(),
             prev_route_id: RouteId(0),
             always_routes: Vec::new(),
             fallback: None,
@@ -285,9 +280,8 @@ impl<Ctx> Default for JobIdRouter<Ctx> {
 
 impl<Ctx> fmt::Debug for JobIdRouter<Ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PathRouter")
+        f.debug_struct("JobIdRouter")
             .field("routes", &self.routes)
-            .field("node", &self.node)
             .finish()
     }
 }
@@ -299,35 +293,10 @@ where
     fn clone(&self) -> Self {
         Self {
             routes: self.routes.clone(),
-            node: self.node.clone(),
+            job_to_route_id: self.job_to_route_id.clone(),
             prev_route_id: self.prev_route_id,
             always_routes: self.always_routes.clone(),
             fallback: self.fallback.clone(),
         }
-    }
-}
-
-#[derive(Clone, Default)]
-struct Node {
-    route_id_to_job: HashMap<RouteId, JobId>,
-    job_to_route_id: HashMap<JobId, RouteId>,
-}
-
-impl Node {
-    fn insert(&mut self, job_id: JobId, val: RouteId) {
-        self.route_id_to_job.insert(val, job_id);
-        self.job_to_route_id.insert(job_id, val);
-    }
-
-    fn get(&self, job_id: JobId) -> Option<RouteId> {
-        self.job_to_route_id.get(&job_id).copied()
-    }
-}
-
-impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Node")
-            .field("paths", &self.route_id_to_job)
-            .finish()
     }
 }

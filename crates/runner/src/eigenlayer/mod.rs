@@ -1,4 +1,4 @@
-mod bls;
+pub mod bls;
 pub mod config;
-mod ecdsa;
-mod error;
+pub mod ecdsa;
+pub mod error;

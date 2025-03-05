@@ -4,7 +4,7 @@ use core::{error::Error as StdError, fmt};
 pub type BoxError = alloc::boxed::Box<dyn core::error::Error + Send + Sync>;
 pub type CloneableError = alloc::sync::Arc<dyn core::error::Error + Send + Sync>;
 
-/// Errors that can happen when using axum.
+/// Errors that can happen when using `blueprint-sdk` job routing.
 #[derive(Debug, Clone)]
 pub struct Error {
     inner: CloneableError,

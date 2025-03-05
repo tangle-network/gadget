@@ -17,56 +17,6 @@ pub trait JobCallExt: sealed::Sealed + Sized {
     ///
     /// Note this consumes the job call. Use [`JobCallExt::extract_parts`] if you're not extracting
     /// the body and don't want to consume the job call.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use axum::{
-    ///     Form, Json, RequestExt,
-    ///     body::Body,
-    ///     extract::{FromRequest, Request},
-    ///     http::{StatusCode, header::CONTENT_TYPE},
-    ///     response::{IntoResponse, Response},
-    /// };
-    ///
-    /// struct FormOrJson<T>(T);
-    ///
-    /// impl<S, T> FromRequest<S> for FormOrJson<T>
-    /// where
-    ///     Json<T>: FromRequest<()>,
-    ///     Form<T>: FromRequest<()>,
-    ///     T: 'static,
-    ///     S: Send + Sync,
-    /// {
-    ///     type Rejection = Response;
-    ///
-    ///     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-    ///         let content_type = req
-    ///             .headers()
-    ///             .get(CONTENT_TYPE)
-    ///             .and_then(|value| value.to_str().ok())
-    ///             .ok_or_else(|| StatusCode::BAD_REQUEST.into_response())?;
-    ///
-    ///         if content_type.starts_with("application/json") {
-    ///             let Json(payload) = req
-    ///                 .extract::<Json<T>, _>()
-    ///                 .await
-    ///                 .map_err(|err| err.into_response())?;
-    ///
-    ///             Ok(Self(payload))
-    ///         } else if content_type.starts_with("application/x-www-form-urlencoded") {
-    ///             let Form(payload) = req
-    ///                 .extract::<Form<T>, _>()
-    ///                 .await
-    ///                 .map_err(|err| err.into_response())?;
-    ///
-    ///             Ok(Self(payload))
-    ///         } else {
-    ///             Err(StatusCode::BAD_REQUEST.into_response())
-    ///         }
-    ///     }
-    /// }
-    /// ```
     fn extract<E, M>(self) -> impl Future<Output = Result<E, E::Rejection>> + Send
     where
         E: FromJobCall<(), M> + 'static,
@@ -82,41 +32,38 @@ pub trait JobCallExt: sealed::Sealed + Sized {
     /// # Example
     ///
     /// ```
-    /// use axum::{
-    ///     body::Body,
-    ///     extract::{Request, FromRef, FromRequest},
-    ///     RequestExt,
-    /// };
+    /// use blueprint_sdk::extract::{FromJobCall, FromRef};
+    /// use blueprint_sdk::{JobCall, JobCallExt};
     ///
     /// struct MyExtractor {
-    ///     requires_state: RequiresState,
+    ///     requires_context: RequiresContext,
     /// }
     ///
-    /// impl<S> FromRequest<S> for MyExtractor
+    /// impl<Ctx> FromJobCall<Ctx> for MyExtractor
     /// where
-    ///     String: FromRef<S>,
-    ///     S: Send + Sync,
+    ///     String: FromRef<Ctx>,
+    ///     Ctx: Send + Sync,
     /// {
     ///     type Rejection = std::convert::Infallible;
     ///
-    ///     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-    ///         let requires_state = req.extract_with_ctx::<RequiresState, _, _>(state).await?;
+    ///     async fn from_job_call(call: JobCall, context: &Ctx) -> Result<Self, Self::Rejection> {
+    ///         let requires_context = call.extract_with_ctx::<RequiresContext, _, _>(context).await?;
     ///
-    ///         Ok(Self { requires_state })
+    ///         Ok(Self { requires_context })
     ///     }
     /// }
     ///
-    /// // some extractor that consumes the request body and requires state
-    /// struct RequiresState { /* ... */ }
+    /// // some extractor that consumes the call body and requires a context
+    /// struct RequiresContext { /* ... */ }
     ///
-    /// impl<S> FromRequest<S> for RequiresState
+    /// impl<Ctx> FromJobCall<Ctx> for RequiresContext
     /// where
-    ///     String: FromRef<S>,
-    ///     S: Send + Sync,
+    ///     String: FromRef<Ctx>,
+    ///     Ctx: Send + Sync,
     /// {
     ///     // ...
     ///     # type Rejection = std::convert::Infallible;
-    ///     # async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
+    ///     # async fn from_job_call(call: JobCall, _context: &Ctx) -> Result<Self, Self::Rejection> {
     ///     #     todo!()
     ///     # }
     /// }
@@ -132,54 +79,6 @@ pub trait JobCallExt: sealed::Sealed + Sized {
     /// Apply a parts extractor to this `JobCall`.
     ///
     /// This is just a convenience for `E::from_job_call_parts(parts, ctx)`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use axum::{
-    ///     Json, RequestExt,
-    ///     body::Body,
-    ///     extract::{FromRequest, Path, Request},
-    ///     response::{IntoResponse, Response},
-    /// };
-    /// use axum_extra::{
-    ///     TypedHeader,
-    ///     headers::{Authorization, authorization::Bearer},
-    /// };
-    /// use std::collections::HashMap;
-    ///
-    /// struct MyExtractor<T> {
-    ///     path_params: HashMap<String, String>,
-    ///     payload: T,
-    /// }
-    ///
-    /// impl<S, T> FromRequest<S> for MyExtractor<T>
-    /// where
-    ///     S: Send + Sync,
-    ///     Json<T>: FromRequest<()>,
-    ///     T: 'static,
-    /// {
-    ///     type Rejection = Response;
-    ///
-    ///     async fn from_request(mut req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-    ///         let path_params = req
-    ///             .extract_parts::<Path<_>>()
-    ///             .await
-    ///             .map(|Path(path_params)| path_params)
-    ///             .map_err(|err| err.into_response())?;
-    ///
-    ///         let Json(payload) = req
-    ///             .extract::<Json<T>, _>()
-    ///             .await
-    ///             .map_err(|err| err.into_response())?;
-    ///
-    ///         Ok(Self {
-    ///             path_params,
-    ///             payload,
-    ///         })
-    ///     }
-    /// }
-    /// ```
     fn extract_parts<E>(&mut self) -> impl Future<Output = Result<E, E::Rejection>> + Send
     where
         E: FromJobCallParts<()> + 'static;
@@ -187,64 +86,6 @@ pub trait JobCallExt: sealed::Sealed + Sized {
     /// Apply a parts extractor that requires some state to this `Request`.
     ///
     /// This is just a convenience for `E::from_job_call_parts(parts, ctx)`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use axum::{
-    ///     extract::{Request, FromRef, FromRequest, FromRequestParts},
-    ///     http::request::Parts,
-    ///     response::{IntoResponse, Response},
-    ///     body::Body,
-    ///     Json, RequestExt,
-    /// };
-    ///
-    /// struct MyExtractor<T> {
-    ///     requires_state: RequiresState,
-    ///     payload: T,
-    /// }
-    ///
-    /// impl<S, T> FromRequest<S> for MyExtractor<T>
-    /// where
-    ///     String: FromRef<S>,
-    ///     Json<T>: FromRequest<()>,
-    ///     T: 'static,
-    ///     S: Send + Sync,
-    /// {
-    ///     type Rejection = Response;
-    ///
-    ///     async fn from_request(mut req: Request, state: &S) -> Result<Self, Self::Rejection> {
-    ///         let requires_state = req
-    ///             .extract_parts_with_state::<RequiresState, _>(state)
-    ///             .await
-    ///             .map_err(|err| err.into_response())?;
-    ///
-    ///         let Json(payload) = req
-    ///             .extract::<Json<T>, _>()
-    ///             .await
-    ///             .map_err(|err| err.into_response())?;
-    ///
-    ///         Ok(Self {
-    ///             requires_state,
-    ///             payload,
-    ///         })
-    ///     }
-    /// }
-    ///
-    /// struct RequiresState {}
-    ///
-    /// impl<S> FromRequestParts<S> for RequiresState
-    /// where
-    ///     String: FromRef<S>,
-    ///     S: Send + Sync,
-    /// {
-    ///     // ...
-    ///     # type Rejection = std::convert::Infallible;
-    ///     # async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-    ///     #     todo!()
-    ///     # }
-    /// }
-    /// ```
     fn extract_parts_with_ctx<'a, E, Ctx>(
         &'a mut self,
         ctx: &'a Ctx,

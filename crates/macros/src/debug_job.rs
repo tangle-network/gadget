@@ -17,7 +17,7 @@ pub(crate) fn expand(attr: Attrs, item_fn: &ItemFn, kind: FunctionKind) -> Token
     // Not applicable to our blueprint SDK
     // let check_path_extractor = check_path_extractor(item_fn, kind);
     let check_output_tuples = check_output_tuples(item_fn);
-    let check_output_impls_into_response = if check_output_tuples.is_empty() {
+    let check_output_impls_into_job_result = if check_output_tuples.is_empty() {
         check_output_impls_into_job_result(item_fn)
     } else {
         check_output_tuples
@@ -83,7 +83,7 @@ pub(crate) fn expand(attr: Attrs, item_fn: &ItemFn, kind: FunctionKind) -> Token
         #item_fn
         #check_extractor_count
         // #check_path_extractor
-        #check_output_impls_into_response
+        #check_output_impls_into_job_result
         #check_inputs_and_future_send
         #middleware_takes_next_as_last_arg
     }
@@ -388,13 +388,13 @@ fn check_output_tuples(item_fn: &ItemFn) -> TokenStream {
                         check_into_job_result_parts(ty, job_ident, idx)
                     }
                 }
-                Position::Last(ty) | Position::Only(ty) => check_into_response(job_ident, ty),
+                Position::Last(ty) | Position::Only(ty) => check_into_job_result(job_ident, ty),
             })
             .collect::<TokenStream>(),
     }
 }
 
-fn check_into_response(job: &Ident, ty: &Type) -> TokenStream {
+fn check_into_job_result(job: &Ident, ty: &Type) -> TokenStream {
     let (span, ty) = (ty.span(), ty.clone());
 
     let check_fn = format_ident!(

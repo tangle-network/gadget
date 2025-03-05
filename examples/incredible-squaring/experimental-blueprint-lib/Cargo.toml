@@ -4,9 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-blueprint-core.workspace = true
-blueprint-tangle-extra.workspace = true
-blueprint-runner.workspace = true
+blueprint-sdk = { workspace = true, features = ["tangle"] }
 async-trait.workspace = true
 tangle-subxt.workspace = true
 tokio.workspace = true

@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::process;
-use blueprint_tangle_extra::blueprint;
+use blueprint_sdk::tangle::blueprint;
 use experimental_blueprint_lib::square;
 
 fn main() {
@@ -21,7 +21,7 @@ fn main() {
     match blueprint {
         Ok(blueprint) => {
             // TODO: Should be a helper function probably
-            let json = blueprint_tangle_extra::metadata::macros::ext::serde_json::to_string_pretty(&blueprint).unwrap();
+            let json = blueprint_sdk::tangle::metadata::macros::ext::serde_json::to_string_pretty(&blueprint).unwrap();
             std::fs::write(Path::new(env!("CARGO_MANIFEST_DIR")).join("blueprint.json"), json.as_bytes()).unwrap();
         },
         Err(e) =>  {

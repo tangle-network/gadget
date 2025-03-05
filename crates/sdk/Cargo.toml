@@ -24,6 +24,7 @@ gadget-logging = { workspace = true }
 gadget-runners = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
+document-features = { workspace = true }
 
 # Tangle-specific extras
 blueprint-tangle-extra = { workspace = true, optional = true }
@@ -66,18 +67,55 @@ blueprint-build-utils = { workspace = true, optional = true }
 
 [features]
 default = ["std", "tracing"]
-std = ["blueprint-core/std", "blueprint-router/std"]
+
+#! ### Core
+
+## Enable standard library support
+std = [
+    # Core
+    "blueprint-core/std",
+    "blueprint-runner/std",
+    "gadget-keystore/std",
+    "gadget-clients/std",
+    "gadget-crypto/std",
+    "gadget-logging/std",
+    # Extras
+    "blueprint-tangle-extra?/std",
+    "blueprint-evm-extra?/std"
+]
+
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
 tracing = [
     "blueprint-core/tracing",
     "blueprint-router/tracing",
     "blueprint-producers-extra/tracing",
-    "blueprint-tangle-extra?/tracing",
+    "blueprint-tangle-extra?/tracing"
 ]
 
-macros = ["dep:blueprint-macros"]
+## Enable networking support
+networking = [
+    "dep:gadget-networking",
+    "gadget-contexts/networking",
+    "gadget-keystore/std",
+    "gadget-context-derive?/networking",
+]
 
-build = ["dep:blueprint-metadata", "dep:blueprint-build-utils"]
+## Enable local KV stores
+local-store = ["gadget-stores/local"]
 
+## Enable [round-based] networking capability
+##
+## [round-based]: https://github.com/LFDT-Lockness/round-based
+round-based-compat = ["dep:gadget-networking-round-based-extension"]
+
+## Enable all macros of subcrates
+macros = ["dep:blueprint-macros", "blueprint-tangle-extra?/macros"]
+
+## Enable [Tangle] support
+##
+## [Tangle]: https://tangle.tools
 tangle = [
     "dep:blueprint-tangle-extra",
     "dep:tangle-subxt",
@@ -88,6 +126,7 @@ tangle = [
     "blueprint-runner/tangle"
 ]
 
+## Enable EVM support
 evm = [
     "dep:blueprint-evm-extra",
     "dep:alloy",
@@ -98,34 +137,15 @@ evm = [
     "gadget-testing-utils?/anvil",
 ]
 
-eigenlayer = [
-    "dep:alloy",
-    "dep:alloy-json-abi",
-    "dep:eigensdk",
-    "gadget-clients/eigenlayer",
-    "gadget-runners/eigenlayer",
-    "gadget-testing-utils?/eigenlayer",
-    "gadget-utils/eigenlayer",
-    "gadget-macros?/eigenlayer",
-    "gadget-event-listeners/evm",
-]
+## Enable build-time utilities
+build = ["dep:blueprint-build-utils", "macros"]
 
+## Enable testing utilities
 testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]
 
-networking = [
-    "dep:gadget-networking",
-    "gadget-contexts/networking",
-    "gadget-keystore/std",
-    "gadget-config/networking",
-    "gadget-macros?/networking",
-    "gadget-context-derive?/networking",
-]
+#! ### Extra producers
 
-local-store = ["gadget-stores/local"]
-
-round-based-compat = ["dep:gadget-networking-round-based-extension"]
-
-# Extra producers
+## Enable the cron job producer
 cronjob = ["blueprint-producers-extra/cron"]
 
 [package.metadata.docs.rs]

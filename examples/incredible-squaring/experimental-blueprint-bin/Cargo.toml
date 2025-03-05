@@ -6,10 +6,7 @@ edition = "2024"
 [dependencies]
 experimental-blueprint-lib.workspace = true
 
-blueprint-core.workspace = true
-blueprint-tangle-extra.workspace = true
-blueprint-runner = { workspace = true, features = ["tangle"] }
-blueprint-router.workspace = true
+blueprint-sdk.workspace = true
 gadget-tangle-testing-utils.workspace = true
 gadget-core-testing-utils.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -21,4 +18,4 @@ tower.workspace = true
 [build-dependencies]
 experimental-blueprint-lib.workspace = true
 blueprint-build-utils = { workspace = true }
-blueprint-tangle-extra = { workspace = true, features = ["macros"] }
+blueprint-sdk = { workspace = true, features = ["macros"] }

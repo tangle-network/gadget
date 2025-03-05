@@ -13,9 +13,9 @@ use tower::Service;
 
 /// An adapter that makes a [`Job`] into a [`Service`].
 ///
-/// Created with [`Job::with_state`] or [`JobWithoutStateExt::into_service`].
+/// Created with [`Job::with_context`] or [`JobWithoutContextExt::into_service`].
 ///
-/// [`JobWithoutStateExt::into_service`]: super::JobWithoutStateExt::into_service
+/// [`JobWithoutContextExt::into_service`]: super::JobWithoutContextExt::into_service
 pub struct JobService<J, T, Ctx> {
     job: J,
     ctx: Ctx,

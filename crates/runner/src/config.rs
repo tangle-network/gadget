@@ -13,7 +13,8 @@ use url::Url;
 pub trait ProtocolSettingsT: Sized + 'static {
     type Settings;
 
-    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
+    fn load(settings: BlueprintSettings)
+    -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
     fn protocol(&self) -> &'static str;
     fn settings(&self) -> &Self::Settings;
 }
@@ -102,7 +103,9 @@ pub enum ProtocolSettings {
 impl ProtocolSettingsT for ProtocolSettings {
     type Settings = Self;
 
-    fn load(settings: BlueprintSettings) -> Result<Self, Box<dyn core::error::Error + Send + Sync>> {
+    fn load(
+        settings: BlueprintSettings,
+    ) -> Result<Self, Box<dyn core::error::Error + Send + Sync>> {
         #[allow(unreachable_patterns)]
         let protocol_settings = match settings.protocol {
             #[cfg(feature = "tangle")]
@@ -210,6 +213,7 @@ pub struct BlueprintEnvironment {
 
 impl BlueprintEnvironment {
     /// Loads the [`BlueprintEnvironment`] from the current environment.
+    ///
     /// # Errors
     ///
     /// This function will return an error if any of the required environment variables are missing.

@@ -17,11 +17,6 @@ where
     }
 }
 
-/// Clone the headers from the request.
-///
-/// Prefer using [`TypedHeader`] to extract only the headers you need.
-///
-/// [`TypedHeader`]: https://docs.rs/axum/0.8/axum/extract/struct.TypedHeader.html
 impl<Ctx> FromJobCallParts<Ctx> for MetadataMap<MetadataValue>
 where
     Ctx: Send + Sync,
@@ -83,7 +78,10 @@ where
 {
     type Rejection = Infallible;
 
-    async fn from_job_call_parts(parts: &mut Parts, _state: &Ctx) -> Result<Self, Self::Rejection> {
+    async fn from_job_call_parts(
+        parts: &mut Parts,
+        _context: &Ctx,
+    ) -> Result<Self, Self::Rejection> {
         Ok(parts.clone())
     }
 }

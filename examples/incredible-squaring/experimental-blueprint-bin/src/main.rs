@@ -1,12 +1,12 @@
-use blueprint_core::Job;
-use blueprint_router::Router;
-use blueprint_runner::BlueprintRunner;
-use blueprint_runner::config::{ContextConfig, BlueprintCliCoreSettings, BlueprintSettings, Protocol, SupportedChains, BlueprintEnvironment};
-use blueprint_runner::tangle::config::TangleConfig;
-use blueprint_tangle_extra::consumer::TangleConsumer;
-use blueprint_tangle_extra::filters::MatchesServiceId;
-use blueprint_tangle_extra::layers::TangleLayer;
-use blueprint_tangle_extra::producer::TangleProducer;
+use blueprint_sdk::Job;
+use blueprint_sdk::error::BoxError;
+use blueprint_sdk::Router;
+use blueprint_sdk::runner::BlueprintRunner;
+use blueprint_sdk::runner::tangle::config::TangleConfig;
+use blueprint_sdk::tangle::consumer::TangleConsumer;
+use blueprint_sdk::tangle::filters::MatchesServiceId;
+use blueprint_sdk::tangle::layers::TangleLayer;
+use blueprint_sdk::tangle::producer::TangleProducer;
 use experimental_blueprint_lib::{
     FooBackgroundService, MULTIPLY_JOB_ID, MyContext, XSQUARE_JOB_ID, manual_event_handling,
     multiply, on_transfer, square,
@@ -16,7 +16,7 @@ use gadget_tangle_testing_utils::harness::TangleTestHarness;
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
-use blueprint_core::error::BoxError;
+use blueprint_sdk::runner::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, GadgetSettings, Protocol, SupportedChains};
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
