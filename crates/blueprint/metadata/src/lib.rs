@@ -24,10 +24,10 @@ pub enum Error {
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    // if let Err(e) = Config::builder().build().generate_json() {
-    //     println!("cargo:warning=Failed to generate blueprint metadata: {e}");
-    //     std::process::exit(1);
-    // }
+    if let Err(e) = Config::builder().build().generate_json() {
+        println!("cargo:warning=Failed to generate blueprint metadata: {e}");
+        std::process::exit(1);
+    }
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
