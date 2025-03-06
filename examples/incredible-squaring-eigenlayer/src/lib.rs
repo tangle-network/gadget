@@ -39,7 +39,7 @@ pub struct ExampleContext {
 }
 
 /// Job function for handling tasks
-#[blueprint_sdk::debug_job]
+#[blueprint_sdk::macros::debug_job]
 pub async fn handle_task(
     Context(ctx): Context<ExampleContext>,
     BlockNumber(block_number): BlockNumber,

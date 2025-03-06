@@ -6,10 +6,6 @@ edition.workspace = true
 homepage.workspace = true
 license.workspace = true
 
-[features]
-default = []
-__private = ["syn/visit-mut"]
-
 [lib]
 proc-macro = true
 
@@ -23,6 +19,9 @@ syn = { version = "2.0", features = [
     "extra-traits",
 ] }
 
+# EVM
+serde_json = { workspace = true, optional = true }
+
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["macros"] }
 serde = { workspace = true, features = ["derive"] }
@@ -31,6 +30,12 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 tokio = { workspace = true, features = ["full"] }
 trybuild = "1.0"
 rustversion = "1.0"
+
+# TODO(serial): Document features
+[features]
+default = []
+evm = ["dep:serde_json"]
+__private = ["syn/visit-mut"]
 
 [lints]
 workspace = true

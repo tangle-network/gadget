@@ -16,6 +16,15 @@ mod attr_parsing;
 mod debug_job;
 mod from_ref;
 mod with_position;
+#[cfg(feature = "evm")]
+mod evm;
+
+#[cfg(feature = "evm")]
+/// A procedural macro that outputs the JsonAbi for the given file path.
+#[proc_macro]
+pub fn load_abi(input: TokenStream) -> TokenStream {
+    evm::load_abi(input)
+}
 
 /// Generates better error messages when applied to job functions.
 ///
@@ -147,7 +156,7 @@ mod with_position;
 //  xx |     pub async fn my_job(TangleArg(_): TangleArg<u64>)  {}
 //     |                                   ^^^^ not found in this scope
 /// ```
-/// 
+///
 /// # Performance
 ///
 /// This macro has no effect when compiled with the release profile. (eg. `cargo build --release`)

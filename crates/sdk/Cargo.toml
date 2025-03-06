@@ -139,6 +139,7 @@ evm = [
     "gadget-clients/evm",
     "gadget-crypto-tangle-pair-signer?/evm",
     "gadget-utils/evm",
+    "blueprint-macros?/evm",
     "gadget-testing-utils?/anvil",
 ]
 
@@ -147,6 +148,9 @@ evm = [
 ## [Eigenlayer]: https://eigenlayer.xyz
 eigenlayer = [
     "dep:eigensdk",
+    "gadget-contexts/eigenlayer",
+    "gadget-clients/eigenlayer",
+    "evm",
 ]
 
 ## Enable build-time utilities

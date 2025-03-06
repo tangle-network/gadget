@@ -10,7 +10,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["evm", "macros", "std"] }
+blueprint-sdk = { workspace = true, features = ["eigenlayer", "macros", "std"] }
 futures = { workspace = true }
 
 eigensdk = { workspace = true, features = ["crypto-bls", "services-blsaggregation"] }

@@ -2658,18 +2658,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blueprint-examples"
-version = "0.1.1"
-dependencies = [
- "blueprint-sdk",
- "color-eyre",
- "serde",
- "serde_json",
- "tempfile",
- "uuid 1.15.1",
-]
-
-[[package]]
 name = "blueprint-macros"
 version = "0.1.0"
 dependencies = [

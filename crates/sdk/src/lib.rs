@@ -51,12 +51,10 @@ pub mod producers {
 pub use blueprint_router::Router;
 
 #[cfg(feature = "macros")]
-mod macros_feat {
-    pub use blueprint_macros::debug_job;
+pub mod macros {
+    pub use blueprint_macros::*;
     pub use gadget_context_derive as context;
 }
-#[cfg(feature = "macros")]
-pub use macros_feat::*;
 
 // == Protocol-specific utilities ==
 

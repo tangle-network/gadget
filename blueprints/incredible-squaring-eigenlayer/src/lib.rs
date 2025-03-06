@@ -30,21 +30,6 @@ pub enum Error {
     Runtime(String),
 }
 
-type ProcessorError =
-    blueprint_sdk::event_listeners::core::Error<blueprint_sdk::event_listeners::evm::error::Error>;
-
-impl From<Error>
-    for blueprint_sdk::event_listeners::core::Error<
-        blueprint_sdk::event_listeners::evm::error::Error,
-    >
-{
-    fn from(value: Error) -> Self {
-        blueprint_sdk::event_listeners::core::Error::ProcessorError(
-            blueprint_sdk::event_listeners::evm::error::Error::Client(value.to_string()),
-        )
-    }
-}
-
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
