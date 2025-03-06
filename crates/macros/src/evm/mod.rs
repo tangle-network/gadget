@@ -1,9 +1,9 @@
-use std::path::PathBuf;
 use proc_macro::TokenStream;
 use quote::quote;
 use serde_json::Value;
+use std::path::PathBuf;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Ident, LitStr, Token};
+use syn::{Ident, LitStr, Token, parse_macro_input};
 
 struct LoadAbiArgs {
     ident: Ident,
@@ -35,8 +35,8 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
             file_path,
             format!("ABI file not found at: {}", absolute_path.display()),
         )
-            .to_compile_error()
-            .into();
+        .to_compile_error()
+        .into();
     }
 
     let file_content = std::fs::read_to_string(&absolute_path).expect("Failed to read ABI file");
@@ -48,5 +48,5 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
     quote! {
         const #ident: &str = #abi;
     }
-        .into()
+    .into()
 }

@@ -18,9 +18,9 @@ use alloy_network::EthereumWallet;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::logging::{debug, error, info};
 use blueprint_sdk::macros::context::{EigenlayerContext, KeystoreContext};
+use blueprint_sdk::runner::BackgroundService;
 use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::runner::error::RunnerError;
-use blueprint_sdk::runner::BackgroundService;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::common::get_provider;
 use eigensdk::crypto_bls::{BlsG1Point, BlsG2Point, convert_to_g1_point, convert_to_g2_point};
@@ -453,7 +453,6 @@ impl AggregatorContext {
     }
 }
 
-#[async_trait::async_trait]
 impl BackgroundService for AggregatorContext {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
         let handle = self.clone().start().await;

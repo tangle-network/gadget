@@ -2,13 +2,13 @@
 //!
 //! Monitors TaskManager events for task creation and completion.
 
+use ::std::{str::FromStr, sync::Arc, time::Duration};
 use alloy_primitives::Address;
 use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
 use blueprint_runner::{config::BlueprintEnvironment, BlueprintRunner};
 use blueprint_sdk::*;
 use incredible_squaring_eigenlayer::config::{get_provider_http, EigenlayerBLSConfig};
 use incredible_squaring_eigenlayer::create_contract_router;
-use ::std::{str::FromStr, sync::Arc, time::Duration};
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> Result<(), blueprint_sdk::Error> {
     // Get contract address from environment
     let task_manager = std::env::var("TASK_MANAGER_ADDRESS")
         .map(|addr| Address::from_str(&addr))
-        .expect("TASK_MANAGER_ADDRESS must be set")?;
+        .expect("TASK_MANAGER_ADDRESS must be set");
 
     // Create RPC client
     let rpc_url = std::env::var("RPC_URL").expect("RPC_URL must be set");

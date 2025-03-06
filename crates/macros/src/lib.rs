@@ -14,10 +14,10 @@ use syn::{Type, parse::Parse};
 
 mod attr_parsing;
 mod debug_job;
-mod from_ref;
-mod with_position;
 #[cfg(feature = "evm")]
 mod evm;
+mod from_ref;
+mod with_position;
 
 #[cfg(feature = "evm")]
 /// A procedural macro that outputs the JsonAbi for the given file path.
@@ -156,7 +156,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 //  xx |     pub async fn my_job(TangleArg(_): TangleArg<u64>)  {}
 //     |                                   ^^^^ not found in this scope
 /// ```
-///
+/// 
 /// # Performance
 ///
 /// This macro has no effect when compiled with the release profile. (eg. `cargo build --release`)

@@ -7,6 +7,8 @@ pub enum Error {
     Client(#[from] gadget_clients::Error),
     #[error("Keystore error: {0}")]
     Keystore(#[from] keystore::Error),
+    #[error("Runner error: {0}")]
+    Runner(#[from] blueprint_runner::error::RunnerError),
     #[error("Other Error: {0}")]
     Other(String),
 

@@ -1,7 +1,8 @@
 use blueprint_sdk::logging::info;
 use blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
-use blueprint_sdk::runner::BlueprintRunner;
 use blueprint_sdk::runner::tangle::config::TangleConfig;
+use blueprint_sdk::runner::BlueprintRunner;
+use blueprint_sdk::tokio;
 use incredible_squaring_blueprint as blueprint;
 
 #[tokio::main]

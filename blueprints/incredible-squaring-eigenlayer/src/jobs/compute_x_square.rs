@@ -2,16 +2,14 @@
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
-use crate::{
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager, ProcessorError,
-};
+use crate::{INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager};
 use alloy_primitives::{Bytes, U256, keccak256};
 use alloy_sol_types::SolType;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::crypto::bn254::ArkBlsBn254;
 use blueprint_sdk::keystore::backends::Backend;
+use blueprint_sdk::keystore::backends::bn254::Bn254Backend;
 use blueprint_sdk::logging::{error, info};
-use blueprint_sdk::macros::ext::keystore::backends::bn254::Bn254Backend;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
