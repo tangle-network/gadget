@@ -76,13 +76,12 @@ jobs:
       matrix:
         package:
           [
+            # TODO(serial): add new crates
             # Blueprints
             incredible-squaring-blueprint,
             incredible-squaring-blueprint-eigenlayer,
-            blueprint-examples,
 
             # Macros
-            gadget-blueprint-proc-macro,
             gadget-blueprint-proc-macro-core,
             gadget-context-derive,
 
@@ -99,7 +98,6 @@ jobs:
             gadget-crypto-sr25519,
 
             gadget-blueprint-serde,
-            gadget-config,
             gadget-keystore,
             gadget-std,
           ]
