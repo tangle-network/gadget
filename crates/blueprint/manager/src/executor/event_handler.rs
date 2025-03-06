@@ -9,7 +9,7 @@ use crate::sources::github::GithubBinaryFetcher;
 use crate::sources::{process_arguments_and_env, BinarySourceFetcher};
 use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
-use gadget_config::Protocol;
+use blueprint_sdk::runner::config::Protocol;
 use blueprint_sdk::runner::config::BlueprintEnvironment;
 use gadget_logging::{error, info, trace, warn};
 use gadget_std::fmt::Debug;

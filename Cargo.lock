@@ -2803,6 +2803,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-json-abi",
+ "async-trait",
  "blueprint-build-utils",
  "blueprint-core",
  "blueprint-evm-extra",

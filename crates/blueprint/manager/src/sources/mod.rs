@@ -2,7 +2,7 @@ use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
 use async_trait::async_trait;
-use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use std::path::PathBuf;
 
 pub mod github;

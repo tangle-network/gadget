@@ -21,6 +21,7 @@ gadget-logging = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 document-features = { workspace = true }
+async-trait = { workspace = true }
 
 # Macros
 blueprint-macros = { workspace = true, optional = true }
