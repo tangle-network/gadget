@@ -47,7 +47,7 @@ macro_rules! tracing_macros {
             #[doc(hidden)]
             #[cfg(not(feature = "tracing"))]
             #[macro_export]
-            macro_rules! debug {
+            macro_rules! $name {
                 ($d($d tt:tt)*) => {};
             }
         )*

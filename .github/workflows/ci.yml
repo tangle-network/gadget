@@ -98,10 +98,6 @@ jobs:
             gadget-crypto-k256,
             gadget-crypto-sr25519,
 
-            # Event listeners
-            gadget-event-listeners-core,
-            gadget-event-listeners-cronjob,
-
             gadget-blueprint-serde,
             gadget-config,
             gadget-keystore,
@@ -184,7 +180,7 @@ jobs:
 
       - name: install protobuf and gmp
         run: |
-          brew install protobuf gmp 
+          brew install protobuf gmp
 
       - uses: taiki-e/install-action@v2
         with:

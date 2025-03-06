@@ -15,9 +15,6 @@ gadget-core-testing-utils = { workspace = true }
 gadget-config = { workspace = true, features = ["eigenlayer", "std"] }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["eigenlayer", "evm", "std"] }
-gadget-macros = { workspace = true, features = ["evm", "std"] }
-gadget-runners = { workspace = true, features = ["eigenlayer", "std"] }
-gadget-event-listeners = { workspace = true, features = ["evm", "std"] }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 alloy-primitives = { workspace = true }

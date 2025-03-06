@@ -4,7 +4,7 @@ members = [
     "cli",
     "blueprints/*",
     "crates/*",
-    "examples/*"
+    "examples/incredible-squaring-eigenlayer"
 ]
 exclude = ["blueprints/incredible-squaring-symbiotic"]
 
@@ -82,13 +82,6 @@ gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
 gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
 
-# Event listeners
-gadget-event-listeners = { version = "0.1.0", path = "./crates/event-listeners", default-features = false }
-gadget-event-listeners-core = { version = "0.1.0", path = "./crates/event-listeners/core", default-features = false }
-gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listeners/evm", default-features = false }
-gadget-event-listeners-cronjob = { version = "0.1.0", path = "./crates/event-listeners/cronjob", default-features = false }
-gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
-
 # Executor
 gadget-executor = { version = "0.1.0", path = "./crates/executor", default-features = false }
 
@@ -102,13 +95,6 @@ gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-der
 # Stores
 gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
-
-# Runners
-gadget-runners = { version = "0.1.0", path = "./crates/runners", default-features = false }
-gadget-runner-core = { version = "0.1.0", path = "./crates/runners/core", default-features = false }
-gadget-runner-eigenlayer = { version = "0.1.0", path = "./crates/runners/eigenlayer", default-features = false }
-gadget-runner-tangle = { version = "0.1.0", path = "./crates/runners/tangle", default-features = false }
-gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbiotic", default-features = false }
 
 # SDK
 gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
@@ -156,8 +142,9 @@ crossbeam = { version = "0.8", default-features = false }
 crossbeam-channel = { version = "0.5", default-features = false }
 futures = { version = "0.3.30", default-features = false }
 futures-util = { version = "0.3.31", default-features = false }
-tokio = { version = "1.40", default-features = false }
-tokio-util = { version = "0.7.12", default-features = false }
+futures-core = { version = "0.3.31", default-features = false }
+tokio = { version = "1.43.0", default-features = false }
+tokio-util = { version = "0.7.13", default-features = false }
 tokio-cron-scheduler = { version = "0.13.0", default-features = false }
 tokio-stream = { version = "0.1.17", default-features = false }
 pin-project-lite = "0.2.7"

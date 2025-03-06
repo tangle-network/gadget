@@ -24,7 +24,6 @@ indexmap = { workspace = true }
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["std", "macros", "evm", "tangle", "eigenlayer", "testing"] }
-gadget-event-listeners = { workspace = true, features = ["testing"] }
 
 trybuild = { workspace = true }
 
