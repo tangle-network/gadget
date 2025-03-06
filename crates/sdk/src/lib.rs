@@ -12,6 +12,25 @@
 // Expose the core module to the outside world
 pub use blueprint_core::*;
 
+/// Core cryptographic primitives and utilities
+pub use gadget_crypto as crypto;
+
+/// Structured logging facilities
+pub use gadget_logging as logging;
+
+pub use gadget_clients as clients;
+pub use gadget_contexts as contexts;
+
+pub use gadget_utils as utils;
+
+pub use gadget_keystore as keystore;
+pub use gadget_std as std;
+pub use serde;
+pub use tokio;
+
+pub mod error;
+pub use error::Error;
+
 /// Re-export the core extractors from the `blueprint_core` crate.
 pub mod extract {
     #[cfg(feature = "macros")]
@@ -19,12 +38,6 @@ pub mod extract {
 
     pub use blueprint_core::extract::*;
 }
-
-#[cfg(feature = "tangle")]
-pub use blueprint_tangle_extra as tangle;
-
-#[cfg(feature = "evm")]
-pub use blueprint_evm_extra as evm;
 
 /// Blueprint execution and runtime utilities
 pub use blueprint_runner as runner;
@@ -36,14 +49,28 @@ pub mod producers {
 
 pub use blueprint_router::Router;
 
+// == Protocol-specific utilities ==
+
 #[cfg(feature = "tangle")]
-pub use tangle_subxt;
+mod tangle_feat {
+    pub use tangle_subxt;
+    pub use blueprint_tangle_extra as tangle;
+}
+#[cfg(feature = "tangle")]
+pub use tangle_feat::tangle;
 
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
-pub use alloy;
+mod evm_feat {
+    pub use blueprint_evm_extra as evm;
+    pub use alloy;
+}
+#[cfg(any(feature = "evm", feature = "eigenlayer"))]
+pub use evm_feat::evm;
 
 #[cfg(feature = "eigenlayer")]
 pub use eigensdk;
+
+// == Development utilities ==
 
 #[cfg(feature = "testing")]
 /// Testing utilities and helpers
@@ -71,31 +98,8 @@ pub mod networking {
     pub use gadget_networking_round_based_extension as round_based_compat;
 }
 
-/// Event listener infrastructure for handling blueprint events
-pub use gadget_event_listeners as event_listeners;
-
 #[cfg(feature = "macros")]
 pub use blueprint_macros::debug_job;
-
-/// Core cryptographic primitives and utilities
-pub use gadget_crypto as crypto;
-
-/// Structured logging facilities
-pub use gadget_logging as logging;
-
-pub use gadget_clients as clients;
-pub use gadget_contexts as contexts;
-
-pub use gadget_utils as utils;
-
-pub use gadget_keystore as keystore;
-pub use gadget_std as std;
-pub use serde;
-pub use tokio;
-
-/// Error
-pub mod error;
-pub use error::Error;
 
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;

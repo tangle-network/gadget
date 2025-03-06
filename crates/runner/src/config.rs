@@ -221,6 +221,8 @@ impl BlueprintEnvironment {
         load_inner(config)
     }
 
+    // TODO: this shouldn't be exclusive to the std feature
+    #[cfg(feature = "std")]
     pub fn keystore(&self) -> Keystore {
         let config = KeystoreConfig::new().fs_root(self.keystore_uri.clone());
         Keystore::new(config).expect("Failed to create keystore")

@@ -135,6 +135,13 @@ evm = [
     "gadget-testing-utils?/anvil",
 ]
 
+## Enable [Eigenlayer] support
+##
+## [Eigenlayer]: https://eigenlayer.xyz
+eigenlayer = [
+    "dep:eigensdk",
+]
+
 ## Enable build-time utilities
 build = ["dep:blueprint-build-utils", "macros"]
 
