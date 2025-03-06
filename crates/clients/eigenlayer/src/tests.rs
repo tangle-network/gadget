@@ -7,8 +7,8 @@ use gadget_config::{
     load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
     GadgetConfiguration,
 };
-use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
 use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
+use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
 
 struct TestEnvironment {
     // Unused, stored here to keep it from dropping early
@@ -18,6 +18,7 @@ struct TestEnvironment {
     #[expect(dead_code)]
     ws_endpoint: String,
     config: GadgetConfiguration,
+    #[expect(dead_code)]
     env: EigenlayerTestEnvironment,
 }
 
