@@ -535,7 +535,7 @@ where
             while let Some(cmd) = command_rx.recv().await {
                 match cmd {
                     NodeCommand::StartRunner { result_tx } => {
-                        let result = node.test_env.read().await.run_runner().await;
+                        let result = node.test_env.write().await.run_runner().await;
                         let _ = result_tx.send(result.map_err(|e| Error::Setup(e.to_string())));
                     }
                     NodeCommand::Shutdown => {

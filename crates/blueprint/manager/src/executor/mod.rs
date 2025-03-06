@@ -3,7 +3,7 @@ use crate::error::Error;
 use crate::error::Result;
 use crate::gadget::ActiveGadgets;
 use crate::sdk::entry::SendFuture;
-use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use color_eyre::Report;
 use color_eyre::eyre::OptionExt;
 use gadget_clients::tangle::EventsClient;

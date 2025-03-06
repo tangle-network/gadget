@@ -124,9 +124,10 @@ tangle = [
     "dep:tangle-subxt",
     "dep:gadget-crypto-tangle-pair-signer",
     "gadget-clients/tangle",
+    "gadget-context-derive?/tangle",
     "gadget-testing-utils?/tangle",
     "gadget-utils/tangle",
-    "blueprint-runner/tangle"
+    "blueprint-runner/tangle",
 ]
 
 ## Enable EVM support
