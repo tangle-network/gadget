@@ -10,7 +10,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["eigenlayer", "evm", "macros", "std"] }
+blueprint-sdk = { workspace = true, features = ["evm", "macros", "std"] }
 futures = { workspace = true }
 
 eigensdk = { workspace = true, features = ["crypto-bls", "services-blsaggregation"] }
@@ -57,7 +57,7 @@ jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["testing", "eigenlayer", "evm"] }
+blueprint-sdk = { workspace = true, features = ["testing", "evm"] }
 tempfile = { workspace = true }
 
 [build-dependencies]

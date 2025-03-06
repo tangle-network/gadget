@@ -2615,6 +2615,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-core"
+version = "0.1.0"
+dependencies = [
+ "blueprint-sdk",
+ "bytes",
+ "futures-util",
+ "hashbrown 0.15.2",
+ "pin-project-lite",
+ "serde_json",
+ "tiny-keccak",
+ "tokio",
+ "tower 0.5.2",
+ "tracing",
+]
+
+[[package]]
+name = "blueprint-evm-extra"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives 0.8.21",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-sol-types 0.8.21",
+ "alloy-transport",
+ "alloy-transport-http",
+ "async-stream",
+ "blueprint-core",
+ "bytes",
+ "document-features",
+ "futures",
+ "futures-util",
+ "pin-project-lite",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tower 0.5.2",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
 name = "blueprint-examples"
 version = "0.1.1"
 dependencies = [
@@ -2624,6 +2667,21 @@ dependencies = [
  "serde_json",
  "tempfile",
  "uuid 1.15.1",
+]
+
+[[package]]
+name = "blueprint-macros"
+version = "0.1.0"
+dependencies = [
+ "blueprint-sdk",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "serde",
+ "serde_json",
+ "syn 2.0.98",
+ "tokio",
+ "trybuild",
 ]
 
 [[package]]
@@ -2674,13 +2732,82 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-producers-extra"
+version = "0.1.0"
+dependencies = [
+ "blueprint-core",
+ "chrono",
+ "document-features",
+ "futures",
+ "tokio",
+ "tokio-cron-scheduler",
+]
+
+[[package]]
+name = "blueprint-router"
+version = "0.1.0"
+dependencies = [
+ "blueprint-core",
+ "blueprint-sdk",
+ "bytes",
+ "document-features",
+ "futures",
+ "hashbrown 0.15.2",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
+name = "blueprint-runner"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-primitives 0.8.21",
+ "alloy-signer",
+ "alloy-signer-local",
+ "blueprint-core",
+ "blueprint-router",
+ "blueprint-sdk",
+ "blueprint-tangle-extra",
+ "clap",
+ "document-features",
+ "dynosaur",
+ "eigensdk",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "gadget-keystore",
+ "gadget-utils",
+ "k256",
+ "serde",
+ "tangle-subxt",
+ "thiserror 2.0.11",
+ "tokio",
+ "tower 0.5.2",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "blueprint-sdk"
 version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-json-abi",
  "blueprint-build-utils",
+ "blueprint-core",
+ "blueprint-evm-extra",
+ "blueprint-macros",
  "blueprint-metadata",
+ "blueprint-producers-extra",
+ "blueprint-router",
+ "blueprint-runner",
+ "blueprint-tangle-extra",
+ "document-features",
  "eigensdk",
  "gadget-clients",
  "gadget-config",
@@ -2688,13 +2815,10 @@ dependencies = [
  "gadget-contexts",
  "gadget-crypto",
  "gadget-crypto-tangle-pair-signer",
- "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
- "gadget-macros",
  "gadget-networking",
  "gadget-networking-round-based-extension",
- "gadget-runners",
  "gadget-std",
  "gadget-stores",
  "gadget-testing-utils",
@@ -2704,6 +2828,28 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.11",
  "tokio",
+]
+
+[[package]]
+name = "blueprint-tangle-extra"
+version = "0.1.0"
+dependencies = [
+ "blueprint-core",
+ "bytes",
+ "cargo_metadata 0.18.1",
+ "cid",
+ "document-features",
+ "futures-core",
+ "futures-util",
+ "gadget-blueprint-serde",
+ "gadget-utils",
+ "paste",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "tangle-subxt",
+ "thiserror 2.0.11",
+ "tower 0.5.2",
 ]
 
 [[package]]
@@ -3107,9 +3253,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.10.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f61dac84819c6588b558454b194026eb1f09c293b9036ae9b159e74e73ab6cf9"
+checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 dependencies = [
  "serde",
 ]
@@ -4880,6 +5026,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac81fa3e28d21450aa4d2ac065992ba96a1d7303efbce51a95f4fd175b67562"
 
 [[package]]
+name = "document-features"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4929,6 +5084,27 @@ name = "dyn-clone"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "feeef44e73baff3a26d371801df019877a9866a8c493d315ab00177843314f35"
+
+[[package]]
+name = "dynosaur"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1b7ff6b5c4d1df9f75c6bcce5cebfa480a448d298b0c83a07b3f5bb318ad10f"
+dependencies = [
+ "dynosaur_derive",
+ "trait-variant",
+]
+
+[[package]]
+name = "dynosaur_derive"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a600ac649c596084163b9bcde422e9973a321dd190b9d8b15dde23986e53f425"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
 
 [[package]]
 name = "ecdsa"
@@ -6654,23 +6830,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-blueprint-proc-macro"
-version = "0.6.0"
-dependencies = [
- "blueprint-sdk",
- "gadget-blueprint-proc-macro-core",
- "gadget-event-listeners",
- "gadget-std",
- "indexmap 2.7.1",
- "itertools 0.14.0",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 2.0.98",
- "trybuild",
-]
-
-[[package]]
 name = "gadget-blueprint-proc-macro-core"
 version = "0.4.0"
 dependencies = [
@@ -6854,10 +7013,8 @@ dependencies = [
  "futures",
  "gadget-clients",
  "gadget-config",
- "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
- "gadget-runners",
  "serde_json",
  "tempfile",
  "thiserror 2.0.11",
@@ -7031,10 +7188,7 @@ dependencies = [
  "gadget-anvil-testing-utils",
  "gadget-config",
  "gadget-core-testing-utils",
- "gadget-event-listeners",
  "gadget-logging",
- "gadget-macros",
- "gadget-runners",
  "gadget-std",
  "gadget-utils",
  "serde",
@@ -7043,84 +7197,6 @@ dependencies = [
  "testcontainers",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "gadget-event-listeners"
-version = "0.1.0"
-dependencies = [
- "gadget-event-listeners-core",
- "gadget-event-listeners-cronjob",
- "gadget-event-listeners-evm",
- "gadget-event-listeners-tangle",
- "gadget-std",
-]
-
-[[package]]
-name = "gadget-event-listeners-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "auto_impl",
- "futures",
- "gadget-logging",
- "gadget-std",
- "thiserror 2.0.11",
- "tokio",
-]
-
-[[package]]
-name = "gadget-event-listeners-cronjob"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "gadget-event-listeners-core",
- "gadget-logging",
- "gadget-std",
- "thiserror 2.0.11",
- "tokio",
- "tokio-cron-scheduler",
-]
-
-[[package]]
-name = "gadget-event-listeners-evm"
-version = "0.1.0"
-dependencies = [
- "alloy-contract",
- "alloy-network",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-sol-types 0.8.21",
- "alloy-transport",
- "async-trait",
- "gadget-event-listeners-core",
- "gadget-logging",
- "gadget-std",
- "gadget-stores",
- "thiserror 2.0.11",
- "tokio",
- "uuid 1.15.1",
-]
-
-[[package]]
-name = "gadget-event-listeners-tangle"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "gadget-blueprint-serde",
- "gadget-clients",
- "gadget-contexts",
- "gadget-crypto",
- "gadget-event-listeners-core",
- "gadget-logging",
- "gadget-std",
- "gadget-utils-tangle",
- "parking_lot 0.12.3",
- "serde",
- "sp-core",
- "tangle-subxt",
- "thiserror 2.0.11",
- "tokio",
 ]
 
 [[package]]
@@ -7190,32 +7266,6 @@ version = "0.1.0"
 dependencies = [
  "tracing",
  "tracing-subscriber 0.3.19",
-]
-
-[[package]]
-name = "gadget-macros"
-version = "0.1.0"
-dependencies = [
- "alloy-network",
- "alloy-provider",
- "alloy-transport",
- "async-trait",
- "clap",
- "futures",
- "gadget-blueprint-proc-macro",
- "gadget-blueprint-proc-macro-core",
- "gadget-blueprint-serde",
- "gadget-clients",
- "gadget-config",
- "gadget-context-derive",
- "gadget-contexts",
- "gadget-crypto",
- "gadget-event-listeners",
- "gadget-keystore",
- "gadget-logging",
- "gadget-std",
- "tangle-subxt",
- "tokio",
 ]
 
 [[package]]
@@ -7296,74 +7346,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-runner-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures",
- "gadget-config",
- "gadget-event-listeners",
- "gadget-logging",
- "gadget-utils",
- "thiserror 2.0.11",
- "tokio",
-]
-
-[[package]]
-name = "gadget-runner-eigenlayer"
-version = "0.1.0"
-dependencies = [
- "alloy-contract",
- "alloy-network",
- "alloy-primitives 0.8.21",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-signer",
- "alloy-signer-local",
- "async-trait",
- "eigensdk",
- "gadget-config",
- "gadget-contexts",
- "gadget-keystore",
- "gadget-logging",
- "gadget-runner-core",
- "gadget-std",
- "gadget-utils",
- "rand 0.8.5",
- "thiserror 2.0.11",
-]
-
-[[package]]
-name = "gadget-runner-tangle"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures",
- "gadget-clients",
- "gadget-config",
- "gadget-crypto",
- "gadget-keystore",
- "gadget-logging",
- "gadget-runner-core",
- "gadget-std",
- "gadget-utils",
- "k256",
- "sp-core",
- "tangle-subxt",
- "thiserror 2.0.11",
- "tokio",
-]
-
-[[package]]
-name = "gadget-runners"
-version = "0.1.0"
-dependencies = [
- "gadget-runner-core",
- "gadget-runner-eigenlayer",
- "gadget-runner-tangle",
-]
-
-[[package]]
 name = "gadget-std"
 version = "0.1.0"
 dependencies = [
@@ -7415,12 +7397,9 @@ dependencies = [
  "gadget-contexts",
  "gadget-core-testing-utils",
  "gadget-crypto-tangle-pair-signer",
- "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
- "gadget-macros",
  "gadget-networking",
- "gadget-runners",
  "gadget-std",
  "reqwest 0.12.12",
  "sp-core",
@@ -8838,6 +8817,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "incredible-squaring-eigenlayer"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-network",
+ "alloy-primitives 0.8.21",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types 0.8.21",
+ "alloy-transport",
+ "alloy-transport-http",
+ "blueprint-evm-extra",
+ "blueprint-runner",
+ "blueprint-sdk",
+ "eigensdk",
+ "futures",
+ "gadget-anvil-testing-utils",
+ "gadget-core-testing-utils",
+ "gadget-logging",
+ "num-bigint 0.4.6",
+ "reqwest 0.12.12",
+ "serde",
+ "testcontainers",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-util 0.7.13",
+ "tower 0.5.2",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10090,6 +10104,12 @@ name = "litemap"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"
@@ -19097,8 +19117,10 @@ dependencies = [
  "pin-project-lite",
  "sync_wrapper 1.0.2",
  "tokio",
+ "tokio-util 0.7.13",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -19228,6 +19250,17 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "trait-variant"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70977707304198400eb4835a78f6a9f928bf41bba420deb8fdb175cd965d77a7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
 ]
 
 [[package]]

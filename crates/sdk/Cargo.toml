@@ -18,10 +18,8 @@ blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-config = { workspace = true }
 gadget-clients = { workspace = true }
-gadget-event-listeners = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
-gadget-runners = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 document-features = { workspace = true }
@@ -53,9 +51,9 @@ tokio = { workspace = true, default-features = false }
 gadget-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
 gadget-context-derive = { workspace = true, optional = true }
+
 # Round-based protocol support
 gadget-networking-round-based-extension = { workspace = true, optional = true }
-
 
 # Optional dependencies for testing
 gadget-testing-utils = { workspace = true, optional = true }
