@@ -1,9 +1,8 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager, ProcessorError,
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager,
     contexts::aggregator::AggregatorContext,
 };
-use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::logging::info;
 use eigensdk::services_blsaggregation::bls_agg::TaskMetadata;
 use eigensdk::types::operator::QuorumThresholdPercentage;
@@ -13,16 +12,17 @@ const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;
 
 /// Initializes the task for the aggregator server
-#[blueprint_sdk::job(
-    id = 1,
-    params(task, task_index),
-    event_listener(
-        listener = EvmContractEventListener<AggregatorContext, IncredibleSquaringTaskManager::NewTaskCreated>,
-        instance = IncredibleSquaringTaskManager,
-        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        pre_processor = convert_event_to_inputs,
-    ),
-)]
+// TODO(serial): migrate
+// #[blueprint_sdk::job(
+//     id = 1,
+//     params(task, task_index),
+//     event_listener(
+//         listener = EvmContractEventListener<AggregatorContext, IncredibleSquaringTaskManager::NewTaskCreated>,
+//         instance = IncredibleSquaringTaskManager,
+//         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+//         pre_processor = convert_event_to_inputs,
+//     ),
+// )]
 pub async fn initialize_bls_task(
     ctx: AggregatorContext,
     task: Task,

@@ -9,11 +9,9 @@ use alloy_primitives::{Bytes, U256, keccak256};
 use alloy_sol_types::SolType;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::crypto::bn254::ArkBlsBn254;
-use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::keystore::backends::Backend;
 use blueprint_sdk::logging::{error, info};
 use blueprint_sdk::macros::ext::keystore::backends::bn254::Bn254Backend;
-use blueprint_sdk::macros::job;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
@@ -25,16 +23,17 @@ use std::convert::Infallible;
 /// The job calculates the square of the number to be squared and sends the signed task response to the BLS Aggregator.
 /// The job returns 1 if the task response was sent successfully.
 /// The job returns 0 if the task response failed to send or failed to get the BLS key.
-#[job(
-    id = 0,
-    params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
-    event_listener(
-        listener = EvmContractEventListener<EigenSquareContext, IncredibleSquaringTaskManager::NewTaskCreated>,
-        instance = IncredibleSquaringTaskManager,
-        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        pre_processor = convert_event_to_inputs,
-    ),
-)]
+// TODO(serial): migrate
+// #[job(
+//     id = 0,
+//     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
+//     event_listener(
+//         listener = EvmContractEventListener<EigenSquareContext, IncredibleSquaringTaskManager::NewTaskCreated>,
+//         instance = IncredibleSquaringTaskManager,
+//         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+//         pre_processor = convert_event_to_inputs,
+//     ),
+// )]
 pub async fn xsquare_eigen(
     ctx: EigenSquareContext,
     number_to_be_squared: U256,

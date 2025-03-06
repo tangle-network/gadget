@@ -23,6 +23,7 @@ pub use gadget_contexts as contexts;
 
 pub use gadget_utils as utils;
 
+// TODO(serial): remove
 pub use async_trait;
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;

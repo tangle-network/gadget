@@ -5,15 +5,14 @@
 use alloy_primitives::Address;
 use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
 use blueprint_runner::{config::BlueprintEnvironment, BlueprintRunner};
-use blueprint_sdk::error::BoxError;
 use blueprint_sdk::*;
 use incredible_squaring_eigenlayer::config::{get_provider_http, EigenlayerBLSConfig};
 use incredible_squaring_eigenlayer::create_contract_router;
-use std::{str::FromStr, sync::Arc, time::Duration};
+use ::std::{str::FromStr, sync::Arc, time::Duration};
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]
-async fn main() -> Result<(), BoxError> {
+async fn main() -> Result<(), blueprint_sdk::Error> {
     setup_log();
 
     // Get contract address from environment

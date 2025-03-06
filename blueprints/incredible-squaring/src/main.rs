@@ -5,7 +5,7 @@ use blueprint_sdk::runner::tangle::config::TangleConfig;
 use incredible_squaring_blueprint as blueprint;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), blueprint_sdk::Error> {
     let context = blueprint::MyContext {
         env: env.clone(),
         call_id: None,
