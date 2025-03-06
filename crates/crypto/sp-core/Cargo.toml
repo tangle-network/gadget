@@ -18,17 +18,22 @@ serde = { workspace = true }
 serde_bytes = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 
+sha2 = { workspace = true, optional = true }
+tnt-bls = { workspace = true, optional = true }
+
 [dev-dependencies]
 gadget-crypto-sp-core = { path = ".", features = ["std", "bls"] }
 serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
-default = ["std"]
+default = ["std", "aggregation"]
 std = [
 	"gadget-crypto-core/std",
 	"gadget-std/std",
 	"serde/std",
 	"serde_bytes/std",
 	"sp-core/std",
+	"tnt-bls?/std",
 ]
 bls = ["sp-core/bls-experimental"]
+aggregation = ["bls", "dep:tnt-bls", "dep:sha2"]

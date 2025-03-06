@@ -8,6 +8,10 @@ pub enum SpCoreError {
     InvalidSeed(String),
     #[error("Invalid secret string: {0}")]
     SecretStringError(SecretStringErrorWrapper),
+    #[error("Invalid signature")]
+    InvalidSignature,
+    #[error("Invalid public key")]
+    InvalidPublicKey,
 }
 
 #[derive(Debug, Clone)]

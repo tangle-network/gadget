@@ -1,0 +1,81 @@
+[package]
+name = "gadget-networking-agg-sig-gossip"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-crypto = { workspace = true }
+gadget-logging = { workspace = true }
+gadget-networking = { workspace = true }
+gadget-std = { workspace = true }
+bincode = { workspace = true }
+bitvec = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+crossbeam = { workspace = true }
+crossbeam-channel = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+libp2p = { workspace = true, features = [
+  "tokio",
+  "gossipsub",
+  "mdns",
+  "noise",
+  "macros",
+  "yamux",
+  "tcp",
+  "quic",
+  "request-response",
+  "cbor",
+  "identify",
+  "kad",
+  "dcutr",
+  "relay",
+  "ping",
+  "dns",
+  "autonat",
+  "upnp",
+] }
+gadget-crypto = { workspace = true, features = ["sp-core"] }
+gadget-crypto-core = { workspace = true, features = ["tangle"] }
+
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+rand_dev = "0.1"
+rand = { workspace = true }
+hex = { workspace = true }
+# We don't use it directly, but we need to enable `serde` feature
+generic-array = { version = "0.14", features = ["serde"] }
+
+[dev_dependencies]
+gadget-networking = { workspace = true, features = ["std", "testing"] }
+gadget-crypto = { workspace = true, features = [
+  "sp-core",
+  "sp-core-bls",
+  "bn254",
+  "bls",
+  "schnorrkel-sr25519"
+] }
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "bitvec/std",
+  "gadget-crypto/std",
+  "gadget-logging/std",
+  "gadget-networking/std",
+  "gadget-std/std",
+]

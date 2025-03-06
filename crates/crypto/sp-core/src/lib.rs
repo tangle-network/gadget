@@ -5,6 +5,9 @@ mod bls;
 #[cfg(feature = "bls")]
 pub use bls::*;
 
+#[cfg(feature = "aggregation")]
+mod aggregation;
+
 pub mod error;
 
 #[cfg(test)]

@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "aggregation")]
+pub mod aggregation;
+
 pub mod error;
 #[cfg(test)]
 mod tests;

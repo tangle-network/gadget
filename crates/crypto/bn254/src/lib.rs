@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod aggregation;
 pub mod error;
 use error::{Bn254Error, Result};
 

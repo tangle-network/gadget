@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["cli", "blueprints/*", "crates/*"]
+members = [
+    "cli",
+    "blueprints/*",
+    "crates/*",
+    "crates/networking/extensions/*"
+]
 exclude = ["blueprints/incredible-squaring-symbiotic"]
 
 [workspace.package]
@@ -107,6 +112,7 @@ gadget-std = { version = "0.1.0", path = "./crates/std", default-features = fals
 # P2P
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
 gadget-networking-round-based-extension = { version = "0.1.0", path = "./crates/networking/extensions/round-based", default-features = false }
+gadget-networking-agg-sig-gossip = { version = "0.1.0", path = "./crates/networking/extensions/agg-sig-gossip", default-features = false }
 
 # Utilities
 gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
@@ -170,6 +176,7 @@ sha3 = { version = "0.10.8", default-features = false }
 tnt-bls = { version = "0.1.8", default-features = false }
 
 # Data Structures & Serialization
+bitvec = { version = "1.0.1", default-features = false, features = ["atomic", "alloc"] }
 bincode = { version = "1.3.3", default-features = false }
 cid = { version = "0.11.1", default-features = false }
 indexmap = { version = "2.5.0", default-features = false }

@@ -1,9 +1,11 @@
-use super::{init_tracing, wait_for_handshake_completion, TestNode};
 use crate::{
     discovery::peers::VerificationIdentifierKey,
     service::AllowedKeys,
     service_handle::NetworkServiceHandle,
-    tests::{create_whitelisted_nodes, wait_for_all_handshakes},
+    test_utils::{
+        create_whitelisted_nodes, init_tracing, wait_for_all_handshakes,
+        wait_for_handshake_completion, TestNode,
+    },
     types::{MessageRouting, ParticipantId, ParticipantInfo},
 };
 use gadget_crypto::sp_core::SpEcdsa;
@@ -12,7 +14,7 @@ use tokio::time::timeout;
 use tracing::info;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
-const PROTOCOL_NAME: &str = "/test-net/sum-test";
+const PROTOCOL_NAME: &str = "/gossip/1.0.0";
 
 #[tokio::test]
 async fn test_gossip_between_verified_peers() {

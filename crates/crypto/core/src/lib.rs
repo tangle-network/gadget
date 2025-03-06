@@ -6,6 +6,8 @@ use gadget_std::string::String;
 use gadget_std::vec::Vec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+pub mod aggregation;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum KeyTypeId {
     #[cfg(feature = "bn254")]

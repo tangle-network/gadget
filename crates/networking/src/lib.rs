@@ -8,6 +8,9 @@ pub mod service;
 pub mod service_handle;
 pub mod types;
 
+#[cfg(feature = "testing")]
+pub mod test_utils;
+
 #[cfg(test)]
 mod tests;
 

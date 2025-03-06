@@ -1,23 +1,11 @@
 use crate::service::AllowedKeys;
-use crate::tests::create_whitelisted_nodes;
-use crate::tests::TestNode;
+use crate::test_utils::{create_whitelisted_nodes, init_tracing, TestNode};
 use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
-use tracing_subscriber::{fmt, EnvFilter};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
-
-fn init_tracing() {
-    let _ = fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_target(true)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .try_init();
-}
 
 #[tokio::test]
 async fn test_automatic_handshake() {

@@ -36,7 +36,7 @@ anyhow = { workspace = true }
 crossbeam-channel = { workspace = true }
 
 # TODO: Can be optional with proper flag. Used for p2p w/ evm addresses
-libsecp256k1 = { workspace = true }
+libsecp256k1 = { workspace = true, features = ["static-context"] }
 
 # Crypto dependencies
 gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
@@ -68,7 +68,7 @@ features = [
 ]
 
 [dev-dependencies]
-gadget-networking = { workspace = true }
+gadget-networking = { workspace = true, features = ["testing"] }
 gadget-crypto = { workspace = true, features = ["sp-core"] }
 gadget-crypto-core = { workspace = true, features = ["tangle"] }
 tracing-subscriber = { workspace = true }
@@ -76,7 +76,7 @@ lazy_static = { workspace = true }
 fastrand = "2.0"
 
 [features]
-default = ["std"]
+default = ["std", "testing"]
 std = [
 	"gadget-crypto/std",
 	"gadget-logging/std",
@@ -88,6 +88,7 @@ std = [
 	"serde_json/std",
 	"libsecp256k1/std",
 ]
+testing = []
 
 [lints]
 workspace = true

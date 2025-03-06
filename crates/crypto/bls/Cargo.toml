@@ -19,12 +19,14 @@ hex = { workspace = true, features = ["alloc"] }
 paste = { workspace = true }
 thiserror = { workspace = true }
 
+sha2 = { workspace = true, optional = true }
+
 [dev-dependencies]
 gadget-crypto-hashing = { workspace = true, features = ["sha2"] }
 serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
-default = ["std"]
+default = ["std", "aggregation"]
 std = [
 	"ark-serialize/std",
 	"gadget-crypto-core/std",
@@ -33,4 +35,5 @@ std = [
 	"serde_json/std",
 	"serde_bytes/std",
 	"tnt-bls/std",
-] 
+]
+aggregation = ["sha2", "tnt-bls/std"]

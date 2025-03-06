@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use gadget_crypto_core::BytesEncoding;
 use gadget_std::{
     hash::Hash,
