@@ -8,7 +8,7 @@ use alloy_provider::fillers::{FillProvider, JoinFill, RecommendedFillers, Wallet
 use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet, ReceiptResponse};
 use alloy_provider::{Network, Provider, RootProvider};
 use alloy_rpc_types::TransactionRequest;
-use alloy_transport::{BoxTransport, TransportError};
+use alloy_transport::TransportError;
 use blueprint_core::JobResult;
 use blueprint_core::error::BoxError;
 use futures::Sink;
@@ -17,12 +17,8 @@ use futures::Sink;
 pub type RecommendedFillersOf<T> = <T as RecommendedFillers>::RecommendedFillers;
 
 /// A type alias for the Alloy provider with wallet.
-pub type AlloyProviderWithWallet<N, W> = FillProvider<
-    JoinFill<RecommendedFillersOf<N>, WalletFiller<W>>,
-    RootProvider<BoxTransport, N>,
-    BoxTransport,
-    N,
->;
+pub type AlloyProviderWithWallet<N, W> =
+    FillProvider<JoinFill<RecommendedFillersOf<N>, WalletFiller<W>>, RootProvider<N>, N>;
 
 enum State {
     WaitingForResult,
@@ -62,7 +58,7 @@ where
     W: NetworkWallet<N> + Clone,
 {
     /// Create a new [`EVMConsumer`]
-    pub fn new<P: Provider<BoxTransport, N>>(provider: P, wallet: W) -> Self {
+    pub fn new<P: Provider<N>>(provider: P, wallet: W) -> Self {
         let p = FillProvider::new(provider.root().clone(), N::recommended_fillers())
             .join_with(WalletFiller::new(wallet));
         Self {
@@ -138,7 +134,7 @@ async fn send_transaction<N, P>(provider: P, tx: TransactionRequest) -> Result<(
 where
     N: Network,
     N::TransactionRequest: From<TransactionRequest>,
-    P: Provider<BoxTransport, N>,
+    P: Provider<N>,
 {
     use alloy_transport::TransportErrorKind;
     let res = provider.send_transaction(tx.into()).await;
