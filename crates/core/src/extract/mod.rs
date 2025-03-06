@@ -8,19 +8,24 @@ use crate::JobCall;
 use crate::job_call::Parts;
 use crate::job_result::IntoJobResult;
 use core::convert::Infallible;
-use core::future::Future;
 
 pub mod rejection;
 
 mod context;
+mod extension;
 mod from_ref;
 mod job_call_parts;
+mod job_id;
+mod metadata;
 mod option;
 mod tuple;
 
 pub use self::{
     context::Context,
+    extension::{Extension, ExtensionNotFound},
     from_ref::FromRef,
+    job_id::JobId,
+    metadata::Metadata,
     option::{OptionalFromJobCall, OptionalFromJobCallParts},
     rejection::InvalidUtf8,
 };

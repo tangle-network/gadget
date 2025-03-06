@@ -1,4 +1,5 @@
 use blueprint_sdk::extract::Context;
+use blueprint_sdk::extract::JobId;
 use blueprint_sdk::IntoJobResult;
 use blueprint_sdk::runner::BackgroundService;
 use blueprint_sdk::runner::error::RunnerError;
@@ -13,6 +14,7 @@ use tokio::sync::oneshot::Receiver;
 // The job ID (to be generated?)
 pub const XSQUARE_JOB_ID: u32 = 0;
 pub const MULTIPLY_JOB_ID: u32 = 1;
+pub const ADD_JOB_ID: u32 = 2;
 
 // The context (any type that's `Clone` + `Send` + `Sync` + 'static)
 #[derive(Clone, Debug)]
@@ -58,6 +60,25 @@ pub async fn multiply(
     // The result is then converted into a `JobResult` to be sent back to the caller.
     TangleResult(result)
 }
+
+/// An Example of a Job function that adds two numbers
+///
+/// This job knows its own ID by using the `JobId` extractor
+pub async fn add(
+    JobId(job_id): JobId<u32>,
+    TangleArgs2(x, y): TangleArgs2<u64, u64>,
+) -> impl IntoJobResult {
+    println!("job_id: {}", job_id);
+    println!("x: {}", x);
+    println!("y: {}", y);
+    let result = x + y;
+
+    println!("result: {}", result);
+
+    // The result is then converted into a `JobResult` to be sent back to the caller.
+    TangleResult(result)
+}
+
 
 /// An Example of a job function that uses the `Event` extractors
 /// NOTE: this job will fail if no Transfer events are found in the block

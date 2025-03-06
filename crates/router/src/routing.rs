@@ -66,7 +66,7 @@ impl<Ctx> fmt::Debug for Router<Ctx> {
 }
 
 macro_rules! map_inner {
-    ( $self_:ident, $inner:pat_param => $expr:expr) => {
+    ($self_:ident, $inner:pat_param => $expr:expr) => {
         #[allow(redundant_semicolons)]
         {
             let $inner = $self_.into_inner();

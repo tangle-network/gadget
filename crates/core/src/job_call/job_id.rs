@@ -35,6 +35,14 @@ impl<T: Into<JobId>> IntoJobId for T {
 #[repr(C)]
 pub struct JobId(pub [u64; 4]);
 
+// Ensure that the size of `JobId` is the same as `[u64; 4]` always.
+const _: () = {
+    assert!(
+        core::mem::size_of::<JobId>() == core::mem::size_of::<[u64; 4]>(),
+        "JobId size changed, update transmutes"
+    );
+};
+
 impl core::fmt::Debug for JobId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("JobId").field(&self.to_string()).finish()
@@ -76,48 +84,62 @@ impl JobId {
 }
 
 macro_rules! impl_from_numbers {
-	(
-		$($ty:ty),*
-	) => {
-		$(
-			impl From<$ty> for JobId {
-				#[inline]
-				fn from(value: $ty) -> Self {
-					let mut id = [0; 4];
-					id[3] = value as u64;
-					Self(id)
-				}
-			}
+    (
+        $($ty:ty),*
+    ) => {
+        $(
+            impl From<$ty> for JobId {
+            #[inline]
+            fn from(value: $ty) -> Self {
+                let mut id = [0; 4];
+                id[3] = value as u64;
+                Self(id)
+            }
+            }
 
-			impl From<&$ty> for JobId {
-				#[inline]
-				fn from(value: &$ty) -> Self {
-					Self::from(*value)
-				}
-			}
-		)*
+            impl From<&$ty> for JobId {
+            #[inline]
+            fn from(value: &$ty) -> Self {
+                Self::from(*value)
+            }
+            }
+
+            impl From<JobId> for $ty {
+                #[inline]
+                fn from(value: JobId) -> Self {
+                    value.0[3] as $ty
+                }
+            }
+        )*
 	};
 
-	($(wide $ty:ty),*) => {
-		$(
-			impl From<$ty> for JobId {
-				#[inline]
-				fn from(value: $ty) -> Self {
-					let mut id = [0; 4];
-					id[3] = value as u64;
-					id[2] = (value >> 64) as u64;
-					Self(id)
-				}
-			}
+    ($(wide $ty:ty),*) => {
+        $(
+            impl From<$ty> for JobId {
+                #[inline]
+                fn from(value: $ty) -> Self {
+                    let mut id = [0; 4];
+                    id[3] = value as u64;
+                    id[2] = (value >> 64) as u64;
+                    Self(id)
+                }
+            }
 
-			impl From<&$ty> for JobId {
-				#[inline]
-				fn from(value: &$ty) -> Self {
-					Self::from(*value)
-				}
-			}
-		)*
-	};
+            impl From<&$ty> for JobId {
+                #[inline]
+                fn from(value: &$ty) -> Self {
+                    Self::from(*value)
+                }
+            }
+
+            impl From<JobId> for $ty {
+                #[inline]
+                fn from(value: JobId) -> Self {
+                    (value.0[2] as $ty) << 64 | value.0[3] as $ty
+                }
+            }
+        )*
+    };
 }
 
 impl_from_numbers!(u8, i8, u16, i16, u32, i32, u64, i64, usize, isize);
@@ -128,6 +150,14 @@ impl From<[u8; 32]> for JobId {
     fn from(value: [u8; 32]) -> Self {
         // Safe because they are same size and layout
         Self(unsafe { core::mem::transmute::<[u8; 32], [u64; 4]>(value) })
+    }
+}
+
+impl From<JobId> for [u8; 32] {
+    #[inline]
+    fn from(value: JobId) -> Self {
+        // Safe because they are same size and layout
+        unsafe { core::mem::transmute::<[u64; 4], [u8; 32]>(value.0) }
     }
 }
 
@@ -157,6 +187,18 @@ impl From<alloc::string::String> for JobId {
     }
 }
 
+impl From<JobId> for alloc::string::String {
+    #[inline]
+    fn from(value: JobId) -> Self {
+        let hash: [u8; 32] = value.into();
+        let mut result = alloc::string::String::with_capacity(64);
+        for byte in hash.iter() {
+            result.push_str(&alloc::format!("{:02x}", byte));
+        }
+        result
+    }
+}
+
 impl From<&alloc::string::String> for JobId {
     #[inline]
     fn from(value: &alloc::string::String) -> Self {
@@ -168,6 +210,14 @@ impl From<alloc::vec::Vec<u8>> for JobId {
     #[inline]
     fn from(value: alloc::vec::Vec<u8>) -> Self {
         Self::from(&value)
+    }
+}
+
+impl From<JobId> for alloc::vec::Vec<u8> {
+    #[inline]
+    fn from(value: JobId) -> Self {
+        let hash: [u8; 32] = value.into();
+        hash.to_vec()
     }
 }
 
@@ -189,10 +239,38 @@ impl From<()> for JobId {
 mod tests {
     use super::*;
 
+    macro_rules! test_from_into_numbers {
+        ($($ty:ty),*) => {
+            $(
+                let num: $ty = 42;
+                let job_id = JobId::from(num);
+                assert_eq!(job_id, JobId::from(num));
+                assert_eq!(num, <$ty>::from(job_id));
+
+                let num: $ty = <$ty>::MAX;
+                let job_id = JobId::from(num);
+                assert_eq!(job_id, JobId::from(num));
+                assert_eq!(num, <$ty>::from(job_id));
+
+                let num: $ty = <$ty>::MIN;
+                let job_id = JobId::from(num);
+                assert_eq!(job_id, JobId::from(num));
+                assert_eq!(num, <$ty>::from(job_id));
+            )*
+        };
+    }
+
     #[test]
     fn job_id_works() {
         let id = JobId::from("test");
         assert_eq!(id, JobId::from("test"));
         assert_ne!(id, JobId::from("test2"));
+    }
+
+    #[test]
+    fn it_works_with_numbers() {
+        test_from_into_numbers!(
+            u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128
+        );
     }
 }
