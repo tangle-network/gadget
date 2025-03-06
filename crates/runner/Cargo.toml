@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 blueprint-core.workspace = true
 blueprint-router.workspace = true
+gadget-std.workspace = true
 gadget-keystore = { workspace = true }
 gadget-crypto = { workspace = true }
 futures-core.workspace = true
@@ -23,6 +24,11 @@ document-features = { workspace = true }
 
 gadget-utils.workspace = true
 
+# Networking
+crossbeam-channel = { workspace = true, optional = true }
+gadget-networking = { workspace = true, optional = true }
+libp2p = { workspace = true, optional = true }
+
 # Tangle
 blueprint-tangle-extra = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
@@ -39,13 +45,21 @@ eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils
 blueprint-sdk = { workspace = true, features = ["tangle"] }
 
 [features]
-default = ["std"]
+default = ["std", "networking"]
 
 #! ### Core
 
 ## Enable standard library support
 std = [
     "gadget-keystore/std",
+    "gadget-std/std",
+]
+
+## Enable networking support for [`BlueprintEnvironment`](crate::config::BlueprintEnvironment)
+networking = [
+    "dep:gadget-networking",
+    "dep:crossbeam-channel",
+    "dep:libp2p",
 ]
 
 #! ### Protocols

@@ -9,21 +9,29 @@ use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-pub struct EigenlayerBLSTestEnv {
-    pub runner: TestRunner,
+pub struct EigenlayerBLSTestEnv<Ctx> {
+    pub runner: Option<TestRunner<Ctx>>,
     pub config: EigenlayerBLSConfig,
     pub gadget_config: BlueprintEnvironment,
     pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
-impl TestEnv for EigenlayerBLSTestEnv {
+impl<Ctx> TestEnv for EigenlayerBLSTestEnv<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     type Config = EigenlayerBLSConfig;
+    type Context = Ctx;
 
-    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error> {
-        let runner = TestRunner::new(config, env.clone());
+    fn new(
+        config: Self::Config,
+        env: BlueprintEnvironment,
+        context: Self::Context,
+    ) -> Result<Self, Error> {
+        let runner = TestRunner::new(config, env.clone(), context);
 
         Ok(Self {
-            runner,
+            runner: Some(runner),
             config,
             gadget_config: env,
             runner_handle: Mutex::new(None),
@@ -34,23 +42,29 @@ impl TestEnv for EigenlayerBLSTestEnv {
     where
         J: Job<JobCall, ()> + Send + Sync + 'static,
     {
-        self.runner.add_job(job);
+        self.runner
+            .as_mut()
+            .expect("Runner already running")
+            .add_job(job);
     }
 
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static,
     {
-        self.runner.add_background_service(service);
+        self.runner
+            .as_mut()
+            .expect("Runner already running")
+            .add_background_service(service);
     }
 
     fn get_gadget_config(&self) -> BlueprintEnvironment {
         self.gadget_config.clone()
     }
 
-    async fn run_runner(&self) -> Result<(), Error> {
+    async fn run_runner(&mut self) -> Result<(), Error> {
         // Spawn the runner in a background task
-        let mut runner = self.runner.clone();
+        let mut runner = self.runner.take().expect("Runner already running");
         let handle = tokio::spawn(async move { runner.run().await });
 
         let mut _guard = self.runner_handle.lock().await;
@@ -89,7 +103,7 @@ impl TestEnv for EigenlayerBLSTestEnv {
     }
 }
 
-impl Drop for EigenlayerBLSTestEnv {
+impl<Ctx> Drop for EigenlayerBLSTestEnv<Ctx> {
     fn drop(&mut self) {
         futures::executor::block_on(async {
             let mut _guard = self.runner_handle.lock().await;

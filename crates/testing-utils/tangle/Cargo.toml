@@ -10,7 +10,7 @@ repository.workspace = true
 
 [dependencies]
 blueprint-core = { workspace = true }
-blueprint-runner = { workspace = true, features = ["std", "tangle"] }
+blueprint-runner = { workspace = true, features = ["std", "tangle", "networking"] }
 cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }

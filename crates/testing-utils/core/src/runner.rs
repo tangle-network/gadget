@@ -75,5 +75,11 @@ pub trait TestEnv: Sized {
     where
         B: BackgroundService + Send + 'static;
     fn get_gadget_config(&self) -> BlueprintEnvironment;
-    fn run_runner(&self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
+
+    /// Start the runner
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the runner is already started
+    fn run_runner(&mut self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
 }

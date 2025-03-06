@@ -6,10 +6,13 @@ use crate::{
     keys::inject_tangle_key,
     node::{NodeConfig, run, transactions},
 };
+use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::config::ContextConfig;
+use blueprint_runner::config::SupportedChains;
 use blueprint_runner::error::RunnerError;
-use blueprint_runner::tangle::tangle::PriceTargets;
+use blueprint_runner::tangle::config::PriceTargets;
 use gadget_client_tangle::client::TangleClient;
-use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
+use gadget_contexts::tangle::TangleClientContext;
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
@@ -82,7 +85,7 @@ pub async fn generate_env_from_node_id(
     );
 
     // Load environment
-    let mut env = gadget_config::load(context_config)
+    let mut env = BlueprintEnvironment::load(context_config)
         .map_err(|e| Error::Setup(e.to_string()))
         .map_err(|err| RunnerError::Other(err.to_string()))?;
 
@@ -199,7 +202,8 @@ where
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
 
             let preferences = Preferences {
-                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0.0).unwrap(),
+                key: blueprint_runner::tangle::config::decompress_pubkey(&ecdsa_public.0.0)
+                    .unwrap(),
                 price_targets: PriceTargets::default().0,
             };
 
@@ -423,7 +427,7 @@ mod tests {
     #[tokio::test]
     async fn test_harness_setup() {
         let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::setup(test_dir).await;
+        let harness = TangleTestHarness::setup(test_dir, ()).await;
         assert!(harness.is_ok(), "Harness setup should succeed");
 
         let harness = harness.unwrap();
@@ -436,7 +440,7 @@ mod tests {
     #[tokio::test]
     async fn test_deploy_mbsm() {
         let test_dir = TempDir::new().unwrap();
-        let harness = TangleTestHarness::setup(test_dir).await.unwrap();
+        let harness = TangleTestHarness::setup(test_dir, ()).await.unwrap();
 
         // MBSM should be deployed during setup
         let latest_revision = transactions::get_latest_mbsm_revision(harness.client())

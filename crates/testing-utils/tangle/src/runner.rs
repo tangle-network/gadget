@@ -12,9 +12,9 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct TangleTestEnv<Ctx> {
-    pub runner: TestRunner<Ctx>,
+    pub runner: Option<TestRunner<Ctx>>,
     pub config: TangleConfig,
-    pub gadget_config: BlueprintEnvironment,
+    pub env: BlueprintEnvironment,
     pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
@@ -24,8 +24,8 @@ impl<Ctx> TangleTestEnv<Ctx> {
         bootnodes: Vec<Multiaddr>,
         network_bind_port: u16,
     ) {
-        self.gadget_config.bootnodes = bootnodes;
-        self.gadget_config.network_bind_port = network_bind_port;
+        self.env.bootnodes = bootnodes;
+        self.env.network_bind_port = network_bind_port;
     }
 }
 
@@ -33,7 +33,7 @@ impl<Ctx> Debug for TangleTestEnv<Ctx> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TangleTestEnv")
             .field("config", &self.config)
-            .field("gadget_config", &self.gadget_config)
+            .field("gadget_config", &self.env)
             .finish()
     }
 }
@@ -49,9 +49,9 @@ where
         let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone(), context);
 
         Ok(Self {
-            runner,
+            runner: Some(runner),
             config,
-            gadget_config: env,
+            env: env,
             runner_handle: Mutex::new(None),
         })
     }
@@ -60,23 +60,29 @@ where
     where
         J: Job<JobCall, ()> + Send + Sync + 'static,
     {
-        self.runner.add_job(job);
+        self.runner
+            .as_mut()
+            .expect("Runner already running")
+            .add_job(job);
     }
 
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static,
     {
-        self.runner.add_background_service(service);
+        self.runner
+            .as_mut()
+            .expect("Runner already running")
+            .add_background_service(service);
     }
 
     fn get_gadget_config(&self) -> BlueprintEnvironment {
-        self.gadget_config.clone()
+        self.env.clone()
     }
 
-    async fn run_runner(&self) -> Result<(), Error> {
+    async fn run_runner(&mut self) -> Result<(), Error> {
         // Spawn the runner in a background task
-        let mut runner = self.runner.clone();
+        let mut runner = self.runner.take().expect("Runner already running");
         let handle = tokio::spawn(async move { runner.run().await });
 
         let mut _guard = self.runner_handle.lock().await;
