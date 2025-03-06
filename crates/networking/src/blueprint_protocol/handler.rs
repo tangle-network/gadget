@@ -242,7 +242,7 @@ impl<K: KeyType> BlueprintProtocolBehaviour<K> {
             .clone()
             .into_read_only()
             .iter()
-            .filter(|(_, &time)| now.duration_since(time) > INBOUND_HANDSHAKE_TIMEOUT)
+            .filter(|&(_, &time)| now.duration_since(time) > INBOUND_HANDSHAKE_TIMEOUT)
             .map(|(peer_id, _)| *peer_id)
             .collect();
 
@@ -257,7 +257,7 @@ impl<K: KeyType> BlueprintProtocolBehaviour<K> {
             .clone()
             .into_read_only()
             .iter()
-            .filter(|(_, &time)| now.duration_since(time) > OUTBOUND_HANDSHAKE_TIMEOUT)
+            .filter(|&(_, &time)| now.duration_since(time) > OUTBOUND_HANDSHAKE_TIMEOUT)
             .map(|(peer_id, _)| *peer_id)
             .collect();
 
