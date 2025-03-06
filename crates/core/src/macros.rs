@@ -23,10 +23,7 @@ macro_rules! __log_rejection {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __log_rejection {
-    (
-        rejection_type = $ty:ident,
-        body_text = $body_text:expr
-    ) => {};
+    (rejection_type = $ty:ident,body_text = $body_text:expr) => {};
 }
 
 #[rustfmt::skip]
@@ -100,7 +97,7 @@ macro_rules! __impl_deref {
         }
     };
 
-    ($ident:ident: $ty:ty) => {
+    ($ident:ident : $ty:ty) => {
         impl core::ops::Deref for $ident {
             type Target = $ty;
 

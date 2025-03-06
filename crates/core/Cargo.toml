@@ -19,6 +19,7 @@ tracing = { workspace = true, optional = true }
 blueprint-sdk.workspace = true
 serde_json.workspace = true
 tower = { workspace = true, features = ["util", "timeout", "limit", "load-shed", "steer", "filter"] }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["std", "tracing"]
