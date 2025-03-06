@@ -1,14 +1,14 @@
 use crate::anvil::{print_info, print_section_header, print_success};
 use crate::keys::{generate_key, import_key};
 use alloy_primitives::Address;
-use color_eyre::owo_colors::OwoColorize;
 use color_eyre::Result;
+use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::style;
 use dialoguer::{Confirm, Input, Select};
-use gadget_config::supported_chains::SupportedChains;
 use gadget_config::Protocol;
-use gadget_crypto::k256::K256Ecdsa;
+use gadget_config::supported_chains::SupportedChains;
 use gadget_crypto::KeyTypeId;
+use gadget_crypto::k256::K256Ecdsa;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_logging::debug;
@@ -104,7 +104,9 @@ impl EigenlayerDeployOpts {
                 return Ok(private_key);
             }
 
-            Err(color_eyre::eyre::eyre!("No ECDSA key found in keystore. Please add one using 'cargo tangle key import' or set EIGENLAYER_PRIVATE_KEY environment variable"))
+            Err(color_eyre::eyre::eyre!(
+                "No ECDSA key found in keystore. Please add one using 'cargo tangle key import' or set EIGENLAYER_PRIVATE_KEY environment variable"
+            ))
         }
     }
 }

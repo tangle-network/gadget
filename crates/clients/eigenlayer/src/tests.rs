@@ -2,13 +2,13 @@ use super::*;
 use alloy_primitives::address;
 use alloy_provider::Provider;
 use client::EigenlayerClient;
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
+use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
 use gadget_config::{
-    load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    BlueprintEnvironment,
+    BlueprintEnvironment, ContextConfig, load, protocol::EigenlayerContractAddresses,
+    supported_chains::SupportedChains,
 };
-use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
 use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
+use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
 
 struct TestEnvironment {
     // Unused, stored here to keep it from dropping early

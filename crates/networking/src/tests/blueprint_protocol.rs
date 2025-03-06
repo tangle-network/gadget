@@ -5,11 +5,11 @@ use crate::{
     service::AllowedKeys,
     service_handle::NetworkServiceHandle,
     tests::{
-        create_whitelisted_nodes, wait_for_all_handshakes, wait_for_handshake_completion, TestNode,
+        TestNode, create_whitelisted_nodes, wait_for_all_handshakes, wait_for_handshake_completion,
     },
     types::{MessageRouting, ParticipantId, ParticipantInfo, ProtocolMessage},
 };
-use gadget_crypto::{sp_core::SpEcdsa, KeyType};
+use gadget_crypto::{KeyType, sp_core::SpEcdsa};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;

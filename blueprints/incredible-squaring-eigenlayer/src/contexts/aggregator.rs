@@ -1,29 +1,29 @@
+use crate::BN254::G1Point;
+use crate::BN254::G2Point;
 use crate::IBLSSignatureCheckerTypes::NonSignerStakesAndSignature;
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
-use crate::BN254::G1Point;
-use crate::BN254::G2Point;
-use crate::{contexts::client::SignedTaskResponse, Error, IncredibleSquaringTaskManager};
+use crate::{Error, IncredibleSquaringTaskManager, contexts::client::SignedTaskResponse};
 use alloy_network::{Ethereum, NetworkWallet};
-use alloy_primitives::{keccak256, Address};
+use alloy_primitives::{Address, keccak256};
 use alloy_sol_types::SolType;
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::sync::{oneshot, Mutex, Notify};
+use tokio::sync::{Mutex, Notify, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
-use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::logging::{debug, error, info};
 use blueprint_sdk::macros::contexts::{EigenlayerContext, KeystoreContext};
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::runners::core::error::RunnerError;
 use blueprint_sdk::runners::core::runner::BackgroundService;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::common::get_provider;
-use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
+use eigensdk::crypto_bls::{BlsG1Point, BlsG2Point, convert_to_g1_point, convert_to_g2_point};
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
 use eigensdk::services_blsaggregation::bls_agg::TaskSignature;
 use eigensdk::services_blsaggregation::{

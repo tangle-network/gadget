@@ -6,11 +6,14 @@ use tempfile::TempDir;
 pub trait TestHarness {
     /// The configuration type used by this harness
     type Config;
+    /// The context type passed down to each job
+    type Context: Clone + Send + Sync + 'static;
+
     /// The error type returned by this harness
     type Error;
 
     /// Creates a new test harness with the given configuration
-    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error>
+    async fn setup(test_dir: TempDir, context: Self::Context) -> Result<Self, Self::Error>
     where
         Self: Sized;
 

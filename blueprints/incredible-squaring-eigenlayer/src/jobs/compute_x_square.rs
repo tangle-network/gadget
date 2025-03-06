@@ -1,11 +1,11 @@
 #![allow(dead_code)]
+use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
-use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::{
-    IncredibleSquaringTaskManager, ProcessorError, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager, ProcessorError,
 };
-use alloy_primitives::{keccak256, Bytes, U256};
+use alloy_primitives::{Bytes, U256, keccak256};
 use alloy_sol_types::SolType;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::crypto::bn254::ArkBlsBn254;

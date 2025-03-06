@@ -2,10 +2,10 @@ use crate::service::AllowedKeys;
 use alloy_primitives::Address;
 use crossbeam_channel::Receiver;
 use dashmap::{DashMap, DashSet};
-use gadget_crypto::hashing::keccak_256;
 use gadget_crypto::BytesEncoding;
 use gadget_crypto::KeyType;
-use libp2p::{core::Multiaddr, identify, PeerId};
+use gadget_crypto::hashing::keccak_256;
+use libp2p::{PeerId, core::Multiaddr, identify};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,

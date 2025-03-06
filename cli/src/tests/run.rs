@@ -1,9 +1,9 @@
-use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
+use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use crate::run::eigenlayer::run_eigenlayer_avs;
 use color_eyre::eyre::Result;
 use gadget_config::supported_chains::SupportedChains;
 use gadget_config::{
-    protocol::EigenlayerContractAddresses, protocol::ProtocolSettings, ContextConfig, Protocol,
+    ContextConfig, Protocol, protocol::EigenlayerContractAddresses, protocol::ProtocolSettings,
 };
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
@@ -72,10 +72,10 @@ evm_version = 'shanghai'"#,
     let init_a_value = 8;
     let init_b_value = 11;
     let expected_value = init_a_value * init_b_value;
-    constructor_args.insert(
-        "TestContract".to_string(),
-        vec![init_a_value.to_string(), init_b_value.to_string()],
-    );
+    constructor_args.insert("TestContract".to_string(), vec![
+        init_a_value.to_string(),
+        init_b_value.to_string(),
+    ]);
 
     // Deploy the contract
     let opts = EigenlayerDeployOpts {

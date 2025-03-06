@@ -1,7 +1,7 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager, ProcessorError,
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager, ProcessorError,
+    contexts::aggregator::AggregatorContext,
 };
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::logging::info;

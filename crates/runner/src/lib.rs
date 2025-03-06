@@ -5,7 +5,7 @@
 //! ## Features
 #![doc = document_features::document_features!()]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![warn(missing_docs)]
+// TODO: #![warn(missing_docs)]
 
 extern crate alloc;
 

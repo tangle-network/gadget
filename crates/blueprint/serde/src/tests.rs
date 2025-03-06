@@ -1,12 +1,12 @@
+use crate::Field;
 use crate::from_field;
 use crate::ser::new_bounded_string;
 use crate::to_field;
-use crate::Field;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec;
 use serde::{Deserialize, Serialize};
-use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
+use serde_test::{Token, assert_de_tokens, assert_ser_tokens};
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
@@ -49,20 +49,17 @@ mod structs {
     fn test_ser_struct_valid() {
         let person = Person::default();
 
-        assert_ser_tokens(
-            &person,
-            &[
-                Token::Struct {
-                    name: "Person",
-                    len: 2,
-                },
-                Token::Str("name"),
-                Token::Str("John"),
-                Token::Str("age"),
-                Token::U8(40),
-                Token::StructEnd,
-            ],
-        );
+        assert_ser_tokens(&person, &[
+            Token::Struct {
+                name: "Person",
+                len: 2,
+            },
+            Token::Str("name"),
+            Token::Str("John"),
+            Token::Str("age"),
+            Token::U8(40),
+            Token::StructEnd,
+        ]);
 
         let field = to_field(&person).unwrap();
         assert_eq!(field, person.as_field());
@@ -72,20 +69,17 @@ mod structs {
     fn test_de_struct_valid() {
         let person = Person::default();
 
-        assert_de_tokens(
-            &person,
-            &[
-                Token::Struct {
-                    name: "Person",
-                    len: 2,
-                },
-                Token::Str("name"),
-                Token::Str("John"),
-                Token::Str("age"),
-                Token::U8(40),
-                Token::StructEnd,
-            ],
-        );
+        assert_de_tokens(&person, &[
+            Token::Struct {
+                name: "Person",
+                len: 2,
+            },
+            Token::Str("name"),
+            Token::Str("John"),
+            Token::Str("age"),
+            Token::U8(40),
+            Token::StructEnd,
+        ]);
 
         let person_de: Person = from_field(person.as_field()).unwrap();
         assert_eq!(person_de, person);
@@ -147,30 +141,27 @@ mod structs {
     fn test_ser_struct_nested() {
         let person_with_friend = PersonWithFriend::default();
 
-        assert_ser_tokens(
-            &person_with_friend,
-            &[
-                Token::Struct {
-                    name: "PersonWithFriend",
-                    len: 3,
-                },
-                Token::Str("name"),
-                Token::Str("Matthew"),
-                Token::Str("age"),
-                Token::U8(37),
-                Token::Str("friend"),
-                Token::Struct {
-                    name: "Person",
-                    len: 2,
-                },
-                Token::Str("name"),
-                Token::Str("John"),
-                Token::Str("age"),
-                Token::U8(40),
-                Token::StructEnd,
-                Token::StructEnd,
-            ],
-        );
+        assert_ser_tokens(&person_with_friend, &[
+            Token::Struct {
+                name: "PersonWithFriend",
+                len: 3,
+            },
+            Token::Str("name"),
+            Token::Str("Matthew"),
+            Token::Str("age"),
+            Token::U8(37),
+            Token::Str("friend"),
+            Token::Struct {
+                name: "Person",
+                len: 2,
+            },
+            Token::Str("name"),
+            Token::Str("John"),
+            Token::Str("age"),
+            Token::U8(40),
+            Token::StructEnd,
+            Token::StructEnd,
+        ]);
 
         let field = to_field(&person_with_friend).unwrap();
         assert_eq!(field, person_with_friend.as_field());
@@ -180,30 +171,27 @@ mod structs {
     fn test_de_struct_nested() {
         let person_with_friend = PersonWithFriend::default();
 
-        assert_de_tokens(
-            &person_with_friend,
-            &[
-                Token::Struct {
-                    name: "PersonWithFriend",
-                    len: 3,
-                },
-                Token::Str("name"),
-                Token::Str("Matthew"),
-                Token::Str("age"),
-                Token::U8(37),
-                Token::Str("friend"),
-                Token::Struct {
-                    name: "Person",
-                    len: 2,
-                },
-                Token::Str("name"),
-                Token::Str("John"),
-                Token::Str("age"),
-                Token::U8(40),
-                Token::StructEnd,
-                Token::StructEnd,
-            ],
-        );
+        assert_de_tokens(&person_with_friend, &[
+            Token::Struct {
+                name: "PersonWithFriend",
+                len: 3,
+            },
+            Token::Str("name"),
+            Token::Str("Matthew"),
+            Token::Str("age"),
+            Token::U8(37),
+            Token::Str("friend"),
+            Token::Struct {
+                name: "Person",
+                len: 2,
+            },
+            Token::Str("name"),
+            Token::Str("John"),
+            Token::Str("age"),
+            Token::U8(40),
+            Token::StructEnd,
+            Token::StructEnd,
+        ]);
 
         let person_with_friend_de: PersonWithFriend =
             from_field(person_with_friend.as_field()).unwrap();
@@ -241,18 +229,15 @@ mod structs {
     fn test_ser_struct_tuple() {
         let person_tuple = PersonTuple::default();
 
-        assert_ser_tokens(
-            &person_tuple,
-            &[
-                Token::TupleStruct {
-                    name: "PersonTuple",
-                    len: 2,
-                },
-                Token::Str("John"),
-                Token::U8(40),
-                Token::TupleStructEnd,
-            ],
-        );
+        assert_ser_tokens(&person_tuple, &[
+            Token::TupleStruct {
+                name: "PersonTuple",
+                len: 2,
+            },
+            Token::Str("John"),
+            Token::U8(40),
+            Token::TupleStructEnd,
+        ]);
 
         let field = to_field(&person_tuple).unwrap();
         assert_eq!(field, person_tuple.as_field());
@@ -262,18 +247,15 @@ mod structs {
     fn test_de_struct_tuple() {
         let person_tuple = PersonTuple::default();
 
-        assert_de_tokens(
-            &person_tuple,
-            &[
-                Token::TupleStruct {
-                    name: "PersonTuple",
-                    len: 2,
-                },
-                Token::Str("John"),
-                Token::U8(40),
-                Token::TupleStructEnd,
-            ],
-        );
+        assert_de_tokens(&person_tuple, &[
+            Token::TupleStruct {
+                name: "PersonTuple",
+                len: 2,
+            },
+            Token::Str("John"),
+            Token::U8(40),
+            Token::TupleStructEnd,
+        ]);
 
         let person_tuple_de: PersonTuple = from_field(person_tuple.as_field()).unwrap();
         assert_eq!(person_tuple_de, person_tuple);
@@ -283,7 +265,7 @@ mod structs {
 mod enums {
     use super::*;
     use serde::{Deserialize, Serialize};
-    use serde_test::{assert_ser_tokens, Token};
+    use serde_test::{Token, assert_ser_tokens};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
     enum Availability {
@@ -305,16 +287,13 @@ mod enums {
     fn test_ser_enum() {
         let availability = Availability::default();
 
-        assert_ser_tokens(
-            &availability,
-            &[
-                Token::Enum {
-                    name: "Availability",
-                },
-                Token::Str("NotAvailable"),
-                Token::Unit,
-            ],
-        );
+        assert_ser_tokens(&availability, &[
+            Token::Enum {
+                name: "Availability",
+            },
+            Token::Str("NotAvailable"),
+            Token::Unit,
+        ]);
 
         let field = to_field(&availability).unwrap();
         assert_eq!(field, availability.as_field());
@@ -324,18 +303,15 @@ mod enums {
     fn test_de_enum() {
         let availability = Availability::default();
 
-        assert_de_tokens(
-            &availability,
-            &[
-                Token::Enum {
-                    name: "Availability",
-                },
-                Token::UnitVariant {
-                    name: "Availability",
-                    variant: "NotAvailable",
-                },
-            ],
-        );
+        assert_de_tokens(&availability, &[
+            Token::Enum {
+                name: "Availability",
+            },
+            Token::UnitVariant {
+                name: "Availability",
+                variant: "NotAvailable",
+            },
+        ]);
 
         let availability_de: Availability = from_field(availability.as_field()).unwrap();
         assert_eq!(availability_de, availability);
@@ -357,19 +333,16 @@ mod enums {
     fn test_ser_invalid_enum() {
         let invalid_availability = InvalidAvailability::default();
 
-        assert_ser_tokens(
-            &invalid_availability,
-            &[
-                Token::StructVariant {
-                    name: "InvalidAvailability",
-                    variant: "Available",
-                    len: 1,
-                },
-                Token::Str("days"),
-                Token::U8(5),
-                Token::StructVariantEnd,
-            ],
-        );
+        assert_ser_tokens(&invalid_availability, &[
+            Token::StructVariant {
+                name: "InvalidAvailability",
+                variant: "Available",
+                len: 1,
+            },
+            Token::Str("days"),
+            Token::U8(5),
+            Token::StructVariantEnd,
+        ]);
 
         let err = to_field(&invalid_availability).unwrap_err();
         assert!(matches!(err, crate::error::Error::UnsupportedType(_)));
@@ -379,19 +352,16 @@ mod enums {
     fn test_de_invalid_enum() {
         let invalid_availability = InvalidAvailability::default();
 
-        assert_ser_tokens(
-            &invalid_availability,
-            &[
-                Token::StructVariant {
-                    name: "InvalidAvailability",
-                    variant: "Available",
-                    len: 1,
-                },
-                Token::Str("days"),
-                Token::U8(5),
-                Token::StructVariantEnd,
-            ],
-        );
+        assert_ser_tokens(&invalid_availability, &[
+            Token::StructVariant {
+                name: "InvalidAvailability",
+                variant: "Available",
+                len: 1,
+            },
+            Token::Str("days"),
+            Token::U8(5),
+            Token::StructVariantEnd,
+        ]);
 
         let _ = from_field::<InvalidAvailability>(Field::String(new_bounded_string("Available")))
             .expect_err("should fail");
@@ -522,16 +492,13 @@ mod sequences {
     fn test_de_bytes_seq() {
         let bytes: Vec<u8> = vec![1, 2, 3];
 
-        assert_de_tokens(
-            &bytes,
-            &[
-                Token::Seq { len: Some(3) },
-                Token::U8(1),
-                Token::U8(2),
-                Token::U8(3),
-                Token::SeqEnd,
-            ],
-        );
+        assert_de_tokens(&bytes, &[
+            Token::Seq { len: Some(3) },
+            Token::U8(1),
+            Token::U8(2),
+            Token::U8(3),
+            Token::SeqEnd,
+        ]);
 
         let bytes_de: Vec<u8> = from_field(expected_bytes_field()).unwrap();
         assert_eq!(bytes, bytes_de);
@@ -548,16 +515,13 @@ mod sequences {
     fn test_ser_vec() {
         let vec: Vec<u32> = vec![1, 2, 3];
 
-        assert_ser_tokens(
-            &vec,
-            &[
-                Token::Seq { len: Some(3) },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::SeqEnd,
-            ],
-        );
+        assert_ser_tokens(&vec, &[
+            Token::Seq { len: Some(3) },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::SeqEnd,
+        ]);
 
         let field = to_field(&vec).unwrap();
         assert_eq!(field, expected_vec_field());
@@ -567,16 +531,13 @@ mod sequences {
     fn test_de_vec() {
         let vec: Vec<u32> = vec![1, 2, 3];
 
-        assert_de_tokens(
-            &vec,
-            &[
-                Token::Seq { len: Some(3) },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::SeqEnd,
-            ],
-        );
+        assert_de_tokens(&vec, &[
+            Token::Seq { len: Some(3) },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::SeqEnd,
+        ]);
 
         let vec_de: Vec<u32> = from_field(expected_vec_field()).unwrap();
         assert_eq!(vec, vec_de);
@@ -593,16 +554,13 @@ mod sequences {
     fn test_ser_array() {
         let array: [u32; 3] = [1, 2, 3];
 
-        assert_ser_tokens(
-            &array,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_ser_tokens(&array, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ]);
 
         let field = to_field(array).unwrap();
         assert_eq!(field, expected_array_field());
@@ -612,16 +570,13 @@ mod sequences {
     fn test_de_array() {
         let array: [u32; 3] = [1, 2, 3];
 
-        assert_de_tokens(
-            &array,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_de_tokens(&array, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ]);
 
         let array_de: [u32; 3] = from_field(expected_array_field()).unwrap();
         assert_eq!(array, array_de);
@@ -642,16 +597,13 @@ mod sequences {
     fn test_ser_tuple_same_type() {
         let tuple: (u32, u32, u32) = (1, 2, 3);
 
-        assert_ser_tokens(
-            &tuple,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_ser_tokens(&tuple, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ]);
 
         let field = to_field(tuple).unwrap();
         assert_eq!(field, expected_same_type_field());
@@ -661,16 +613,13 @@ mod sequences {
     fn test_de_tuple_same_type() {
         let tuple: (u32, u32, u32) = (1, 2, 3);
 
-        assert_de_tokens(
-            &tuple,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_de_tokens(&tuple, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ]);
 
         let tuple_de: (u32, u32, u32) = from_field(expected_same_type_field()).unwrap();
         assert_eq!(tuple, tuple_de);
@@ -692,16 +641,13 @@ mod sequences {
     fn test_ser_tuple_different_type() {
         let tuple: (u32, u16, u8) = (1, 2, 3);
 
-        assert_ser_tokens(
-            &tuple,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U16(2),
-                Token::U8(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_ser_tokens(&tuple, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U16(2),
+            Token::U8(3),
+            Token::TupleEnd,
+        ]);
 
         let field = to_field(tuple).unwrap();
         assert_eq!(field, expected_different_type_field());
@@ -711,16 +657,13 @@ mod sequences {
     fn test_de_tuple_different_type() {
         let tuple: (u32, u16, u8) = (1, 2, 3);
 
-        assert_de_tokens(
-            &tuple,
-            &[
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U16(2),
-                Token::U8(3),
-                Token::TupleEnd,
-            ],
-        );
+        assert_de_tokens(&tuple, &[
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U16(2),
+            Token::U8(3),
+            Token::TupleEnd,
+        ]);
 
         let tuple_de: (u32, u16, u8) = from_field(expected_different_type_field()).unwrap();
         assert_eq!(tuple, tuple_de);
@@ -743,12 +686,9 @@ mod accountid32 {
         let account_id: AccountId32 =
             AccountId32::from_str("12bzRJfh7arnnfPPUZHeJUaE62QLEwhK48QnH9LXeK2m1iZU").unwrap();
 
-        assert_ser_tokens(
-            &account_id,
-            &[Token::Str(
-                "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-            )],
-        );
+        assert_ser_tokens(&account_id, &[Token::Str(
+            "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+        )]);
 
         let field = to_field(account_id).unwrap();
         assert_eq!(field, expected_accountid32_field());
@@ -759,12 +699,9 @@ mod accountid32 {
         let account_id: AccountId32 =
             AccountId32::from_str("12bzRJfh7arnnfPPUZHeJUaE62QLEwhK48QnH9LXeK2m1iZU").unwrap();
 
-        assert_de_tokens(
-            &account_id,
-            &[Token::Str(
-                "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-            )],
-        );
+        assert_de_tokens(&account_id, &[Token::Str(
+            "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+        )]);
 
         let account_id_de: AccountId32 = from_field(expected_accountid32_field()).unwrap();
         assert_eq!(account_id, account_id_de);

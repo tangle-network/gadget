@@ -10,7 +10,7 @@ use crate::sources::{process_arguments_and_env, BinarySourceFetcher};
 use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use gadget_config::Protocol;
-use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use gadget_logging::{error, info, trace, warn};
 use gadget_std::fmt::Debug;
 use gadget_std::sync::atomic::Ordering;
@@ -84,7 +84,9 @@ impl VerifiedBlueprint<'_> {
                 // We must wait for the process to exit successfully
                 let status = process_handle.wait_with_output().await?;
                 if status.status.success() {
-                    info!("***Protocol (registration mode) {sub_service_str} executed successfully***");
+                    info!(
+                        "***Protocol (registration mode) {sub_service_str} executed successfully***"
+                    );
                 } else {
                     error!(
                         "Protocol (registration mode) {sub_service_str} failed to execute: {status:?}"
@@ -318,7 +320,9 @@ pub(crate) async fn handle_tangle_event(
                 // Safe assertion since we know there is at least one fetcher. All fetchers should have the same blueprint id
                 let fetcher = &verified_blueprints.fetcher;
                 if fetcher.blueprint_id() == *blueprint_id && !services.contains(service_id) {
-                    warn!("Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}");
+                    warn!(
+                        "Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}"
+                    );
                     to_remove.push((*blueprint_id, *service_id));
                 }
             }
@@ -335,13 +339,17 @@ pub(crate) async fn handle_tangle_event(
     }
 
     for (blueprint_id, service_id) in to_remove {
-        warn!("Removing service that is no longer active on-chain or killed: bid={blueprint_id}//sid={service_id}");
+        warn!(
+            "Removing service that is no longer active on-chain or killed: bid={blueprint_id}//sid={service_id}"
+        );
         let mut should_delete_blueprint = false;
         if let Some(gadgets) = active_gadgets.get_mut(&blueprint_id) {
             if let Some((_, mut process_handle)) = gadgets.remove(&service_id) {
                 if let Some(abort_handle) = process_handle.take() {
                     if abort_handle.send(()).is_err() {
-                        error!("Failed to send abort signal to service: bid={blueprint_id}//sid={service_id}");
+                        error!(
+                            "Failed to send abort signal to service: bid={blueprint_id}//sid={service_id}"
+                        );
                     } else {
                         warn!("Sent abort signal to service: bid={blueprint_id}//sid={service_id}");
                     }

@@ -1,21 +1,20 @@
+use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
 use crate::node::transactions::setup_operator_and_service_multiple;
-use crate::Error;
 use crate::{
-    keys::inject_tangle_key,
-    node::{run, transactions, NodeConfig},
     InputValue, OutputValue,
+    keys::inject_tangle_key,
+    node::{NodeConfig, run, transactions},
 };
+use blueprint_runner::error::RunnerError;
+use blueprint_runner::tangle::tangle::PriceTargets;
 use gadget_client_tangle::client::TangleClient;
-use gadget_config::{supported_chains::SupportedChains, ContextConfig, BlueprintEnvironment};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_logging::debug;
-use gadget_runners::core::error::RunnerError;
-use gadget_runners::tangle::tangle::PriceTargets;
 use std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
@@ -47,7 +46,7 @@ pub struct TangleTestConfig {
 }
 
 /// Test harness for Tangle network tests
-pub struct TangleTestHarness {
+pub struct TangleTestHarness<Ctx> {
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
     client: TangleClient,
@@ -55,6 +54,7 @@ pub struct TangleTestHarness {
     pub ecdsa_signer: TanglePairSigner<sp_core::ecdsa::Pair>,
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
     config: TangleTestConfig,
+    context: Ctx,
     temp_dir: tempfile::TempDir,
     _node: crate::node::testnet::SubstrateNode,
 }
@@ -93,11 +93,15 @@ pub async fn generate_env_from_node_id(
 }
 
 #[async_trait::async_trait]
-impl TestHarness for TangleTestHarness {
+impl<Ctx> TestHarness for TangleTestHarness<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     type Config = TangleTestConfig;
+    type Context = Ctx;
     type Error = Error;
 
-    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
+    async fn setup(test_dir: TempDir, context: Self::Context) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
         let node = run(NodeConfig::new(false))
             .await
@@ -145,6 +149,7 @@ impl TestHarness for TangleTestHarness {
             temp_dir: test_dir,
             config,
             _node: node,
+            context,
         };
 
         // Deploy MBSM if needed
@@ -167,7 +172,10 @@ struct NodeInfo {
     preferences: Preferences,
 }
 
-impl TangleTestHarness {
+impl<Ctx> TangleTestHarness<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     async fn get_all_node_info<const N: usize>(&self) -> Result<Vec<NodeInfo>, RunnerError> {
         let mut nodes = vec![];
 
@@ -191,7 +199,7 @@ impl TangleTestHarness {
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
 
             let preferences = Preferences {
-                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0 .0).unwrap(),
+                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0.0).unwrap(),
                 price_targets: PriceTargets::default().0,
             };
 
@@ -279,7 +287,7 @@ impl TangleTestHarness {
     pub async fn setup_services<const N: usize>(
         &self,
         exit_after_registration: bool,
-    ) -> Result<(MultiNodeTestEnv, u64, u64), Error> {
+    ) -> Result<(MultiNodeTestEnv<Ctx>, u64, u64), Error> {
         const { assert!(N > 0, "Must have at least 1 initial node") };
 
         // Deploy blueprint
@@ -321,7 +329,8 @@ impl TangleTestHarness {
         };
 
         // Create and initialize the new multi-node environment
-        let executor = MultiNodeTestEnv::new::<N>(self.config.clone()).await?;
+        let executor =
+            MultiNodeTestEnv::new::<N>(self.config.clone(), self.context.clone()).await?;
 
         Ok((executor, service_id, blueprint_id))
     }

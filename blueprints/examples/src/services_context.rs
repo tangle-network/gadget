@@ -1,4 +1,3 @@
-use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::contexts::tangle::TangleClientContext;
 use blueprint_sdk::crypto::sp_core::SpSr25519;
@@ -12,6 +11,7 @@ use blueprint_sdk::keystore::backends::Backend;
 use blueprint_sdk::logging::info;
 use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
 use blueprint_sdk::macros::ext::clients::GadgetServicesClient;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::tangle_subxt::subxt::utils::AccountId32;
 use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
@@ -33,13 +33,10 @@ pub async fn constructor(
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
     info!("Starting the event watcher for {:?} ...", signer.0);
-    HandleJobEventHandler::new(
-        &env.clone(),
-        ExampleServiceContext {
-            sdk_config: env,
-            call_id: None,
-        },
-    )
+    HandleJobEventHandler::new(&env.clone(), ExampleServiceContext {
+        sdk_config: env,
+        call_id: None,
+    })
     .await
     .map_err(|e| color_eyre::eyre::eyre!(e))
 }

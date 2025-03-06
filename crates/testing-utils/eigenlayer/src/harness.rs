@@ -1,12 +1,12 @@
-use crate::env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
 use crate::Error;
+use crate::env::{EigenlayerTestEnvironment, setup_eigenlayer_test_environment};
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
-use gadget_anvil_testing_utils::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
+use gadget_anvil_testing_utils::keys::{ANVIL_PRIVATE_KEYS, inject_anvil_key};
+use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
 use gadget_config::{
-    protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    BlueprintEnvironment,
+    BlueprintEnvironment, ContextConfig, protocol::EigenlayerContractAddresses,
+    supported_chains::SupportedChains,
 };
 use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
 use gadget_utils::evm::get_provider_http;

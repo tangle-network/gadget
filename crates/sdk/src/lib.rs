@@ -52,7 +52,7 @@ pub use blueprint_router::Router;
 #[cfg(feature = "macros")]
 mod macros_feat {
     pub use blueprint_macros::debug_job;
-    pub use gadget_context_derive::*;
+    pub use gadget_context_derive as context;
 }
 #[cfg(feature = "macros")]
 pub use macros_feat::*;
@@ -61,19 +61,19 @@ pub use macros_feat::*;
 
 #[cfg(feature = "tangle")]
 mod tangle_feat {
-    pub use tangle_subxt;
     pub use blueprint_tangle_extra as tangle;
+    pub use tangle_subxt;
 }
 #[cfg(feature = "tangle")]
-pub use tangle_feat::tangle;
+pub use tangle_feat::*;
 
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
 mod evm_feat {
-    pub use blueprint_evm_extra as evm;
     pub use alloy;
+    pub use blueprint_evm_extra as evm;
 }
 #[cfg(any(feature = "evm", feature = "eigenlayer"))]
-pub use evm_feat::evm;
+pub use evm_feat::*;
 
 #[cfg(feature = "eigenlayer")]
 pub use eigensdk;

@@ -1,4 +1,4 @@
-use alloy_primitives::{keccak256, Address};
+use alloy_primitives::{Address, keccak256};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

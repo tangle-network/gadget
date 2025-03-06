@@ -1,20 +1,20 @@
 use std::path::PathBuf;
 
-use crate::deploy::tangle::{deploy_to_tangle, Opts};
+use crate::deploy::tangle::{Opts, deploy_to_tangle};
 use crate::keys::prompt_for_keys;
 use cargo_tangle::anvil::start_default_anvil_testnet;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
-use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
+use cargo_tangle::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_to_eigenlayer};
 use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
 use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
 use gadget_config::{
+    BlueprintEnvironment, Error,
     protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
     supported_chains::SupportedChains,
-    Error, BlueprintEnvironment,
 };
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
@@ -534,7 +534,9 @@ async fn main() -> color_eyre::Result<()> {
                 let mnemonic = keys::generate_mnemonic(word_count)?;
                 eprintln!("Generated mnemonic phrase:");
                 eprintln!("{}", mnemonic);
-                eprintln!("\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys.");
+                eprintln!(
+                    "\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys."
+                );
             }
         },
     }

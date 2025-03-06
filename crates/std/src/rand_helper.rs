@@ -4,9 +4,8 @@ use rand::RngCore;
 use rand::prelude::StdRng;
 
 pub use rand::{
-    self,
+    self, CryptoRng, Rng,
     distributions::{Distribution, Standard},
-    CryptoRng, Rng,
 };
 
 /// Trait for generating uniform random values

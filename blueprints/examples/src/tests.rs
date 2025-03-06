@@ -222,14 +222,10 @@ async fn test_services_context() -> Result<()> {
 
     // Execute job and verify result
     let results = harness
-        .submit_job(
-            service_id,
-            3,
-            vec![InputValue::List(
-                FieldType::Uint8,
-                BoundedVec(vec![InputValue::Uint8(0)]),
-            )],
-        )
+        .submit_job(service_id, 3, vec![InputValue::List(
+            FieldType::Uint8,
+            BoundedVec(vec![InputValue::Uint8(0)]),
+        )])
         .await?;
 
     assert_eq!(results.service_id, service_id);
@@ -295,7 +291,7 @@ async fn balance_transfer_event(env: BlueprintEnvironment) -> Result<JoinHandle<
     let transfer_client = client.clone();
     let signer = env.keystore().first_local::<SpSr25519>().unwrap();
     let sr_pair = TanglePairSigner::new(env.keystore().get_secret::<SpSr25519>(&signer).unwrap().0);
-    let transfer_id = AccountId32::from(signer.0 .0);
+    let transfer_id = AccountId32::from(signer.0.0);
     let receiver_id = AccountId32::from(random::<[u8; 32]>());
 
     // Spawn task to transfer balance into Operator's account on Tangle

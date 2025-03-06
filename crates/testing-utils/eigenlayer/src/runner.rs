@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 
+use blueprint_core::{Job, JobCall};
+use blueprint_runner::BackgroundService;
 use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::eigenlayer::bls::EigenlayerBLSConfig;
+use blueprint_runner::error::RunnerError as Error;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
-use gadget_event_listeners::core::InitializableEventHandler;
-use gadget_macros::ext::futures;
-use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -33,7 +32,7 @@ impl TestEnv for EigenlayerBLSTestEnv {
 
     fn add_job<J>(&mut self, job: J)
     where
-        J: InitializableEventHandler + Send + Sync + 'static,
+        J: Job<JobCall, ()> + Send + Sync + 'static,
     {
         self.runner.add_job(job);
     }

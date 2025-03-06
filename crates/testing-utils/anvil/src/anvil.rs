@@ -1,6 +1,6 @@
 use alloy_contract::{CallBuilder, CallDecoder};
-use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
+use alloy_provider::network::Ethereum;
 use alloy_rpc_types_eth::TransactionReceipt;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
@@ -8,14 +8,14 @@ use gadget_std::time::Duration;
 use std::fs;
 use tempfile::TempDir;
 use testcontainers::{
+    ContainerAsync, GenericImage, ImageExt,
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
-    ContainerAsync, GenericImage, ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
 
 use crate::error::Error;
-use crate::state::{get_default_state_json, AnvilState};
+use crate::state::{AnvilState, get_default_state_json};
 
 pub type Container = ContainerAsync<GenericImage>;
 

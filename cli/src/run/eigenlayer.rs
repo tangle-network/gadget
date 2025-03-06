@@ -1,5 +1,5 @@
-use color_eyre::eyre::{eyre, Result};
-use gadget_config::{supported_chains::SupportedChains, BlueprintEnvironment};
+use color_eyre::eyre::{Result, eyre};
+use gadget_config::{BlueprintEnvironment, supported_chains::SupportedChains};
 use gadget_std::fs;
 use gadget_std::path::PathBuf;
 use tokio::io::AsyncBufReadExt;

@@ -1,5 +1,5 @@
 use alloy_primitives::Uint;
-use alloy_primitives::{address, Address};
+use alloy_primitives::{Address, address};
 use alloy_provider::Provider;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;

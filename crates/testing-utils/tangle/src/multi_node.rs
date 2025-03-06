@@ -1,39 +1,40 @@
 use crate::harness::ENDOWED_TEST_NAMES;
 use crate::{
-    harness::{generate_env_from_node_id, TangleTestConfig},
-    runner::TangleTestEnv,
     Error,
+    harness::{TangleTestConfig, generate_env_from_node_id},
+    runner::TangleTestEnv,
 };
+use blueprint_core::Job;
+use blueprint_core::JobCall;
+use blueprint_runner::BackgroundService;
+use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::error::RunnerError;
+use blueprint_runner::tangle::tangle::TangleConfig;
 use futures::future::join_all;
 use gadget_config::Multiaddr;
-use blueprint_runner::config::BlueprintEnvironment;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClient};
 use gadget_core_testing_utils::runner::TestEnv;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
-use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::SpSr25519;
-use gadget_runners::core::error::RunnerError;
-use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tangle_subxt::subxt::tx::Signer;
-use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
+use tokio::sync::{RwLock, broadcast, mpsc, oneshot};
 
 #[derive(Clone, Debug)]
-pub enum NodeSlot {
-    Occupied(Arc<NodeHandle>),
+pub enum NodeSlot<Ctx> {
+    Occupied(Arc<NodeHandle<Ctx>>),
     Empty,
 }
 
 /// Improved multi-node test environment with better control and observability
-pub struct MultiNodeTestEnv {
-    pub nodes: Arc<RwLock<Vec<NodeSlot>>>,
+pub struct MultiNodeTestEnv<Ctx> {
+    pub nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
     pub command_tx: mpsc::Sender<EnvironmentCommand>,
     pub event_tx: broadcast::Sender<TestEvent>,
     pub config: Arc<TangleTestConfig>,
@@ -65,9 +66,15 @@ pub enum TestEvent {
     Error(String),
 }
 
-impl MultiNodeTestEnv {
+impl<Ctx> MultiNodeTestEnv<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     /// Creates a new multi-node test environment
-    pub async fn new<const N: usize>(config: TangleTestConfig) -> Result<Self, Error> {
+    pub async fn new<const N: usize>(
+        config: TangleTestConfig,
+        context: Ctx,
+    ) -> Result<Self, Error> {
         const { assert!(N > 0, "Must have at least 1 initial node") };
 
         let (command_tx, command_rx) = mpsc::channel(32);
@@ -85,6 +92,7 @@ impl MultiNodeTestEnv {
 
         Self::spawn_command_handler(
             env.nodes.clone(),
+            context,
             env.config.clone(),
             env.running_nodes.clone(),
             command_rx,
@@ -145,7 +153,7 @@ impl MultiNodeTestEnv {
     pub async fn add_job<
         T: Fn(BlueprintEnvironment) -> F + Clone + Send + Sync + 'static,
         F: Future<Output = Result<K, E>> + Send + 'static,
-        K: InitializableEventHandler + Send + Sync + 'static,
+        K: Job<JobCall, ()> + Send + Sync + 'static,
         E: std::fmt::Debug + Send + 'static,
     >(
         &self,
@@ -211,7 +219,8 @@ impl MultiNodeTestEnv {
     }
 
     fn spawn_command_handler(
-        nodes: Arc<RwLock<Vec<NodeSlot>>>,
+        nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
+        context: Ctx,
         config: Arc<TangleTestConfig>,
         running_nodes: Arc<AtomicUsize>,
         mut command_rx: mpsc::Receiver<EnvironmentCommand>,
@@ -224,6 +233,7 @@ impl MultiNodeTestEnv {
                     EnvironmentCommand::AddNode { node_id, result_tx } => {
                         let result = Self::handle_add_node(
                             nodes.clone(),
+                            context.clone(),
                             node_id,
                             config.clone(),
                             &event_tx,
@@ -251,7 +261,7 @@ impl MultiNodeTestEnv {
         });
     }
 
-    pub async fn node_handles(&self) -> Vec<Arc<NodeHandle>> {
+    pub async fn node_handles(&self) -> Vec<Arc<NodeHandle<Ctx>>> {
         self.nodes
             .read()
             .await
@@ -264,19 +274,20 @@ impl MultiNodeTestEnv {
     }
 
     async fn handle_add_node(
-        nodes: Arc<RwLock<Vec<NodeSlot>>>,
+        nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
+        context: Ctx,
         node_id: usize,
         config: Arc<TangleTestConfig>,
         event_tx: &broadcast::Sender<TestEvent>,
     ) -> Result<(), Error> {
-        let node = NodeHandle::new(node_id, &config).await?;
+        let node = NodeHandle::new(node_id, &config, context).await?;
         nodes.write().await[node_id] = NodeSlot::Occupied(node);
         let _ = event_tx.send(TestEvent::NodeAdded(node_id));
         Ok(())
     }
 
     async fn handle_remove_node(
-        nodes: Arc<RwLock<Vec<NodeSlot>>>,
+        nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
         node_id: usize,
         event_tx: &broadcast::Sender<TestEvent>,
     ) -> Result<(), Error> {
@@ -298,7 +309,7 @@ impl MultiNodeTestEnv {
     }
 
     async fn handle_start(
-        nodes: Arc<RwLock<Vec<NodeSlot>>>,
+        nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
         event_tx: &broadcast::Sender<TestEvent>,
         running_nodes: Arc<AtomicUsize>,
     ) -> Result<(), Error> {
@@ -340,7 +351,7 @@ impl MultiNodeTestEnv {
     }
 
     async fn handle_shutdown(
-        nodes: Arc<RwLock<Vec<NodeSlot>>>,
+        nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
         event_tx: &broadcast::Sender<TestEvent>,
     ) {
         let nodes = nodes.read().await;
@@ -387,7 +398,7 @@ impl Debug for NodeCommand {
 }
 
 /// Represents a single node in the multi-node test environment
-pub struct NodeHandle {
+pub struct NodeHandle<Ctx> {
     pub node_id: usize,
     pub addr: Multiaddr,
     pub port: u16,
@@ -395,15 +406,21 @@ pub struct NodeHandle {
     pub signer: TanglePairSigner<sp_core::sr25519::Pair>,
     state: Arc<RwLock<NodeState>>,
     command_tx: mpsc::Sender<NodeCommand>,
-    pub test_env: Arc<RwLock<TangleTestEnv>>,
+    pub test_env: Arc<RwLock<TangleTestEnv<Ctx>>>,
 }
 
-impl NodeHandle {
+impl<Ctx> NodeHandle<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     /// Adds a job to the node to be executed when the test is run.
     ///
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
-    pub async fn add_job<K: InitializableEventHandler + Send + Sync + 'static>(&self, job: K) {
+    pub async fn add_job<J>(&self, job: J)
+    where
+        J: Job<JobCall, ()> + Send + Sync + 'static,
+    {
         self.test_env.write().await.add_job(job)
     }
 
@@ -416,7 +433,7 @@ impl NodeHandle {
     }
 }
 
-impl Debug for NodeHandle {
+impl<Ctx> Debug for NodeHandle<Ctx> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeHandle")
             .field("node_id", &self.node_id)
@@ -427,8 +444,15 @@ impl Debug for NodeHandle {
 }
 
 // Implementation for NodeHandle
-impl NodeHandle {
-    async fn new(node_id: usize, config: &TangleTestConfig) -> Result<Arc<Self>, Error> {
+impl<Ctx> NodeHandle<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
+    async fn new(
+        node_id: usize,
+        config: &TangleTestConfig,
+        context: Ctx,
+    ) -> Result<Arc<Self>, Error> {
         let (command_tx, command_rx) = mpsc::channel(32);
         let state = Arc::new(RwLock::new(NodeState { is_running: true }));
 
@@ -452,7 +476,7 @@ impl NodeHandle {
         let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
 
         // Create TangleTestEnv for this node
-        let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
+        let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone(), context)?;
 
         let port = find_open_tcp_bind_port();
         gadget_logging::info!("Binding node {node_id} to port {port}");

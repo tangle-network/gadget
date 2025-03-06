@@ -1,5 +1,5 @@
-use blueprint_core::{Bytes, IntoJobId, JobCall, JobId};
 use blueprint_core::error::BoxError;
+use blueprint_core::{Bytes, IntoJobId, JobCall, JobId};
 use chrono::{TimeZone, Utc};
 use core::pin::Pin;
 use core::task::Poll;

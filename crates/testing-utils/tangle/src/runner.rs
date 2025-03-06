@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 
-use gadget_config::Multiaddr;
+use blueprint_core::{Job, JobCall};
+use blueprint_runner::BackgroundService;
 use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::error::RunnerError as Error;
+use blueprint_runner::tangle::config::TangleConfig;
+use gadget_config::Multiaddr;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
-use gadget_event_listeners::core::InitializableEventHandler;
-use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-pub struct TangleTestEnv {
-    pub runner: TestRunner,
+pub struct TangleTestEnv<Ctx> {
+    pub runner: TestRunner<Ctx>,
     pub config: TangleConfig,
     pub gadget_config: BlueprintEnvironment,
     pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
-impl TangleTestEnv {
+impl<Ctx> TangleTestEnv<Ctx> {
     pub(crate) fn update_networking_config(
         &mut self,
         bootnodes: Vec<Multiaddr>,
@@ -29,7 +29,7 @@ impl TangleTestEnv {
     }
 }
 
-impl Debug for TangleTestEnv {
+impl<Ctx> Debug for TangleTestEnv<Ctx> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TangleTestEnv")
             .field("config", &self.config)
@@ -38,11 +38,15 @@ impl Debug for TangleTestEnv {
     }
 }
 
-impl TestEnv for TangleTestEnv {
+impl<Ctx> TestEnv for TangleTestEnv<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     type Config = TangleConfig;
+    type Context = Ctx;
 
-    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error> {
-        let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone());
+    fn new(config: Self::Config, env: BlueprintEnvironment, context: Ctx) -> Result<Self, Error> {
+        let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone(), context);
 
         Ok(Self {
             runner,
@@ -54,7 +58,7 @@ impl TestEnv for TangleTestEnv {
 
     fn add_job<J>(&mut self, job: J)
     where
-        J: InitializableEventHandler + Send + Sync + 'static,
+        J: Job<JobCall, ()> + Send + Sync + 'static,
     {
         self.runner.add_job(job);
     }
@@ -111,7 +115,7 @@ impl TestEnv for TangleTestEnv {
     }
 }
 
-impl Drop for TangleTestEnv {
+impl<Ctx> Drop for TangleTestEnv<Ctx> {
     fn drop(&mut self) {
         futures::executor::block_on(async {
             let mut _guard = self.runner_handle.lock().await;

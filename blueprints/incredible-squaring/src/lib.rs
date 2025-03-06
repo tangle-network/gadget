@@ -1,9 +1,8 @@
-use std::convert::Infallible;
-use blueprint_sdk::event_listeners::tangle::events::TangleEventListener;
-use blueprint_sdk::event_listeners::tangle::services::{services_post_processor, services_pre_processor};
-use blueprint_sdk::macros::contexts::{ServicesContext, TangleClientContext};
-use blueprint_sdk::macros::ext::tangle::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+use blueprint_sdk::extract::Context;
 use blueprint_sdk::runner::config::BlueprintEnvironment;
+use blueprint_sdk::tangle::extract::TangleArg;
+use blueprint_sdk::{ServicesContext, TangleClientContext};
+use std::convert::Infallible;
 
 #[cfg(test)]
 mod tests;
@@ -16,16 +15,10 @@ pub struct MyContext {
     pub call_id: Option<u64>,
 }
 
-#[blueprint_sdk::job(
-    id = 0,
-    params(x),
-    event_listener(
-        listener = TangleEventListener<MyContext, JobCalled>,
-        pre_processor = services_pre_processor,
-        post_processor = services_post_processor,
-    ),
-)]
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
-pub fn xsquare(x: u64, _context: MyContext) -> Result<u64, Infallible> {
+pub async fn xsquare(
+    Context(_context): Context<MyContext>,
+    TangleArg(x): TangleArg<u64>,
+) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2))
 }

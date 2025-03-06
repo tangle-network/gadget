@@ -1,39 +1,43 @@
+use blueprint_core::Job;
 use blueprint_core::JobCall;
-use std::future;
-use std::future::Pending;
+use blueprint_router::Router;
 use blueprint_runner::BlueprintConfig;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::error::RunnerError as Error;
 use blueprint_runner::{BackgroundService, BlueprintRunner, BlueprintRunnerBuilder};
-use blueprint_router::Router;
-use blueprint_core::Job;
+use std::future;
+use std::future::Pending;
 
 pub struct TestRunner<Ctx> {
-    router: Router,
+    router: Option<Router>,
     job_index: usize,
-    builder: BlueprintRunnerBuilder<Pending<()>>,
+    builder: Option<BlueprintRunnerBuilder<Pending<()>>>,
     _phantom: core::marker::PhantomData<Ctx>,
 }
 
-impl<Ctx> TestRunner<Ctx> where Ctx: Clone + Send + Sync + 'static{
+impl<Ctx> TestRunner<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     pub fn new<C>(config: C, env: BlueprintEnvironment, context: Ctx) -> Self
     where
         C: BlueprintConfig + 'static,
     {
-        let builder = BlueprintRunner::builder(config, env).with_shutdown_handler(future::pending());
+        let builder =
+            BlueprintRunner::builder(config, env).with_shutdown_handler(future::pending());
         TestRunner {
-            router: Router::new().with_context(context),
+            router: Some(Router::new().with_context(context)),
             job_index: 0,
-            builder,
+            builder: Some(builder),
             _phantom: core::marker::PhantomData,
         }
     }
 
     pub fn add_job<J>(&mut self, job: J) -> &mut Self
     where
-        J: Job<JobCall, Ctx> + Send + Sync + 'static,
+        J: Job<JobCall, ()> + Send + Sync + 'static,
     {
-        self.router = self.router.route(self.job_index, job);
+        self.router = Some(self.router.take().unwrap().route(self.job_index, job));
         self.job_index += 1;
         self
     }
@@ -42,22 +46,31 @@ impl<Ctx> TestRunner<Ctx> where Ctx: Clone + Send + Sync + 'static{
     where
         B: BackgroundService + Send + 'static,
     {
-        self.builder.background_service(service);
+        self.builder = Some(self.builder.take().unwrap().background_service(service));
         self
     }
 
     pub async fn run(self) -> Result<(), Error> {
-        self.builder.router(self.router).run().await
+        self.builder
+            .unwrap()
+            .router(self.router.unwrap())
+            .run()
+            .await
     }
 }
 
 pub trait TestEnv: Sized {
     type Config: BlueprintConfig;
+    type Context: Clone + Send + Sync + 'static;
 
-    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error>;
+    fn new(
+        config: Self::Config,
+        env: BlueprintEnvironment,
+        context: Self::Context,
+    ) -> Result<Self, Error>;
     fn add_job<J>(&mut self, job: J)
     where
-        J: Send + Sync + 'static;
+        J: Job<JobCall, ()> + Send + Sync + 'static;
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static;

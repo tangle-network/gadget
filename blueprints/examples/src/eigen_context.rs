@@ -1,15 +1,15 @@
-use blueprint_sdk::alloy::primitives::{address, Bytes, U256};
+use blueprint_sdk::alloy::primitives::{Bytes, U256, address};
 use blueprint_sdk::alloy::rpc::types::Log;
 use blueprint_sdk::alloy::sol;
-use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
 use blueprint_sdk::macros::contexts::EigenlayerContext;
 use blueprint_sdk::macros::load_abi;
-use blueprint_sdk::std::{env, Zero};
+use blueprint_sdk::runner::config::BlueprintEnvironment;
+use blueprint_sdk::std::{Zero, env};
 use blueprint_sdk::utils::evm::get_provider_http;
-use blueprint_sdk::{job, Error};
+use blueprint_sdk::{Error, job};
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 
@@ -90,10 +90,12 @@ pub async fn handle_job(
         .await?
         .get_latest_stake_update(operator_id, quorum_number)
         .await?;
-    println!("Latest Stake Update: \n\tStake: {:?},\n\tUpdate Block Number: {:?},\n\tNext Update Block Number: {:?}",
-             latest_stake_update.stake,
-             latest_stake_update.updateBlockNumber,
-             latest_stake_update.nextUpdateBlockNumber);
+    println!(
+        "Latest Stake Update: \n\tStake: {:?},\n\tUpdate Block Number: {:?},\n\tNext Update Block Number: {:?}",
+        latest_stake_update.stake,
+        latest_stake_update.updateBlockNumber,
+        latest_stake_update.nextUpdateBlockNumber
+    );
     let block_number = latest_stake_update.updateBlockNumber;
     assert!(latest_stake_update.nextUpdateBlockNumber.is_zero());
 
@@ -134,10 +136,10 @@ pub async fn handle_job(
         .await?;
     println!("Stake History for {operator_id} in Quorum {quorum_number}:");
     for (update_num, stake_update) in stake_history.as_slice().iter().enumerate() {
-        println!("\tStake Update {update_num}: \n\t\tStake: {:?},\n\t\tUpdate Block Number: {:?},\n\t\tNext Update Block Number: {:?}",
-                 stake_update.stake,
-                 stake_update.updateBlockNumber,
-                 stake_update.nextUpdateBlockNumber);
+        println!(
+            "\tStake Update {update_num}: \n\t\tStake: {:?},\n\t\tUpdate Block Number: {:?},\n\t\tNext Update Block Number: {:?}",
+            stake_update.stake, stake_update.updateBlockNumber, stake_update.nextUpdateBlockNumber
+        );
     }
     assert!(!stake_history.is_empty());
 
@@ -147,7 +149,12 @@ pub async fn handle_job(
         .await?
         .get_operator_stake_update_at_index(quorum_number, operator_id, index)
         .await?;
-    println!("Stake Update at Index {index}: \n\tStake: {:?}\n\tUpdate Block Number: {:?}\n\tNext Update Block Number: {:?}", stake_update_at_index.stake, stake_update_at_index.updateBlockNumber, stake_update_at_index.nextUpdateBlockNumber);
+    println!(
+        "Stake Update at Index {index}: \n\tStake: {:?}\n\tUpdate Block Number: {:?}\n\tNext Update Block Number: {:?}",
+        stake_update_at_index.stake,
+        stake_update_at_index.updateBlockNumber,
+        stake_update_at_index.nextUpdateBlockNumber
+    );
     assert!(stake_update_at_index.nextUpdateBlockNumber.is_zero());
 
     // Get an Operator's stake at a given block number.
