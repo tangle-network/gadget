@@ -13,7 +13,6 @@ use crate::error::TaskError;
 use alloy_primitives::{keccak256, U256};
 use alloy_provider::RootProvider;
 use alloy_sol_types::{SolEvent, SolType, SolValue};
-use alloy_transport::BoxTransport;
 use blueprint_evm_extra::extract::{BlockNumber, ContractAddress, FirstEvent, Tx};
 use blueprint_evm_extra::filters::{contract::MatchesContract, event::MatchesEvent};
 use blueprint_sdk::extract::Context;
@@ -21,6 +20,8 @@ use blueprint_sdk::*;
 use eigensdk::crypto_bls::{
     convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point, BlsKeyPair,
 };
+use eigensdk::services_blsaggregation::bls_agg;
+use eigensdk::services_blsaggregation::bls_agg::{TaskMetadata, TaskSignature};
 use eigensdk::types::operator::OperatorId;
 use tokio::sync::Mutex;
 use tower::filter::FilterLayer;
@@ -32,9 +33,9 @@ pub mod error;
 /// Service context shared between jobs
 #[derive(Debug, Clone)]
 pub struct ExampleContext {
-    provider: Arc<RootProvider<BoxTransport>>,
+    provider: Arc<RootProvider>,
     keystore: Keystore,
-    bls_aggregation_service: Arc<Mutex<config::BlsAggServiceInMemory>>,
+    bls_aggregation_service: Arc<Mutex<(bls_agg::ServiceHandle, bls_agg::AggregateReceiver)>>,
 }
 
 /// Job function for handling tasks
@@ -64,30 +65,33 @@ pub async fn handle_task(
     };
 
     // Initialize the task.
-    let lock = ctx.bls_aggregation_service.lock().await;
+    let mut lock = ctx.bls_aggregation_service.lock().await;
     let time_to_expiry = std::time::Duration::from_secs(1200);
-    lock.initialize_new_task(
-        ev.taskIndex,
-        ev.task.taskCreatedBlock,
-        ev.task.quorumNumbers.to_vec(),
-        vec![ev.task.quorumThresholdPercentage.try_into().unwrap(); ev.task.quorumNumbers.len()],
-        time_to_expiry,
-    )
-    .await?;
+    lock.0
+        .initialize_task(TaskMetadata::new(
+            ev.taskIndex,
+            ev.task.taskCreatedBlock as u64,
+            ev.task.quorumNumbers.to_vec(),
+            vec![
+                ev.task.quorumThresholdPercentage.try_into().unwrap();
+                ev.task.quorumNumbers.len()
+            ],
+            time_to_expiry,
+        ))
+        .await?;
 
     let msg_hash = keccak256(<TaskResponse as SolType>::abi_encode(&task_response));
     let bls_key_pair = ctx.keystore.bls_keypair();
     let operator_id = operator_id_from_key(bls_key_pair.clone());
     let sig = bls_key_pair.sign_message(&msg_hash);
-    lock.process_new_signature(ev.taskIndex, msg_hash, sig, operator_id)
+    lock.0
+        .process_signature(TaskSignature::new(ev.taskIndex, msg_hash, sig, operator_id))
         .await?;
     let response = lock
-        .aggregated_response_receiver
-        .lock()
+        .1
+        .receive_aggregated_response()
         .await
-        .recv()
-        .await
-        .ok_or(TaskError::AggregatedResponseReceiverClosed)??;
+        .map_err(|_| TaskError::AggregatedResponseReceiverClosed)?;
     let non_signer_stakes_and_signature = NonSignerStakesAndSignature {
         nonSignerPubkeys: response
             .non_signers_pub_keys_g1
@@ -313,7 +317,7 @@ mod tests {
                 ExampleContext {
                     provider: provider.clone(),
                     keystore: Keystore::default(),
-                    bls_aggregation_service: Arc::new(Mutex::new(bls_aggregator_service)),
+                    bls_aggregation_service: Arc::new(Mutex::new(bls_aggregator_service.start())),
                 },
                 *contract.address(),
             ))

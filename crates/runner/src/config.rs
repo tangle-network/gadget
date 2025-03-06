@@ -163,7 +163,7 @@ impl ProtocolSettings {
         }
     }
 
-    /// Attempt to extract the [`EigenlayerContractAddresses`]
+    /// Attempt to extract the [`EigenlayerProtocolSettings`]
     ///
     /// # Errors
     ///
@@ -320,6 +320,15 @@ pub struct BlueprintSettings {
     // ========
     // EIGENLAYER
     // ========
+    /// The address of the allocation manager
+    #[cfg(feature = "eigenlayer")]
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "ALLOCATION_MANAGER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+    )]
+    pub allocation_manager: Option<alloy_primitives::Address>,
     #[cfg(feature = "eigenlayer")]
     /// The address of the registry coordinator
     #[arg(
@@ -392,6 +401,15 @@ pub struct BlueprintSettings {
         required_if_eq("protocol", Protocol::Eigenlayer.as_str())
     )]
     pub rewards_coordinator: Option<alloy_primitives::Address>,
+    /// The address of the permission controller
+    #[cfg(feature = "eigenlayer")]
+    #[arg(
+        long,
+        value_name = "ADDR",
+        env = "PERMISSION_CONTROLLER_ADDRESS",
+        required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+    )]
+    pub permission_controller: Option<alloy_primitives::Address>,
 }
 
 impl Default for BlueprintSettings {
@@ -419,21 +437,25 @@ impl Default for BlueprintSettings {
             // EIGENLAYER
             // ========
             #[cfg(feature = "eigenlayer")]
+            allocation_manager: None,
+            #[cfg(feature = "eigenlayer")]
             registry_coordinator: None,
             #[cfg(feature = "eigenlayer")]
             operator_state_retriever: None,
             #[cfg(feature = "eigenlayer")]
             delegation_manager: None,
             #[cfg(feature = "eigenlayer")]
-            strategy_manager: None,
-            #[cfg(feature = "eigenlayer")]
             service_manager: None,
             #[cfg(feature = "eigenlayer")]
             stake_registry: None,
             #[cfg(feature = "eigenlayer")]
+            strategy_manager: None,
+            #[cfg(feature = "eigenlayer")]
             avs_directory: None,
             #[cfg(feature = "eigenlayer")]
             rewards_coordinator: None,
+            #[cfg(feature = "eigenlayer")]
+            permission_controller: None,
         }
     }
 }

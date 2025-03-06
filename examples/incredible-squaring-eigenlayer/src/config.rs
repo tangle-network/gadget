@@ -1,7 +1,6 @@
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::BoxTransport;
 use blueprint_runner::{
     config::BlueprintEnvironment, error::RunnerError as Error, BlueprintConfig,
 };
@@ -19,12 +18,11 @@ use eigensdk::{
 use gadget_anvil_testing_utils::keys::ANVIL_PRIVATE_KEYS;
 use tracing::info;
 
-pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
+pub fn get_provider_http(http_endpoint: &str) -> RootProvider {
     let provider = ProviderBuilder::new()
         .on_http(http_endpoint.parse().unwrap())
         .root()
-        .clone()
-        .boxed();
+        .clone();
 
     provider
 }
@@ -36,14 +34,13 @@ pub type BlsAggServiceInMemory = BlsAggregatorService<
 pub fn get_wallet_provider_http(
     http_endpoint: &str,
     signer: alloy_signer_local::PrivateKeySigner,
-) -> RootProvider<BoxTransport> {
+) -> RootProvider {
     let wallet = alloy_network::EthereumWallet::new(signer);
     let provider = ProviderBuilder::new()
         .wallet(wallet)
         .on_http(http_endpoint.parse().unwrap())
         .root()
-        .clone()
-        .boxed();
+        .clone();
 
     provider
 }
@@ -124,12 +121,12 @@ impl BlueprintConfig for EigenlayerBLSConfig {
         let provider = get_provider_http(&env.http_rpc_endpoint);
 
         let delegation_manager =
-            eigensdk::utils::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
+            eigensdk::utils::slashing::core::delegationmanager::DelegationManager::DelegationManagerInstance::new(
                 contract_addresses.delegation_manager_address,
                 provider,
             );
-        let slasher_address = delegation_manager
-            .slasher()
+        let allocation_manager = delegation_manager
+            .allocationManager()
             .call()
             .await
             .map(|a| a._0)
@@ -162,28 +159,33 @@ impl BlueprintConfig for EigenlayerBLSConfig {
 
         let el_chain_reader = ELChainReader::new(
             logger,
-            slasher_address,
+            Some(allocation_manager),
             contract_addresses.delegation_manager_address,
             contract_addresses.rewards_coordinator_address,
             contract_addresses.avs_directory_address,
+            None,
             env.http_rpc_endpoint.clone(),
         );
 
         let el_writer = ELChainWriter::new(
             contract_addresses.strategy_manager_address,
             contract_addresses.rewards_coordinator_address,
+            None,
+            Some(allocation_manager),
+            contract_addresses.registry_coordinator_address,
             el_chain_reader,
             env.http_rpc_endpoint.clone(),
             operator_private_key.to_string(),
         );
 
-        let staker_opt_out_window_blocks = 50400u32;
+        let staker_opt_out_window_blocks = Some(50400u32);
         let operator_details = Operator {
             address: self.keystore.ecdsa_address(),
-            earnings_receiver_address: self.earnings_receiver_address,
+            _deprecated_earnings_receiver_address: Some(self.earnings_receiver_address),
             delegation_approver_address: self.delegation_approver_address,
-            metadata_url: Some("https://github.com/tangle-network/gadget".to_string()),
+            metadata_url: "https://github.com/tangle-network/gadget".to_string(),
             staker_opt_out_window_blocks,
+            allocation_delay: None,
         };
 
         let tx_hash = el_writer

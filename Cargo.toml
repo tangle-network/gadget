@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["cli", "blueprints/*", "crates/*", "examples/*"]
+members = [
+    "cli",
+    "blueprints/*",
+    "crates/*",
+    "examples/*"
+]
 exclude = ["blueprints/incredible-squaring-symbiotic"]
 
 [workspace.package]
@@ -42,7 +47,7 @@ blueprint-runner = { version = "0.1.0", path = "crates/runner", default-features
 # Extras
 blueprint-tangle-extra = { version = "0.1.0", path = "crates/tangle-extra", default-features = false }
 blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-features = false }
-blueprint-producers-extra = { path = "crates/producers-extra" }
+blueprint-producers-extra = { version = "0.1.0", path = "crates/producers-extra", default-features = false }
 
 # Blueprint Examples
 testing = { version = "0.1.0", path = "./blueprints/testing", default-features = false }
@@ -155,7 +160,9 @@ tokio = { version = "1.40", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 tokio-cron-scheduler = { version = "0.13.0", default-features = false }
 tokio-stream = { version = "0.1.17", default-features = false }
-async-stream = { version = "0.3.5", default-features = false }
+pin-project-lite = "0.2.7"
+tower = { version = "0.5.2", default-features = false }
+async-stream = { version = "0.3.6", default-features = false}
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }
@@ -176,6 +183,7 @@ schnorrkel = { version = "0.11.4", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
 tnt-bls = { version = "0.1.8", default-features = false }
+tiny-keccak = { version = "2.0.2", default-features = false }
 
 # Data Structures & Serialization
 bincode = { version = "1.3.3", default-features = false }
@@ -186,6 +194,9 @@ serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_test = { version = "1.0.177", default-features = false }
+dynosaur = { version = "0.1.3", default-features = false }
+bytes = { version = "1.10.1", default-features = false }
+hashbrown = { version = "0.15.2", default-features = false }
 
 # Error Handling & Logging
 anyhow = { version = "1.0.93", default-features = false }
@@ -214,7 +225,6 @@ tempfile = { version = "3.13.0", default-features = false }
 uuid = { version = "1.10.0", default-features = false }
 blake3 = { version = "1.5.5", default-features = false }
 chrono = { version = "0.4.40", default-features = false }
-dynosaur = { version = "0.1.3", default-features = false }
 
 # Development & Testing
 auto_impl = { version = "1.2.1", default-features = false }

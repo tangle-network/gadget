@@ -33,7 +33,6 @@ alloy-primitives = { workspace = true, features = ["serde"], optional = true }
 alloy-signer-local = { workspace = true, optional = true }
 alloy-signer = { workspace = true, optional = true }
 eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"], optional = true }
-gadget-eigenlayer-bindings = { workspace = true, optional = true }
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["tangle"] }
@@ -56,7 +55,7 @@ tangle = ["dep:tangle-subxt", "dep:blueprint-tangle-extra", "dep:k256", "gadget-
 ## Enable [Eigenlayer] support
 ##
 ## [Eigenlayer]: https://eigenlayer.xyz
-eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "dep:gadget-eigenlayer-bindings", "gadget-utils/evm"]
+eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "gadget-utils/evm"]
 
 ## Enable [Symbiotic] support **(CURRENTLY UNUSED)**
 ##
