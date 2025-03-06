@@ -1,10 +1,10 @@
 use blueprint_sdk::logging::info;
 use blueprint_sdk::macros::ext::tangle::tangle_subxt::subxt::tx::Signer;
-use blueprint_sdk::runners::core::runner::BlueprintRunner;
-use blueprint_sdk::runners::tangle::tangle::TangleConfig;
+use blueprint_sdk::runner::BlueprintRunner;
+use blueprint_sdk::runner::tangle::config::TangleConfig;
 use incredible_squaring_blueprint as blueprint;
 
-#[blueprint_sdk::main(env)]
+#[tokio::main]
 async fn main() {
     let context = blueprint::MyContext {
         env: env.clone(),

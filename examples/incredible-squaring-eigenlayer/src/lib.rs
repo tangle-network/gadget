@@ -2,7 +2,7 @@
 //!
 //! Monitors TaskManager events for task creation and completion.
 
-use std::sync::Arc;
+use ::std::sync::Arc;
 
 use crate::config::Keystore;
 use crate::contracts::IBLSSignatureChecker::NonSignerStakesAndSignature;
