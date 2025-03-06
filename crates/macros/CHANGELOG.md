@@ -1,0 +1,37 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0](https://github.com/tangle-network/gadget/releases/tag/blueprint-macros-v0.1.0) - 2025-03-06
+
+### Added
+
+- debug macros, sdk crate ([#23](https://github.com/tangle-network/gadget/pull/23))
+- new networking ([#664](https://github.com/tangle-network/gadget/pull/664))
+- Add multinode test executor
+- *(cargo-tangle)* eigenlayer deployment ([#645](https://github.com/tangle-network/gadget/pull/645))
+- gadget workspace migration
+
+### Fixed
+
+- update some tests
+- blueprint examples ([#643](https://github.com/tangle-network/gadget/pull/643))
+- update blueprint examples ([#628](https://github.com/tangle-network/gadget/pull/628))
+
+### Other
+
+- remove old event listeners and runners
+- rustdoc and READMEs for crates ([#27](https://github.com/tangle-network/gadget/pull/27))
+- bump alloy & eigensdk ([#696](https://github.com/tangle-network/gadget/pull/696))
+- Generalize networking key type ([#685](https://github.com/tangle-network/gadget/pull/685))
+- cleanup crates for release
+- Update to tangle main services ([#674](https://github.com/tangle-network/gadget/pull/674))
+- *(networking)* stop using `Box<dyn Error>` ([#657](https://github.com/tangle-network/gadget/pull/657))
+- remove `StdGadgetConfiguration` ([#656](https://github.com/tangle-network/gadget/pull/656))
+- cleanup crate features & update `tangle-subxt` ([#642](https://github.com/tangle-network/gadget/pull/642))
+- add descriptions to crates ([#616](https://github.com/tangle-network/gadget/pull/616))
