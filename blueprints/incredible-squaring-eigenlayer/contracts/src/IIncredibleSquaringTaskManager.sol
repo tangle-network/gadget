@@ -1,28 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.13;
+pragma solidity ^0.8.9;
 
 import "@eigenlayer-middleware/src/libraries/BN254.sol";
+import {IStrategy} from "@eigenlayer/contracts/interfaces/IStrategy.sol";
 
 interface IIncredibleSquaringTaskManager {
     // EVENTS
     event NewTaskCreated(uint32 indexed taskIndex, Task task);
 
-    event TaskResponded(
-        TaskResponse taskResponse,
-        TaskResponseMetadata taskResponseMetadata
-    );
+    event TaskResponded(TaskResponse taskResponse, TaskResponseMetadata taskResponseMetadata);
 
     event TaskCompleted(uint32 indexed taskIndex);
 
-    event TaskChallengedSuccessfully(
-        uint32 indexed taskIndex,
-        address indexed challenger
-    );
+    event TaskChallengedSuccessfully(uint32 indexed taskIndex, address indexed challenger);
 
-    event TaskChallengedUnsuccessfully(
-        uint32 indexed taskIndex,
-        address indexed challenger
-    );
+    event TaskChallengedUnsuccessfully(uint32 indexed taskIndex, address indexed challenger);
 
     // STRUCTS
     struct Task {
@@ -57,11 +49,8 @@ interface IIncredibleSquaringTaskManager {
 
     // FUNCTIONS
     // NOTE: this function creates new task.
-    function createNewTask(
-        uint256 numberToBeSquared,
-        uint32 quorumThresholdPercentage,
-        bytes calldata quorumNumbers
-    ) external;
+    function createNewTask(uint256 numberToBeSquared, uint32 quorumThresholdPercentage, bytes calldata quorumNumbers)
+    external;
 
     /// @notice Returns the current 'taskNumber' for the middleware
     function taskNumber() external view returns (uint32);

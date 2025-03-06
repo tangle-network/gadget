@@ -4,10 +4,10 @@ use alloy_signer_local::PrivateKeySigner;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ISignatureUtils::SignatureWithSaltAndExpiry;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_contexts::keystore::KeystoreContext;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::SignatureWithSaltAndExpiry;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::k256::K256Ecdsa;
@@ -100,12 +100,15 @@ async fn register_ecdsa_impl(
             ));
         }
     };
+    let registry_coordinator_address = contract_addresses.registry_coordinator_address;
+    let allocation_manager_address = contract_addresses.allocation_manager_address;
     let delegation_manager_address = contract_addresses.delegation_manager_address;
     let strategy_manager_address = contract_addresses.strategy_manager_address;
     let avs_directory_address = contract_addresses.avs_directory_address;
     let service_manager_address = contract_addresses.service_manager_address;
     let stake_registry_address = contract_addresses.stake_registry_address;
     let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
+    let permission_controller_address = contract_addresses.permission_controller_address;
 
     let ecdsa_public = env
         .keystore()
@@ -127,31 +130,23 @@ async fn register_ecdsa_impl(
 
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
-    let delegation_manager = eigensdk::utils::core::delegationmanager::DelegationManager::new(
-        delegation_manager_address,
-        provider.clone(),
-    );
-
-    let slasher_address = delegation_manager
-        .slasher()
-        .call()
-        .await
-        .map(|a| a._0)
-        .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;
-
     let logger = get_test_logger();
     let el_chain_reader = ELChainReader::new(
         logger,
-        slasher_address,
+        Some(allocation_manager_address),
         delegation_manager_address,
         rewards_coordinator_address,
         avs_directory_address,
+        Some(permission_controller_address),
         env.http_rpc_endpoint.clone(),
     );
 
     let el_writer = ELChainWriter::new(
         strategy_manager_address,
         rewards_coordinator_address,
+        Some(permission_controller_address),
+        Some(allocation_manager_address),
+        registry_coordinator_address,
         el_chain_reader.clone(),
         env.http_rpc_endpoint.clone(),
         operator_private_key.clone(),
@@ -160,10 +155,11 @@ async fn register_ecdsa_impl(
     let staker_opt_out_window_blocks = 50400u32;
     let operator_details = Operator {
         address: operator_address,
-        earnings_receiver_address,
         delegation_approver_address,
-        metadata_url: Some("https://github.com/tangle-network/gadget".to_string()),
-        staker_opt_out_window_blocks,
+        metadata_url: "https://github.com/tangle-network/gadget".to_string(),
+        allocation_delay: Some(30), // TODO: Make allocation delay configurable
+        _deprecated_earnings_receiver_address: Some(earnings_receiver_address),
+        staker_opt_out_window_blocks: Some(staker_opt_out_window_blocks),
     };
 
     let tx_hash = el_writer

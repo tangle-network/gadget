@@ -22,7 +22,6 @@ thiserror = { workspace = true, default-features = false }
 gadget-keystore = { workspace = true, default-features = false, features = ["eigenlayer", "tangle"] }
 gadget-std = { workspace = true, default-features = false }
 gadget-contexts = { workspace = true, default-features = false, features = ["eigenlayer", "keystore", "evm"] }
-gadget-eigenlayer-bindings = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]

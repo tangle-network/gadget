@@ -2,7 +2,6 @@ use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
-use alloy_transport::Transport;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
@@ -141,8 +140,7 @@ pub async fn get_receipt<T, P, D>(
     call: CallBuilder<T, P, D, Ethereum>,
 ) -> Result<TransactionReceipt, Error>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum>,
+    P: Provider<Ethereum>,
     D: CallDecoder,
 {
     let pending_tx = match call.send().await {

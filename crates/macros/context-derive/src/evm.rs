@@ -21,19 +21,16 @@ pub fn generate_context_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let network_ty_ident = Ident::new(&format!("__{}Network", name), name.span());
-    let transport_ty_ident = Ident::new(&format!("__{}Transport", name), name.span());
     let provider_ty_ident = Ident::new(&format!("__{}Provider", name), name.span());
 
     quote! {
         type #network_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_network::Ethereum;
-        type #transport_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_transport::BoxTransport;
         type #provider_ty_ident = ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::FillProvider<
             ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::JoinFill<
                 ::blueprint_sdk::macros::ext::evm::alloy_provider::Identity,
                 <#network_ty_ident as ::blueprint_sdk::macros::ext::evm::alloy_provider::fillers::RecommendedFillers>::RecommendedFillers,
             >,
-            ::blueprint_sdk::macros::ext::evm::alloy_provider::RootProvider<#transport_ty_ident>,
-            #transport_ty_ident,
+            ::blueprint_sdk::macros::ext::evm::alloy_provider::RootProvider,
             #network_ty_ident,
         >;
 
