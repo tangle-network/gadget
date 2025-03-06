@@ -6,6 +6,7 @@ use crate::error::ConfigError;
 use alloc::string::{String, ToString};
 use core::fmt::{Debug, Display};
 use core::str::FromStr;
+#[cfg(feature = "std")]
 use gadget_keystore::{Keystore, KeystoreConfig};
 use serde::{Deserialize, Serialize};
 use url::Url;

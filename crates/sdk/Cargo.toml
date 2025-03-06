@@ -13,7 +13,6 @@ repository.workspace = true
 blueprint-core = { workspace = true }
 blueprint-router = { workspace = true }
 blueprint-runner = { workspace = true }
-blueprint-macros = { workspace = true, optional = true }
 blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-config = { workspace = true }
@@ -23,6 +22,10 @@ gadget-logging = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 document-features = { workspace = true }
+
+# Macros
+blueprint-macros = { workspace = true, optional = true }
+gadget-context-derive = { workspace = true, optional = true }
 
 # Tangle-specific extras
 blueprint-tangle-extra = { workspace = true, optional = true }
@@ -50,7 +53,6 @@ tokio = { workspace = true, default-features = false }
 # Networking-related dependencies
 gadget-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
-gadget-context-derive = { workspace = true, optional = true }
 
 # Round-based protocol support
 gadget-networking-round-based-extension = { workspace = true, optional = true }
@@ -109,7 +111,11 @@ local-store = ["gadget-stores/local"]
 round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
 ## Enable all macros of subcrates
-macros = ["dep:blueprint-macros", "blueprint-tangle-extra?/macros"]
+macros = [
+    "dep:blueprint-macros",
+    "dep:gadget-context-derive",
+    "blueprint-tangle-extra?/macros"
+]
 
 ## Enable [Tangle] support
 ##

@@ -49,6 +49,14 @@ pub mod producers {
 
 pub use blueprint_router::Router;
 
+#[cfg(feature = "macros")]
+mod macros_feat {
+    pub use blueprint_macros::debug_job;
+    pub use gadget_context_derive::*;
+}
+#[cfg(feature = "macros")]
+pub use macros_feat::*;
+
 // == Protocol-specific utilities ==
 
 #[cfg(feature = "tangle")]
@@ -97,9 +105,6 @@ pub mod networking {
     #[cfg(feature = "round-based-compat")]
     pub use gadget_networking_round_based_extension as round_based_compat;
 }
-
-#[cfg(feature = "macros")]
-pub use blueprint_macros::debug_job;
 
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;
