@@ -1,13 +1,12 @@
 use alloy_primitives::Uint;
 use alloy_primitives::{address, Address};
 use alloy_provider::Provider;
-use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_anvil_testing_utils::get_receipt;
 use gadget_config::protocol::EigenlayerContractAddresses;
-use gadget_logging::{error, info};
+use gadget_logging::info;
 use gadget_utils::evm::get_provider_http;
 
 /// The default Allocation Manager address on our testnet
@@ -73,11 +72,8 @@ pub async fn setup_eigenlayer_test_environment(
         PERMISSION_CONTROLLER_ADDR.to_string(),
     );
     std::env::set_var("SERVICE_MANAGER_ADDR", SERVICE_MANAGER_ADDR.to_string());
-    std::env::set_var("STAKE_REGISTRY_ADDR",STAKE_REGISTRY_ADDR.to_string());
-    std::env::set_var(
-        "STRATEGY_MANAGER_ADDR",
-        STRATEGY_MANAGER_ADDR.to_string(),
-    );
+    std::env::set_var("STAKE_REGISTRY_ADDR", STAKE_REGISTRY_ADDR.to_string());
+    std::env::set_var("STRATEGY_MANAGER_ADDR", STRATEGY_MANAGER_ADDR.to_string());
     std::env::set_var("ERC20_MOCK_ADDR", ERC20_MOCK_ADDR.to_string());
 
     let registry_coordinator =
@@ -94,15 +90,13 @@ pub async fn setup_eigenlayer_test_environment(
     };
 
     info!("Creating Quorum...");
-    let receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
+    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         vec![strategy_params],
     ))
     .await
     .unwrap();
-
-    dbg!(receipt);
 
     info!("Setup Eigenlayer test environment");
 
@@ -111,16 +105,16 @@ pub async fn setup_eigenlayer_test_environment(
         ws_endpoint: ws_endpoint.to_string(),
         accounts,
         eigenlayer_contract_addresses: EigenlayerContractAddresses {
-            allocation_manager_address,
-            registry_coordinator_address,
-            operator_state_retriever_address,
-            delegation_manager_address,
-            service_manager_address,
-            stake_registry_address,
-            strategy_manager_address,
+            allocation_manager_address: ALLOCATION_MANAGER_ADDR,
+            registry_coordinator_address: REGISTRY_COORDINATOR_ADDR,
+            operator_state_retriever_address: OPERATOR_STATE_RETRIEVER_ADDR,
+            delegation_manager_address: DELEGATION_MANAGER_ADDR,
+            service_manager_address: SERVICE_MANAGER_ADDR,
+            stake_registry_address: STAKE_REGISTRY_ADDR,
+            strategy_manager_address: STRATEGY_MANAGER_ADDR,
             avs_directory_address: Default::default(),
             rewards_coordinator_address: Default::default(),
-            permission_controller_address,
+            permission_controller_address: PERMISSION_CONTROLLER_ADDR,
         },
     }
 }
