@@ -5,7 +5,7 @@ use blueprint_sdk::alloy::providers::Provider;
 use blueprint_sdk::alloy::transports::http::reqwest::Url;
 use blueprint_sdk::config::protocol::EigenlayerContractAddresses;
 use blueprint_sdk::config::supported_chains::SupportedChains;
-use blueprint_sdk::config::{ContextConfig, GadgetConfiguration};
+use blueprint_sdk::config::{ContextConfig, BlueprintEnvironment};
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::contexts::tangle::TangleClientContext;
 use blueprint_sdk::crypto::sp_core::SpSr25519;
@@ -290,7 +290,7 @@ async fn test_raw_tangle_events() -> Result<()> {
     Ok(())
 }
 
-async fn balance_transfer_event(env: GadgetConfiguration) -> Result<JoinHandle<()>> {
+async fn balance_transfer_event(env: BlueprintEnvironment) -> Result<JoinHandle<()>> {
     let client = env.tangle_client().await?;
     let transfer_client = client.clone();
     let signer = env.keystore().first_local::<SpSr25519>().unwrap();

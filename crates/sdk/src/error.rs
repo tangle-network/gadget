@@ -1,13 +1,8 @@
-use super::{config, keystore};
-
-#[cfg(any(feature = "evm", feature = "eigenlayer", feature = "tangle"))]
-use super::event_listeners;
+use super::keystore;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     // General Errors
-    #[error("Config error: {0}")]
-    Config(#[from] config::Error),
     #[error("Client error: {0}")]
     Client(#[from] gadget_clients::Error),
     #[error("Keystore error: {0}")]
@@ -17,19 +12,10 @@ pub enum Error {
 
     // Specific to Tangle
     #[cfg(feature = "tangle")]
-    #[error("Event listener error: {0}")]
-    TangleEvent(
-        #[from]
-        event_listeners::core::Error<event_listeners::tangle::error::TangleEventListenerError>,
-    ),
-    #[cfg(feature = "tangle")]
     #[error("Tangle Subxt error: {0}")]
     TangleSubxt(#[from] tangle_subxt::subxt::Error),
 
     // EVM and EigenLayer
-    #[cfg(any(feature = "evm", feature = "eigenlayer"))]
-    #[error("Event listener error: {0}")]
-    EvmEvent(#[from] event_listeners::core::Error<event_listeners::evm::error::Error>),
     #[cfg(any(feature = "evm", feature = "eigenlayer"))]
     #[error("EVM error: {0}")]
     Alloy(#[from] AlloyError),

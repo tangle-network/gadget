@@ -14,7 +14,7 @@ use dotenv::from_path;
 use gadget_config::{
     protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
     supported_chains::SupportedChains,
-    Error, GadgetConfiguration,
+    Error, BlueprintEnvironment,
 };
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
@@ -424,7 +424,7 @@ async fn main() -> color_eyre::Result<()> {
                     }
                 };
 
-                let mut config = GadgetConfiguration::default();
+                let mut config = BlueprintEnvironment::default();
                 let ws_url = if let Some(stripped) = rpc_url.strip_prefix("http://") {
                     format!("ws://{}", stripped)
                 } else if let Some(stripped) = rpc_url.strip_prefix("https://") {

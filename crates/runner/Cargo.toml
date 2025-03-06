@@ -7,16 +7,17 @@ edition.workspace = true
 blueprint-core.workspace = true
 blueprint-router.workspace = true
 gadget-keystore = { workspace = true }
+gadget-crypto = { workspace = true }
 futures-core.workspace = true
 futures-util.workspace = true
 tower.workspace = true
 tokio = { workspace = true, features = ["full"] }
 serde.workspace = true
 tracing.workspace = true
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 thiserror.workspace = true
-url.workspace = true
+url = { workspace = true, features = ["serde"] }
 dynosaur = { workspace = true }
 document-features = { workspace = true }
 
@@ -42,20 +43,36 @@ default = ["std"]
 
 #! ### Core
 
-## Enable standard library support. Currently unused
-std = []
+## Enable standard library support
+std = [
+    "gadget-keystore/std",
+]
 
 #! ### Protocols
 
 ## Enable [Tangle] support
 ##
 ## [Tangle]: https://tangle.tools
-tangle = ["dep:tangle-subxt", "dep:blueprint-tangle-extra", "dep:k256", "gadget-utils/tangle"]
+tangle = [
+    "dep:tangle-subxt",
+    "dep:blueprint-tangle-extra",
+    "dep:k256",
+    "gadget-utils/tangle",
+    "gadget-crypto/sp-core",
+    "gadget-crypto/tangle-pair-signer"
+]
 
 ## Enable [Eigenlayer] support
 ##
 ## [Eigenlayer]: https://eigenlayer.xyz
-eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "gadget-utils/evm"]
+eigenlayer = [
+    "dep:alloy-contract",
+    "dep:alloy-primitives",
+    "dep:alloy-signer-local",
+    "dep:alloy-signer",
+    "dep:eigensdk",
+    "gadget-utils/evm"
+]
 
 ## Enable [Symbiotic] support **(CURRENTLY UNUSED)**
 ##

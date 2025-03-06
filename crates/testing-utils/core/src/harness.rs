@@ -1,4 +1,4 @@
-use gadget_config::GadgetConfiguration;
+use blueprint_runner::config::BlueprintEnvironment;
 use tempfile::TempDir;
 
 /// Generic test harness trait that defines common functionality for all test harnesses
@@ -15,20 +15,20 @@ pub trait TestHarness {
         Self: Sized;
 
     /// Gets the gadget configuration
-    fn env(&self) -> &GadgetConfiguration;
+    fn env(&self) -> &BlueprintEnvironment;
 }
 
 /// Base implementation of a test harness that can be used by specific implementations
 pub struct BaseTestHarness<C> {
     /// The environment configuration
-    pub env: GadgetConfiguration,
+    pub env: BlueprintEnvironment,
     /// The harness-specific configuration
     pub config: C,
 }
 
 impl<C> BaseTestHarness<C> {
     /// Creates a new base test harness
-    pub fn new(env: GadgetConfiguration, config: C) -> Self {
+    pub fn new(env: BlueprintEnvironment, config: C) -> Self {
         Self { env, config }
     }
 }

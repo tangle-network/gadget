@@ -16,7 +16,7 @@ use gadget_tangle_testing_utils::harness::TangleTestHarness;
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
-use blueprint_sdk::runner::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, GadgetSettings, Protocol, SupportedChains};
+use blueprint_sdk::runner::config::{ContextConfig, GadgetCLICoreSettings, BlueprintEnvironment, GadgetSettings, Protocol, SupportedChains};
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {

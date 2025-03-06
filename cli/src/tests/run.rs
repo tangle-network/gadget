@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
 
     let test_contract_address: Address = "{}".parse().expect("Invalid TEST_CONTRACT_ADDRESS");
     info!("Test contract address: {{}}", test_contract_address);
-    
+
     let temp_dir_str: String = "{}".to_string();
     info!("Temp dir str: {{}}", temp_dir_str);
 
@@ -198,14 +198,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .await
         .unwrap();
     info!("Successfully called getValue function");
-    
+
     let get_result_value: alloy_primitives::U256 =
         if let alloy_dyn_abi::DynSolValue::Uint(val, 256) = get_result[0] {{
             val
         }} else {{
             panic!("Expected Uint256, but did not receive correct type")
         }};
-    
+
     info!("Contract returned value: {{}}", get_result_value);
 
     if get_result_value == alloy_primitives::U256::from({}) {{
@@ -255,7 +255,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses::default()),
     );
 
-    let run_opts = gadget_config::load(config).expect("Failed to load GadgetConfiguration");
+    let run_opts = gadget_config::load(config).expect("Failed to load BlueprintEnvironment");
 
     // Run the AVS
     let mut child =

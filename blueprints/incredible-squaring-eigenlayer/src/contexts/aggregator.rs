@@ -15,7 +15,7 @@ use tokio::task::JoinHandle;
 use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::logging::{debug, error, info};
 use blueprint_sdk::macros::contexts::{EigenlayerContext, KeystoreContext};
@@ -50,7 +50,7 @@ pub struct AggregatorContext {
     pub wallet: EthereumWallet,
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
     #[config]
-    pub sdk_config: GadgetConfiguration,
+    pub sdk_config: BlueprintEnvironment,
     shutdown: Arc<(Notify, Mutex<bool>)>,
 }
 
@@ -59,7 +59,7 @@ impl AggregatorContext {
         port_address: String,
         task_manager_address: Address,
         wallet: EthereumWallet,
-        sdk_config: GadgetConfiguration,
+        sdk_config: BlueprintEnvironment,
     ) -> Result<Self, Error> {
         let mut aggregator_context = AggregatorContext {
             port_address,

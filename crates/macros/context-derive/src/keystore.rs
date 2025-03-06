@@ -22,7 +22,7 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics ::blueprint_sdk::macros::ext::contexts::keystore::KeystoreContext for #name #ty_generics #where_clause {
             fn keystore(&self) -> ::blueprint_sdk::macros::ext::keystore::Keystore {
-                <::blueprint_sdk::macros::ext::config::GadgetConfiguration as ::blueprint_sdk::macros::ext::contexts::keystore::KeystoreContext>::keystore(&#field_access)
+                <::blueprint_sdk::macros::ext::config::BlueprintEnvironment as ::blueprint_sdk::macros::ext::contexts::keystore::KeystoreContext>::keystore(&#field_access)
             }
         }
     }

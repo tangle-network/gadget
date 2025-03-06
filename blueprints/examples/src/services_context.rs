@@ -1,4 +1,4 @@
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::contexts::tangle::TangleClientContext;
 use blueprint_sdk::crypto::sp_core::SpSr25519;
@@ -18,13 +18,13 @@ use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::
 #[derive(Clone, ServicesContext, TangleClientContext)]
 pub struct ExampleServiceContext {
     #[config]
-    sdk_config: GadgetConfiguration,
+    sdk_config: BlueprintEnvironment,
     #[call_id]
     call_id: Option<u64>,
 }
 
 pub async fn constructor(
-    env: GadgetConfiguration,
+    env: BlueprintEnvironment,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     let signer = env
         .clone()

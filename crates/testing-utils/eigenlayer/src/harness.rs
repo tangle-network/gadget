@@ -6,7 +6,7 @@ use gadget_anvil_testing_utils::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
 use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
 use gadget_config::{
     protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    GadgetConfiguration,
+    BlueprintEnvironment,
 };
 use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
 use gadget_utils::evm::get_provider_http;
@@ -86,7 +86,7 @@ impl TestHarness for EigenlayerTestHarness {
         })
     }
 
-    fn env(&self) -> &GadgetConfiguration {
+    fn env(&self) -> &BlueprintEnvironment {
         &self.base.env
     }
 }

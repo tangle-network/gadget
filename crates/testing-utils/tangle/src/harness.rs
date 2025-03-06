@@ -7,7 +7,7 @@ use crate::{
     InputValue, OutputValue,
 };
 use gadget_client_tangle::client::TangleClient;
-use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
+use gadget_config::{supported_chains::SupportedChains, ContextConfig, BlueprintEnvironment};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
@@ -64,7 +64,7 @@ pub async fn generate_env_from_node_id(
     http_endpoint: Url,
     ws_endpoint: Url,
     test_dir: &Path,
-) -> Result<GadgetConfiguration, RunnerError> {
+) -> Result<BlueprintEnvironment, RunnerError> {
     let keystore_path = test_dir.join(identity.to_ascii_lowercase());
     tokio::fs::create_dir_all(&keystore_path).await?;
     inject_tangle_key(&keystore_path, &format!("//{identity}"))
@@ -156,13 +156,13 @@ impl TestHarness for TangleTestHarness {
         Ok(harness)
     }
 
-    fn env(&self) -> &GadgetConfiguration {
+    fn env(&self) -> &BlueprintEnvironment {
         &self.client.config
     }
 }
 
 struct NodeInfo {
-    env: GadgetConfiguration,
+    env: BlueprintEnvironment,
     client: TangleClient,
     preferences: Preferences,
 }

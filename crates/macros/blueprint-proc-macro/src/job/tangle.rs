@@ -23,7 +23,7 @@ pub(crate) fn generate_tangle_specific_impl(
         let _ = non_job_param_map.shift_remove_index(0);
     }
 
-    let env_type = quote! { ::blueprint_sdk::macros::ext::config::GadgetConfiguration };
+    let env_type = quote! { ::blueprint_sdk::macros::ext::config::BlueprintEnvironment };
 
     // Push the expected types
     new_function_signature.push(quote! {

@@ -9,7 +9,8 @@ use crate::sources::github::GithubBinaryFetcher;
 use crate::sources::{process_arguments_and_env, BinarySourceFetcher};
 use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
-use gadget_config::{GadgetConfiguration, Protocol};
+use gadget_config::Protocol;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_logging::{error, info, trace, warn};
 use gadget_std::fmt::Debug;
 use gadget_std::sync::atomic::Ordering;
@@ -31,7 +32,7 @@ pub struct VerifiedBlueprint<'a> {
 impl VerifiedBlueprint<'_> {
     pub async fn start_services_if_needed(
         &self,
-        gadget_config: &GadgetConfiguration,
+        gadget_config: &BlueprintEnvironment,
         blueprint_manager_opts: &BlueprintManagerConfig,
         active_gadgets: &mut ActiveGadgets,
     ) -> Result<()> {
@@ -226,7 +227,7 @@ pub(crate) fn check_blueprint_events(
 pub(crate) async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &[RpcServicesWithBlueprint],
-    gadget_config: &GadgetConfiguration,
+    gadget_config: &BlueprintEnvironment,
     manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
     poll_result: EventPollResult,

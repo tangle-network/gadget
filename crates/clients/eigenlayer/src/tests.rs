@@ -5,7 +5,7 @@ use client::EigenlayerClient;
 use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
 use gadget_config::{
     load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    GadgetConfiguration,
+    BlueprintEnvironment,
 };
 use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
 use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
@@ -17,7 +17,7 @@ struct TestEnvironment {
     http_endpoint: String,
     #[expect(dead_code)]
     ws_endpoint: String,
-    config: GadgetConfiguration,
+    config: BlueprintEnvironment,
     #[expect(dead_code)]
     env: EigenlayerTestEnvironment,
 }

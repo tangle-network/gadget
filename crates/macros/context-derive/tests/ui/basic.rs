@@ -1,4 +1,4 @@
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
@@ -15,7 +15,7 @@ use gadget_context_derive::{
 struct MyContext {
     foo: String,
     #[config]
-    config: GadgetConfiguration,
+    config: BlueprintEnvironment,
     store: Arc<LocalDatabase<u64>>,
     #[call_id]
     call_id: Option<u64>,
@@ -26,7 +26,7 @@ fn main() {
     let body = async {
         let ctx = MyContext {
             foo: "bar".to_string(),
-            config: GadgetConfiguration::default(),
+            config: BlueprintEnvironment::default(),
             store: Arc::new(LocalDatabase::open("test.json")),
             call_id: None,
         };

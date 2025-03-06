@@ -1,7 +1,7 @@
 use blueprint_sdk::alloy::primitives::{address, Bytes, U256};
 use blueprint_sdk::alloy::rpc::types::Log;
 use blueprint_sdk::alloy::sol;
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
 use blueprint_sdk::event_listeners::core::InitializableEventHandler;
 use blueprint_sdk::event_listeners::evm::EvmContractEventListener;
@@ -32,11 +32,11 @@ type ProcessorError =
 #[derive(Clone, EigenlayerContext)]
 pub struct ExampleEigenContext {
     #[config]
-    pub std_config: GadgetConfiguration,
+    pub std_config: BlueprintEnvironment,
 }
 
 pub async fn constructor(
-    env: GadgetConfiguration,
+    env: BlueprintEnvironment,
 ) -> color_eyre::Result<impl InitializableEventHandler> {
     let example_address = env::var("EXAMPLE_TASK_MANAGER_ADDRESS")
         .map(|addr| addr.parse().expect("Invalid EXAMPLE_TASK_MANAGER_ADDRESS"))

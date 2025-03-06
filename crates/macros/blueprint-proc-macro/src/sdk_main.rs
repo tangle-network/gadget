@@ -42,7 +42,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     };
 
     let env_function_signature = if args.env {
-        quote! { env: ::blueprint_sdk::macros::ext::config::GadgetConfiguration }
+        quote! { env: ::blueprint_sdk::macros::ext::config::BlueprintEnvironment }
     } else {
         quote! {}
     };

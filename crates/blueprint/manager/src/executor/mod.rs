@@ -8,7 +8,7 @@ use color_eyre::Report;
 use gadget_clients::tangle::client::{TangleClient, TangleConfig};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use gadget_clients::tangle::EventsClient;
-use gadget_config::GadgetConfiguration;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
@@ -152,7 +152,7 @@ impl Future for BlueprintManagerHandle {
 #[allow(clippy::too_many_lines, clippy::used_underscore_binding)]
 pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     blueprint_manager_config: BlueprintManagerConfig,
-    gadget_config: GadgetConfiguration,
+    gadget_config: BlueprintEnvironment,
     shutdown_cmd: F,
 ) -> color_eyre::Result<BlueprintManagerHandle> {
     let logger_id = if let Some(custom_id) = &blueprint_manager_config.instance_id {
@@ -300,7 +300,7 @@ async fn handle_init(
     services_client: &TangleServicesClient<TangleConfig>,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,
-    gadget_config: &GadgetConfiguration,
+    gadget_config: &BlueprintEnvironment,
     blueprint_manager_config: &BlueprintManagerConfig,
 ) -> Result<Vec<RpcServicesWithBlueprint>> {
     info!("Beginning initialization of Blueprint Manager");

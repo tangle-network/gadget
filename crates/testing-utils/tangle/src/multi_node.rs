@@ -5,7 +5,8 @@ use crate::{
     Error,
 };
 use futures::future::join_all;
-use gadget_config::{GadgetConfiguration, Multiaddr};
+use gadget_config::Multiaddr;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClient};
 use gadget_core_testing_utils::runner::TestEnv;
@@ -142,7 +143,7 @@ impl MultiNodeTestEnv {
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
     pub async fn add_job<
-        T: Fn(GadgetConfiguration) -> F + Clone + Send + Sync + 'static,
+        T: Fn(BlueprintEnvironment) -> F + Clone + Send + Sync + 'static,
         F: Future<Output = Result<K, E>> + Send + 'static,
         K: InitializableEventHandler + Send + Sync + 'static,
         E: std::fmt::Debug + Send + 'static,
@@ -410,7 +411,7 @@ impl NodeHandle {
         self.test_env.write().await.add_background_service(service)
     }
 
-    pub async fn gadget_config(&self) -> GadgetConfiguration {
+    pub async fn gadget_config(&self) -> BlueprintEnvironment {
         self.test_env.read().await.get_gadget_config()
     }
 }

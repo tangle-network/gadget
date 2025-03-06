@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use gadget_config::{GadgetConfiguration, Multiaddr};
+use gadget_config::Multiaddr;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::error::RunnerError as Error;
@@ -13,7 +14,7 @@ use tokio::task::JoinHandle;
 pub struct TangleTestEnv {
     pub runner: TestRunner,
     pub config: TangleConfig,
-    pub gadget_config: GadgetConfiguration,
+    pub gadget_config: BlueprintEnvironment,
     pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
@@ -40,7 +41,7 @@ impl Debug for TangleTestEnv {
 impl TestEnv for TangleTestEnv {
     type Config = TangleConfig;
 
-    fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error> {
+    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error> {
         let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone());
 
         Ok(Self {
@@ -65,7 +66,7 @@ impl TestEnv for TangleTestEnv {
         self.runner.add_background_service(service);
     }
 
-    fn get_gadget_config(&self) -> GadgetConfiguration {
+    fn get_gadget_config(&self) -> BlueprintEnvironment {
         self.gadget_config.clone()
     }
 

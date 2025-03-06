@@ -26,6 +26,7 @@ pub use blueprint_tangle_extra as tangle;
 #[cfg(feature = "evm")]
 pub use blueprint_evm_extra as evm;
 
+/// Blueprint execution and runtime utilities
 pub use blueprint_runner as runner;
 
 pub mod producers {
@@ -59,8 +60,6 @@ pub mod testing {
 pub mod build {
     /// Build utilities for blueprint compilation
     pub use blueprint_build_utils as utils;
-    /// Metadata generation for blueprints
-    pub use blueprint_metadata;
 }
 
 #[cfg(feature = "networking")]
@@ -84,15 +83,11 @@ pub use gadget_crypto as crypto;
 /// Structured logging facilities
 pub use gadget_logging as logging;
 
-/// Blueprint execution and runtime utilities
-pub use gadget_runners as runners;
-
 pub use gadget_clients as clients;
 pub use gadget_contexts as contexts;
 
 pub use gadget_utils as utils;
 
-pub use gadget_config as config;
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;
 pub use serde;

@@ -12,7 +12,7 @@ use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_multi_asset_delegation::types::operator::OperatorMetadata;
 use gadget_client_core::{GadgetServicesClient, OperatorSet};
-use gadget_config::GadgetConfiguration;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_crypto_sp_core::{SpEcdsa, SpSr25519};
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_keystore::backends::Backend;
@@ -40,14 +40,14 @@ pub struct TangleClient {
     finality_notification_stream: Arc<tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification: Arc<tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
-    pub config: GadgetConfiguration,
+    pub config: BlueprintEnvironment,
     keystore: Arc<Keystore>,
     services_client: TangleServicesClient<TangleConfig>,
 }
 
 impl TangleClient {
-    /// Create a new Tangle runtime client from an existing [`GadgetConfiguration`].
-    pub async fn new(config: GadgetConfiguration) -> std::result::Result<Self, Error> {
+    /// Create a new Tangle runtime client from an existing [`BlueprintEnvironment`].
+    pub async fn new(config: BlueprintEnvironment) -> std::result::Result<Self, Error> {
         let keystore_config =
             KeystoreConfig::new().fs_root(config.keystore_uri.replace("file://", ""));
 

@@ -1,4 +1,4 @@
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
@@ -13,7 +13,7 @@ struct MyContext<T: Send + Sync, U: Send + Sync> {
     foo: T,
     bar: U,
     #[config]
-    sdk_config: GadgetConfiguration,
+    sdk_config: BlueprintEnvironment,
     #[call_id]
     call_id: Option<u64>,
 }
@@ -24,7 +24,7 @@ fn main() {
         let ctx = MyContext {
             foo: "bar".to_string(),
             bar: 42,
-            sdk_config: GadgetConfiguration::default(),
+            sdk_config: BlueprintEnvironment::default(),
             call_id: None,
         };
         let _keystore = ctx.keystore();

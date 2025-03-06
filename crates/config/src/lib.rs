@@ -102,7 +102,7 @@ mod networking_imports {
 /// Gadget environment.
 #[non_exhaustive]
 #[derive(Debug, Clone, Default)]
-pub struct GadgetConfiguration {
+pub struct BlueprintEnvironment {
     /// HTTP RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
     pub http_rpc_endpoint: String,
     /// WS RPC endpoint for host restaking network (Tangle / Ethereum (Eigenlayer or Symbiotic)).
@@ -136,7 +136,7 @@ pub struct GadgetConfiguration {
     pub target_peer_count: u32,
 }
 
-impl GadgetConfiguration {
+impl BlueprintEnvironment {
     /// Start a p2p network with the given `network_config`
     ///
     /// # Errors
@@ -218,17 +218,17 @@ impl GadgetConfiguration {
     }
 }
 
-/// Loads the [`GadgetConfiguration`] from the current environment.
+/// Loads the [`BlueprintEnvironment`] from the current environment.
 ///
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-pub fn load(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
+pub fn load(config: ContextConfig) -> Result<BlueprintEnvironment, Error> {
     load_inner(config)
 }
 
 #[allow(clippy::too_many_lines)]
-fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
+fn load_inner(config: ContextConfig) -> Result<BlueprintEnvironment, Error> {
     tracing::info_span!("gadget");
     let ContextConfig {
         gadget_core_settings:
@@ -360,7 +360,7 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         return Err(Error::UnsupportedProtocol(protocol.to_string()));
     };
 
-    Ok(GadgetConfiguration {
+    Ok(BlueprintEnvironment {
         test_mode,
         http_rpc_endpoint: http_rpc_url.to_string(),
         ws_rpc_endpoint: ws_rpc_url.to_string(),
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_default_configuration() {
-        let config = GadgetConfiguration::default();
+        let config = BlueprintEnvironment::default();
         assert!(config.http_rpc_endpoint.is_empty());
         assert!(config.ws_rpc_endpoint.is_empty());
         assert!(config.keystore_uri.is_empty());
@@ -502,14 +502,14 @@ mod tests {
     #[test]
     fn test_configuration_validation() {
         // Test RPC endpoint validation
-        let config = GadgetConfiguration {
+        let config = BlueprintEnvironment {
             http_rpc_endpoint: "invalid-url".to_string(),
             ..Default::default()
         };
         assert!(validate_rpc_endpoint(&config.http_rpc_endpoint).is_err());
 
         // Test keystore URI validation
-        let config = GadgetConfiguration {
+        let config = BlueprintEnvironment {
             keystore_uri: "invalid-uri".to_string(),
             ..Default::default()
         };

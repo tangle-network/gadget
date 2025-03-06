@@ -8,7 +8,7 @@ description = "Blueprint SDK Core functionality"
 bytes.workspace = true
 futures-util.workspace = true
 pin-project-lite.workspace = true
-tower.workspace = true
+tower = { workspace = true, features = ["util"] }
 hashbrown = { workspace = true, default-features = false, features = ["default-hasher", "inline-more"] }
 tiny-keccak = { workspace = true, features = ["keccak"] }
 

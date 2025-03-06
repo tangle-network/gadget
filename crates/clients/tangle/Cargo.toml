@@ -9,8 +9,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+blueprint-runner = { workspace = true }
+
 gadget-std = { workspace = true }
-gadget-config = { workspace = true, features = ["tangle", "keystore"] }
 gadget-client-core = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true }
@@ -35,7 +36,6 @@ std = [
 	"gadget-client-core/std",
 	"gadget-keystore/std",
 	"gadget-logging/std",
-	"gadget-config/std",
 	"gadget-std/std",
 	"gadget-std/tokio",
 	"serde/std",

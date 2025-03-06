@@ -1,28 +1,40 @@
-use gadget_config::GadgetConfiguration;
-use gadget_event_listeners::core::InitializableEventHandler;
-use gadget_runners::core::config::BlueprintConfig;
-use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::runner::{BackgroundService, BlueprintRunner};
+use blueprint_core::JobCall;
+use std::future;
+use std::future::Pending;
+use blueprint_runner::BlueprintConfig;
+use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::error::RunnerError as Error;
+use blueprint_runner::{BackgroundService, BlueprintRunner, BlueprintRunnerBuilder};
+use blueprint_router::Router;
+use blueprint_core::Job;
 
-#[derive(Clone)]
-pub struct TestRunner {
-    pub inner: BlueprintRunner,
+pub struct TestRunner<Ctx> {
+    router: Router,
+    job_index: usize,
+    builder: BlueprintRunnerBuilder<Pending<()>>,
+    _phantom: core::marker::PhantomData<Ctx>,
 }
 
-impl TestRunner {
-    pub fn new<C>(config: C, env: GadgetConfiguration) -> Self
+impl<Ctx> TestRunner<Ctx> where Ctx: Clone + Send + Sync + 'static{
+    pub fn new<C>(config: C, env: BlueprintEnvironment, context: Ctx) -> Self
     where
-        C: BlueprintConfig,
+        C: BlueprintConfig + 'static,
     {
-        let runner = BlueprintRunner::new(config, env);
-        TestRunner { inner: runner }
+        let builder = BlueprintRunner::builder(config, env).with_shutdown_handler(future::pending());
+        TestRunner {
+            router: Router::new().with_context(context),
+            job_index: 0,
+            builder,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     pub fn add_job<J>(&mut self, job: J) -> &mut Self
     where
-        J: InitializableEventHandler + Send + Sync + 'static,
+        J: Job<JobCall, Ctx> + Send + Sync + 'static,
     {
-        self.inner.job(job);
+        self.router = self.router.route(self.job_index, job);
+        self.job_index += 1;
         self
     }
 
@@ -30,25 +42,25 @@ impl TestRunner {
     where
         B: BackgroundService + Send + 'static,
     {
-        self.inner.background_service(Box::new(service));
+        self.builder.background_service(service);
         self
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
-        self.inner.run().await
+    pub async fn run(self) -> Result<(), Error> {
+        self.builder.router(self.router).run().await
     }
 }
 
 pub trait TestEnv: Sized {
     type Config: BlueprintConfig;
 
-    fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error>;
+    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error>;
     fn add_job<J>(&mut self, job: J)
     where
-        J: InitializableEventHandler + Send + Sync + 'static;
+        J: Send + Sync + 'static;
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static;
-    fn get_gadget_config(&self) -> GadgetConfiguration;
+    fn get_gadget_config(&self) -> BlueprintEnvironment;
     fn run_runner(&self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
 }

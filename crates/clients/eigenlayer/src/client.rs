@@ -7,25 +7,25 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordinator;
 use eigensdk::utils::rewardsv2::middleware::stakeregistry::{IStakeRegistry, StakeRegistry};
 use eigensdk::utils::slashing::middleware::operatorstateretriever::OperatorStateRetriever;
-use gadget_config::GadgetConfiguration;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_std::collections::HashMap;
 use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
-/// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
+/// Client that provides access to EigenLayer utility functions through the use of the [`BlueprintEnvironment`].
 #[derive(Clone)]
 pub struct EigenlayerClient {
-    pub config: GadgetConfiguration,
+    pub config: BlueprintEnvironment,
 }
 
 impl EigenlayerClient {
-    /// Creates a new instance of the [`EigenlayerClient`] given a [`GadgetConfiguration`].
-    pub fn new(config: GadgetConfiguration) -> Self {
+    /// Creates a new instance of the [`EigenlayerClient`] given a [`BlueprintEnvironment`].
+    pub fn new(config: BlueprintEnvironment) -> Self {
         Self { config }
     }
 
-    /// Get the [`GadgetConfiguration`] for this client
-    pub fn config(&self) -> &GadgetConfiguration {
+    /// Get the [`BlueprintEnvironment`] for this client
+    pub fn config(&self) -> &BlueprintEnvironment {
         &self.config
     }
 
