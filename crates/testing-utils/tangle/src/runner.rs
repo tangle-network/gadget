@@ -3,9 +3,9 @@
 use blueprint_core::{Job, JobCall};
 use blueprint_runner::BackgroundService;
 use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::config::Multiaddr;
 use blueprint_runner::error::RunnerError as Error;
 use blueprint_runner::tangle::config::TangleConfig;
-use gadget_config::Multiaddr;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use std::fmt::{Debug, Formatter};
 use tokio::sync::Mutex;
@@ -33,7 +33,7 @@ impl<Ctx> Debug for TangleTestEnv<Ctx> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TangleTestEnv")
             .field("config", &self.config)
-            .field("gadget_config", &self.env)
+            .field("env", &self.env)
             .finish()
     }
 }
@@ -82,7 +82,7 @@ where
 
     async fn run_runner(&mut self) -> Result<(), Error> {
         // Spawn the runner in a background task
-        let mut runner = self.runner.take().expect("Runner already running");
+        let runner = self.runner.take().expect("Runner already running");
         let handle = tokio::spawn(async move { runner.run().await });
 
         let mut _guard = self.runner_handle.lock().await;

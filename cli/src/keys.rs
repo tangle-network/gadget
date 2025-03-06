@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic};
+use blueprint_runner::config::Protocol;
 use color_eyre::eyre::Result;
 use dialoguer::{Input, Select};
-use gadget_config::Protocol;
 use gadget_crypto::bn254::{ArkBlsBn254Public, ArkBlsBn254Secret};
 use gadget_crypto::k256::{K256Ecdsa, K256SigningKey};
 use gadget_crypto::sp_core::{
@@ -160,7 +160,7 @@ pub fn generate_mnemonic(word_count: Option<u32>) -> Result<String> {
 }
 
 pub fn import_key(
-    protocol: gadget_config::Protocol,
+    protocol: Protocol,
     key_type: KeyTypeId,
     secret: &str,
     keystore_path: &Path,

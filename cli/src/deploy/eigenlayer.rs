@@ -1,12 +1,11 @@
 use crate::anvil::{print_info, print_section_header, print_success};
 use crate::keys::{generate_key, import_key};
 use alloy_primitives::Address;
+use blueprint_runner::config::{Protocol, SupportedChains};
 use color_eyre::Result;
 use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::style;
 use dialoguer::{Confirm, Input, Select};
-use gadget_config::Protocol;
-use gadget_config::supported_chains::SupportedChains;
 use gadget_crypto::KeyTypeId;
 use gadget_crypto::k256::K256Ecdsa;
 use gadget_keystore::backends::Backend;

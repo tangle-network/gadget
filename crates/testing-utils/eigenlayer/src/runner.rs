@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 pub struct EigenlayerBLSTestEnv<Ctx> {
     pub runner: Option<TestRunner<Ctx>>,
     pub config: EigenlayerBLSConfig,
-    pub gadget_config: BlueprintEnvironment,
+    pub env: BlueprintEnvironment,
     pub runner_handle: Mutex<Option<JoinHandle<Result<(), Error>>>>,
 }
 
@@ -33,7 +33,7 @@ where
         Ok(Self {
             runner: Some(runner),
             config,
-            gadget_config: env,
+            env: env,
             runner_handle: Mutex::new(None),
         })
     }
@@ -59,12 +59,12 @@ where
     }
 
     fn get_gadget_config(&self) -> BlueprintEnvironment {
-        self.gadget_config.clone()
+        self.env.clone()
     }
 
     async fn run_runner(&mut self) -> Result<(), Error> {
         // Spawn the runner in a background task
-        let mut runner = self.runner.take().expect("Runner already running");
+        let runner = self.runner.take().expect("Runner already running");
         let handle = tokio::spawn(async move { runner.run().await });
 
         let mut _guard = self.runner_handle.lock().await;

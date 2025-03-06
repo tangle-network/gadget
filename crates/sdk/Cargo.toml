@@ -15,7 +15,6 @@ blueprint-router = { workspace = true }
 blueprint-runner = { workspace = true }
 blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
-gadget-config = { workspace = true }
 gadget-clients = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }

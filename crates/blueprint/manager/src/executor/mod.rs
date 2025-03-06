@@ -152,7 +152,7 @@ impl Future for BlueprintManagerHandle {
 #[allow(clippy::too_many_lines, clippy::used_underscore_binding)]
 pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     blueprint_manager_config: BlueprintManagerConfig,
-    gadget_config: BlueprintEnvironment,
+    env: BlueprintEnvironment,
     shutdown_cmd: F,
 ) -> color_eyre::Result<BlueprintManagerHandle> {
     let logger_id = if let Some(custom_id) = &blueprint_manager_config.instance_id {
@@ -177,7 +177,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     // TODO: Actual error handling
     let (tangle_key, ecdsa_key) = {
-        let keystore = Keystore::new(KeystoreConfig::new().fs_root(&gadget_config.keystore_uri))?;
+        let keystore = Keystore::new(KeystoreConfig::new().fs_root(&env.keystore_uri))?;
         let sr_key_pub = keystore.first_local::<SpSr25519>()?;
         let sr_pair = keystore.get_secret::<SpSr25519>(&sr_key_pub)?;
         let sr_key = TanglePairSigner::new(sr_pair.0);
@@ -193,10 +193,10 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let mut active_gadgets = HashMap::new();
 
-    let keystore_uri = gadget_config.keystore_uri.clone();
+    let keystore_uri = env.keystore_uri.clone();
 
     let manager_task = async move {
-        let tangle_client = TangleClient::new(gadget_config.clone()).await?;
+        let tangle_client = TangleClient::new(env.clone()).await?;
         let services_client = tangle_client.services_client();
 
         // With the basics setup, we must now implement the main logic of the Blueprint Manager
@@ -208,7 +208,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             services_client,
             &sub_account_id,
             &mut active_gadgets,
-            &gadget_config,
+            &env,
             &blueprint_manager_config,
         )
         .await?;
@@ -231,7 +231,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             event_handler::handle_tangle_event(
                 &event,
                 &operator_subscribed_blueprints,
-                &gadget_config,
+                &env,
                 &blueprint_manager_config,
                 &mut active_gadgets,
                 result,
@@ -300,7 +300,7 @@ async fn handle_init(
     services_client: &TangleServicesClient<TangleConfig>,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,
-    gadget_config: &BlueprintEnvironment,
+    blueprint_env: &BlueprintEnvironment,
     blueprint_manager_config: &BlueprintManagerConfig,
 ) -> Result<Vec<RpcServicesWithBlueprint>> {
     info!("Beginning initialization of Blueprint Manager");
@@ -325,7 +325,7 @@ async fn handle_init(
     event_handler::handle_tangle_event(
         &init_event,
         &operator_subscribed_blueprints,
-        gadget_config,
+        blueprint_env,
         blueprint_manager_config,
         active_gadgets,
         poll_result,

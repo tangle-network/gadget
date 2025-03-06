@@ -1,5 +1,5 @@
 use crate::sdk::utils::get_formatted_os_string;
-use gadget_config::Protocol;
+use blueprint_runner::config::Protocol;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::{
     Gadget, GadgetBinary,
 };

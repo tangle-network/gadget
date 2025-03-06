@@ -2,6 +2,10 @@ use std::path::PathBuf;
 
 use crate::deploy::tangle::{Opts, deploy_to_tangle};
 use crate::keys::prompt_for_keys;
+use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings, SupportedChains};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
+use blueprint_runner::error::ConfigError;
+use blueprint_runner::tangle::config::TangleProtocolSettings;
 use cargo_tangle::anvil::start_default_anvil_testnet;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
@@ -11,11 +15,6 @@ use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
-use gadget_config::{
-    BlueprintEnvironment, Error,
-    protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
-    supported_chains::SupportedChains,
-};
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
 use tokio::signal;
@@ -454,7 +453,6 @@ async fn main() -> color_eyre::Result<()> {
                     .iter()
                     .filter_map(|addr| addr.parse().ok())
                     .collect();
-                config.protocol = protocol;
                 config.protocol_settings = protocol_settings;
                 config.test_mode = network == "local";
 
@@ -467,7 +465,7 @@ async fn main() -> color_eyre::Result<()> {
                         unimplemented!("Tangle protocol implementation not yet available");
                     }
                     _ => {
-                        return Err(Error::UnsupportedProtocol(protocol.to_string()).into());
+                        return Err(ConfigError::UnsupportedProtocol(protocol.to_string()).into());
                     }
                 }
             }
@@ -546,112 +544,82 @@ async fn main() -> color_eyre::Result<()> {
 fn load_protocol_settings(
     protocol: Protocol,
     settings_file: &PathBuf,
-) -> Result<ProtocolSettings, Error> {
+) -> Result<ProtocolSettings, ConfigError> {
     // Load environment variables from the settings file
     from_path(settings_file)
-        .map_err(|e| Error::ConfigurationError(format!("Failed to load settings file: {}", e)))?;
+        .map_err(|e| ConfigError::Other(format!("Failed to load settings file: {}", e).into()))?;
 
     match protocol {
         Protocol::Eigenlayer => {
-            let addresses = EigenlayerContractAddresses {
+            let addresses = EigenlayerProtocolSettings {
                 allocation_manager_address: env::var("ALLOCATION_MANAGER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing ALLOCATION_MANAGER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid ALLOCATION_MANAGER_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid ALLOCATION_MANAGER_ADDRESS".into()))?,
                 registry_coordinator_address: env::var("REGISTRY_COORDINATOR_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing REGISTRY_COORDINATOR_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
                     .map_err(|_| {
-                        Error::ConfigurationError("Invalid REGISTRY_COORDINATOR_ADDRESS".into())
+                        ConfigError::Other("Invalid REGISTRY_COORDINATOR_ADDRESS".into())
                     })?,
                 operator_state_retriever_address: env::var("OPERATOR_STATE_RETRIEVER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing OPERATOR_STATE_RETRIEVER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
                     .map_err(|_| {
-                        Error::ConfigurationError("Invalid OPERATOR_STATE_RETRIEVER_ADDRESS".into())
+                        ConfigError::Other("Invalid OPERATOR_STATE_RETRIEVER_ADDRESS".into())
                     })?,
                 delegation_manager_address: env::var("DELEGATION_MANAGER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing DELEGATION_MANAGER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid DELEGATION_MANAGER_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid DELEGATION_MANAGER_ADDRESS".into()))?,
                 service_manager_address: env::var("SERVICE_MANAGER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing SERVICE_MANAGER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid SERVICE_MANAGER_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid SERVICE_MANAGER_ADDRESS".into()))?,
                 stake_registry_address: env::var("STAKE_REGISTRY_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing STAKE_REGISTRY_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid STAKE_REGISTRY_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid STAKE_REGISTRY_ADDRESS".into()))?,
                 strategy_manager_address: env::var("STRATEGY_MANAGER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing STRATEGY_MANAGER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid STRATEGY_MANAGER_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid STRATEGY_MANAGER_ADDRESS".into()))?,
                 avs_directory_address: env::var("AVS_DIRECTORY_ADDRESS")
-                    .map_err(|_| Error::ConfigurationError("Missing AVS_DIRECTORY_ADDRESS".into()))?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
-                    .map_err(|_| {
-                        Error::ConfigurationError("Invalid AVS_DIRECTORY_ADDRESS".into())
-                    })?,
+                    .map_err(|_| ConfigError::Other("Invalid AVS_DIRECTORY_ADDRESS".into()))?,
                 rewards_coordinator_address: env::var("REWARDS_COORDINATOR_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing REWARDS_COORDINATOR_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
                     .map_err(|_| {
-                        Error::ConfigurationError("Invalid REWARDS_COORDINATOR_ADDRESS".into())
+                        ConfigError::Other("Invalid REWARDS_COORDINATOR_ADDRESS".into())
                     })?,
                 permission_controller_address: env::var("PERMISSION_CONTROLLER_ADDRESS")
-                    .map_err(|_| {
-                        Error::ConfigurationError("Missing PERMISSION_CONTROLLER_ADDRESS".into())
-                    })?
+                    .map_err(|_| ConfigError::MissingEigenlayerContractAddresses)?
                     .parse()
                     .map_err(|_| {
-                        Error::ConfigurationError("Invalid PERMISSION_CONTROLLER_ADDRESS".into())
+                        ConfigError::Other("Invalid PERMISSION_CONTROLLER_ADDRESS".into())
                     })?,
             };
-            Ok(ProtocolSettings::from_eigenlayer(addresses))
+            Ok(ProtocolSettings::Eigenlayer(addresses))
         }
         Protocol::Tangle => {
-            let settings = TangleInstanceSettings {
+            let settings = TangleProtocolSettings {
                 blueprint_id: env::var("BLUEPRINT_ID")
-                    .map_err(|_| Error::ConfigurationError("Missing BLUEPRINT_ID".into()))?
+                    .map_err(|_| ConfigError::Other("Missing BLUEPRINT_ID".into()))?
                     .parse()
-                    .map_err(|_| Error::ConfigurationError("Invalid BLUEPRINT_ID".into()))?,
+                    .map_err(|_| ConfigError::Other("Invalid BLUEPRINT_ID".into()))?,
                 service_id: env::var("SERVICE_ID")
                     .ok()
                     .map(|id| {
                         id.parse()
-                            .map_err(|_| Error::ConfigurationError("Invalid SERVICE_ID".into()))
+                            .map_err(|_| ConfigError::Other("Invalid SERVICE_ID".into()))
                     })
                     .transpose()?,
             };
-            Ok(ProtocolSettings::from_tangle(settings))
+            Ok(ProtocolSettings::Tangle(settings))
         }
-        _ => Err(Error::UnsupportedProtocol(protocol.to_string())),
+        _ => Err(ConfigError::UnsupportedProtocol(protocol.to_string())),
     }
 }
 

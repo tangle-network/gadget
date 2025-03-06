@@ -97,7 +97,6 @@ gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features 
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
 
 # SDK
-gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }

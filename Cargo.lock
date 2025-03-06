@@ -2695,7 +2695,6 @@ dependencies = [
  "color-eyre",
  "futures",
  "gadget-clients",
- "gadget-config",
  "gadget-crypto",
  "gadget-keystore",
  "gadget-logging",
@@ -2816,7 +2815,6 @@ dependencies = [
  "document-features",
  "eigensdk",
  "gadget-clients",
- "gadget-config",
  "gadget-context-derive",
  "gadget-contexts",
  "gadget-crypto",
@@ -3388,6 +3386,7 @@ dependencies = [
  "alloy-transport",
  "anyhow",
  "bip39",
+ "blueprint-runner",
  "cargo-generate",
  "cargo_metadata 0.18.1",
  "clap",
@@ -3399,7 +3398,6 @@ dependencies = [
  "escargot",
  "gadget-blueprint-proc-macro-core",
  "gadget-clients",
- "gadget-config",
  "gadget-crypto",
  "gadget-crypto-core",
  "gadget-keystore",
@@ -6960,25 +6958,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-config"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives 0.8.21",
- "clap",
- "crossbeam-channel",
- "gadget-config",
- "gadget-keystore",
- "gadget-networking",
- "gadget-std",
- "libp2p",
- "serde",
- "serde_json",
- "thiserror 2.0.11",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "gadget-context-derive"
 version = "0.3.1"
 dependencies = [
@@ -7197,7 +7176,6 @@ dependencies = [
  "eigensdk",
  "futures",
  "gadget-anvil-testing-utils",
- "gadget-config",
  "gadget-core-testing-utils",
  "gadget-logging",
  "gadget-std",
@@ -7406,7 +7384,6 @@ dependencies = [
  "gadget-blueprint-serde",
  "gadget-client-tangle",
  "gadget-clients",
- "gadget-config",
  "gadget-contexts",
  "gadget-core-testing-utils",
  "gadget-crypto-tangle-pair-signer",

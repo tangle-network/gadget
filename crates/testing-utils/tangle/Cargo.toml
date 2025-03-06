@@ -14,7 +14,6 @@ blueprint-runner = { workspace = true, features = ["std", "tangle", "networking"
 cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }
-gadget-config = { workspace = true, features = ["tangle", "std", "networking"] }
 gadget-contexts = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std", "evm"] }

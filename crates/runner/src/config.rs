@@ -8,6 +8,8 @@ use core::fmt::{Debug, Display};
 use core::str::FromStr;
 #[cfg(feature = "std")]
 use gadget_keystore::{Keystore, KeystoreConfig};
+#[cfg(feature = "networking")]
+pub use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -212,7 +214,7 @@ pub struct BlueprintEnvironment {
     pub test_mode: bool,
 
     #[cfg(feature = "networking")]
-    pub bootnodes: Vec<libp2p::Multiaddr>,
+    pub bootnodes: Vec<Multiaddr>,
     /// The port to bind the network to
     #[cfg(feature = "networking")]
     pub network_bind_port: u16,
@@ -342,7 +344,7 @@ impl BlueprintEnvironment {
         let ecdsa_pub_key = keystore.first_local::<K>()?;
         let ecdsa_pair = keystore.get_secret::<K>(&ecdsa_pub_key)?;
 
-        let listen_addr: libp2p::Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.network_bind_port)
+        let listen_addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", self.network_bind_port)
             .parse()
             .expect("valid multiaddr; qed");
 
@@ -615,9 +617,9 @@ pub struct BlueprintSettings {
     // NETWORKING
     // ========
     #[cfg(feature = "networking")]
-    #[arg(long, value_parser = <libp2p::Multiaddr as gadget_std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
+    #[arg(long, value_parser = <Multiaddr as gadget_std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
     #[serde(default)]
-    bootnodes: Option<Vec<libp2p::Multiaddr>>,
+    bootnodes: Option<Vec<Multiaddr>>,
     #[cfg(feature = "networking")]
     #[arg(long, env)]
     #[serde(default)]
@@ -820,7 +822,7 @@ fn default_ws_rpc_url() -> Url {
     Url::from_str("ws://127.0.0.1:9944").unwrap()
 }
 
-#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, PartialEq, Eq, clap::ValueEnum)]
 #[clap(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedChains {
