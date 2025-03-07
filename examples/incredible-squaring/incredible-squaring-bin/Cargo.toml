@@ -1,0 +1,17 @@
+[package]
+name = "incredible-squaring-blueprint-bin"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+incredible-squaring-blueprint-lib.workspace = true
+
+blueprint-sdk = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing = { workspace = true }
+tower.workspace = true
+
+[build-dependencies]
+incredible-squaring-blueprint-lib.workspace = true
+blueprint-sdk = { workspace = true, features = ["macros", "build"] }

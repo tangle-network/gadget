@@ -1,6 +1,6 @@
 //! Taken from https://github.com/Layr-Labs/evmsdk-rs/blob/main/crates/logging/src/tracing_logger.rs
 
-use metrics::{describe_counter, describe_histogram, Key, Label};
+use metrics::{Key, Label, describe_counter, describe_histogram};
 
 #[derive(Debug)]
 pub struct RpcCallsMetrics;

@@ -8,7 +8,7 @@ pub use into_job_result::IntoJobResult;
 pub use into_job_result_parts::IntoJobResultParts;
 pub use into_job_result_parts::JobResultParts;
 
-// TODO: More docs on this
+// TODO(serial): More docs on this
 /// A special result type that indicates a job produced no result
 ///
 /// This is **not** the same as returning `None` or `()` from your [`Job`].

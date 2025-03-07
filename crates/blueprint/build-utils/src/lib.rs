@@ -21,7 +21,7 @@ pub fn build_contracts(contract_dirs: Vec<&str>) {
     }
 
     // Get the project root directory
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let root = PathBuf::from(workspace_or_manifest_dir());
 
     // Try to find the `forge` executable dynamically
     let forge_executable = find_forge_executable();
@@ -62,6 +62,13 @@ fn is_directory_empty(path: &Path) -> bool {
         .unwrap_or(true)
 }
 
+fn workspace_or_manifest_dir() -> PathBuf {
+    let dir = env::var("CARGO_WORKSPACE_DIR")
+        .or_else(|_| env::var("CARGO_MANIFEST_DIR"))
+        .expect("neither CARGO_WORKSPACE_DIR nor CARGO_MANIFEST_DIR is set");
+    PathBuf::from(dir)
+}
+
 /// Run soldeer's 'install' command if the dependencies directory exists and is not empty.
 ///
 /// # Panics
@@ -70,7 +77,7 @@ fn is_directory_empty(path: &Path) -> bool {
 /// - If forge's `soldeer` is not installed.
 pub fn soldeer_install() {
     // Get the project root directory
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let root = PathBuf::from(workspace_or_manifest_dir());
 
     // Check if the dependencies directory exists and is not empty
     let dependencies_dir = root.join("dependencies");
@@ -98,7 +105,7 @@ pub fn soldeer_install() {
 /// - If forge's `soldeer` is not installed.
 pub fn soldeer_update() {
     // Get the project root directory
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let root = PathBuf::from(workspace_or_manifest_dir());
 
     // Try to find the `forge` executable dynamically
     let forge_executable = find_forge_executable();

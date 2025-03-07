@@ -111,11 +111,7 @@ pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
 #[macro_export]
 /// A template that makes creating domain-specific macros for tangle-based blueprints easier
 macro_rules! tangle_blueprint_test_template {
-    (
-        $N:tt,
-        $test_logic:expr,
-        $node_config:expr,
-    ) => {
+    ($N:tt, $test_logic:expr, $node_config:expr,) => {
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
         #[::gadget_sdk::tokio::test(flavor = "multi_thread", crate = "::gadget_sdk::tokio")]

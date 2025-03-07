@@ -2,18 +2,19 @@
 //!
 //! Monitors TaskManager events for task creation and completion.
 
+use ::std::{str::FromStr, sync::Arc, time::Duration};
 use alloy_primitives::Address;
 use blueprint_evm_extra::producer::{PollingConfig, PollingProducer};
+use blueprint_runner::eigenlayer::bls::EigenlayerBLSConfig;
 use blueprint_runner::{config::BlueprintEnvironment, BlueprintRunner};
-use blueprint_sdk::error::BoxError;
+use blueprint_sdk::utils::evm::get_provider_http;
 use blueprint_sdk::*;
-use incredible_squaring_eigenlayer::config::{get_provider_http, EigenlayerBLSConfig};
-use incredible_squaring_eigenlayer::create_contract_router;
-use std::{str::FromStr, sync::Arc, time::Duration};
+use gadget_logging::setup_log;
+use incredible_squaring_eigenlayer::{create_contract_router, ExampleContext};
 use tracing_subscriber::filter::LevelFilter;
 
 #[tokio::main]
-async fn main() -> Result<(), BoxError> {
+async fn main() -> Result<(), blueprint_sdk::Error> {
     setup_log();
 
     // Get contract address from environment
@@ -40,7 +41,7 @@ async fn main() -> Result<(), BoxError> {
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
         Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
     );
-    let ctx = todo!();
+    let ctx = ExampleContext {};
     BlueprintRunner::builder(eigenlayer_bls_config, BlueprintEnvironment::default())
         .router(create_contract_router(ctx, task_manager))
         .producer(task_producer)
@@ -51,19 +52,4 @@ async fn main() -> Result<(), BoxError> {
         .await?;
 
     Ok(())
-}
-
-fn setup_log() {
-    use tracing_subscriber::util::SubscriberInitExt;
-
-    let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
-        .without_time()
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
-        .finish()
-        .try_init();
 }

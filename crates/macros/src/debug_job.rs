@@ -14,8 +14,7 @@ pub(crate) fn expand(attr: Attrs, item_fn: &ItemFn, kind: FunctionKind) -> Token
     let mut context_ty = context_ty.map(second);
 
     let check_extractor_count = check_extractor_count(item_fn, kind);
-    // Not applicable to our blueprint SDK
-    // let check_path_extractor = check_path_extractor(item_fn, kind);
+
     let check_output_tuples = check_output_tuples(item_fn);
     let check_output_impls_into_job_result = if check_output_tuples.is_empty() {
         check_output_impls_into_job_result(item_fn)
@@ -82,7 +81,6 @@ pub(crate) fn expand(attr: Attrs, item_fn: &ItemFn, kind: FunctionKind) -> Token
     quote! {
         #item_fn
         #check_extractor_count
-        // #check_path_extractor
         #check_output_impls_into_job_result
         #check_inputs_and_future_send
         #middleware_takes_next_as_last_arg

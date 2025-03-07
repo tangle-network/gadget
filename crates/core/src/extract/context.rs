@@ -157,7 +157,7 @@ use core::{
 ///         let context = MyLibraryContext::from_ref(context);
 ///
 ///         // ...
-///         # todo!()
+///         # unimplemented!()
 ///     }
 /// }
 ///

@@ -13,16 +13,19 @@ repository.workspace = true
 blueprint-core = { workspace = true }
 blueprint-router = { workspace = true }
 blueprint-runner = { workspace = true }
-blueprint-macros = { workspace = true, optional = true }
 blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
-gadget-config = { workspace = true }
 gadget-clients = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 document-features = { workspace = true }
+async-trait = { workspace = true }
+
+# Macros
+blueprint-macros = { workspace = true, optional = true }
+gadget-context-derive = { workspace = true, optional = true }
 
 # Tangle-specific extras
 blueprint-tangle-extra = { workspace = true, optional = true }
@@ -50,7 +53,6 @@ tokio = { workspace = true, default-features = false }
 # Networking-related dependencies
 gadget-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
-gadget-context-derive = { workspace = true, optional = true }
 
 # Round-based protocol support
 gadget-networking-round-based-extension = { workspace = true, optional = true }
@@ -60,7 +62,6 @@ gadget-testing-utils = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 
 # Optional dependencies for build
-blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
 [features]
@@ -77,9 +78,17 @@ std = [
     "gadget-clients/std",
     "gadget-crypto/std",
     "gadget-logging/std",
+    # Tangle
+    "tangle-subxt/std",
     # Extras
     "blueprint-tangle-extra?/std",
     "blueprint-evm-extra?/std"
+]
+
+## Enable support for web targets
+web = [
+    # Tangle
+    "tangle-subxt/web",
 ]
 
 ## Enable [tracing] support
@@ -109,7 +118,11 @@ local-store = ["gadget-stores/local"]
 round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
 ## Enable all macros of subcrates
-macros = ["dep:blueprint-macros", "blueprint-tangle-extra?/macros"]
+macros = [
+    "dep:blueprint-macros",
+    "dep:gadget-context-derive",
+    "blueprint-tangle-extra?/macros"
+]
 
 ## Enable [Tangle] support
 ##
@@ -119,9 +132,11 @@ tangle = [
     "dep:tangle-subxt",
     "dep:gadget-crypto-tangle-pair-signer",
     "gadget-clients/tangle",
+    "gadget-contexts/tangle",
+    "gadget-context-derive?/tangle",
     "gadget-testing-utils?/tangle",
     "gadget-utils/tangle",
-    "blueprint-runner/tangle"
+    "blueprint-runner/tangle",
 ]
 
 ## Enable EVM support
@@ -130,9 +145,21 @@ evm = [
     "dep:alloy",
     "dep:alloy-json-abi",
     "gadget-clients/evm",
+    "gadget-contexts/evm",
     "gadget-crypto-tangle-pair-signer?/evm",
     "gadget-utils/evm",
+    "blueprint-macros?/evm",
     "gadget-testing-utils?/anvil",
+]
+
+## Enable [Eigenlayer] support
+##
+## [Eigenlayer]: https://eigenlayer.xyz
+eigenlayer = [
+    "dep:eigensdk",
+    "gadget-contexts/eigenlayer",
+    "gadget-clients/eigenlayer",
+    "evm",
 ]
 
 ## Enable build-time utilities

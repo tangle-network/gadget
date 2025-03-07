@@ -1,7 +1,7 @@
-use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
+use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use alloy_provider::RootProvider;
+use blueprint_runner::config::SupportedChains;
 use color_eyre::eyre::Result;
-use gadget_config::supported_chains::SupportedChains;
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;

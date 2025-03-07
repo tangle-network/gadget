@@ -20,19 +20,19 @@ pub fn generate_context_impl(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let config_ty = quote! { ::blueprint_sdk::macros::ext::contexts::eigenlayer::EigenlayerClient };
+    let config_ty = quote! { ::blueprint_sdk::contexts::eigenlayer::EigenlayerClient };
 
     quote! {
-        #[::blueprint_sdk::macros::ext::async_trait::async_trait]
-        impl #impl_generics ::blueprint_sdk::macros::ext::contexts::eigenlayer::EigenlayerContext for #name #ty_generics #where_clause {
-            async fn eigenlayer_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::macros::ext::clients::Error> {
+        #[::blueprint_sdk::async_trait::async_trait]
+        impl #impl_generics ::blueprint_sdk::contexts::eigenlayer::EigenlayerContext for #name #ty_generics #where_clause {
+            async fn eigenlayer_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::clients::Error> {
                 static CLIENT: std::sync::OnceLock<#config_ty> = std::sync::OnceLock::new();
                 match CLIENT.get() {
                     Some(client) => Ok(client.clone()),
                     None => {
-                        let client = ::blueprint_sdk::macros::ext::contexts::eigenlayer::EigenlayerContext::eigenlayer_client(&#field_access).await?;
+                        let client = ::blueprint_sdk::contexts::eigenlayer::EigenlayerContext::eigenlayer_client(&#field_access).await?;
                         CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
-                            ::blueprint_sdk::macros::ext::clients::Error::msg("Failed to set client")
+                            ::blueprint_sdk::clients::Error::msg("Failed to set client")
                         })
                     }
                 }

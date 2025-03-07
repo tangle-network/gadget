@@ -6,21 +6,28 @@ edition.workspace = true
 [dependencies]
 blueprint-core.workspace = true
 blueprint-router.workspace = true
+gadget-std.workspace = true
 gadget-keystore = { workspace = true }
+gadget-crypto = { workspace = true }
 futures-core.workspace = true
 futures-util.workspace = true
 tower.workspace = true
 tokio = { workspace = true, features = ["full"] }
 serde.workspace = true
 tracing.workspace = true
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 thiserror.workspace = true
-url.workspace = true
+url = { workspace = true, features = ["serde"] }
 dynosaur = { workspace = true }
 document-features = { workspace = true }
 
 gadget-utils.workspace = true
+
+# Networking
+crossbeam-channel = { workspace = true, optional = true }
+gadget-networking = { workspace = true, optional = true }
+libp2p = { workspace = true, optional = true }
 
 # Tangle
 blueprint-tangle-extra = { workspace = true, optional = true }
@@ -35,27 +42,52 @@ alloy-signer = { workspace = true, optional = true }
 eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"], optional = true }
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["tangle"] }
+blueprint-sdk = { workspace = true, features = ["std", "tangle"] }
 
 [features]
-default = ["std"]
+default = ["std", "networking"]
 
 #! ### Core
 
-## Enable standard library support. Currently unused
-std = []
+## Enable standard library support
+std = [
+    "gadget-keystore/std",
+    "gadget-std/std",
+]
+
+## Enable networking support for [`BlueprintEnvironment`](crate::config::BlueprintEnvironment)
+networking = [
+    "dep:gadget-networking",
+    "dep:crossbeam-channel",
+    "dep:libp2p",
+]
 
 #! ### Protocols
 
 ## Enable [Tangle] support
 ##
 ## [Tangle]: https://tangle.tools
-tangle = ["dep:tangle-subxt", "dep:blueprint-tangle-extra", "dep:k256", "gadget-utils/tangle"]
+tangle = [
+    "dep:tangle-subxt",
+    "dep:blueprint-tangle-extra",
+    "dep:k256",
+    "gadget-utils/tangle",
+    "gadget-crypto/sp-core",
+    "gadget-crypto/tangle-pair-signer"
+]
 
 ## Enable [Eigenlayer] support
 ##
 ## [Eigenlayer]: https://eigenlayer.xyz
-eigenlayer = ["dep:alloy-contract", "dep:alloy-primitives", "dep:alloy-signer-local", "dep:alloy-signer", "dep:eigensdk", "gadget-utils/evm"]
+eigenlayer = [
+    "dep:alloy-contract",
+    "dep:alloy-primitives",
+    "dep:alloy-signer-local",
+    "dep:alloy-signer",
+    "dep:eigensdk",
+    "gadget-utils/evm",
+    "std", # TODO: keystore access requires the std feature
+]
 
 ## Enable [Symbiotic] support **(CURRENTLY UNUSED)**
 ##

@@ -9,9 +9,6 @@ pub enum Error {
     #[cfg(feature = "evm")]
     Evm(#[from] gadget_client_evm::error::Error),
     #[error(transparent)]
-    #[cfg(feature = "networking")]
-    Networking(#[from] gadget_client_networking::error::Error),
-    #[error(transparent)]
     #[cfg(feature = "tangle")]
     Tangle(#[from] gadget_client_tangle::error::Error),
 }

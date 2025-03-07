@@ -5,7 +5,7 @@ use super::{
 use crate::error::Error;
 use gadget_crypto::KeyType;
 use libp2p::{
-    autonat, identify, identity::PublicKey, mdns, relay, upnp, Multiaddr, PeerId, StreamProtocol,
+    Multiaddr, PeerId, StreamProtocol, autonat, identify, identity::PublicKey, mdns, relay, upnp,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},

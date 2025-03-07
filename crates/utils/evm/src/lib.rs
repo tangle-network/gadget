@@ -17,12 +17,10 @@ pub const SIGNATURE_EXPIRY: U256 = U256::from_limbs([86400, 0, 0, 0]);
 /// - If the provided http endpoint is not a valid URL
 #[must_use]
 pub fn get_provider_http(http_endpoint: &str) -> RootProvider {
-    let provider = ProviderBuilder::new()
+    ProviderBuilder::new()
         .on_http(http_endpoint.parse().unwrap())
         .root()
-        .clone();
-
-    provider
+        .clone()
 }
 
 /// Get the provider for a http endpoint with the specified [`Wallet`](EthereumWallet)
@@ -34,13 +32,11 @@ pub fn get_provider_http(http_endpoint: &str) -> RootProvider {
 /// - If the provided http endpoint is not a valid URL
 #[must_use]
 pub fn get_wallet_provider_http(http_endpoint: &str, wallet: EthereumWallet) -> RootProvider {
-    let provider = ProviderBuilder::new()
+    ProviderBuilder::new()
         .wallet(wallet)
         .on_http(http_endpoint.parse().unwrap())
         .root()
-        .clone();
-
-    provider
+        .clone()
 }
 
 /// Get the provider for a websocket endpoint
@@ -52,14 +48,12 @@ pub fn get_wallet_provider_http(http_endpoint: &str, wallet: EthereumWallet) -> 
 /// - If the provided websocket endpoint is not a valid URL
 #[must_use]
 pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider {
-    let provider = ProviderBuilder::new()
+    ProviderBuilder::new()
         .on_ws(WsConnect::new(ws_endpoint))
         .await
         .unwrap()
         .root()
-        .clone();
-
-    provider
+        .clone()
 }
 
 #[allow(clippy::type_complexity)]

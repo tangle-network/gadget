@@ -1,12 +1,12 @@
+use crate::Field;
 use crate::from_field;
 use crate::ser::new_bounded_string;
 use crate::to_field;
-use crate::Field;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec;
 use serde::{Deserialize, Serialize};
-use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
+use serde_test::{Token, assert_de_tokens, assert_ser_tokens};
 use tangle_subxt::subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
@@ -283,7 +283,7 @@ mod structs {
 mod enums {
     use super::*;
     use serde::{Deserialize, Serialize};
-    use serde_test::{assert_ser_tokens, Token};
+    use serde_test::{Token, assert_ser_tokens};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
     enum Availability {

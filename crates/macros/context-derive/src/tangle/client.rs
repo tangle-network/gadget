@@ -19,13 +19,13 @@ pub fn generate_context_impl(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let config_ty = quote! { ::blueprint_sdk::macros::ext::contexts::tangle::TangleClient };
+    let config_ty = quote! { ::blueprint_sdk::contexts::tangle::TangleClient };
 
     quote! {
-        #[::blueprint_sdk::macros::ext::async_trait::async_trait]
-        impl #impl_generics ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext for #name #ty_generics #where_clause {
-            async fn tangle_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::macros::ext::clients::Error> {
-                ::blueprint_sdk::macros::ext::contexts::tangle::TangleClientContext::tangle_client(&#field_access_config).await
+        #[::blueprint_sdk::async_trait::async_trait]
+        impl #impl_generics ::blueprint_sdk::contexts::tangle::TangleClientContext for #name #ty_generics #where_clause {
+            async fn tangle_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::clients::Error> {
+                ::blueprint_sdk::contexts::tangle::TangleClientContext::tangle_client(&#field_access_config).await
             }
         }
     }

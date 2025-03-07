@@ -52,10 +52,10 @@ impl<T: subxt::Config, C: OnlineClientT<T>> TxProgressExt<T, C> for subxt::tx::T
                 // Error scenarios; return the error.
                 TxStatus::Error { message } => return Err(TransactionError::Error(message).into()),
                 TxStatus::Invalid { message } => {
-                    return Err(TransactionError::Invalid(message).into())
+                    return Err(TransactionError::Invalid(message).into());
                 }
                 TxStatus::Dropped { message } => {
-                    return Err(TransactionError::Dropped(message).into())
+                    return Err(TransactionError::Dropped(message).into());
                 }
                 // Ignore and wait for next status event:
                 _ => continue,

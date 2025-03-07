@@ -1,10 +1,10 @@
-use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use gadget_context_derive::KeystoreContext;
 
 #[derive(KeystoreContext)]
 struct MyContext {
     foo: String,
-    sdk_config: GadgetConfiguration,
+    sdk_config: BlueprintEnvironment,
 }
 
 fn main() {}

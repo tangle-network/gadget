@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["experimental-blueprint-lib", "experimental-blueprint-bin"]
+members = ["incredible-squaring-lib", "incredible-squaring-bin"]
 
 [workspace.package]
 version = "0.1.1"
@@ -8,18 +8,11 @@ description = "An experimental blueprint"
 edition = "2024"
 
 [workspace.dependencies]
-experimental-blueprint-lib = { path = "experimental-blueprint-lib" }
+incredible-squaring-blueprint-lib = { path = "incredible-squaring-lib" }
 
 blueprint-sdk = { path = "../../crates/sdk", default-features = false }
-tokio = "1.43.0"
+tokio = { version = "1.43.0", default-features = false }
+color-eyre = "0.6.3"
 tower = { version = "0.5.2", default-features = false }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tempfile = "3.13.0"
 tracing = "0.1.41"
-async-trait = "0.1.86"
-tangle-subxt = "0.13.0"
-blueprint-build-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
-
-# Testing
-gadget-core-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }
-gadget-tangle-testing-utils = { git = "https://github.com/tangle-network/gadget.git", rev = "9c0a037" }

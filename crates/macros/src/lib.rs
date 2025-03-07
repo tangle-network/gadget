@@ -14,8 +14,19 @@ use syn::{Type, parse::Parse};
 
 mod attr_parsing;
 mod debug_job;
+#[cfg(feature = "evm")]
+mod evm;
 mod from_ref;
 mod with_position;
+
+#[cfg(feature = "evm")]
+/// A procedural macro that outputs the [JSON ABI] for the given file path.
+///
+/// [JSON ABI]: https://docs.ethers.org/v5/api/utils/abi/formats/#abi-formats--solidity
+#[proc_macro]
+pub fn load_abi(input: TokenStream) -> TokenStream {
+    evm::load_abi(input)
+}
 
 /// Generates better error messages when applied to job functions.
 ///
@@ -147,7 +158,7 @@ mod with_position;
 //  xx |     pub async fn my_job(TangleArg(_): TangleArg<u64>)  {}
 //     |                                   ^^^^ not found in this scope
 /// ```
-///
+/// 
 /// # Performance
 ///
 /// This macro has no effect when compiled with the release profile. (eg. `cargo build --release`)

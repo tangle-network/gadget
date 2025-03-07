@@ -22,7 +22,7 @@ pub enum Error {
     #[error("Transport error: {0}")]
     TransportError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
     #[error("Config error: {0}")]
-    Config(#[from] gadget_config::Error),
+    Config(#[from] blueprint_runner::error::ConfigError),
     #[error("{0}")]
     OtherStatic(&'static str),
 }

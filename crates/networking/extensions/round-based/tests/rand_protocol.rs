@@ -3,11 +3,11 @@
 mod common;
 
 use serde::{Deserialize, Serialize};
-use sha2::{digest::Output, Digest, Sha256};
+use sha2::{Digest, Sha256, digest::Output};
 
 use round_based::rounds_router::{
-    simple_store::{RoundInput, RoundInputError},
     CompleteRoundError, RoundsRouter,
+    simple_store::{RoundInput, RoundInputError},
 };
 use round_based::{Delivery, Mpc, MpcParty, MsgId, Outgoing, PartyIndex, ProtocolMessage, SinkExt};
 
@@ -175,7 +175,7 @@ mod tests {
     use std::time::Duration;
 
     use super::common::*;
-    use gadget_crypto::{sp_core::SpEcdsa, KeyType};
+    use gadget_crypto::{KeyType, sp_core::SpEcdsa};
     use gadget_networking::discovery::peers::VerificationIdentifierKey;
     use gadget_networking::service::AllowedKeys;
     use gadget_networking_round_based_extension::RoundBasedNetworkAdapter;

@@ -1,6 +1,6 @@
+use blueprint_runner::config::{BlueprintCliCoreSettings, BlueprintSettings, ContextConfig};
 use cargo_toml::Manifest;
 pub use error::TestRunnerError;
-use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
 pub use runner::TestRunner;
 use std::io::Write;
@@ -32,11 +32,11 @@ pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest
 #[allow(irrefutable_let_patterns)]
 pub fn check_for_test(config: &ContextConfig) -> Result<(), Error> {
     // create a file to denote we have started
-    if let GadgetCLICoreSettings::Run {
+    if let BlueprintCliCoreSettings::Run(BlueprintSettings {
         keystore_uri: base_path,
         test_mode,
         ..
-    } = &config.gadget_core_settings
+    }) = &config.blueprint_core_settings
     {
         if !*test_mode {
             return Ok(());

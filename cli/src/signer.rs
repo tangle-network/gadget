@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::{eyre::Context, Result, Section};
+use color_eyre::{Result, Section, eyre::Context};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use sp_core::Pair;
-use tangle_subxt::subxt_signer::bip39;
 use tangle_subxt::subxt_signer::ExposeSecret;
 use tangle_subxt::subxt_signer::SecretUri;
+use tangle_subxt::subxt_signer::bip39;
 
 pub(crate) const SIGNER_ENV: &str = "SIGNER";
 pub(crate) const EVM_SIGNER_ENV: &str = "EVM_SIGNER";

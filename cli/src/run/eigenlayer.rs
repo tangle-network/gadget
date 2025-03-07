@@ -1,5 +1,5 @@
-use color_eyre::eyre::{eyre, Result};
-use gadget_config::{supported_chains::SupportedChains, GadgetConfiguration};
+use blueprint_runner::config::{BlueprintEnvironment, SupportedChains};
+use color_eyre::eyre::{Result, eyre};
 use gadget_std::fs;
 use gadget_std::path::PathBuf;
 use tokio::io::AsyncBufReadExt;
@@ -33,7 +33,7 @@ fn get_binary_name() -> Result<String> {
 
 /// Run a compiled Eigenlayer AVS binary with the provided options
 pub async fn run_eigenlayer_avs(
-    config: GadgetConfiguration,
+    config: BlueprintEnvironment,
     chain: SupportedChains,
     binary_path: Option<PathBuf>,
 ) -> Result<Child> {

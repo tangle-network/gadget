@@ -74,7 +74,9 @@ pub fn new_blueprint(
     if !foundry.forge.is_installed() {
         gadget_logging::warn!("Forge not installed, skipping dependencies");
         gadget_logging::warn!("NOTE: See <https://getfoundry.sh>");
-        gadget_logging::warn!("NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies");
+        gadget_logging::warn!(
+            "NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies"
+        );
         return Ok(());
     }
 

@@ -258,7 +258,7 @@ where
     ///
     /// const MY_JOB_ID: u8 = 0;
     ///
-    /// # async fn async_main() -> Result<(), blueprint_sdk::error::BoxError> {
+    /// # async fn async_main() -> Result<(), blueprint_sdk::core::error::BoxError> {
     /// let mut router = Router::new().route(MY_JOB_ID, || async {});
     /// let request = JobCall::new(MY_JOB_ID, Bytes::new());
     /// let response = router.ready().await?.call(request).await?;
@@ -275,7 +275,7 @@ where
     ///
     /// const MY_JOB_ID: u32 = 0;
     ///
-    /// # async fn async_main() -> Result<(), blueprint_sdk::error::BoxError> {
+    /// # async fn async_main() -> Result<(), blueprint_sdk::core::error::BoxError> {
     /// let mut router = Router::new().route(MY_JOB_ID, || async {});
     /// let request = JobCall::new(MY_JOB_ID, Bytes::new());
     /// let response = router.as_service().ready().await?.call(request).await?;

@@ -1,8 +1,8 @@
-use blueprint_sdk::config::GadgetConfiguration;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
 use blueprint_sdk::contexts::tangle::TangleClientContext as _;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use gadget_context_derive::{
     EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext,
 };
@@ -11,14 +11,14 @@ use gadget_context_derive::{
 #[allow(dead_code)]
 struct MyContext(
     String,
-    #[config] GadgetConfiguration,
+    #[config] BlueprintEnvironment,
     #[call_id] Option<u64>,
 );
 
 #[allow(dead_code)]
 fn main() {
     let body = async {
-        let ctx = MyContext("bar".to_string(), GadgetConfiguration::default(), None);
+        let ctx = MyContext("bar".to_string(), BlueprintEnvironment::default(), None);
         let _keystore = ctx.keystore();
         let _evm_provider = ctx.evm_client();
         let tangle_client = ctx.tangle_client().await.unwrap();
