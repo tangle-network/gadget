@@ -2,6 +2,7 @@
 failure-output = "immediate-final"
 fail-fast = false
 slow-timeout = { period = "240s", terminate-after = 4 }
+no-tests = "pass"
 
 [profile.serial]
 test-threads = 1
