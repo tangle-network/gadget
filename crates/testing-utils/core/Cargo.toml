@@ -10,12 +10,10 @@ repository.workspace = true
 
 [dependencies]
 cargo_toml = { workspace = true }
-gadget-runners = { workspace = true, features = ["std"] }
 gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-clients = { workspace = true, features = ["std"] }
 gadget-keystore = { workspace = true, features = ["std"] }
-gadget-event-listeners = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
 url = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

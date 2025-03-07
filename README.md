@@ -4,31 +4,31 @@ A comprehensive toolkit for building, deploying, and managing blueprints to run 
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#-features)
-- [Project Structure](#-project-structure)
-- [Prerequisites](#-prerequisites)
-- [Getting Started](#-getting-started)
-  - [Installation](#installation)
-  - [Creating Your First Blueprint](#creating-your-first-blueprint)
-  - [Building and Testing](#building-and-testing)
-  - [Deployment](#deployment)
-- [Key Management](#-key-management)
-  - [Key Generation](#key-generation)
-  - [Supported Key Types](#supported-key-types)
-- [Configuration](#-configuration)
-  - [Feature Flags](#feature-flags)
-  - [Environment Variables](#environment-variables)
-- [Core Components](#-core-components)
-  - [Blueprint System](#blueprint-system)
-  - [Network Clients](#network-clients)
-  - [Cryptography](#cryptography)
-  - [Event System](#event-system)
-  - [Storage](#storage)
-- [Development](#-development)
-  - [Testing](#testing)
-- [Contributing](#-contributing)
-- [Support](#-support)
+-   [Tangle Network: Gadget SDK](#tangle-network-gadget-sdk)
+    -   [Table of Contents](#table-of-contents)
+    -   [Overview](#overview)
+    -   [🌟 Features](#-features)
+    -   [🛠 Project Structure](#-project-structure)
+    -   [📋 Prerequisites](#-prerequisites)
+    -   [🚀 Getting Started](#-getting-started)
+        -   [Installation](#installation)
+        -   [Creating Your First Blueprint](#creating-your-first-blueprint)
+    -   [🔑 Key Management](#-key-management)
+        -   [Key Generation](#key-generation)
+        -   [Supported Key Types](#supported-key-types)
+    -   [🔧 Configuration](#-configuration)
+        -   [Feature Flags](#feature-flags)
+        -   [Environment Variables](#environment-variables)
+    -   [🔨 Core Components](#-core-components)
+        -   [Blueprint System](#blueprint-system)
+        -   [Network Clients](#network-clients)
+        -   [Cryptography](#cryptography)
+        -   [Event System](#event-system)
+        -   [Storage](#storage)
+    -   [🧪 Development](#-development)
+        -   [Testing](#testing)
+    -   [🤝 Contributing](#-contributing)
+    -   [📮 Support](#-support)
 
 ## Overview
 
@@ -36,36 +36,36 @@ Tangle Network's Gadget SDK is a modular framework designed to simplify the deve
 
 ## 🌟 Features
 
-- **Blueprint System**
+-   **Blueprint System**
 
-  - Template-based blueprint creation
-  - Automated deployment workflows
-  - Metadata Management
+    -   Template-based blueprint creation
+    -   Automated deployment workflows
+    -   Metadata Management
 
-- **Multi-Chain Support**
+-   **Multi-Chain Support**
 
-  - Native Tangle Network integration
-  - EigenLayer compatibility
-  - EVM chain support
-  - Cross-chain communication
+    -   Native Tangle Network integration
+    -   EigenLayer compatibility
+    -   EVM chain support
+    -   Cross-chain communication
 
-- **Advanced Cryptography**
+-   **Advanced Cryptography**
 
-  - Multiple signature schemes (BLS, Ed25519, SR25519)
-  - Secure key management
+    -   Multiple signature schemes (BLS, Ed25519, SR25519)
+    -   Secure key management
 
-- **Networking**
+-   **Networking**
 
-  - P2P communication via libp2p
-  - Custom protocol implementations
-  - NAT traversal
-  - Peer discovery and management
+    -   P2P communication via libp2p
+    -   Custom protocol implementations
+    -   NAT traversal
+    -   Peer discovery and management
 
-- **Development Tools**
-  - CLI for common operations
-  - Comprehensive testing framework
-  - Performance benchmarking
-  - Debugging utilities
+-   **Development Tools**
+    -   CLI for common operations
+    -   Comprehensive testing framework
+    -   Performance benchmarking
+    -   Debugging utilities
 
 ## 🛠 Project Structure
 
@@ -81,11 +81,9 @@ tangle-network-gadget-workspace
 │   ├── contexts             # Execution contexts
 │   ├── crypto               # Cryptographic implementations
 │   ├── eigenlayer-bindings  # EigenLayer smart contract bindings
-│   ├── event-listeners      # Event handling system
 │   ├── executor             # Task execution system
 │   ├── keystore             # Key management and storage
 │   ├── logging              # Logging infrastructure
-│   ├── macros               # Procedural and derive macros
 │   ├── metrics              # Performance and monitoring metrics
 │   ├── networking           # P2P networking and communication
 │   ├── runners              # Execution environments
@@ -100,10 +98,10 @@ tangle-network-gadget-workspace
 
 ## 📋 Prerequisites
 
-- Rust (nightly-2024-10-13)
-- Cargo
-- OpenSSL development packages
-- CMake (for certain dependencies)
+-   Rust (nightly-2024-10-13)
+-   Cargo
+-   OpenSSL development packages
+-   CMake (for certain dependencies)
 
 For Ubuntu/Debian:
 
@@ -189,12 +187,12 @@ The CLI and core libraries support various feature flags for customizing functio
 
 The crypto system supports multiple signature schemes:
 
-- k256 (ECDSA)
-- sr25519 (Schnorrkel)
-- ed25519
-- BLS (including BN254)
-- Tangle pair signer
-- Substrate crypto (sp-core)
+-   k256 (ECDSA)
+-   sr25519 (Schnorrkel)
+-   ed25519
+-   BLS (including BN254)
+-   Tangle pair signer
+-   Substrate crypto (sp-core)
 
 Installation examples:
 
@@ -226,41 +224,41 @@ Required environment variables for different operations:
 
 The Blueprint system is the core of the Tangle Network Gadget framework:
 
-- **Template Engine**: Standardized blueprint creation
-- **Metadata Management**: Blueprint information and configuration
+-   **Template Engine**: Standardized blueprint creation
+-   **Metadata Management**: Blueprint information and configuration
 
 ### Network Clients
 
 Specialized clients for different blockchain networks:
 
-- **Tangle Client**: Native integration with Tangle Network
-- **EigenLayer Client**: AVS (Actively Validated Service) integration
-- **EVM Client**: Ethereum and EVM-compatible chain support
+-   **Tangle Client**: Native integration with Tangle Network
+-   **EigenLayer Client**: AVS (Actively Validated Service) integration
+-   **EVM Client**: Ethereum and EVM-compatible chain support
 
 ### Cryptography
 
 Comprehensive cryptographic implementations:
 
-- **Multiple Schemes**: Support for various signature algorithms
-- **Key Management**: Secure key storage and handling
+-   **Multiple Schemes**: Support for various signature algorithms
+-   **Key Management**: Secure key storage and handling
 
 ### Event System
 
 Robust event handling system:
 
-- **Event Listeners**: Custom event monitoring
-- **Async Processing**: Non-blocking event handling
-- **Filtering**: Configurable event filtering
-- **Error Handling**: Robust error recovery
+-   **Event Listeners**: Custom event monitoring
+-   **Async Processing**: Non-blocking event handling
+-   **Filtering**: Configurable event filtering
+-   **Error Handling**: Robust error recovery
 
 ### Storage
 
 Flexible storage solutions:
 
-- **Local Database**: Efficient local storage
-- **Key-Value Store**: Fast key-value operations
-- **File System**: Secure file storage
-- **Remote Storage**: Cloud storage integration (e.g., AWS, GCP, Ledger)
+-   **Local Database**: Efficient local storage
+-   **Key-Value Store**: Fast key-value operations
+-   **File System**: Secure file storage
+-   **Remote Storage**: Cloud storage integration (e.g., AWS, GCP, Ledger)
 
 ## 🧪 Development
 
@@ -285,6 +283,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ## 📮 Support
 
-- **Issues**: Use GitHub Issues for bug reports and feature requests
-- **Discussions**: Join our community discussions on GitHub
-- **Discord**: Join our [Discord server](https://discord.com/invite/cv8EfJu3Tn)
+-   **Issues**: Use GitHub Issues for bug reports and feature requests
+-   **Discussions**: Join our community discussions on GitHub
+-   **Discord**: Join our [Discord server](https://discord.com/invite/cv8EfJu3Tn)

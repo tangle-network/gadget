@@ -1,0 +1,14 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib", "dependencies"]
+evm_version = "shanghai"
+
+[soldeer]
+recursive_deps = true
+remappings_location = "txt"
+remappings_version = false
+
+[dependencies]
+forge-std = "1.9.6"
+eigenlayer-middleware = { version = "0.1.0", git = "https://github.com/Layr-Labs/eigenlayer-middleware.git", rev = "fe5834371caed60c1d26ab62b5519b0cbdcb42fa" }

@@ -1,4 +1,39 @@
 //! Blueprint SDK
+//!
+//! ## Features
+#![doc = document_features::document_features!()]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc(
+    html_logo_url = "https://cdn.prod.website-files.com/6494562b44a28080aafcbad4/65aaf8b0818b1d504cbdf81b_Tnt%20Logo.png"
+)]
+
+// == Core utilities ==
+
+// Expose the core module to the outside world
+pub use blueprint_core::*;
+
+/// Re-export the core extractors from the `blueprint_core` crate.
+pub mod extract {
+    #[cfg(feature = "macros")]
+    pub use blueprint_macros::FromRef;
+
+    pub use blueprint_core::extract::*;
+}
+
+#[cfg(feature = "tangle")]
+pub use blueprint_tangle_extra as tangle;
+
+#[cfg(feature = "evm")]
+pub use blueprint_evm_extra as evm;
+
+pub use blueprint_runner as runner;
+
+pub mod producers {
+    #[cfg(feature = "cronjob")]
+    pub use blueprint_producers_extra::cron::CronJob;
+}
+
+pub use blueprint_router::Router;
 
 #[cfg(feature = "tangle")]
 pub use tangle_subxt;
@@ -41,13 +76,7 @@ pub mod networking {
 pub use gadget_event_listeners as event_listeners;
 
 #[cfg(feature = "macros")]
-mod macros_feat {
-    pub use gadget_macros as macros;
-    pub use gadget_macros::job;
-    pub use gadget_macros::main;
-}
-#[cfg(feature = "macros")]
-pub use macros_feat::*;
+pub use blueprint_macros::debug_job;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;

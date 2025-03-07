@@ -216,7 +216,7 @@ macro_rules! impl_sp_core_bls_key_type {
                         }
                         None => {
                             use gadget_std::Rng;
-                            let mut seed = Self::get_test_rng().gen::<[u8; 32]>();
+                            let mut seed = Self::get_test_rng().r#gen::<[u8; 32]>();
                             let pair = <$pair_type>::from_seed_slice(&mut seed)
                                     .map_err($crate::error::SecretStringErrorWrapper)
                                     .map_err(Into::<$crate::error::SpCoreError>::into)?;

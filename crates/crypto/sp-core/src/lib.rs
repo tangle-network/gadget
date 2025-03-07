@@ -209,7 +209,7 @@ macro_rules! impl_sp_core_key_type {
                             #[cfg(not(feature = "std"))]
                             let pair = {
                                 use gadget_std::Rng;
-                                let seed = Self::get_test_rng().gen::<[u8; 32]>();
+                                let seed = Self::get_test_rng().r#gen::<[u8; 32]>();
                                 <$pair_type>::from_seed(&seed)
                             };
                             Ok([<Sp $key_type Pair>](pair))

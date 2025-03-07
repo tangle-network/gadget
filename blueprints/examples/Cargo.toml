@@ -10,7 +10,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["std", "testing", "evm", "tangle", "eigenlayer", "macros", "cronjob"] }
+blueprint-sdk = { workspace = true, features = ["std", "testing", "evm", "tangle", "macros", "cronjob"] }
 color-eyre = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,7 +19,7 @@ uuid = { workspace = true }
 
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["std", "testing", "evm", "tangle", "eigenlayer", "macros", "cronjob"] }
+blueprint-sdk = { workspace = true, features = ["std", "testing", "evm", "tangle", "macros", "cronjob"] }
 
 [build-dependencies]
 blueprint-sdk = { workspace = true, features = ["build"] }

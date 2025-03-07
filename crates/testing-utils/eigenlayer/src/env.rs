@@ -29,6 +29,7 @@ pub const REGISTRY_COORDINATOR_ADDR: Address = address!("4c4a2f8c81640e47606d3fd
 pub const SERVICE_MANAGER_ADDR: Address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
 /// The default Strategy Manager address on our testnet
 pub const STRATEGY_MANAGER_ADDR: Address = address!("a513E6E4b8f2a923D98304ec87F64353C4D5C853");
+pub const STAKE_REGISTRY_ADDR: Address = address!("922d6956c99e12dfeb3224dea977d0939758a1fe");
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
@@ -50,45 +51,33 @@ pub async fn setup_eigenlayer_test_environment(
 
     let accounts = provider.get_accounts().await.unwrap();
 
-    let allocation_manager_address = address!("8A791620dd6260079BF849Dc5567aDC3F2FDC318");
     std::env::set_var(
         "ALLOCATION_MANAGER_ADDR",
-        allocation_manager_address.to_string(),
+        ALLOCATION_MANAGER_ADDR.to_string(),
     );
-    let registry_coordinator_address = address!("4c4a2f8c81640e47606d3fd77b353e87ba015584");
     std::env::set_var(
         "REGISTRY_COORDINATOR_ADDR",
-        registry_coordinator_address.to_string(),
+        REGISTRY_COORDINATOR_ADDR.to_string(),
     );
-    let operator_state_retriever_address = address!("1429859428c0abc9c2c47c8ee9fbaf82cfa0f20f");
     std::env::set_var(
         "OPERATOR_STATE_RETRIEVER_ADDR",
-        operator_state_retriever_address.to_string(),
+        OPERATOR_STATE_RETRIEVER_ADDR.to_string(),
     );
-    let delegation_manager_address = address!("Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9");
     std::env::set_var(
         "DELEGATION_MANAGER_ADDR",
-        delegation_manager_address.to_string(),
+        DELEGATION_MANAGER_ADDR.to_string(),
     );
-    let permission_controller_address = address!("322813Fd9A801c5507c9de605d63CEA4f2CE6c44");
     std::env::set_var(
         "PERMISSION_CONTROLLER_ADDR",
-        permission_controller_address.to_string(),
+        PERMISSION_CONTROLLER_ADDR.to_string(),
     );
-    let service_manager_address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
-    std::env::set_var("SERVICE_MANAGER_ADDR", service_manager_address.to_string());
-    let stake_registry_address = address!("922d6956c99e12dfeb3224dea977d0939758a1fe");
-    std::env::set_var("STAKE_REGISTRY_ADDR", stake_registry_address.to_string());
-    let strategy_manager_address = address!("a513E6E4b8f2a923D98304ec87F64353C4D5C853");
-    std::env::set_var(
-        "STRATEGY_MANAGER_ADDR",
-        strategy_manager_address.to_string(),
-    );
-    let erc20_mock_address = address!("eC4cFde48EAdca2bC63E94BB437BbeAcE1371bF3");
-    std::env::set_var("ERC20_MOCK_ADDR", erc20_mock_address.to_string());
+    std::env::set_var("SERVICE_MANAGER_ADDR", SERVICE_MANAGER_ADDR.to_string());
+    std::env::set_var("STAKE_REGISTRY_ADDR", STAKE_REGISTRY_ADDR.to_string());
+    std::env::set_var("STRATEGY_MANAGER_ADDR", STRATEGY_MANAGER_ADDR.to_string());
+    std::env::set_var("ERC20_MOCK_ADDR", ERC20_MOCK_ADDR.to_string());
 
     let registry_coordinator =
-        RegistryCoordinator::new(registry_coordinator_address, provider.clone());
+        RegistryCoordinator::new(REGISTRY_COORDINATOR_ADDR, provider.clone());
 
     let operator_set_params = OperatorSetParam {
         maxOperatorCount: 10,
@@ -96,12 +85,12 @@ pub async fn setup_eigenlayer_test_environment(
         kickBIPsOfTotalStake: 1000,
     };
     let strategy_params = StrategyParams {
-        strategy: erc20_mock_address,
+        strategy: ERC20_MOCK_ADDR,
         multiplier: Uint::from(1),
     };
 
     info!("Creating Quorum...");
-    let receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
+    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         vec![strategy_params],
@@ -118,16 +107,16 @@ pub async fn setup_eigenlayer_test_environment(
         ws_endpoint: ws_endpoint.to_string(),
         accounts,
         eigenlayer_contract_addresses: EigenlayerContractAddresses {
-            allocation_manager_address,
-            registry_coordinator_address,
-            operator_state_retriever_address,
-            delegation_manager_address,
-            service_manager_address,
-            stake_registry_address,
-            strategy_manager_address,
+            allocation_manager_address: ALLOCATION_MANAGER_ADDR,
+            registry_coordinator_address: REGISTRY_COORDINATOR_ADDR,
+            operator_state_retriever_address: OPERATOR_STATE_RETRIEVER_ADDR,
+            delegation_manager_address: DELEGATION_MANAGER_ADDR,
+            service_manager_address: SERVICE_MANAGER_ADDR,
+            stake_registry_address: STAKE_REGISTRY_ADDR,
+            strategy_manager_address: STRATEGY_MANAGER_ADDR,
             avs_directory_address: Default::default(),
             rewards_coordinator_address: Default::default(),
-            permission_controller_address,
+            permission_controller_address: PERMISSION_CONTROLLER_ADDR,
         },
     }
 }

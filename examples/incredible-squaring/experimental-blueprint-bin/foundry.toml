@@ -1,0 +1,19 @@
+[profile.default]
+src = "contracts/src"
+test = "contracts/test"
+out = "contracts/out"
+script = "contracts/script"
+cache_path = "contracts/cache"
+broadcast = "contracts/broadcast"
+libs = ["dependencies"]
+auto_detect_remappings = true
+
+[soldeer]
+recursive_deps = true
+remappings_location = "txt"
+remappings_version = false
+
+[dependencies]
+tnt-core = "0.3.0"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -16,7 +16,10 @@ db
 
 node_modules
 
-blueprints/**/dependencies/
+**/contracts/out/
+**/contracts/cache/
+**/dependencies/
+
 blueprint.lock
 blueprint.json
 cache

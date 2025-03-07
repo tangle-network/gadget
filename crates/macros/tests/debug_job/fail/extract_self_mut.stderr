@@ -1,0 +1,5 @@
+error: Jobs must only take owned values
+  --> tests/debug_job/fail/extract_self_mut.rs:19:18
+   |
+19 |     async fn job(&mut self) {}
+   |                  ^^^^^^^^^

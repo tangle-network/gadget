@@ -89,10 +89,10 @@ impl RngCore for GadgetRng {
 #[cfg(not(feature = "std"))]
 impl RngCore for GadgetRng {
     fn next_u32(&mut self) -> u32 {
-        self.0.gen()
+        self.0.r#gen()
     }
     fn next_u64(&mut self) -> u64 {
-        self.0.gen()
+        self.0.r#gen()
     }
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         self.0.fill_bytes(dest)
