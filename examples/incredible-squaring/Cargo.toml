@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["experimental-blueprint-lib", "experimental-blueprint-bin"]
+members = ["incredible-squaring-lib", "incredible-squaring-bin"]
 
 [workspace.package]
 version = "0.1.1"
@@ -8,7 +8,7 @@ description = "An experimental blueprint"
 edition = "2024"
 
 [workspace.dependencies]
-experimental-blueprint-lib = { path = "experimental-blueprint-lib" }
+experimental-blueprint-lib = { path = "incredible-squaring-lib" }
 
 blueprint-sdk = { path = "../../crates/sdk", default-features = false }
 tokio = { version = "1.43.0", default-features = false }

@@ -14,7 +14,7 @@ round-based = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 tracing = { workspace = true }
 dashmap = { workspace = true }
 crossbeam = { workspace = true }

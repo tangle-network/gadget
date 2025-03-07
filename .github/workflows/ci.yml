@@ -80,6 +80,39 @@ jobs:
           echo "Generated matrix: $matrix"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
+  test-incredible-squaring-tangle:
+    timeout-minutes: 30
+    name: Tangle incredible squaring
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Verify Forge installation
+        run: forge --version
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: tests
+        working-directory: examples/incredible-squaring/incredible-squaring-lib
+        run: cargo nextest run
+
   testing:
     needs: generate-matrix
     timeout-minutes: 30
