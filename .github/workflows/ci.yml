@@ -76,30 +76,77 @@ jobs:
       matrix:
         package:
           [
-            # TODO(serial): add new crates
-            # Blueprints
+            # Blueprint examples
             incredible-squaring-blueprint,
             incredible-squaring-blueprint-eigenlayer,
 
+            # Job system
+            blueprint-core,
+            blueprint-router,
+            blueprint-runner,
+
+            # Extras
+            blueprint-tangle-extra,
+            blueprint-evm-extra,
+            blueprint-producers-extra,
+
+            # Utils
+            blueprint-util-meta,
+            blueprint-manager,
+            blueprint-build-utils,
+            gadget-blueprint-serde,
+            gadget-utils,
+            gadget-utils-evm,
+            gadget-utils-tangle,
+            gadget-utils-eigenlayer,
+
+            # Testing utils
+            gadget-testing-utils,
+            gadget-core-testing-utils,
+            gadget-tangle-testing-utils,
+            gadget-anvil-testing-utils,
+            gadget-eigenlayer-testing-utils,
+
             # Macros
+            blueprint-macros,
             gadget-blueprint-proc-macro-core,
             gadget-context-derive,
 
+            # Stores
+            gadget-stores,
+            gadget-store-local-database,
+
             # Clients
+            gadget-clients,
+            gadget-client-core,
             gadget-client-eigenlayer,
             gadget-client-evm,
             gadget-client-tangle,
+            gadget-contexts,
+
+            # P2P
+            gadget-networking,
+            gadget-networking-round-based-extension,
+
+            # Executor
+            gadget-executor,
 
             # Crypto
-            gadget-crypto-sp-core,
-            gadget-crypto-ed25519,
-            gadget-crypto-bls,
+            gadget-crypto-core,
             gadget-crypto-k256,
             gadget-crypto-sr25519,
+            gadget-crypto-ed25519,
+            gadget-crypto-hashing,
+            gadget-crypto-bls,
+            gadget-crypto-bn254,
+            gadget-crypto-sp-core,
+            gadget-crypto,
+            gadget-crypto-tangle-pair-signer,
 
             gadget-blueprint-serde,
             gadget-keystore,
             gadget-std,
+            cargo-tangle,
           ]
     steps:
       - name: checkout code
@@ -142,50 +189,6 @@ jobs:
 
       - name: tests
         run: cargo nextest run --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
-
-      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
-      - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc
-
-  macos_tests:
-    timeout-minutes: 30
-    name: cargo test
-    runs-on: macos-latest
-    env:
-      CARGO_TERM_COLOR: always
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          [
-            gadget-networking,
-            gadget-executor,
-            gadget-utils-tangle,
-            gadget-tangle-testing-utils,
-          ]
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v2
-
-      - name: install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: install protobuf and gmp
-        run: |
-          brew install protobuf gmp
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-
-      - name: tests
-        run: cargo nextest run --profile serial --package ${{ matrix.package }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
