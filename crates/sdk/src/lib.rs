@@ -10,7 +10,8 @@
 // == Core utilities ==
 
 // Expose the core module to the outside world
-pub use blueprint_core::*;
+pub use blueprint_core as core;
+pub use core::*;
 
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;
@@ -49,6 +50,7 @@ pub mod producers {
     pub use blueprint_producers_extra::cron::CronJob;
 }
 
+pub use blueprint_router as router;
 pub use blueprint_router::Router;
 
 #[cfg(feature = "macros")]
