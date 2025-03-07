@@ -8,7 +8,7 @@ description = "An experimental blueprint"
 edition = "2024"
 
 [workspace.dependencies]
-experimental-blueprint-lib = { path = "incredible-squaring-lib" }
+incredible-squaring-blueprint-lib = { path = "incredible-squaring-lib" }
 
 blueprint-sdk = { path = "../../crates/sdk", default-features = false }
 tokio = { version = "1.43.0", default-features = false }

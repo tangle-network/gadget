@@ -504,7 +504,6 @@ where
 
     pub async fn start_runner(&self) -> Result<(), Error> {
         let result = {
-            // Acquire the lock only to call run_runner and then release it.
             let mut test_env_guard = self.test_env.write().await;
             test_env_guard.run_runner().await
         };

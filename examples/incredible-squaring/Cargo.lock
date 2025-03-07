@@ -5504,27 +5504,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "experimental-blueprint-bin"
-version = "0.1.0"
-dependencies = [
- "blueprint-sdk",
- "experimental-blueprint-lib",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
-name = "experimental-blueprint-lib"
-version = "0.1.0"
-dependencies = [
- "blueprint-sdk",
- "color-eyre",
- "tokio",
-]
-
-[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7867,6 +7846,27 @@ checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
 dependencies = [
  "proc-macro2",
  "quote",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-bin"
+version = "0.1.0"
+dependencies = [
+ "blueprint-sdk",
+ "incredible-squaring-blueprint-lib",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-lib"
+version = "0.1.0"
+dependencies = [
+ "blueprint-sdk",
+ "color-eyre",
+ "tokio",
 ]
 
 [[package]]

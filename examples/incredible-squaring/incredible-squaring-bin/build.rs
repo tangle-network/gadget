@@ -1,6 +1,6 @@
 use blueprint_sdk::build;
 use blueprint_sdk::tangle::blueprint;
-use experimental_blueprint_lib::square;
+use incredible_squaring_blueprint_lib::square;
 use std::path::Path;
 use std::process;
 
@@ -10,7 +10,7 @@ fn main() {
     build::utils::soldeer_update();
     build::utils::build_contracts(contract_dirs);
 
-    println!("cargo::rerun-if-changed=../experimental-blueprint-lib");
+    println!("cargo::rerun-if-changed=../incredible-squaring-lib");
 
     let blueprint = blueprint! {
         name: "experiment",

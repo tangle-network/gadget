@@ -10,7 +10,7 @@ use blueprint_sdk::tangle::consumer::TangleConsumer;
 use blueprint_sdk::tangle::filters::MatchesServiceId;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::tangle::producer::TangleProducer;
-use experimental_blueprint_lib::{FooBackgroundService, XSQUARE_JOB_ID, square};
+use incredible_squaring_blueprint_lib::{FooBackgroundService, XSQUARE_JOB_ID, square};
 use tower::filter::FilterLayer;
 use tracing::error;
 use tracing::level_filters::LevelFilter;
