@@ -36,6 +36,8 @@ pub enum RunnerError {
 
     #[error("Blueprint runner configured without a router")]
     NoRouter,
+    #[error("Blueprint runner configured without any producers")]
+    NoProducers,
 
     #[error("A background service failed: {0}")]
     BackgroundService(String),

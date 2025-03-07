@@ -115,25 +115,24 @@ where
         }
 
         // Setup the bootnodes
-        if initial_node_count > 1 {
-            let nodes = self.nodes.read().await;
-            for (index, node) in nodes.iter().enumerate() {
-                let NodeSlot::Occupied(node) = node else {
+        let nodes = self.nodes.read().await;
+        for (index, node) in nodes.iter().enumerate() {
+            let NodeSlot::Occupied(node) = node else {
+                panic!("Not all nodes were initialized");
+            };
+
+            let mut bootnodes = Vec::new();
+            for node in nodes.iter().enumerate().filter(|(n, _)| *n != index) {
+                let NodeSlot::Occupied(node) = node.1 else {
                     panic!("Not all nodes were initialized");
                 };
 
-                let mut bootnodes = Vec::new();
-                for node in nodes.iter().enumerate().filter(|(n, _)| *n != index) {
-                    let NodeSlot::Occupied(node) = node.1 else {
-                        panic!("Not all nodes were initialized");
-                    };
-
-                    bootnodes.push(node.addr.clone());
-                }
-
-                let mut env = node.test_env.write().await;
-                env.update_networking_config(bootnodes, node.port);
+                bootnodes.push(node.addr.clone());
             }
+
+            let mut env = node.test_env.write().await;
+            env.update_networking_config(bootnodes, node.port);
+            env.set_tangle_producer_consumer().await;
         }
 
         // Signal initialization is complete
@@ -369,16 +368,12 @@ impl Debug for NodeState {
 
 /// Commands that can be sent to individual nodes
 enum NodeCommand {
-    StartRunner {
-        result_tx: oneshot::Sender<Result<(), Error>>,
-    },
     Shutdown,
 }
 
 impl Debug for NodeCommand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            NodeCommand::StartRunner { .. } => f.write_str("StartRunner"),
             NodeCommand::Shutdown => f.write_str("Shutdown"),
         }
     }
@@ -507,25 +502,20 @@ where
         Err(Error::Setup("Node failed to shutdown in time".to_string()))
     }
 
-    async fn start_runner(&self) -> Result<(), Error> {
-        let (result_tx, result_rx) = oneshot::channel();
-        self.command_tx
-            .send(NodeCommand::StartRunner { result_tx })
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?;
-        result_rx.await.map_err(|e| Error::Setup(e.to_string()))?
+    pub async fn start_runner(&self) -> Result<(), Error> {
+        let result = {
+            // Acquire the lock only to call run_runner and then release it.
+            let mut test_env_guard = self.test_env.write().await;
+            test_env_guard.run_runner().await
+        };
+        result.map_err(|e| Error::Setup(e.to_string()))
     }
 
     fn spawn_command_handler(node: Arc<Self>, mut command_rx: mpsc::Receiver<NodeCommand>) {
         let state = node.state.clone();
-
         tokio::task::spawn(async move {
             while let Some(cmd) = command_rx.recv().await {
                 match cmd {
-                    NodeCommand::StartRunner { result_tx } => {
-                        let result = node.test_env.write().await.run_runner().await;
-                        let _ = result_tx.send(result.map_err(|e| Error::Setup(e.to_string())));
-                    }
                     NodeCommand::Shutdown => {
                         let mut state = state.write().await;
                         state.is_running = false;

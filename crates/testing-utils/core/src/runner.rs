@@ -10,7 +10,8 @@ use std::future::Pending;
 pub struct TestRunner<Ctx> {
     router: Option<Router>,
     job_index: usize,
-    builder: Option<BlueprintRunnerBuilder<Pending<()>>>,
+    #[doc(hidden)]
+    pub builder: Option<BlueprintRunnerBuilder<Pending<()>>>,
     _phantom: core::marker::PhantomData<Ctx>,
 }
 

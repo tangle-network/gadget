@@ -6,7 +6,13 @@ use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::Multiaddr;
 use blueprint_runner::error::RunnerError as Error;
 use blueprint_runner::tangle::config::TangleConfig;
+use blueprint_tangle_extra::consumer::TangleConsumer;
+use blueprint_tangle_extra::producer::TangleProducer;
+use gadget_contexts::tangle::TangleClientContext;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
+use gadget_crypto_tangle_pair_signer::TanglePairSigner;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::crypto::sp_core::SpSr25519;
 use std::fmt::{Debug, Formatter};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -26,6 +32,34 @@ impl<Ctx> TangleTestEnv<Ctx> {
     ) {
         self.env.bootnodes = bootnodes;
         self.env.network_bind_port = network_bind_port;
+    }
+
+    // TODO(serial): This needs to return errors. Too many chances to panic here. Not helpful.
+    pub(crate) async fn set_tangle_producer_consumer(&mut self) {
+        let runner = self.runner.as_mut().expect("Runner already running");
+        let builder = runner.builder.take().expect("Runner already running");
+        let tangle_client = self
+            .env
+            .tangle_client()
+            .await
+            .expect("Tangle node should be running");
+        let producer = TangleProducer::finalized_blocks(tangle_client.rpc_client.clone())
+            .await
+            .expect("Failed to create producer");
+
+        let sr25519_signer = self
+            .env
+            .keystore()
+            .first_local::<SpSr25519>()
+            .expect("key not found");
+        let sr25519_pair = self
+            .env
+            .keystore()
+            .get_secret::<SpSr25519>(&sr25519_signer)
+            .expect("key not found");
+        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
+        let consumer = TangleConsumer::new(tangle_client.rpc_client.clone(), sr25519_signer);
+        runner.builder = Some(builder.producer(producer).consumer(consumer));
     }
 }
 

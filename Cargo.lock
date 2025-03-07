@@ -7338,6 +7338,7 @@ dependencies = [
  "async-trait",
  "blueprint-core",
  "blueprint-runner",
+ "blueprint-tangle-extra",
  "cargo-tangle",
  "dirs 6.0.0",
  "futures",

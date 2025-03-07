@@ -1,113 +1,127 @@
+use crate::extract;
 use alloc::collections::VecDeque;
+use blueprint_core::JobCall;
 use blueprint_core::extensions::Extensions;
 use blueprint_core::job_call::Parts;
-use core::pin::Pin;
-use core::task::Context;
-use core::task::Poll;
-use std::future::Future;
-use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
-
-use blueprint_core::JobCall;
 use blueprint_core::metadata::{MetadataMap, MetadataValue};
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use futures_core::Stream;
-use futures_util::StreamExt;
+use std::sync::Mutex;
 use tangle_subxt::parity_scale_codec::Encode;
 use tangle_subxt::subxt::backend::StreamOfResults;
 use tangle_subxt::subxt::blocks::{Block, BlocksClient};
 use tangle_subxt::subxt::config::Header;
 use tangle_subxt::subxt::{self, OnlineClient, PolkadotConfig};
-
-use super::extract;
+use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
 pub type TangleConfig = PolkadotConfig;
 pub type TangleClient = OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
-type BlockStream<T> = StreamOfResults<T>;
 
-enum State {
-    WaitingForBlock,
-    ProcessingBlock(Pin<Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>>),
-}
-
-pub struct TangleProducer<Finalization = ()> {
-    blocks_client: BlocksClient<TangleConfig, TangleClient>,
-    s: Finalization,
+struct ProducerState {
+    block_stream:
+        Pin<Box<dyn Stream<Item = Result<TangleBlock, subxt::Error>> + Send + Unpin + 'static>>,
     buffer: VecDeque<JobCall>,
-    state: State,
+    block_in_progress:
+        Option<Pin<Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>>>,
 }
 
-impl TangleProducer<()> {
-    pub async fn finalized_blocks(
-        client: TangleClient,
-    ) -> Result<TangleProducer<BlockStream<TangleBlock>>, subxt::Error> {
-        let blocks_client = BlocksClient::new(client);
-        let s = blocks_client.subscribe_finalized().await?;
-        Ok(TangleProducer {
-            blocks_client,
-            s,
+impl ProducerState {
+    fn new(
+        block_stream: impl Stream<Item = Result<TangleBlock, subxt::Error>> + Send + Unpin + 'static,
+    ) -> Self {
+        Self {
+            block_stream: Box::pin(block_stream),
             buffer: VecDeque::new(),
-            state: State::WaitingForBlock,
+            block_in_progress: None,
+        }
+    }
+}
+
+/// A producer of Tangle [`JobCall`]s
+pub struct TangleProducer {
+    blocks_client: BlocksClient<TangleConfig, TangleClient>,
+    state: Mutex<ProducerState>,
+}
+
+impl TangleProducer {
+    /// Create a TangleProducer that yields job calls from finalized blocks.
+    pub async fn finalized_blocks(client: TangleClient) -> Result<Self, subxt::Error> {
+        let blocks_client = BlocksClient::new(client.clone());
+        let stream = blocks_client.subscribe_finalized().await?;
+        let state = ProducerState::new(stream);
+        Ok(Self {
+            blocks_client,
+            state: Mutex::new(state),
         })
     }
 
-    pub async fn best_blocks(
-        client: TangleClient,
-    ) -> Result<TangleProducer<BlockStream<TangleBlock>>, subxt::Error> {
-        let blocks_client = BlocksClient::new(client);
-        let s = blocks_client.subscribe_best().await?;
-        Ok(TangleProducer {
+    /// Create a TangleProducer that yields job calls from best blocks.
+    pub async fn best_blocks(client: TangleClient) -> Result<Self, subxt::Error> {
+        let blocks_client = BlocksClient::new(client.clone());
+        let stream = blocks_client.subscribe_best().await?;
+        let state = ProducerState::new(stream);
+        Ok(Self {
             blocks_client,
-            s,
-            buffer: VecDeque::new(),
-            state: State::WaitingForBlock,
+            state: Mutex::new(state),
         })
     }
 
+    /// Returns a reference to the blocks client.
     pub fn blocks_client(&self) -> &BlocksClient<TangleConfig, TangleClient> {
         &self.blocks_client
     }
 }
 
-impl<Finalization> Stream for TangleProducer<Finalization>
-where
-    Finalization: Stream<Item = Result<TangleBlock, subxt::Error>> + Unpin,
-{
+impl Stream for TangleProducer {
     type Item = Result<JobCall, subxt::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut state = self.state.lock().unwrap();
+
         loop {
-            match &mut self.state {
-                State::WaitingForBlock => match self.s.poll_next_unpin(cx) {
-                    Poll::Ready(Some(Ok(block))) => {
-                        self.state = State::ProcessingBlock(Box::pin(block_to_job_calls(block)));
-                        continue;
-                    }
-                    Poll::Ready(Some(Err(e))) => {
-                        return Poll::Ready(Some(Err(e)));
-                    }
-                    Poll::Ready(None) => {
-                        return Poll::Ready(None);
-                    }
-                    Poll::Pending => {
-                        return Poll::Pending;
-                    }
-                },
-                State::ProcessingBlock(fut) => match fut.as_mut().poll(cx) {
+            match state.block_in_progress.as_mut() {
+                Some(proc_future) => match proc_future.as_mut().poll(cx) {
                     Poll::Ready(Ok(job_calls)) => {
-                        self.buffer.extend(job_calls);
-                        self.state = State::WaitingForBlock;
-                        if let Some(job) = self.buffer.pop_front() {
+                        state.buffer.extend(job_calls);
+                        state.block_in_progress = None;
+                        if let Some(job) = state.buffer.pop_front() {
                             return Poll::Ready(Some(Ok(job)));
                         }
 
                         continue;
                     }
                     Poll::Ready(Err(e)) => {
-                        self.state = State::WaitingForBlock;
+                        state.block_in_progress = None;
                         return Poll::Ready(Some(Err(e)));
                     }
                     Poll::Pending => {
-                        return Poll::Pending;
+                        if let Some(job) = state.buffer.pop_front() {
+                            return Poll::Ready(Some(Ok(job)));
+                        } else {
+                            return Poll::Pending;
+                        }
+                    }
+                },
+                None => match state.block_stream.as_mut().poll_next(cx) {
+                    Poll::Ready(Some(Ok(block))) => {
+                        let fut = block_to_job_calls(block);
+                        state.block_in_progress = Some(Box::pin(fut)
+                            as Pin<
+                                Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>,
+                            >);
+                        continue;
+                    }
+                    Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
+                    Poll::Ready(None) => return Poll::Ready(None),
+                    Poll::Pending => {
+                        if let Some(job) = state.buffer.pop_front() {
+                            return Poll::Ready(Some(Ok(job)));
+                        } else {
+                            return Poll::Pending;
+                        }
                     }
                 },
             }
