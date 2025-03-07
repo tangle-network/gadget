@@ -143,21 +143,13 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf and gmp
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
-
       - uses: taiki-e/install-action@v2
         with:
           tool: nextest
 
       - name: Add extra args
         run: |
-          # if test == "gadget_context_derive", add --features="networking", else ""
-          if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
-            echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
-          elif [[ "${{ matrix.package }}" == "incredible-squaring-blueprint" || "${{ matrix.package }}" == "incredible-squaring-blueprint-eigenlayer" || "${{ matrix.package }}" == "blueprint-examples" ]]; then
+          if [[ "${{ matrix.package }}" == "gadget-networking" ]]; then
             echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
           else
             echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
