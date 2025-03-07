@@ -65,6 +65,21 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
 
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Generate matrix for workspace crates
+        id: set-matrix
+        run: |
+          matrix=$(cargo metadata --format-version 1 --no-deps | jq '[.packages[] | {name: .name, manifest: .manifest_path}]')
+          echo "Generated matrix: $matrix"
+          echo "::set-output name=matrix::$matrix"
+
   testing:
     timeout-minutes: 30
     name: cargo test
@@ -73,81 +88,7 @@ jobs:
       CARGO_TERM_COLOR: always
     strategy:
       fail-fast: false
-      matrix:
-        package:
-          [
-            # Blueprint examples
-            incredible-squaring-blueprint,
-            incredible-squaring-blueprint-eigenlayer,
-
-            # Job system
-            blueprint-core,
-            blueprint-router,
-            blueprint-runner,
-
-            # Extras
-            blueprint-tangle-extra,
-            blueprint-evm-extra,
-            blueprint-producers-extra,
-
-            # Utils
-            blueprint-util-meta,
-            blueprint-manager,
-            blueprint-build-utils,
-            gadget-blueprint-serde,
-            gadget-utils,
-            gadget-utils-evm,
-            gadget-utils-tangle,
-            gadget-utils-eigenlayer,
-
-            # Testing utils
-            gadget-testing-utils,
-            gadget-core-testing-utils,
-            gadget-tangle-testing-utils,
-            gadget-anvil-testing-utils,
-            gadget-eigenlayer-testing-utils,
-
-            # Macros
-            blueprint-macros,
-            gadget-blueprint-proc-macro-core,
-            gadget-context-derive,
-
-            # Stores
-            gadget-stores,
-            gadget-store-local-database,
-
-            # Clients
-            gadget-clients,
-            gadget-client-core,
-            gadget-client-eigenlayer,
-            gadget-client-evm,
-            gadget-client-tangle,
-            gadget-contexts,
-
-            # P2P
-            gadget-networking,
-            gadget-networking-round-based-extension,
-
-            # Executor
-            gadget-executor,
-
-            # Crypto
-            gadget-crypto-core,
-            gadget-crypto-k256,
-            gadget-crypto-sr25519,
-            gadget-crypto-ed25519,
-            gadget-crypto-hashing,
-            gadget-crypto-bls,
-            gadget-crypto-bn254,
-            gadget-crypto-sp-core,
-            gadget-crypto,
-            gadget-crypto-tangle-pair-signer,
-
-            gadget-blueprint-serde,
-            gadget-keystore,
-            gadget-std,
-            cargo-tangle,
-          ]
+      matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2
