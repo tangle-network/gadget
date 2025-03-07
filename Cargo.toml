@@ -1,12 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-    "cli",
-    "blueprints/*",
-    "crates/*",
-    "examples/incredible-squaring-eigenlayer"
-]
-exclude = ["blueprints/incredible-squaring-symbiotic"]
+members = ["cli", "blueprints/*", "crates/*", "examples/incredible-squaring-eigenlayer"]
+exclude = ["blueprints/incredible-squaring-symbiotic", "blueprints/examples"]
 
 [workspace.package]
 authors = ["Tangle Network"]
@@ -28,8 +23,8 @@ single_match_else = "allow"
 uninlined_format_args = "allow"
 needless_late_init = "allow"
 struct_excessive_bools = "allow"
-large_enum_variant = "allow" # TODO: Fix instances of this
-result_large_err = "allow" # TODO: Fix instances of this
+large_enum_variant = "allow"                 # TODO: Fix instances of this
+result_large_err = "allow"                   # TODO: Fix instances of this
 similar_names = "allow"
 
 [workspace.lints.rustdoc]
@@ -148,7 +143,7 @@ tokio-cron-scheduler = { version = "0.13.0", default-features = false }
 tokio-stream = { version = "0.1.17", default-features = false }
 pin-project-lite = "0.2.7"
 tower = { version = "0.5.2", default-features = false }
-async-stream = { version = "0.3.6", default-features = false}
+async-stream = { version = "0.3.6", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }

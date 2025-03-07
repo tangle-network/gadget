@@ -351,9 +351,12 @@ fn generate_gadget(package: &Package) -> Result<Gadget<'static>, Error> {
     };
 
     let has_test_fetcher = sources.iter().any(|fetcher| {
-        matches!(fetcher, GadgetSource {
-            fetcher: GadgetSourceFetcher::Testing(..)
-        })
+        matches!(
+            fetcher,
+            GadgetSource {
+                fetcher: GadgetSourceFetcher::Testing(..)
+            }
+        )
     });
 
     if !has_test_fetcher {

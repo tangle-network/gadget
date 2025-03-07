@@ -100,13 +100,14 @@ evm_version = 'shanghai'"#,
     let init_a_value = 2;
     let init_b_value = 3;
     let init_get_value = init_a_value * init_b_value;
-    constructor_args.insert("TestContract".to_string(), vec![
-        init_a_value.to_string(),
-        init_b_value.to_string(),
-    ]);
-    constructor_args.insert("SimpleStorage".to_string(), vec![
-        "Initial Data".to_string(),
-    ]);
+    constructor_args.insert(
+        "TestContract".to_string(),
+        vec![init_a_value.to_string(), init_b_value.to_string()],
+    );
+    constructor_args.insert(
+        "SimpleStorage".to_string(),
+        vec!["Initial Data".to_string()],
+    );
 
     // Create the deployment options for the test
     let opts = EigenlayerDeployOpts {
