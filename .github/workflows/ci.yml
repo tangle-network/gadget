@@ -155,9 +155,6 @@ jobs:
             echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
           fi
 
-      - name: tests
-        run: cargo nextest run --no-tests pass --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
-
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
-      - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc
+      - name: tests
+        run: cargo nextest run --no-tests pass --package ${{ matrix.package }} ${{ env.cargo_nextest_args }} && cargo test --package ${{ matrix.package }} --doc
