@@ -7,55 +7,41 @@ use tempfile::TempDir;
 use tokio::{fs, time::Instant};
 
 use crate::run::tangle::{run_blueprint, RunOpts};
+use crate::tests::tangle::blueprint::create_test_blueprint;
+use gadget_chain_setup::tangle::deploy::{deploy_to_tangle, Opts as DeployOpts};
 
 #[tokio::test]
 async fn test_run_blueprint() -> Result<()> {
     color_eyre::install()?;
     setup_log();
 
-    let temp_dir = TempDir::new()?;
+    // Use the create_test_blueprint function to create our test blueprint
+    let (temp_dir, blueprint_dir) = create_test_blueprint();
     let temp_path = temp_dir.path().to_path_buf();
-    let blueprint_dir = temp_path.join("simple-blueprint");
-    fs::create_dir_all(&blueprint_dir).await?;
 
-    let cargo_toml = r#"[package]
-name = "simple-blueprint"
-version = "0.1.0"
-edition = "2021"
+    // Create a success file path that we'll use to verify the blueprint ran successfully
+    let success_file = temp_path.join("blueprint_success");
 
-[dependencies]
-blueprint-sdk = { git = "https://github.com/tangle-network/gadget.git", default-features = false, features = ["std", "tangle", "macros"] }
-tokio = { version = "1.40", features = ["full"] }
-color-eyre = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-"#;
-    fs::write(blueprint_dir.join("Cargo.toml"), cargo_toml).await?;
-    fs::create_dir_all(blueprint_dir.join("src")).await?;
-    let success_file = temp_dir.path().join("blueprint_success");
+    // Modify the main.rs to write a success file when the blueprint runs successfully
+    let main_rs_path = blueprint_dir.join("src").join("main.rs");
+    let mut main_rs_content = fs::read_to_string(&main_rs_path).await?;
 
-    let harness = TangleTestHarness::setup(temp_dir).await?;
+    // Add code to write a success file before the "Exiting..." log
+    main_rs_content = main_rs_content.replace(
+        "info!(\"Exiting...\");",
+        &format!("info!(\"Writing success file...\");\n    std::fs::write(\"{}\", \"success\")?;\n    info!(\"Exiting...\");", 
+            success_file.display().to_string().replace('\\', "/"))
+    );
 
-    let main_rs = r#"use blueprint_sdk::logging::info;
+    fs::write(&main_rs_path, main_rs_content).await?;
 
-#[blueprint_sdk::main(env)]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    info!("~~~ Simple Tangle Blueprint Started ~~~");
-    
-    // Log some information about the environment
-    info!("HTTP RPC Endpoint: {}", env.http_rpc_endpoint);
-    info!("WS RPC Endpoint: {}", env.ws_rpc_endpoint);
-    
-    // Create a success file to indicate the blueprint ran successfully
-    let success_file = std::path::PathBuf::from("./blueprint_success");
-    std::fs::write(success_file, "success")?;
-    
-    info!("Blueprint execution completed successfully");
-    Ok(())
-}
-"#;
-    fs::write(blueprint_dir.join("src/main.rs"), main_rs).await?;
+    // Set the current directory to the blueprint directory
+    // This is important because deploy_to_tangle looks for Cargo.toml and blueprint.json
+    // in the current directory
+    let original_dir = std::env::current_dir()?;
+    std::env::set_current_dir(&blueprint_dir)?;
 
+    // Build the blueprint
     let build_output = tokio::process::Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -69,12 +55,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         String::from_utf8_lossy(&build_output.stderr)
     );
 
-    let (mut test_env, _service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
-    test_env.initialize().await?;
+    // Create the test harness in the blueprint directory
+    let harness = TangleTestHarness::setup(temp_dir).await?;
+    let env = harness.env();
 
-    let nodes = test_env.node_handles().await;
-    let node = &nodes[0];
-    let env = node.gadget_config().await;
+    // Instead of using setup_services, use the CLI's deploy function
+    // Create deploy options
+    let deploy_opts = DeployOpts {
+        pkg_name: None, // Use the current directory's package
+        http_rpc_url: harness.http_endpoint.to_string(),
+        ws_rpc_url: harness.ws_endpoint.to_string(),
+        manifest_path: blueprint_dir.join("Cargo.toml"),
+        signer: Some(harness.sr25519_signer.clone()),
+        signer_evm: Some(harness.alloy_key.clone()),
+    };
+
+    // Deploy the blueprint using the CLI's deploy function
+    let blueprint_id = deploy_to_tangle(deploy_opts).await?;
+
+    // test_env.initialize().await?;
+
+    // Reset the current directory back to the original
+    std::env::set_current_dir(original_dir)?;
+
+    // let nodes = test_env.node_handles().await;
+    // let node = &nodes[0];
+    // let env = node.gadget_config().await;
 
     let run_opts = RunOpts {
         http_rpc_url: env.http_rpc_endpoint.clone(),

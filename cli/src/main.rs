@@ -194,6 +194,21 @@ pub enum BlueprintCommands {
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
         ws_rpc_url: String,
+        /// The service ID to request
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The keystore password to use
+        #[arg(long, env = "KEYSTORE_PASSWORD")]
+        keystore_password: Option<String>,
+        /// The chain to request on
+        #[arg(long, env = "CHAIN")]
+        chain: SupportedChains,
     },
 
     /// Accept a Tangle service request
