@@ -78,7 +78,7 @@ jobs:
         run: |
           matrix=$(cargo metadata --format-version 1 --no-deps | jq '[.packages[] | .name]')
           echo "Generated matrix: $matrix"
-          echo "::set-output name=matrix::$matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   testing:
     needs: generate-matrix
