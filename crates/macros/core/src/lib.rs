@@ -598,7 +598,10 @@ mod tests {
         if let Gadget::Native(gadget) = gadget {
             for src in gadget.sources {
                 if let GadgetSourceFetcher::Testing(testing) = src.fetcher {
-                    assert_eq!(PathBuf::from(testing.base_path.to_string()), base_path.join("experimental-blueprint-bin"));
+                    assert_eq!(
+                        PathBuf::from(testing.base_path.to_string()),
+                        base_path.join("experimental-blueprint-bin")
+                    );
                     assert_eq!(testing.cargo_bin, "main");
                     assert_eq!(testing.cargo_package, "incredible-squaring-blueprint");
                     return;

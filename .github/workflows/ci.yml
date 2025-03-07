@@ -81,6 +81,7 @@ jobs:
           echo "::set-output name=matrix::$matrix"
 
   testing:
+    needs: generate-matrix
     timeout-minutes: 30
     name: cargo test
     runs-on: ubuntu-latest
