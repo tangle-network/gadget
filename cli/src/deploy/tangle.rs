@@ -161,14 +161,15 @@ fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> Path
 pub fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
 ) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
-    let blueprint_json_path = workspace_or_package_manifest_path(package).join("blueprint.json");
+    let manifest_dir = workspace_or_package_manifest_path(package);
+    let blueprint_json_path = manifest_dir.join("blueprint.json");
 
     if !blueprint_json_path.exists() {
         tracing::warn!("Could not find blueprint.json; running `cargo build`...");
-        // Need to run cargo build for the current package.
+        // Need to run cargo build. We don't know the package name, so unfortunately this will
+        // build the entire workspace.
         escargot::CargoBuild::new()
-            .manifest_path(&package.manifest_path)
-            .package(&package.name)
+            .manifest_path(manifest_dir.join("Cargo.toml"))
             .run()
             .context("Failed to build the package")?;
     }

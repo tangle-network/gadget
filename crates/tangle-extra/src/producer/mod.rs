@@ -10,7 +10,6 @@ use core::task::{Context, Poll};
 use futures_core::Stream;
 use std::sync::Mutex;
 use tangle_subxt::parity_scale_codec::Encode;
-use tangle_subxt::subxt::backend::StreamOfResults;
 use tangle_subxt::subxt::blocks::{Block, BlocksClient};
 use tangle_subxt::subxt::config::Header;
 use tangle_subxt::subxt::{self, OnlineClient, PolkadotConfig};
