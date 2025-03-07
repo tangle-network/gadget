@@ -354,11 +354,11 @@ macro_rules! blueprint_inner {
         $crate::blueprint_inner!(@__CONSTRUCT $object $($rest)*);
     }};
     (@__CONSTRUCT $object:ident registration_params: [$($registration_params:expr),* $(,)?] , $($rest:tt)*) => {
-        // TODO: Generate registration params
+        // TODO(serial): Generate registration params
         $crate::blueprint_inner!(@__CONSTRUCT $object $($rest)*)
     };
     (@__CONSTRUCT $object:ident request_params: [$($request_params:expr),* $(,)?] , $($rest:tt)*) => {
-        // TODO: Generate request params
+        // TODO(serial): Generate request params
         $crate::blueprint_inner!(@__CONSTRUCT $object $($rest)*)
     };
     (@__CONSTRUCT $object:ident manager: { $variant:ident = $value:literal } , $($rest:tt)*) => {{
@@ -382,7 +382,7 @@ macro_rules! blueprint_inner {
         $crate::blueprint_inner!(@__CONSTRUCT $object $($rest)*)
     };
     (@__CONSTRUCT $object:ident supported_membership_models: [$($membership_models:expr),* $(,)?] , $($rest:tt)*) => {
-        // TODO: Generate supported membership models
+        // TODO(serial): Generate supported membership models
         $crate::blueprint_inner!(@__CONSTRUCT $object $($rest)*)
     };
 

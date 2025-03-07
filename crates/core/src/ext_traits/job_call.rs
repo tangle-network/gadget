@@ -64,7 +64,7 @@ pub trait JobCallExt: sealed::Sealed + Sized {
     ///     // ...
     ///     # type Rejection = std::convert::Infallible;
     ///     # async fn from_job_call(call: JobCall, _context: &Ctx) -> Result<Self, Self::Rejection> {
-    ///     #     todo!()
+    ///     #     unimplemented!()
     ///     # }
     /// }
     /// ```
