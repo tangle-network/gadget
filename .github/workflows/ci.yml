@@ -131,7 +131,7 @@ jobs:
           fi
 
       - name: tests
-        run: cargo nextest run --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
+        run: cargo nextest run --no-tests pass --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: doc tests
