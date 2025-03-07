@@ -89,7 +89,9 @@ jobs:
       CARGO_TERM_COLOR: always
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
+      matrix:
+        package:
+          ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2
