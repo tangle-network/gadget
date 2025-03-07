@@ -12,7 +12,7 @@ blueprint-core.workspace = true
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true, features = ["pubsub"] }
 alloy-rpc-client = { workspace = true }
-alloy-rpc-types = { workspace = true }
+alloy-rpc-types = { workspace = true, features = ["eth"] }
 alloy-transport = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-consensus = { workspace = true }
