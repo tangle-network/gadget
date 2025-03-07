@@ -31,7 +31,7 @@ toml = { workspace = true }
 indicatif = { workspace = true }
 
 # Gadget dependencies
-blueprint-runner = { workspace = true }
+blueprint-runner = { workspace = true, features = ["networking"] }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }

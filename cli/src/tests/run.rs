@@ -1,10 +1,10 @@
 use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use crate::run::eigenlayer::run_eigenlayer_avs;
+use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::config::SupportedChains;
+use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use color_eyre::eyre::Result;
-use gadget_config::supported_chains::SupportedChains;
-use gadget_config::{
-    ContextConfig, Protocol, protocol::EigenlayerContractAddresses, protocol::ProtocolSettings,
-};
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
@@ -252,10 +252,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         None,
         SupportedChains::LocalTestnet,
         Protocol::Eigenlayer,
-        ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses::default()),
+        ProtocolSettings::Eigenlayer(EigenlayerProtocolSettings::default()),
     );
 
-    let run_opts = gadget_config::load(config).expect("Failed to load BlueprintEnvironment");
+    let run_opts = BlueprintEnvironment::load_with_config(config)
+        .expect("Failed to load BlueprintEnvironment");
 
     // Run the AVS
     let mut child =

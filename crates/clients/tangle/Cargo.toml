@@ -9,7 +9,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-blueprint-runner = { workspace = true }
+blueprint-runner = { workspace = true, features = ["tangle"] }
 
 gadget-std = { workspace = true }
 gadget-client-core = { workspace = true }

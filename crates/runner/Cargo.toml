@@ -85,7 +85,8 @@ eigenlayer = [
     "dep:alloy-signer-local",
     "dep:alloy-signer",
     "dep:eigensdk",
-    "gadget-utils/evm"
+    "gadget-utils/evm",
+    "std", # TODO: keystore access requires the std feature
 ]
 
 ## Enable [Symbiotic] support **(CURRENTLY UNUSED)**

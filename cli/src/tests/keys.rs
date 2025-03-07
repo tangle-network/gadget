@@ -1,6 +1,6 @@
 use crate::keys::generate_key;
+use blueprint_runner::config::Protocol;
 use color_eyre::eyre::Result;
-use gadget_config::Protocol;
 use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_crypto::sp_core::{SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto_core::KeyTypeId;
