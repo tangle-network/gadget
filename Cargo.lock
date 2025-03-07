@@ -8706,38 +8706,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "incredible-squaring-eigenlayer"
-version = "0.1.0"
-dependencies = [
- "alloy-contract",
- "alloy-network",
- "alloy-primitives 0.8.21",
- "alloy-provider",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types 0.8.21",
- "alloy-transport",
- "alloy-transport-http",
- "blueprint-sdk",
- "eigensdk",
- "futures",
- "gadget-logging",
- "num-bigint 0.4.6",
- "reqwest 0.12.12",
- "serde",
- "serde_json",
- "testcontainers",
- "thiserror 2.0.11",
- "tokio",
- "tokio-util",
- "tower 0.5.2",
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
