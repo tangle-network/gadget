@@ -78,9 +78,17 @@ std = [
     "gadget-clients/std",
     "gadget-crypto/std",
     "gadget-logging/std",
+    # Tangle
+    "tangle-subxt/std",
     # Extras
     "blueprint-tangle-extra?/std",
     "blueprint-evm-extra?/std"
+]
+
+## Enable support for web targets
+web = [
+    # Tangle
+    "tangle-subxt/web",
 ]
 
 ## Enable [tracing] support
@@ -124,6 +132,7 @@ tangle = [
     "dep:tangle-subxt",
     "dep:gadget-crypto-tangle-pair-signer",
     "gadget-clients/tangle",
+    "gadget-contexts/tangle",
     "gadget-context-derive?/tangle",
     "gadget-testing-utils?/tangle",
     "gadget-utils/tangle",
@@ -136,6 +145,7 @@ evm = [
     "dep:alloy",
     "dep:alloy-json-abi",
     "gadget-clients/evm",
+    "gadget-contexts/evm",
     "gadget-crypto-tangle-pair-signer?/evm",
     "gadget-utils/evm",
     "blueprint-macros?/evm",

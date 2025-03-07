@@ -67,8 +67,8 @@ where
         );
 
         // Load environment
-        let env =
-            BlueprintEnvironment::load(context_config).map_err(|e| Error::Setup(e.to_string()))?;
+        let env = BlueprintEnvironment::load_with_config(context_config)
+            .map_err(|e| Error::Setup(e.to_string()))?;
 
         // Create config
         let config = EigenlayerTestConfig {

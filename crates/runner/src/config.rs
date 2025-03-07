@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::error::ConfigError;
 use alloc::string::{String, ToString};
+use clap::Parser;
 use core::fmt::{Debug, Display};
 use core::str::FromStr;
 #[cfg(feature = "std")]
@@ -234,7 +235,17 @@ impl BlueprintEnvironment {
     /// # Errors
     ///
     /// This function will return an error if any of the required environment variables are missing.
-    pub fn load(config: ContextConfig) -> Result<BlueprintEnvironment, ConfigError> {
+    pub fn load() -> Result<BlueprintEnvironment, ConfigError> {
+        let config = ContextConfig::parse();
+        Self::load_with_config(config)
+    }
+
+    /// Loads the [`BlueprintEnvironment`] from the given [`ContextConfig`]
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if any of the required environment variables are missing.
+    pub fn load_with_config(config: ContextConfig) -> Result<BlueprintEnvironment, ConfigError> {
         load_inner(config)
     }
 

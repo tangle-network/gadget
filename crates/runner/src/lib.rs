@@ -72,8 +72,8 @@ pub trait BackgroundService: Send + Sync {
 unsafe impl Send for DynBackgroundService<'_> {}
 unsafe impl Sync for DynBackgroundService<'_> {}
 
-type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Sync + Unpin + 'static>;
-type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Sync + Unpin + 'static>;
+type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Unpin + 'static>;
+type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'static>;
 
 /// A builder for a [`BlueprintRunner`]
 pub struct BlueprintRunnerBuilder<F> {
@@ -103,7 +103,7 @@ where
     /// [producer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/producers/index.html
     pub fn producer<E>(
         mut self,
-        producer: impl Stream<Item = Result<JobCall, E>> + Send + Sync + Unpin + 'static,
+        producer: impl Stream<Item = Result<JobCall, E>> + Send + Unpin + 'static,
     ) -> Self
     where
         E: Into<BoxError>,
@@ -118,7 +118,7 @@ where
     /// [consumer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/consumers/index.html
     pub fn consumer<E>(
         mut self,
-        consumer: impl Sink<JobResult, Error = E> + Send + Sync + Unpin + 'static,
+        consumer: impl Sink<JobResult, Error = E> + Send + Unpin + 'static,
     ) -> Self
     where
         E: Into<BoxError>,

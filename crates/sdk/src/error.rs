@@ -9,6 +9,8 @@ pub enum Error {
     Keystore(#[from] keystore::Error),
     #[error("Runner error: {0}")]
     Runner(#[from] blueprint_runner::error::RunnerError),
+    #[error("Config error: {0}")]
+    Config(#[from] blueprint_runner::error::ConfigError),
     #[error("Other Error: {0}")]
     Other(String),
 

@@ -28,6 +28,6 @@ docs/
 # Dotenv file
 .env
 
-
-# Soldeer
-/dependencies
+# Blueprint metadata
+blueprint.json
+blueprint.lock

@@ -1,7 +1,7 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING, IncredibleSquaringTaskManager,
-    contexts::aggregator::AggregatorContext,
+    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
 use blueprint_sdk::logging::info;
 use eigensdk::services_blsaggregation::bls_agg::TaskMetadata;

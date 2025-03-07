@@ -1,5 +1,4 @@
 use blueprint_core::Job;
-use blueprint_core::JobCall;
 use blueprint_router::Router;
 use blueprint_runner::BlueprintConfig;
 use blueprint_runner::config::BlueprintEnvironment;
@@ -33,9 +32,10 @@ where
         }
     }
 
-    pub fn add_job<J>(&mut self, job: J) -> &mut Self
+    pub fn add_job<J, T>(&mut self, job: J) -> &mut Self
     where
-        J: Job<JobCall, ()> + Send + Sync + 'static,
+        J: Job<T, ()> + Send + Sync + 'static,
+        T: 'static,
     {
         self.router = Some(self.router.take().unwrap().route(self.job_index, job));
         self.job_index += 1;
@@ -68,9 +68,10 @@ pub trait TestEnv: Sized {
         env: BlueprintEnvironment,
         context: Self::Context,
     ) -> Result<Self, Error>;
-    fn add_job<J>(&mut self, job: J)
+    fn add_job<J, T>(&mut self, job: J)
     where
-        J: Job<JobCall, ()> + Send + Sync + 'static;
+        J: Job<T, ()> + Send + Sync + 'static,
+        T: 'static;
     fn add_background_service<B>(&mut self, service: B)
     where
         B: BackgroundService + Send + 'static;

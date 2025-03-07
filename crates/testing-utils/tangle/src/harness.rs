@@ -85,7 +85,7 @@ pub async fn generate_env_from_node_id(
     );
 
     // Load environment
-    let mut env = BlueprintEnvironment::load(context_config)
+    let mut env = BlueprintEnvironment::load_with_config(context_config)
         .map_err(|e| Error::Setup(e.to_string()))
         .map_err(|err| RunnerError::Other(err.to_string()))?;
 

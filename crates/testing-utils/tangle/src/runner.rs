@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use blueprint_core::{Job, JobCall};
+use blueprint_core::Job;
 use blueprint_runner::BackgroundService;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::Multiaddr;
@@ -56,9 +56,10 @@ where
         })
     }
 
-    fn add_job<J>(&mut self, job: J)
+    fn add_job<J, T>(&mut self, job: J)
     where
-        J: Job<JobCall, ()> + Send + Sync + 'static,
+        J: Job<T, ()> + Send + Sync + 'static,
+        T: 'static,
     {
         self.runner
             .as_mut()

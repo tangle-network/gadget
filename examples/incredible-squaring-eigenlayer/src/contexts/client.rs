@@ -4,7 +4,7 @@ use eigensdk::crypto_bls::{OperatorId, Signature};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 use tracing::{debug, info};
 
 use crate::IIncredibleSquaringTaskManager::TaskResponse;

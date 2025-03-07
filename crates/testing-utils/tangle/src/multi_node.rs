@@ -5,7 +5,6 @@ use crate::{
     runner::TangleTestEnv,
 };
 use blueprint_core::Job;
-use blueprint_core::JobCall;
 use blueprint_runner::BackgroundService;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::Multiaddr;
@@ -19,7 +18,6 @@ use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::SpSr25519;
 use std::fmt::{Debug, Formatter};
-use std::future::Future;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -150,24 +148,13 @@ where
     ///
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
-    pub async fn add_job<
-        T: Fn(BlueprintEnvironment) -> F + Clone + Send + Sync + 'static,
-        F: Future<Output = Result<K, E>> + Send + 'static,
-        K: Job<JobCall, ()> + Send + Sync + 'static,
-        E: std::fmt::Debug + Send + 'static,
-    >(
-        &self,
-        creator: T,
-    ) -> Result<(), E> {
+    pub async fn add_job<J: Job<T, ()> + Clone + Send + Sync + 'static, T: 'static>(&self, job: J) {
         let mut nodes = self.nodes.write().await;
         for node in nodes.iter_mut() {
             if let NodeSlot::Occupied(node) = node {
-                let job = creator(node.gadget_config().await).await?;
-                node.add_job(job).await;
+                node.add_job(job.clone()).await;
             }
         }
-
-        Ok(())
     }
 
     pub async fn start(&mut self) -> Result<(), Error> {
@@ -226,7 +213,7 @@ where
         mut command_rx: mpsc::Receiver<EnvironmentCommand>,
         event_tx: broadcast::Sender<TestEvent>,
     ) {
-        tokio::spawn(async move {
+        tokio::task::spawn(async move {
             let nodes = nodes.clone();
             while let Some(cmd) = command_rx.recv().await {
                 match cmd {
@@ -417,9 +404,10 @@ where
     ///
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
-    pub async fn add_job<J>(&self, job: J)
+    pub async fn add_job<J, T>(&self, job: J)
     where
-        J: Job<JobCall, ()> + Send + Sync + 'static,
+        J: Job<T, ()> + Send + Sync + 'static,
+        T: 'static,
     {
         self.test_env.write().await.add_job(job)
     }
@@ -531,7 +519,7 @@ where
     fn spawn_command_handler(node: Arc<Self>, mut command_rx: mpsc::Receiver<NodeCommand>) {
         let state = node.state.clone();
 
-        tokio::spawn(async move {
+        tokio::task::spawn(async move {
             while let Some(cmd) = command_rx.recv().await {
                 match cmd {
                     NodeCommand::StartRunner { result_tx } => {

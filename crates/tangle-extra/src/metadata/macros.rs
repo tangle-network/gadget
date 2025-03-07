@@ -175,12 +175,9 @@ fn generate_gadget_for_current_crate() -> Result<Gadget<'static>, Error> {
     };
 
     let has_test_fetcher = sources.iter().any(|fetcher| {
-        matches!(
-            fetcher,
-            GadgetSource {
-                fetcher: GadgetSourceFetcher::Testing(..)
-            }
-        )
+        matches!(fetcher, GadgetSource {
+            fetcher: GadgetSourceFetcher::Testing(..)
+        })
     });
 
     if !has_test_fetcher {
@@ -415,19 +412,16 @@ mod tests {
         }
         .unwrap();
 
-        assert_eq!(
-            blueprint.metadata,
-            ServiceMetadata {
-                name: "test".into(),
-                description: Some("test blueprint".into()),
-                author: Some("Someone".into()),
-                category: Some("testing".into()),
-                code_repository: Some("https://example.com".into()),
-                logo: Some("https://example.com/logo".into()),
-                website: Some("https://example.com".into()),
-                license: Some("MIT".into()),
-            }
-        );
+        assert_eq!(blueprint.metadata, ServiceMetadata {
+            name: "test".into(),
+            description: Some("test blueprint".into()),
+            author: Some("Someone".into()),
+            category: Some("testing".into()),
+            code_repository: Some("https://example.com".into()),
+            logo: Some("https://example.com/logo".into()),
+            website: Some("https://example.com".into()),
+            license: Some("MIT".into()),
+        });
         assert_eq!(
             blueprint.manager,
             BlueprintServiceManager::Evm(String::from(
@@ -460,31 +454,26 @@ mod tests {
         }
         .unwrap();
 
-        assert_eq!(
-            blueprint.jobs,
-            vec![
-                JobDefinition {
-                    job_id: 0,
-                    metadata: JobMetadata {
-                        name: "blueprint_tangle_extra::metadata::macros::tests::with_jobs::foo"
-                            .into(),
-                        description: None,
-                    },
-                    params: vec![],
-                    result: vec![FieldType::Uint64],
+        assert_eq!(blueprint.jobs, vec![
+            JobDefinition {
+                job_id: 0,
+                metadata: JobMetadata {
+                    name: "blueprint_tangle_extra::metadata::macros::tests::with_jobs::foo".into(),
+                    description: None,
                 },
-                JobDefinition {
-                    job_id: 1,
-                    metadata: JobMetadata {
-                        name: "blueprint_tangle_extra::metadata::macros::tests::with_jobs::bar"
-                            .into(),
-                        description: None,
-                    },
-                    params: vec![FieldType::Uint64],
-                    result: vec![FieldType::Uint64],
-                }
-            ]
-        )
+                params: vec![],
+                result: vec![FieldType::Uint64],
+            },
+            JobDefinition {
+                job_id: 1,
+                metadata: JobMetadata {
+                    name: "blueprint_tangle_extra::metadata::macros::tests::with_jobs::bar".into(),
+                    description: None,
+                },
+                params: vec![FieldType::Uint64],
+                result: vec![FieldType::Uint64],
+            }
+        ])
     }
 
     #[test]

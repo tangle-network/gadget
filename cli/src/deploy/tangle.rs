@@ -1,3 +1,4 @@
+use std::env;
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
@@ -141,14 +142,26 @@ pub async fn deploy_to_tangle(
     Ok(event.blueprint_id)
 }
 
+/// Gets either `CARGO_WORKSPACE_DIR` for Tangle blueprints, or the package manifest directory
+/// for anything else.
+fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> PathBuf {
+    env::var("CARGO_WORKSPACE_DIR").map_or_else(
+        |_| {
+            package
+                .manifest_path
+                .parent()
+                .unwrap()
+                .as_std_path()
+                .to_path_buf()
+        },
+        |workspace_dir| PathBuf::from(workspace_dir),
+    )
+}
+
 pub fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
 ) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
-    let blueprint_json_path = package
-        .manifest_path
-        .parent()
-        .map(|p| p.join("blueprint.json"))
-        .unwrap();
+    let blueprint_json_path = workspace_or_package_manifest_path(package).join("blueprint.json");
 
     if !blueprint_json_path.exists() {
         tracing::warn!("Could not find blueprint.json; running `cargo build`...");
@@ -401,7 +414,9 @@ fn resolve_path_relative_to_package(
     if path.starts_with('/') {
         std::path::PathBuf::from(path)
     } else {
-        package.manifest_path.parent().unwrap().join(path).into()
+        workspace_or_package_manifest_path(package)
+            .join(path)
+            .into()
     }
 }
 

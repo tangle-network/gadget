@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["cli", "blueprints/*", "crates/*", "examples/incredible-squaring-eigenlayer"]
-exclude = ["blueprints/incredible-squaring-symbiotic", "blueprints/examples"]
+members = ["cli", "crates/*", "examples/incredible-squaring-eigenlayer"]
+exclude = ["examples/incredible-squaring-eigenlayer"]
 
 [workspace.package]
 authors = ["Tangle Network"]

@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["tangle"] }
-async-trait.workspace = true
-tangle-subxt.workspace = true
-tokio.workspace = true
+blueprint-sdk = { workspace = true, features = ["std", "tangle", "macros"] }
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+blueprint-sdk = { workspace = true, features = ["testing", "tangle"] }
+tokio = { workspace = true, features = ["macros"] }
+color-eyre = { workspace = true }
 
 [package.metadata.blueprint]
 manager = { Evm = "ExperimentalBlueprint" }
