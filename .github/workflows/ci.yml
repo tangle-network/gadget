@@ -76,7 +76,7 @@ jobs:
       - name: Generate matrix for workspace crates
         id: set-matrix
         run: |
-          matrix=$(cargo metadata --format-version 1 --no-deps | jq '[.packages[] | .name]')
+          matrix=$(cargo metadata --format-version 1 --no-deps | jq -c '[.packages[] | .name]')
           echo "Generated matrix: $matrix"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
@@ -90,8 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package:
-          ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
+        package: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2
