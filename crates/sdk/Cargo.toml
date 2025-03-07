@@ -62,7 +62,6 @@ gadget-testing-utils = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 
 # Optional dependencies for build
-blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
 [features]

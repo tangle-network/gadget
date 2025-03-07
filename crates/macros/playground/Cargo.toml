@@ -30,6 +30,3 @@ reqwest = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true }
 blueprint-examples = { workspace = true }
-
-[build-dependencies]
-blueprint-metadata = { workspace = true }

@@ -18,9 +18,6 @@ blueprint-sdk = { workspace = true, features = ["std", "tangle", "testing"] }
 color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
 tokio = { workspace = true, features = ["full"] }
 
-[build-dependencies]
-blueprint-metadata.workspace = true
-
 [package.metadata.blueprint]
 manager = { Evm = "IncredibleSquaringBlueprint" }
 master_revision = "Latest"
