@@ -76,7 +76,7 @@ jobs:
       - name: Generate matrix for workspace crates
         id: set-matrix
         run: |
-          matrix=$(cargo metadata --format-version 1 --no-deps | jq '[.packages[] | {name: .name, manifest: .manifest_path}]')
+          matrix=$(cargo metadata --format-version 1 --no-deps | jq '[.packages[] | .name]')
           echo "Generated matrix: $matrix"
           echo "::set-output name=matrix::$matrix"
 
