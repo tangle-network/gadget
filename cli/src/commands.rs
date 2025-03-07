@@ -21,8 +21,100 @@ use gadget_config::supported_chains::SupportedChains;
 use gadget_keystore::backends::Backend;
 use gadget_utils_tangle::TxProgressExt;
 
-pub async fn list_requests(_http_rpc_url: String, _ws_rpc_url: String) -> Result<()> {
-    // TODO: Implement list requests functionality
+pub async fn list_requests(
+    http_rpc_url: String,
+    ws_rpc_url: String,
+    service_id: Option<u64>,
+    blueprint_id: u64,
+    keystore_uri: String,
+    keystore_password: Option<String>,
+    chain: SupportedChains,
+) -> Result<()> {
+    gadget_logging::info!(
+        "Listing service requests for blueprint ID: {}",
+        blueprint_id
+    );
+    if let Some(service_id) = service_id {
+        gadget_logging::info!("Filtering by service ID: {}", service_id);
+    }
+
+    let config = ContextConfig::create_tangle_config(
+        http_rpc_url.parse().unwrap(),
+        ws_rpc_url.parse().unwrap(),
+        keystore_uri,
+        keystore_password,
+        chain,
+        blueprint_id,
+        service_id,
+    );
+    let config = load(config).unwrap();
+    let client = TangleClient::new(config.clone()).await.unwrap();
+
+    let service_requests_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
+        .services()
+        .service_requests_iter();
+
+    let storage_query = client
+        .subxt_client()
+        .storage()
+        .at_latest()
+        .await?
+        .iter(service_requests_addr)
+        .await?;
+
+    let mut requests = Vec::new();
+    let mut found = false;
+
+    gadget_logging::info!("Fetching service requests...");
+
+    while let Some(result) = storage_query.next().await {
+        let request = result?;
+        let key = request.keys;
+
+        let request_id = key.keys()[0].to_value::<u64>().unwrap_or_default();
+
+        if request.blueprint == blueprint_id {
+            if let Some(service_id) = service_id {
+                if request.service_id != service_id {
+                    continue;
+                }
+            }
+
+            found = true;
+            requests.push((request_id, request));
+        }
+    }
+
+    if !found {
+        gadget_logging::info!(
+            "No service requests found for blueprint ID: {}",
+            blueprint_id
+        );
+        return Ok(());
+    }
+
+    println!("\nService Requests for Blueprint ID: {}", blueprint_id);
+    println!("=============================================");
+
+    for (request_id, request) in requests {
+        println!("Request ID: {}", request_id);
+        println!("Service ID: {}", request.service_id);
+        println!("Blueprint ID: {}", request.blueprint);
+        println!("Requester: {}", request.requester);
+        println!("Target Operators: {:?}", request.target_operators);
+        println!("Security Requirements:");
+        for requirement in &request.security_requirements {
+            println!(
+                "  - Asset: {:?}, Min Exposure: {}%, Max Exposure: {}%",
+                requirement.asset,
+                requirement.min_exposure_percent.0,
+                requirement.max_exposure_percent.0
+            );
+        }
+        println!("Membership Model: {:?}", request.membership_model);
+        println!("=============================================");
+    }
+
     Ok(())
 }
 
