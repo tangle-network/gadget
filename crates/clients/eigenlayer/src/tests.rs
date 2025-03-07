@@ -1,12 +1,10 @@
 use super::*;
 use alloy_primitives::address;
 use alloy_provider::Provider;
+use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use client::EigenlayerClient;
 use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
-use gadget_config::{
-    BlueprintEnvironment, ContextConfig, load, protocol::EigenlayerContractAddresses,
-    supported_chains::SupportedChains,
-};
 use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
 use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
 
@@ -32,9 +30,9 @@ async fn setup_test_environment() -> TestEnvironment {
         String::new(),
         None,
         SupportedChains::LocalTestnet,
-        EigenlayerContractAddresses::default(),
+        EigenlayerProtocolSettings::default(),
     );
-    let config = load(context_config).unwrap();
+    let config = BlueprintEnvironment::load_with_config(context_config).unwrap();
 
     let env = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 
