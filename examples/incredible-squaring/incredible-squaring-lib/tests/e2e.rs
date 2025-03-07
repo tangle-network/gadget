@@ -5,7 +5,7 @@ use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::harness::TestHarness;
 use blueprint_sdk::testing::utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 use color_eyre::Result;
-use experimental_blueprint_lib::square;
+use incredible_squaring_blueprint_lib::square;
 
 #[tokio::test]
 async fn test_incredible_squaring() -> Result<()> {
