@@ -94,9 +94,13 @@ pub async fn deploy_to_tangle(
     }: Opts,
 ) -> Result<u64> {
     // Load the manifest file into cargo metadata
-    let blueprint =
-        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &ws_rpc_url, signer_evm)
-            .await?;
+    let blueprint = generate_service_blueprint(
+        &manifest_path,
+        pkg_name.as_ref(),
+        &ws_rpc_url,
+        signer_evm.clone(),
+    )
+    .await?;
 
     let signer = if let Some(signer) = signer {
         signer
