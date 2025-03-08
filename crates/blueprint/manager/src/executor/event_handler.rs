@@ -278,7 +278,7 @@ pub(crate) async fn handle_tangle_event(
         })
         .chain(registration_blueprints)
     {
-        let mut fetcher_candidates = get_fetcher_candidates(&blueprint, manager_opts)?;
+        let mut fetcher_candidates = get_fetcher_candidates(&blueprint, manager_opts).unwrap();
 
         let verified_blueprint = VerifiedBlueprint {
             fetcher: fetcher_candidates.pop().expect("Should exist"),
@@ -405,10 +405,11 @@ fn get_fetcher_candidates(
 
             GadgetSourceFetcher::Testing(test) => {
                 // TODO: demote to TRACE once proven to work
-                if !manager_opts.test_mode {
-                    warn!("Ignoring testing fetcher as we are not in test mode");
-                    continue;
-                }
+                warn!("Using testing fetcher");
+                // if !manager_opts.test_mode {
+                //     warn!("Ignoring testing fetcher as we are not in test mode");
+                //     continue;
+                // }
 
                 let fetcher = crate::sources::testing::TestSourceFetcher {
                     fetcher: test.clone(),

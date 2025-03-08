@@ -106,10 +106,11 @@ where
 
     async fn setup(test_dir: TempDir, context: Self::Context) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node =
-            gadget_chain_setup::tangle::run(gadget_chain_setup::tangle::NodeConfig::new(false))
-                .await
-                .map_err(|e| Error::Setup(e.to_string()))?;
+        let node = gadget_chain_setup::tangle::run(
+            gadget_chain_setup::tangle::NodeConfig::new(false).with_log_target("evm", "trace"),
+        )
+        .await
+        .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 

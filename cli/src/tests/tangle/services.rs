@@ -1,5 +1,4 @@
 use color_eyre::eyre::Result;
-use gadget_config::supported_chains::SupportedChains;
 use gadget_logging::setup_log;
 use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
 
@@ -19,8 +18,7 @@ async fn test_list_requests() -> Result<()> {
     let alice_node = &nodes[0];
     let env = alice_node.gadget_config().await;
 
-    let result =
-        commands::list_requests(env.http_rpc_endpoint.clone(), env.ws_rpc_endpoint.clone()).await;
+    let result = commands::list_requests(env.ws_rpc_endpoint.clone()).await;
 
     assert!(result.is_ok());
     Ok(())
@@ -33,7 +31,7 @@ async fn test_request_service() -> Result<()> {
 
     let temp_dir = tempfile::TempDir::new()?;
     let harness = TangleTestHarness::setup(temp_dir).await?;
-    let (mut test_env, service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
+    let (mut test_env, _service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
     test_env.initialize().await?;
 
     let nodes = test_env.node_handles().await;
@@ -41,17 +39,13 @@ async fn test_request_service() -> Result<()> {
     let env = alice_node.gadget_config().await;
 
     let result = commands::request_service(
-        env.http_rpc_endpoint.clone(),
         env.ws_rpc_endpoint.clone(),
-        Some(service_id),
         blueprint_id,
         10,
         20,
         vec![],
         1000,
         env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
     )
     .await;
 
@@ -74,14 +68,12 @@ async fn test_submit_job() -> Result<()> {
     let env = alice_node.gadget_config().await;
 
     let result = commands::submit_job(
-        env.http_rpc_endpoint.clone(),
         env.ws_rpc_endpoint.clone(),
         Some(service_id),
         blueprint_id,
         env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
         1,
+        None,
     )
     .await;
 
@@ -96,7 +88,7 @@ async fn test_accept_request() -> Result<()> {
 
     let temp_dir = tempfile::TempDir::new()?;
     let harness = TangleTestHarness::setup(temp_dir).await?;
-    let (mut test_env, service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
+    let (mut test_env, _service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
     test_env.initialize().await?;
 
     let nodes = test_env.node_handles().await;
@@ -104,32 +96,23 @@ async fn test_accept_request() -> Result<()> {
     let env = alice_node.gadget_config().await;
 
     let request_result = commands::request_service(
-        env.http_rpc_endpoint.clone(),
         env.ws_rpc_endpoint.clone(),
-        Some(service_id),
         blueprint_id,
         10,
         20,
         vec![],
         1000,
         env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
     )
     .await;
     assert!(request_result.is_ok());
 
     let result = commands::accept_request(
-        env.http_rpc_endpoint.clone(),
         env.ws_rpc_endpoint.clone(),
-        Some(service_id),
-        blueprint_id,
         10,
         20,
         15,
         env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
         1,
     )
     .await;
@@ -145,7 +128,7 @@ async fn test_reject_request() -> Result<()> {
 
     let temp_dir = tempfile::TempDir::new()?;
     let harness = TangleTestHarness::setup(temp_dir).await?;
-    let (mut test_env, service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
+    let (mut test_env, _service_id, blueprint_id) = harness.setup_services::<1>(false).await?;
     test_env.initialize().await?;
 
     let nodes = test_env.node_handles().await;
@@ -153,32 +136,19 @@ async fn test_reject_request() -> Result<()> {
     let env = alice_node.gadget_config().await;
 
     let request_result = commands::request_service(
-        env.http_rpc_endpoint.clone(),
         env.ws_rpc_endpoint.clone(),
-        Some(service_id),
         blueprint_id,
         10,
         20,
         vec![],
         1000,
         env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
     )
     .await;
     assert!(request_result.is_ok());
 
-    let result = commands::reject_request(
-        env.http_rpc_endpoint.clone(),
-        env.ws_rpc_endpoint.clone(),
-        Some(service_id),
-        blueprint_id,
-        env.keystore_uri.clone(),
-        None,
-        SupportedChains::LocalTestnet,
-        1,
-    )
-    .await;
+    let result =
+        commands::reject_request(env.ws_rpc_endpoint.clone(), env.keystore_uri.clone(), 1).await;
 
     assert!(result.is_ok());
     Ok(())

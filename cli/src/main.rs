@@ -13,6 +13,7 @@ use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
+use gadget_chain_setup::tangle::InputValue;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
 use tangle_subxt::subxt::client::OnlineClientT;
 use tangle_subxt::subxt::Config;
@@ -188,47 +189,31 @@ pub enum BlueprintCommands {
     /// List service requests for a Tangle blueprint
     #[command(visible_alias = "ls")]
     ListRequests {
-        /// HTTP RPC URL to use
-        #[arg(long, env = "HTTP_RPC_URL")]
-        http_rpc_url: String,
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
         ws_rpc_url: String,
-        /// The service ID to request
-        #[arg(long)]
-        service_id: Option<u64>,
-        /// The blueprint ID to request
+    },
+
+    /// Register for a Tangle blueprint
+    #[command(visible_alias = "reg")]
+    Register {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The blueprint ID to register
         #[arg(long)]
         blueprint_id: u64,
         /// The keystore URI to use
         #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
         keystore_uri: String,
-        /// The keystore password to use
-        #[arg(long, env = "KEYSTORE_PASSWORD")]
-        keystore_password: Option<String>,
-        /// The chain to request on
-        #[arg(long, env = "CHAIN")]
-        chain: SupportedChains,
     },
 
     /// Accept a Tangle service request
     #[command(visible_alias = "resp")]
     AcceptRequest {
-        /// HTTP RPC URL to use
-        #[arg(long, env = "HTTP_RPC_URL")]
-        http_rpc_url: String,
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
         ws_rpc_url: String,
-        /// The service ID to request
-        #[arg(long)]
-        service_id: Option<u64>,
-        /// The blueprint ID to request
-        #[arg(long)]
-        blueprint_id: u64,
-        // /// The asset to be used
-        // #[arg(long, value_enum)]
-        // asset: Asset<u128>,
         /// The minimum exposure percentage to request
         #[arg(long, default_value = "50")]
         min_exposure_percent: u8,
@@ -238,44 +223,23 @@ pub enum BlueprintCommands {
         /// The keystore URI to use
         #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
         keystore_uri: String,
-        /// The keystore password to use
-        #[arg(long, env = "KEYSTORE_PASSWORD")]
-        keystore_password: Option<String>,
-        /// The chain to request on
-        #[arg(long, env = "CHAIN")]
-        chain: SupportedChains,
-        /// The request ID to respond to
-        #[arg(long)]
-        request_id: u64,
         /// The restaking percentage to use
         #[arg(long, default_value = "50")]
         restaking_percent: u8,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
     },
 
     /// Reject a Tangle service request
     #[command(visible_alias = "resp")]
     RejectRequest {
-        /// HTTP RPC URL to use
-        #[arg(long, env = "HTTP_RPC_URL")]
-        http_rpc_url: String,
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
         ws_rpc_url: String,
-        /// The service ID to request
-        #[arg(long)]
-        service_id: Option<u64>,
-        /// The blueprint ID to request
-        #[arg(long)]
-        blueprint_id: u64,
         /// The keystore URI to use
         #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
         keystore_uri: String,
-        /// The keystore password to use
-        #[arg(long, env = "KEYSTORE_PASSWORD")]
-        keystore_password: Option<String>,
-        /// The chain to request on
-        #[arg(long, env = "CHAIN")]
-        chain: SupportedChains,
         /// The request ID to respond to
         #[arg(long)]
         request_id: u64,
@@ -284,21 +248,12 @@ pub enum BlueprintCommands {
     /// Request a Tangle service
     #[command(visible_alias = "req")]
     RequestService {
-        /// HTTP RPC URL to use
-        #[arg(long, env = "HTTP_RPC_URL")]
-        http_rpc_url: String,
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
         ws_rpc_url: String,
-        /// The service ID to request
-        #[arg(long)]
-        service_id: Option<u64>,
         /// The blueprint ID to request
         #[arg(long)]
         blueprint_id: u64,
-        // /// The asset to be used
-        // #[arg(long, value_enum)]
-        // asset: Asset<u128>,
         /// The minimum exposure percentage to request
         #[arg(long, default_value = "50")]
         min_exposure_percent: u8,
@@ -314,46 +269,110 @@ pub enum BlueprintCommands {
         /// The keystore URI to use
         #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
         keystore_uri: String,
-        /// The keystore password to use
-        #[arg(long, env = "KEYSTORE_PASSWORD")]
-        keystore_password: Option<String>,
-        /// The chain to request on
-        #[arg(long, env = "CHAIN")]
-        chain: SupportedChains,
     },
 
-    /// Submit a job to a Tangle service
-    #[command(visible_alias = "job")]
+    /// Submit a job to a service
+    #[command(name = "submit-job")]
     SubmitJob {
-        /// HTTP RPC URL to use
-        #[arg(long, env = "HTTP_RPC_URL")]
-        http_rpc_url: String,
-        /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        /// The RPC endpoint to connect to
+        #[arg(long, env = "TANGLE_RPC_URL")]
         ws_rpc_url: String,
-        /// The service ID to request
+        /// The service ID to submit the job to
         #[arg(long)]
         service_id: Option<u64>,
-        /// The blueprint ID to request
+        /// The blueprint ID to submit the job to
         #[arg(long)]
         blueprint_id: u64,
         /// The keystore URI to use
-        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        #[arg(long, env = "TANGLE_KEYSTORE_URI")]
         keystore_uri: String,
-        /// The keystore password to use
-        #[arg(long, env = "KEYSTORE_PASSWORD")]
-        keystore_password: Option<String>,
-        /// The chain to request on
-        #[arg(long, env = "CHAIN")]
-        chain: SupportedChains,
         /// The job ID to submit
         #[arg(long)]
         job: u8,
-        // /// The job inputs as JSON array
-        // #[arg(long)]
-        // inputs: Vec<InputValue>,
+        /// Optional path to a JSON file containing job parameters
+        #[arg(long)]
+        params_file: Option<String>,
+        // /// The job arguments (optional, will prompt if not provided and no params file)
+        // #[arg(long, value_parser = input_value_parser)]
+        // args: Vec<InputValue>,
     },
 }
+
+// fn input_value_parser(s: &str) -> Result<InputValue, String> {
+//     // Parse the input string based on its format
+//     if s.starts_with("u8:") {
+//         // Parse as Uint8
+//         let value = s.trim_start_matches("u8:").parse::<u8>()
+//             .map_err(|e| format!("Failed to parse u8 value: {}", e))?;
+//         Ok(InputValue::Uint8(value))
+//     } else if s.starts_with("u16:") {
+//         // Parse as Uint16
+//         let value = s.trim_start_matches("u16:").parse::<u16>()
+//             .map_err(|e| format!("Failed to parse u16 value: {}", e))?;
+//         Ok(InputValue::Uint16(value))
+//     } else if s.starts_with("u32:") {
+//         // Parse as Uint32
+//         let value = s.trim_start_matches("u32:").parse::<u32>()
+//             .map_err(|e| format!("Failed to parse u32 value: {}", e))?;
+//         Ok(InputValue::Uint32(value))
+//     } else if s.starts_with("u64:") {
+//         // Parse as Uint64
+//         let value = s.trim_start_matches("u64:").parse::<u64>()
+//             .map_err(|e| format!("Failed to parse u64 value: {}", e))?;
+//         Ok(InputValue::Uint64(value))
+//     } else if s.starts_with("u128:") {
+//         // Parse as Uint128
+//         let value = s.trim_start_matches("u128:").parse::<u128>()
+//             .map_err(|e| format!("Failed to parse u128 value: {}", e))?;
+//         Ok(InputValue::Uint128(value))
+//     } else if s.starts_with("i8:") {
+//         // Parse as Int8
+//         let value = s.trim_start_matches("i8:").parse::<i8>()
+//             .map_err(|e| format!("Failed to parse i8 value: {}", e))?;
+//         Ok(InputValue::Int8(value))
+//     } else if s.starts_with("i16:") {
+//         // Parse as Int16
+//         let value = s.trim_start_matches("i16:").parse::<i16>()
+//             .map_err(|e| format!("Failed to parse i16 value: {}", e))?;
+//         Ok(InputValue::Int16(value))
+//     } else if s.starts_with("i32:") {
+//         // Parse as Int32
+//         let value = s.trim_start_matches("i32:").parse::<i32>()
+//             .map_err(|e| format!("Failed to parse i32 value: {}", e))?;
+//         Ok(InputValue::Int32(value))
+//     } else if s.starts_with("i64:") {
+//         // Parse as Int64
+//         let value = s.trim_start_matches("i64:").parse::<i64>()
+//             .map_err(|e| format!("Failed to parse i64 value: {}", e))?;
+//         Ok(InputValue::Int64(value))
+//     } else if s.starts_with("i128:") {
+//         // Parse as Int128
+//         let value = s.trim_start_matches("i128:").parse::<i128>()
+//             .map_err(|e| format!("Failed to parse i128 value: {}", e))?;
+//         Ok(InputValue::Int128(value))
+//     } else if s.starts_with("bool:") {
+//         // Parse as Bool
+//         let value = s.trim_start_matches("bool:").parse::<bool>()
+//             .map_err(|e| format!("Failed to parse bool value: {}", e))?;
+//         Ok(InputValue::Bool(value))
+//     } else if s.starts_with("bytes:") {
+//         // Parse as Bytes (hex string)
+//         let hex_str = s.trim_start_matches("bytes:");
+//         let bytes = hex::decode(hex_str)
+//             .map_err(|e| format!("Failed to parse bytes value: {}", e))?;
+//         Ok(InputValue::Bytes(bytes.into()))
+//     } else if s.starts_with("string:") {
+//         // Parse as String
+//         let value = s.trim_start_matches("string:").to_string();
+//         Ok(InputValue::String(value.into()))
+//     } else {
+//         // Default to u64 if no prefix is provided
+//         match s.parse::<u64>() {
+//             Ok(value) => Ok(InputValue::Uint64(value)),
+//             Err(_) => Err(format!("Failed to parse input value: {}. Use prefix like 'u64:', 'string:', etc.", s))
+//         }
+//     }
+// }
 
 #[derive(Subcommand, Debug)]
 pub enum DeployTarget {
@@ -658,109 +677,74 @@ async fn main() -> color_eyre::Result<()> {
                     }
                 }
             }
-            BlueprintCommands::ListRequests {
-                http_rpc_url,
-                ws_rpc_url,
-            } => {
-                commands::list_requests(http_rpc_url, ws_rpc_url).await?;
+            BlueprintCommands::ListRequests { ws_rpc_url } => {
+                commands::list_requests(ws_rpc_url).await?;
             }
-            BlueprintCommands::AcceptRequest {
-                http_rpc_url,
+            BlueprintCommands::Register {
                 ws_rpc_url,
-                service_id,
                 blueprint_id,
+                keystore_uri,
+            } => commands::register(ws_rpc_url, blueprint_id, keystore_uri).await?,
+            BlueprintCommands::AcceptRequest {
+                ws_rpc_url,
                 min_exposure_percent,
                 max_exposure_percent,
                 restaking_percent,
                 keystore_uri,
-                keystore_password,
-                chain,
                 request_id,
             } => {
                 commands::accept_request(
-                    http_rpc_url,
                     ws_rpc_url,
-                    service_id,
-                    blueprint_id,
                     min_exposure_percent,
                     max_exposure_percent,
                     restaking_percent,
                     keystore_uri,
-                    keystore_password,
-                    chain,
                     request_id,
                 )
                 .await?;
             }
             BlueprintCommands::RejectRequest {
-                http_rpc_url,
                 ws_rpc_url,
-                service_id,
-                blueprint_id,
                 keystore_uri,
-                keystore_password,
-                chain,
                 request_id,
             } => {
-                commands::reject_request(
-                    http_rpc_url,
-                    ws_rpc_url,
-                    service_id,
-                    blueprint_id,
-                    keystore_uri,
-                    keystore_password,
-                    chain,
-                    request_id,
-                )
-                .await?;
+                commands::reject_request(ws_rpc_url, keystore_uri, request_id).await?;
             }
             BlueprintCommands::RequestService {
-                http_rpc_url,
                 ws_rpc_url,
-                service_id,
                 blueprint_id,
                 min_exposure_percent,
                 max_exposure_percent,
                 target_operators,
                 value,
                 keystore_uri,
-                keystore_password,
-                chain,
             } => {
                 commands::request_service(
-                    http_rpc_url,
                     ws_rpc_url,
-                    service_id,
                     blueprint_id,
                     min_exposure_percent,
                     max_exposure_percent,
                     target_operators,
                     value,
                     keystore_uri,
-                    keystore_password,
-                    chain,
                 )
                 .await?;
             }
             BlueprintCommands::SubmitJob {
-                http_rpc_url,
                 ws_rpc_url,
                 service_id,
                 blueprint_id,
                 keystore_uri,
-                keystore_password,
-                chain,
                 job,
+                params_file,
             } => {
                 commands::submit_job(
-                    http_rpc_url,
                     ws_rpc_url,
                     service_id,
                     blueprint_id,
                     keystore_uri,
-                    keystore_password,
-                    chain,
                     job,
+                    params_file,
                 )
                 .await?;
             }
