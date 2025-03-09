@@ -1,18 +1,16 @@
 use std::time::Duration;
 
 use color_eyre::eyre::Result;
-use gadget_chain_setup::tangle::transactions::{get_next_service_id, join_operators};
-use gadget_chain_setup::tangle::InputValue;
+use gadget_chain_setup::tangle::OutputValue;
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::setup_log;
+use gadget_logging::{info, setup_log};
 use gadget_testing_utils::tangle::harness::generate_env_from_node_id;
 use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
 use tangle_subxt::subxt::tx::Signer;
-use tempfile::TempDir;
-use tokio::{fs, time::Instant};
+use tokio::fs;
 
 use crate::run::tangle::{run_blueprint, RunOpts};
 use crate::tests::tangle::blueprint::create_test_blueprint;
@@ -84,7 +82,7 @@ async fn test_run_blueprint() -> Result<()> {
     let alice_account = harness.sr25519_signer.account_id();
 
     let deploy_opts = DeployOpts {
-        pkg_name: None, // Use the current directory's package
+        pkg_name: None,
         http_rpc_url: harness.http_endpoint.to_string(),
         ws_rpc_url: harness.ws_endpoint.to_string(),
         manifest_path: blueprint_dir.join("Cargo.toml"),
@@ -93,8 +91,6 @@ async fn test_run_blueprint() -> Result<()> {
     };
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
-
-    // join_operators(harness.client(), &harness.sr25519_signer).await.unwrap();
 
     crate::commands::register(
         env.ws_rpc_endpoint.clone(),
@@ -114,7 +110,10 @@ async fn test_run_blueprint() -> Result<()> {
     )
     .await?;
 
-    crate::commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let requests = crate::commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let request = requests.first().unwrap();
+    let request_id = request.0;
+    let blueprint_id = request.1.blueprint;
 
     crate::commands::accept_request(
         env.ws_rpc_endpoint.clone(),
@@ -122,59 +121,50 @@ async fn test_run_blueprint() -> Result<()> {
         20,
         15,
         env.keystore_uri.clone(),
-        0,
+        request_id,
     )
     .await?;
 
-    // crate::commands::accept_request(ws_rpc_url, min_exposure_percent, max_exposure_percent, restaking_percent, keystore_uri, request_id)
-
     std::env::set_current_dir(original_dir)?;
-
-    // let nodes = test_env.node_handles().await;
-    // let node = &nodes[0];
-    // let env = node.gadget_config().await;
 
     let run_opts = RunOpts {
         http_rpc_url: env.http_rpc_endpoint.clone(),
         ws_rpc_url: env.ws_rpc_endpoint.clone(),
         blueprint_id: Some(blueprint_id),
         keystore_path: Some(env.keystore_uri.clone()),
-        data_dir: Some(temp_path),
+        data_dir: Some(temp_path.clone()),
         signer: Some(harness.sr25519_signer.clone()),
         signer_evm: Some(harness.alloy_key.clone()),
     };
 
-    let run_task = tokio::spawn(async move { run_blueprint(run_opts).await });
+    let _run_task = tokio::spawn(async move { run_blueprint(run_opts).await });
 
-    crate::commands::submit_job(
+    info!("Running blueprint, now submitting job");
+
+    let job_args_file = temp_path.join("job_args.json");
+    let job_args_content = r#"[2]"#; // JSON array with a single number 2 that will be parsed as Uint64
+    fs::write(&job_args_file, job_args_content).await?;
+    info!("Created job arguments file at: {}", job_args_file.display());
+
+    // We wait for the Binary to start up, otherwise it won't see the job
+    // TODO: This is a hack, we should have a way to wait for the Binary to start up
+    tokio::time::sleep(Duration::from_secs(60)).await;
+
+    let job_called = crate::commands::submit_job(
         env.ws_rpc_endpoint.clone(),
         Some(0),
         blueprint_id,
-        env.keystore_uri.clone(),
+        deployment_env.keystore_uri.clone(),
         0,
-        None,
-        // vec![InputValue::Uint64(5)] // Adding a sample job argument
+        Some(job_args_file.to_string_lossy().to_string()),
     )
     .await?;
 
-    let start_time = Instant::now();
-    let timeout = Duration::from_secs(60);
+    info!("Submitted job, now waiting for response");
 
-    loop {
-        if success_file.exists() {
-            break;
-        }
+    let result = harness.wait_for_job_execution(0, job_called).await.unwrap();
 
-        if start_time.elapsed() > timeout {
-            panic!("Timed out waiting for blueprint to run successfully");
-        }
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
-
-    run_task.abort();
-
-    assert!(success_file.exists(), "Blueprint did not run successfully");
+    let _results = harness.verify_job(result, vec![OutputValue::Uint64(4)])?;
 
     Ok(())
 }

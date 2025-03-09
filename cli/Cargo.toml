@@ -40,7 +40,6 @@ gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
 gadget-chain-setup = { workspace = true, features = ["std", "tangle", "anvil"] }
-gadget-runners = { workspace = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
 
@@ -99,7 +98,6 @@ std = [
     "gadget-keystore/std",
     "gadget-logging/std",
     "gadget-std/std",
-    "gadget-runners/tangle",
     "gadget-utils-tangle/std",
     "tangle-subxt/std",
 ]
@@ -110,7 +108,6 @@ tangle = [
     "dep:sp-core",
     "gadget-clients/tangle",
     "gadget-keystore/tangle-full",
-    "gadget-runners/tangle",
     "gadget-blueprint-serde",
     "evm",
 ]

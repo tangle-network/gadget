@@ -13,7 +13,6 @@ use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
-use gadget_chain_setup::tangle::InputValue;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
 use tangle_subxt::subxt::client::OnlineClientT;
 use tangle_subxt::subxt::Config;
@@ -678,7 +677,8 @@ async fn main() -> color_eyre::Result<()> {
                 }
             }
             BlueprintCommands::ListRequests { ws_rpc_url } => {
-                commands::list_requests(ws_rpc_url).await?;
+                let requests = commands::list_requests(ws_rpc_url).await?;
+                commands::print_requests(requests);
             }
             BlueprintCommands::Register {
                 ws_rpc_url,

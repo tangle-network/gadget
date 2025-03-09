@@ -81,14 +81,12 @@ tangle-network-gadget-workspace
 │   ├── contexts             # Execution contexts
 │   ├── crypto               # Cryptographic implementations
 │   ├── eigenlayer-bindings  # EigenLayer smart contract bindings
-│   ├── event-listeners      # Event handling system
 │   ├── executor             # Task execution system
 │   ├── keystore             # Key management and storage
 │   ├── logging              # Logging infrastructure
 │   ├── macros               # Procedural and derive macros
 │   ├── metrics              # Performance and monitoring metrics
 │   ├── networking           # P2P networking and communication
-│   ├── runners              # Execution environments
 │   ├── sdk                  # Software Development Kit
 │   ├── std                  # Standard library extensions
 │   ├── stores               # Storage implementations

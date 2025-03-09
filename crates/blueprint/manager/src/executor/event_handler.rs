@@ -278,7 +278,7 @@ pub(crate) async fn handle_tangle_event(
         })
         .chain(registration_blueprints)
     {
-        let mut fetcher_candidates = get_fetcher_candidates(&blueprint, manager_opts).unwrap();
+        let mut fetcher_candidates = get_fetcher_candidates(&blueprint, manager_opts)?;
 
         let verified_blueprint = VerifiedBlueprint {
             fetcher: fetcher_candidates.pop().expect("Should exist"),
