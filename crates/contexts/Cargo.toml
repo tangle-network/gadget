@@ -22,7 +22,7 @@ tangle-subxt = { workspace = true, optional = true }
 
 [features]
 default = ["std", "keystore"]
-std = ["gadget-std/std", "gadget-clients/std", "gadget-keystore?/std", "gadget-networking?/std", "tangle-subxt?/std"]
+std = ["gadget-std/std", "gadget-clients/std", "gadget-config?/std", "gadget-keystore?/std", "gadget-networking?/std", "tangle-subxt?/std"]
 web = ["tangle-subxt?/web"]
 
 evm = ["gadget-clients/evm"]

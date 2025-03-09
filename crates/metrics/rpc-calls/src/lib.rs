@@ -26,13 +26,10 @@ impl RpcCallsMetrics {
         client_version: &str,
         duration: f64,
     ) {
-        let key = Key::from_parts(
-            "evm_rpc_request_duration_seconds",
-            vec![
-                Label::new("method ", method.to_string()),
-                Label::new("client_version", client_version.to_string()),
-            ],
-        );
+        let key = Key::from_parts("evm_rpc_request_duration_seconds", vec![
+            Label::new("method ", method.to_string()),
+            Label::new("client_version", client_version.to_string()),
+        ]);
 
         metrics::histogram!(key.to_string()).record(duration);
     }
@@ -43,13 +40,10 @@ impl RpcCallsMetrics {
         client_version: &str,
         rpc_request_total: u64,
     ) {
-        let key = Key::from_parts(
-            "evm_rpc_request_total",
-            vec![
-                Label::new("method", method.to_string()),
-                Label::new("client_version", client_version.to_string()),
-            ],
-        );
+        let key = Key::from_parts("evm_rpc_request_total", vec![
+            Label::new("method", method.to_string()),
+            Label::new("client_version", client_version.to_string()),
+        ]);
 
         metrics::counter!(key.to_string()).absolute(rpc_request_total);
     }

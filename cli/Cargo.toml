@@ -40,6 +40,7 @@ gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
 gadget-chain-setup = { workspace = true, features = ["std", "tangle", "anvil"] }
+blueprint-runner = { workspace = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
 
@@ -100,6 +101,7 @@ std = [
     "gadget-std/std",
     "gadget-utils-tangle/std",
     "tangle-subxt/std",
+    "blueprint-runner/std",
 ]
 
 # Main features
@@ -109,6 +111,7 @@ tangle = [
     "gadget-clients/tangle",
     "gadget-keystore/tangle-full",
     "gadget-blueprint-serde",
+    "blueprint-runner/tangle",
     "evm",
 ]
 
@@ -116,6 +119,7 @@ tangle = [
 eigenlayer = [
     "gadget-clients/eigenlayer",
     "gadget-keystore/eigenlayer-full",
+    "blueprint-runner/eigenlayer",
     "eigensdk",
     "evm",
 ]

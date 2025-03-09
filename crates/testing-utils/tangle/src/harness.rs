@@ -1,6 +1,6 @@
-use crate::multi_node::MultiNodeTestEnv;
 use crate::Error;
-use crate::{keys::inject_tangle_key, InputValue, OutputValue};
+use crate::multi_node::MultiNodeTestEnv;
+use crate::{InputValue, OutputValue, keys::inject_tangle_key};
 use gadget_chain_setup::tangle::testnet::SubstrateNode;
 use gadget_chain_setup::tangle::transactions;
 use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
