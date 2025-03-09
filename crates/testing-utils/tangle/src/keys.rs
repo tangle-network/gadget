@@ -1,6 +1,6 @@
 use gadget_keystore::backends::bn254::Bn254Backend;
-use gadget_keystore::backends::tangle::bls::TangleBlsBackend;
 use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_keystore::backends::tangle::bls::TangleBlsBackend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use std::path::Path;
 

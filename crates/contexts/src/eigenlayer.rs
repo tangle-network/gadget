@@ -1,5 +1,5 @@
-pub use gadget_clients::eigenlayer::client::EigenlayerClient;
 use gadget_clients::Error;
+pub use gadget_clients::eigenlayer::client::EigenlayerClient;
 use gadget_config::GadgetConfiguration;
 
 /// Provides access to Eigenlayer utilities through its [`EigenlayerClient`].

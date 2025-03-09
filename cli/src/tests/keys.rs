@@ -4,7 +4,7 @@ use gadget_config::Protocol;
 use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_crypto::sp_core::{SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto_core::KeyTypeId;
-use gadget_keystore::{backends::Backend, Keystore, KeystoreConfig};
+use gadget_keystore::{Keystore, KeystoreConfig, backends::Backend};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
@@ -145,9 +145,11 @@ fn test_list_keys() -> Result<()> {
 
     // Verify each expected key is in the listed keys
     for expected in expected_keys {
-        assert!(listed_keys
-            .iter()
-            .any(|k| k.0 == expected.0 && k.1 == expected.1));
+        assert!(
+            listed_keys
+                .iter()
+                .any(|k| k.0 == expected.0 && k.1 == expected.1)
+        );
     }
 
     Ok(())

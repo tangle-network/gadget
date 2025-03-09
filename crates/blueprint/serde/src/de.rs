@@ -1,5 +1,5 @@
-use crate::error::{Error, Result, UnsupportedType};
 use crate::Field;
+use crate::error::{Error, Result, UnsupportedType};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -38,7 +38,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             Field::Uint64(u) => visitor.visit_u64(u),
             Field::Int64(i) => visitor.visit_i64(i),
             Field::String(s) => {
-                let s = String::from_utf8(s.0 .0)?;
+                let s = String::from_utf8(s.0.0)?;
                 visitor.visit_string(s)
             }
             Field::Array(_, seq) | Field::List(_, seq) => visit_seq(seq.0, visitor),
@@ -67,7 +67,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         let string;
         match self.0 {
-            Field::String(bound_string) => string = String::from_utf8(bound_string.0 .0)?,
+            Field::String(bound_string) => string = String::from_utf8(bound_string.0.0)?,
             _ => return Err(self.invalid_type(&visitor)),
         }
 
@@ -168,7 +168,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         // Only accept unit variants
         match self.0 {
             Field::String(bound_string) => {
-                visitor.visit_enum(String::from_utf8(bound_string.0 .0)?.into_deserializer())
+                visitor.visit_enum(String::from_utf8(bound_string.0.0)?.into_deserializer())
             }
             _ => Err(self.invalid_type(&visitor)),
         }
@@ -213,7 +213,7 @@ impl Deserializer {
             Field::Int32(i) => de::Unexpected::Signed(i64::from(*i)),
             Field::Int64(i) => de::Unexpected::Signed(*i),
 
-            Field::String(s) => de::Unexpected::Str(core::str::from_utf8(&s.0 .0).unwrap_or("")),
+            Field::String(s) => de::Unexpected::Str(core::str::from_utf8(&s.0.0).unwrap_or("")),
             Field::Array(..) | Field::List(..) => de::Unexpected::Seq,
             Field::Struct(_, _) => de::Unexpected::Other("Struct"),
             Field::AccountId(_) => de::Unexpected::Other("AccountId"),
@@ -278,7 +278,7 @@ where
 {
     let mut fields = BTreeMap::new();
     for (name, value) in serialized_fields.0 {
-        let name = String::from_utf8(name.0 .0)?;
+        let name = String::from_utf8(name.0.0)?;
         fields.insert(name, value);
     }
 

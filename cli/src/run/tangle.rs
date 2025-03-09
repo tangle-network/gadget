@@ -1,7 +1,7 @@
 use alloy_signer_local::PrivateKeySigner;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::run_blueprint_manager;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use gadget_config::GadgetConfiguration;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_logging::info;

@@ -232,7 +232,6 @@ async fn deploy_contracts_to_tangle(
     assert!(rpc_url.starts_with("ws:"));
 
     let provider = alloy_provider::ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet)
         .on_ws(WsConnect::new(rpc_url))
         .await?;

@@ -3384,6 +3384,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "blueprint-manager",
+ "blueprint-runner",
  "cargo-generate",
  "cargo_metadata 0.18.1",
  "clap",

@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+use blueprint_runner::tangle::config::{decompress_pubkey, PriceTargets};
 use color_eyre::Result;
 use gadget_chain_setup::tangle::InputValue;
 use gadget_clients::tangle::client::{BlueprintId, OnlineClient};
@@ -289,7 +290,7 @@ pub async fn submit_job(
 
 /// Helper function to decode a BoundedString to a regular String
 fn decode_bounded_string(bounded_string: &BoundedString) -> String {
-    String::from_utf8_lossy(&bounded_string.0 .0).to_string()
+    String::from_utf8_lossy(&bounded_string.0.0).to_string()
 }
 
 /// Load job arguments from a JSON file
@@ -525,8 +526,8 @@ pub async fn register(
 
     let preferences =
         tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::Preferences {
-            key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0 .0).unwrap(),
-            price_targets: gadget_runners::tangle::tangle::PriceTargets::default().0,
+            key: decompress_pubkey(&ecdsa_public.0.0).unwrap(),
+            price_targets: PriceTargets::default().0,
         };
 
     info!("Joining operators...");

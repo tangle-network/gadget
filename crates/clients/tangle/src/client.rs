@@ -61,7 +61,7 @@ impl TangleClient {
             .first_local::<SpSr25519>()
             .map_err(Error::Keystore)?
             .0
-             .0
+            .0
             .into();
 
         Ok(Self {

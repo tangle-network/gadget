@@ -5,6 +5,7 @@ use blueprint_sdk::logging::info;
 use blueprint_sdk::runners::core::runner::BlueprintRunner;
 use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
 use blueprint_sdk::utils::evm::get_wallet_provider_http;
+use incredible_squaring_blueprint_eigenlayer::IncredibleSquaringTaskManager;
 use incredible_squaring_blueprint_eigenlayer::constants::{
     AGGREGATOR_PRIVATE_KEY, TASK_MANAGER_ADDRESS,
 };
@@ -13,7 +14,6 @@ use incredible_squaring_blueprint_eigenlayer::contexts::client::AggregatorClient
 use incredible_squaring_blueprint_eigenlayer::contexts::x_square::EigenSquareContext;
 use incredible_squaring_blueprint_eigenlayer::jobs::compute_x_square::XsquareEigenEventHandler;
 use incredible_squaring_blueprint_eigenlayer::jobs::initialize_task::InitializeBlsTaskEventHandler;
-use incredible_squaring_blueprint_eigenlayer::IncredibleSquaringTaskManager;
 
 #[blueprint_sdk::main(env)]
 async fn main() {

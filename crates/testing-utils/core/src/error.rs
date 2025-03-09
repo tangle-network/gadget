@@ -1,4 +1,3 @@
-use gadget_runners::core::error::RunnerError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -15,6 +14,4 @@ pub enum TestRunnerError {
     Keystore(#[from] gadget_keystore::Error),
     #[error(transparent)]
     Parse(#[from] url::ParseError),
-    #[error(transparent)]
-    Runner(#[from] RunnerError),
 }

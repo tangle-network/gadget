@@ -12,9 +12,9 @@ use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
 use tangle_subxt::subxt::tx::Signer;
 use tokio::fs;
 
-use crate::run::tangle::{run_blueprint, RunOpts};
+use crate::run::tangle::{RunOpts, run_blueprint};
 use crate::tests::tangle::blueprint::create_test_blueprint;
-use gadget_chain_setup::tangle::deploy::{deploy_to_tangle, Opts as DeployOpts};
+use gadget_chain_setup::tangle::deploy::{Opts as DeployOpts, deploy_to_tangle};
 
 #[tokio::test]
 async fn test_run_blueprint() -> Result<()> {

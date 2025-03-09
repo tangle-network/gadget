@@ -2,8 +2,8 @@ use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
 use async_trait::async_trait;
-use gadget_config::supported_chains::SupportedChains;
 use gadget_config::GadgetConfiguration;
+use gadget_config::supported_chains::SupportedChains;
 use std::path::PathBuf;
 
 pub mod github;

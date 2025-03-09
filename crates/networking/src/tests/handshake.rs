@@ -1,11 +1,11 @@
 use crate::service::AllowedKeys;
-use crate::tests::create_whitelisted_nodes;
 use crate::tests::TestNode;
+use crate::tests::create_whitelisted_nodes;
 use gadget_crypto::sp_core::SpEcdsa;
 use std::{collections::HashSet, time::Duration};
 use tokio::time::timeout;
 use tracing::info;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 

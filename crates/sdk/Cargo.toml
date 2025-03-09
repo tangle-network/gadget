@@ -24,7 +24,6 @@ gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
 document-features = { workspace = true }
 gadget-chain-setup = { workspace = true }
-document-features = { workspace = true }
 
 # Tangle-specific extras
 blueprint-tangle-extra = { workspace = true, optional = true }

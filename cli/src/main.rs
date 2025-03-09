@@ -811,7 +811,9 @@ async fn main() -> color_eyre::Result<()> {
                 let mnemonic = keys::generate_mnemonic(word_count)?;
                 eprintln!("Generated mnemonic phrase:");
                 eprintln!("{}", mnemonic);
-                eprintln!("\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys.");
+                eprintln!(
+                    "\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys."
+                );
             }
         },
     }

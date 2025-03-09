@@ -3,20 +3,20 @@ use crate::types::ProtocolMessage;
 use crate::{
     blueprint_protocol::{BlueprintProtocolBehaviour, BlueprintProtocolEvent},
     discovery::{
+        PeerInfo, PeerManager,
         behaviour::{DiscoveryBehaviour, DiscoveryEvent},
         config::DiscoveryConfig,
-        PeerInfo, PeerManager,
     },
 };
 use crossbeam_channel::Sender;
 use gadget_crypto::KeyType;
 use libp2p::{
+    Multiaddr, PeerId,
     connection_limits::{self, ConnectionLimits},
     identity::Keypair,
     kad::QueryId,
     ping,
     swarm::NetworkBehaviour,
-    Multiaddr, PeerId,
 };
 use std::{
     collections::{HashMap, HashSet},

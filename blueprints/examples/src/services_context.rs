@@ -33,13 +33,10 @@ pub async fn constructor(
         .map_err(|e| color_eyre::eyre::eyre!(e))?;
 
     info!("Starting the event watcher for {:?} ...", signer.0);
-    HandleJobEventHandler::new(
-        &env.clone(),
-        ExampleServiceContext {
-            sdk_config: env,
-            call_id: None,
-        },
-    )
+    HandleJobEventHandler::new(&env.clone(), ExampleServiceContext {
+        sdk_config: env,
+        call_id: None,
+    })
     .await
     .map_err(|e| color_eyre::eyre::eyre!(e))
 }

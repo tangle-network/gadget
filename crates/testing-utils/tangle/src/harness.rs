@@ -1,11 +1,11 @@
-use crate::multi_node::MultiNodeTestEnv;
 use crate::Error;
-use crate::{keys::inject_tangle_key, InputValue, OutputValue};
+use crate::multi_node::MultiNodeTestEnv;
+use crate::{InputValue, OutputValue, keys::inject_tangle_key};
 use gadget_chain_setup::tangle::testnet::SubstrateNode;
 use gadget_chain_setup::tangle::transactions;
 use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
 use gadget_client_tangle::client::TangleClient;
-use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
+use gadget_config::{ContextConfig, GadgetConfiguration, supported_chains::SupportedChains};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
@@ -191,7 +191,7 @@ impl TangleTestHarness {
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
 
             let preferences = Preferences {
-                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0 .0).unwrap(),
+                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0.0).unwrap(),
                 price_targets: PriceTargets::default().0,
             };
 
