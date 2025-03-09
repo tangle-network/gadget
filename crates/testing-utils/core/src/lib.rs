@@ -2,7 +2,7 @@ use cargo_toml::Manifest;
 pub use error::TestRunnerError;
 use gadget_config::{ContextConfig, GadgetCLICoreSettings};
 use gadget_logging::info;
-pub use runner::TestRunner;
+// pub use runner::TestRunner;
 use std::io::Write;
 use std::path::Path;
 
@@ -10,7 +10,7 @@ mod error;
 pub use error::TestRunnerError as Error;
 
 pub mod harness;
-pub mod runner;
+// pub mod runner;
 
 pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest> {
     let manifest = cargo_toml::Manifest::from_path(path).map_err(|err| {

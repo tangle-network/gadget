@@ -1,13 +1,11 @@
-use crate::multi_node::MultiNodeTestEnv;
-use crate::node::transactions::setup_operator_and_service_multiple;
 use crate::Error;
-use crate::{
-    keys::inject_tangle_key,
-    node::{run, transactions, NodeConfig},
-    InputValue, OutputValue,
-};
+use crate::multi_node::MultiNodeTestEnv;
+use crate::{InputValue, OutputValue, keys::inject_tangle_key};
+use gadget_chain_setup::tangle::testnet::SubstrateNode;
+use gadget_chain_setup::tangle::transactions;
+use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
 use gadget_client_tangle::client::TangleClient;
-use gadget_config::{supported_chains::SupportedChains, ContextConfig, GadgetConfiguration};
+use gadget_config::{ContextConfig, GadgetConfiguration, supported_chains::SupportedChains};
 use gadget_contexts::{keystore::KeystoreContext, tangle::TangleClientContext};
 use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
@@ -56,7 +54,7 @@ pub struct TangleTestHarness {
     pub alloy_key: alloy_signer_local::PrivateKeySigner,
     config: TangleTestConfig,
     temp_dir: tempfile::TempDir,
-    _node: crate::node::testnet::SubstrateNode,
+    _node: SubstrateNode,
 }
 
 pub async fn generate_env_from_node_id(
@@ -99,9 +97,11 @@ impl TestHarness for TangleTestHarness {
 
     async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false))
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?;
+        let node = gadget_chain_setup::tangle::run(
+            gadget_chain_setup::tangle::NodeConfig::new(false).with_log_target("evm", "trace"),
+        )
+        .await
+        .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
@@ -191,7 +191,7 @@ impl TangleTestHarness {
                 .map_err(|err| RunnerError::Other(err.to_string()))?;
 
             let preferences = Preferences {
-                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0 .0).unwrap(),
+                key: gadget_runners::tangle::tangle::decompress_pubkey(&ecdsa_public.0.0).unwrap(),
                 price_targets: PriceTargets::default().0,
             };
 
@@ -242,8 +242,8 @@ impl TangleTestHarness {
     pub fn create_deploy_opts(
         &self,
         manifest_path: std::path::PathBuf,
-    ) -> cargo_tangle::deploy::tangle::Opts {
-        cargo_tangle::deploy::tangle::Opts {
+    ) -> gadget_chain_setup::tangle::deploy::Opts {
+        gadget_chain_setup::tangle::deploy::Opts {
             pkg_name: Some(self.get_blueprint_name(&manifest_path)),
             http_rpc_url: self.http_endpoint.to_string(),
             ws_rpc_url: self.ws_endpoint.to_string(),
@@ -263,7 +263,7 @@ impl TangleTestHarness {
     pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
         let opts = self.create_deploy_opts(manifest_path);
-        let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts)
+        let blueprint_id = gadget_chain_setup::tangle::deploy::deploy_to_tangle(opts)
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         Ok(blueprint_id)

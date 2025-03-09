@@ -14,15 +14,14 @@ pub struct TestSourceFetcher {
 #[async_trait]
 impl BinarySourceFetcher for TestSourceFetcher {
     async fn get_binary(&self) -> Result<PathBuf> {
-        // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
             cargo_package,
             base_path,
             ..
         } = &self.fetcher;
-        let cargo_bin = String::from_utf8(cargo_package.0 .0.clone())
+        let cargo_bin = String::from_utf8(cargo_package.0.0.clone())
             .map_err(|err| Error::Other(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
-        let base_path_str = String::from_utf8(base_path.0 .0.clone())
+        let base_path_str = String::from_utf8(base_path.0.0.clone())
             .map_err(|err| Error::Other(format!("Failed to parse `base_path`: {:?}", err)))?;
         let git_repo_root = get_git_repo_root_path().await?;
 
@@ -56,10 +55,14 @@ impl BinarySourceFetcher for TestSourceFetcher {
             command.arg("--release");
         }
 
-        let output = command.current_dir(&base_path).output().await?;
+        trace!("Running build command in {}", base_path.display());
+        let output = command.current_dir(&base_path).output().await.unwrap();
+        trace!("Build command run");
         if !output.status.success() {
+            gadget_logging::warn!("Failed to build binary");
             return Err(Error::BuildBinary(output));
         }
+        trace!("Successfully built binary");
 
         Ok(binary_path)
     }

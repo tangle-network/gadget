@@ -35,11 +35,14 @@ gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
-gadget-config = { workspace = true, features = ["std", "networking"] }
+gadget-config = { workspace = true, features = ["std", "networking", "keystore"] }
+gadget-chain-setup = { workspace = true, features = ["std", "tangle", "anvil"] }
+blueprint-runner = { workspace = true }
+blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
 
 # Optional client dependencies
-gadget-clients = { workspace = true, optional = true }
+gadget-clients = { workspace = true, optional = false }
 gadget-crypto = { workspace = true, features = [
     "k256",
     "sr25519-schnorrkel",
@@ -60,6 +63,7 @@ tnt-bls = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 eigensdk = { workspace = true, optional = true }
+gadget-blueprint-serde = { workspace = true, optional = true }
 gadget-utils-evm = { workspace = true, optional = true }
 
 # Anvil dependencies
@@ -79,7 +83,7 @@ alloy-rpc-types-eth = { workspace = true, optional = true }
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = { workspace = true }
-gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
+gadget-testing-utils = { workspace = true, features = ["tangle", "anvil", "eigenlayer"] }
 gadget-utils = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
@@ -94,6 +98,7 @@ std = [
     "gadget-std/std",
     "gadget-utils-tangle/std",
     "tangle-subxt/std",
+    "blueprint-runner/std",
 ]
 
 # Main features
@@ -102,6 +107,8 @@ tangle = [
     "dep:sp-core",
     "gadget-clients/tangle",
     "gadget-keystore/tangle-full",
+    "gadget-blueprint-serde",
+    "blueprint-runner/tangle",
     "evm",
 ]
 
@@ -109,6 +116,7 @@ tangle = [
 eigenlayer = [
     "gadget-clients/eigenlayer",
     "gadget-keystore/eigenlayer-full",
+    "blueprint-runner/eigenlayer",
     "eigensdk",
     "evm",
 ]

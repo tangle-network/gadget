@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 use gadget_crypto::KeyType;
 use gadget_networking::{
-    service::AllowedKeys, service_handle::NetworkServiceHandle, NetworkConfig, NetworkService,
+    NetworkConfig, NetworkService, service::AllowedKeys, service_handle::NetworkServiceHandle,
 };
 use libp2p::{
-    identity::{self, Keypair},
     Multiaddr, PeerId,
+    identity::{self, Keypair},
 };
 use std::string::ToString;
 use std::time::Duration;

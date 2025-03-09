@@ -1,7 +1,7 @@
 use gadget_crypto::sp_core::SpEcdsa;
-use gadget_keystore::backends::tangle::TangleBackend;
-use gadget_keystore::backends::Backend;
 use gadget_keystore::Result;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::backends::tangle::TangleBackend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 
 #[test]
@@ -15,7 +15,7 @@ fn fs_keystore() -> Result<()> {
 
     let ecdsa_keys = keystore.list_local::<SpEcdsa>()?;
     assert_eq!(ecdsa_keys.len(), 1);
-    assert_eq!(ecdsa_keys[0].0 .0, &*hex::decode(EXPECTED).unwrap());
+    assert_eq!(ecdsa_keys[0].0.0, &*hex::decode(EXPECTED).unwrap());
 
     Ok(())
 }

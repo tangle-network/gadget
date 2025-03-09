@@ -1,8 +1,8 @@
 use super::{InstanceMessageRequest, InstanceMessageResponse};
 use crate::blueprint_protocol::HandshakeMessage;
+use crate::discovery::PeerManager;
 use crate::discovery::peers::VerificationIdentifierKey;
 use crate::discovery::utils::get_address_from_compressed_pubkey;
-use crate::discovery::PeerManager;
 use crate::types::ProtocolMessage;
 use bincode;
 use crossbeam_channel::Sender;
@@ -10,6 +10,7 @@ use dashmap::DashMap;
 use gadget_crypto::BytesEncoding;
 use gadget_crypto::KeyType;
 use libp2p::{
+    Multiaddr, PeerId, StreamProtocol,
     core::transport::PortUse,
     gossipsub::{self, IdentTopic, MessageId, Sha256Topic},
     identity::Keypair,
@@ -18,7 +19,6 @@ use libp2p::{
         ConnectionDenied, ConnectionId, FromSwarm, NetworkBehaviour, THandler, THandlerInEvent,
         THandlerOutEvent, ToSwarm,
     },
-    Multiaddr, PeerId, StreamProtocol,
 };
 use std::{
     sync::Arc,
@@ -433,20 +433,17 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                     };
 
                     let public_key = K::public_from_secret(&key_pair);
-                    self.send_request(
-                        &e.peer_id,
-                        InstanceMessageRequest::Handshake {
-                            verification_id_key: if self.use_address_for_handshake_verification {
-                                VerificationIdentifierKey::EvmAddress(
-                                    get_address_from_compressed_pubkey(&public_key.to_bytes()),
-                                )
-                            } else {
-                                VerificationIdentifierKey::InstancePublicKey(public_key)
-                            },
-                            signature,
-                            msg: handshake_msg,
+                    self.send_request(&e.peer_id, InstanceMessageRequest::Handshake {
+                        verification_id_key: if self.use_address_for_handshake_verification {
+                            VerificationIdentifierKey::EvmAddress(
+                                get_address_from_compressed_pubkey(&public_key.to_bytes()),
+                            )
+                        } else {
+                            VerificationIdentifierKey::InstancePublicKey(public_key)
                         },
-                    );
+                        signature,
+                        msg: handshake_msg,
+                    });
 
                     debug!(%e.peer_id, "Sent handshake request");
                     self.outbound_handshakes.insert(e.peer_id, Instant::now());
@@ -510,7 +507,7 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                         peer_id,
                         handler,
                         event,
-                    })
+                    });
                 }
                 ToSwarm::CloseConnection {
                     peer_id,
@@ -519,20 +516,20 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                     return Poll::Ready(ToSwarm::CloseConnection {
                         peer_id,
                         connection,
-                    })
+                    });
                 }
                 ToSwarm::ListenOn { opts } => return Poll::Ready(ToSwarm::ListenOn { opts }),
                 ToSwarm::RemoveListener { id } => {
-                    return Poll::Ready(ToSwarm::RemoveListener { id })
+                    return Poll::Ready(ToSwarm::RemoveListener { id });
                 }
                 ToSwarm::NewExternalAddrCandidate(addr) => {
-                    return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr))
+                    return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr));
                 }
                 ToSwarm::ExternalAddrConfirmed(addr) => {
-                    return Poll::Ready(ToSwarm::ExternalAddrConfirmed(addr))
+                    return Poll::Ready(ToSwarm::ExternalAddrConfirmed(addr));
                 }
                 ToSwarm::ExternalAddrExpired(addr) => {
-                    return Poll::Ready(ToSwarm::ExternalAddrExpired(addr))
+                    return Poll::Ready(ToSwarm::ExternalAddrExpired(addr));
                 }
                 _ => {}
             }

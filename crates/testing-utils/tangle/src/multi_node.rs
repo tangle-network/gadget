@@ -1,8 +1,8 @@
 use crate::harness::ENDOWED_TEST_NAMES;
 use crate::{
-    harness::{generate_env_from_node_id, TangleTestConfig},
-    runner::TangleTestEnv,
     Error,
+    harness::{TangleTestConfig, generate_env_from_node_id},
+    runner::TangleTestEnv,
 };
 use futures::future::join_all;
 use gadget_config::{GadgetConfiguration, Multiaddr};
@@ -19,10 +19,10 @@ use gadget_runners::tangle::tangle::TangleConfig;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tangle_subxt::subxt::tx::Signer;
-use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
+use tokio::sync::{RwLock, broadcast, mpsc, oneshot};
 
 #[derive(Clone, Debug)]
 pub enum NodeSlot {

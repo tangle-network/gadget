@@ -1,24 +1,27 @@
 use std::path::PathBuf;
-
-use crate::deploy::tangle::{deploy_to_tangle, Opts};
 use crate::keys::prompt_for_keys;
 use cargo_tangle::anvil::start_default_anvil_testnet;
 use cargo_tangle::create::BlueprintType;
 #[cfg(feature = "eigenlayer")]
 use cargo_tangle::deploy::eigenlayer::{deploy_to_eigenlayer, EigenlayerDeployOpts};
 use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
-use cargo_tangle::{create, deploy, keys};
+use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
-use gadget_config::{
-    protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings},
-    supported_chains::SupportedChains,
-    Error, GadgetConfiguration,
-};
+use tangle_subxt::subxt::blocks::ExtrinsicEvents;
+use tangle_subxt::subxt::client::OnlineClientT;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::subxt::tx::TxProgress;
+use tangle_subxt::subxt_core::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{Asset, AssetSecurityCommitment};
+use gadget_config::{protocol::{EigenlayerContractAddresses, Protocol, ProtocolSettings, TangleInstanceSettings}, supported_chains::SupportedChains, Error, GadgetConfiguration};
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
 use tokio::signal;
+use gadget_chain_setup::tangle::deploy::{deploy_to_tangle, Opts};
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -177,7 +180,194 @@ pub enum BlueprintCommands {
         #[arg(short = 'f', long, default_value = "./settings.env")]
         settings_file: Option<PathBuf>,
     },
+
+    /// List service requests for a Tangle blueprint
+    #[command(visible_alias = "ls")]
+    ListRequests {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+    },
+
+    /// Register for a Tangle blueprint
+    #[command(visible_alias = "reg")]
+    Register {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The blueprint ID to register
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+    },
+
+    /// Accept a Tangle service request
+    #[command(visible_alias = "resp")]
+    AcceptRequest {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The restaking percentage to use
+        #[arg(long, default_value = "50")]
+        restaking_percent: u8,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+    },
+
+    /// Reject a Tangle service request
+    #[command(visible_alias = "resp")]
+    RejectRequest {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+    },
+
+    /// Request a Tangle service
+    #[command(visible_alias = "req")]
+    RequestService {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL")]
+        ws_rpc_url: String,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The target operators to request
+        #[arg(long)]
+        target_operators: Vec<AccountId32>,
+        /// The value to request
+        #[arg(long)]
+        value: u128,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+    },
+
+    /// Submit a job to a service
+    #[command(name = "submit-job")]
+    SubmitJob {
+        /// The RPC endpoint to connect to
+        #[arg(long, env = "TANGLE_RPC_URL")]
+        ws_rpc_url: String,
+        /// The service ID to submit the job to
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to submit the job to
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "TANGLE_KEYSTORE_URI")]
+        keystore_uri: String,
+        /// The job ID to submit
+        #[arg(long)]
+        job: u8,
+        /// Optional path to a JSON file containing job parameters
+        #[arg(long)]
+        params_file: Option<String>,
+        // /// The job arguments (optional, will prompt if not provided and no params file)
+        // #[arg(long, value_parser = input_value_parser)]
+        // args: Vec<InputValue>,
+    },
 }
+
+// fn input_value_parser(s: &str) -> Result<InputValue, String> {
+//     // Parse the input string based on its format
+//     if s.starts_with("u8:") {
+//         // Parse as Uint8
+//         let value = s.trim_start_matches("u8:").parse::<u8>()
+//             .map_err(|e| format!("Failed to parse u8 value: {}", e))?;
+//         Ok(InputValue::Uint8(value))
+//     } else if s.starts_with("u16:") {
+//         // Parse as Uint16
+//         let value = s.trim_start_matches("u16:").parse::<u16>()
+//             .map_err(|e| format!("Failed to parse u16 value: {}", e))?;
+//         Ok(InputValue::Uint16(value))
+//     } else if s.starts_with("u32:") {
+//         // Parse as Uint32
+//         let value = s.trim_start_matches("u32:").parse::<u32>()
+//             .map_err(|e| format!("Failed to parse u32 value: {}", e))?;
+//         Ok(InputValue::Uint32(value))
+//     } else if s.starts_with("u64:") {
+//         // Parse as Uint64
+//         let value = s.trim_start_matches("u64:").parse::<u64>()
+//             .map_err(|e| format!("Failed to parse u64 value: {}", e))?;
+//         Ok(InputValue::Uint64(value))
+//     } else if s.starts_with("u128:") {
+//         // Parse as Uint128
+//         let value = s.trim_start_matches("u128:").parse::<u128>()
+//             .map_err(|e| format!("Failed to parse u128 value: {}", e))?;
+//         Ok(InputValue::Uint128(value))
+//     } else if s.starts_with("i8:") {
+//         // Parse as Int8
+//         let value = s.trim_start_matches("i8:").parse::<i8>()
+//             .map_err(|e| format!("Failed to parse i8 value: {}", e))?;
+//         Ok(InputValue::Int8(value))
+//     } else if s.starts_with("i16:") {
+//         // Parse as Int16
+//         let value = s.trim_start_matches("i16:").parse::<i16>()
+//             .map_err(|e| format!("Failed to parse i16 value: {}", e))?;
+//         Ok(InputValue::Int16(value))
+//     } else if s.starts_with("i32:") {
+//         // Parse as Int32
+//         let value = s.trim_start_matches("i32:").parse::<i32>()
+//             .map_err(|e| format!("Failed to parse i32 value: {}", e))?;
+//         Ok(InputValue::Int32(value))
+//     } else if s.starts_with("i64:") {
+//         // Parse as Int64
+//         let value = s.trim_start_matches("i64:").parse::<i64>()
+//             .map_err(|e| format!("Failed to parse i64 value: {}", e))?;
+//         Ok(InputValue::Int64(value))
+//     } else if s.starts_with("i128:") {
+//         // Parse as Int128
+//         let value = s.trim_start_matches("i128:").parse::<i128>()
+//             .map_err(|e| format!("Failed to parse i128 value: {}", e))?;
+//         Ok(InputValue::Int128(value))
+//     } else if s.starts_with("bool:") {
+//         // Parse as Bool
+//         let value = s.trim_start_matches("bool:").parse::<bool>()
+//             .map_err(|e| format!("Failed to parse bool value: {}", e))?;
+//         Ok(InputValue::Bool(value))
+//     } else if s.starts_with("bytes:") {
+//         // Parse as Bytes (hex string)
+//         let hex_str = s.trim_start_matches("bytes:");
+//         let bytes = hex::decode(hex_str)
+//             .map_err(|e| format!("Failed to parse bytes value: {}", e))?;
+//         Ok(InputValue::Bytes(bytes.into()))
+//     } else if s.starts_with("string:") {
+//         // Parse as String
+//         let value = s.trim_start_matches("string:").to_string();
+//         Ok(InputValue::String(value.into()))
+//     } else {
+//         // Default to u64 if no prefix is provided
+//         match s.parse::<u64>() {
+//             Ok(value) => Ok(InputValue::Uint64(value)),
+//             Err(_) => Err(format!("Failed to parse input value: {}. Use prefix like 'u64:', 'string:', etc.", s))
+//         }
+//     }
+// }
 
 #[derive(Subcommand, Debug)]
 pub enum DeployTarget {
@@ -267,10 +457,10 @@ async fn main() -> color_eyre::Result<()> {
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
                     let _ = deploy_to_tangle(Opts {
+                        pkg_name: package,
                         http_rpc_url,
                         ws_rpc_url,
                         manifest_path,
-                        pkg_name: package,
                         signer: None,
                         signer_evm: None,
                     })
@@ -463,13 +653,100 @@ async fn main() -> color_eyre::Result<()> {
                         run_eigenlayer_avs(config, chain, binary_path).await?;
                     }
                     Protocol::Tangle => {
-                        // Tangle implementation will go here
-                        unimplemented!("Tangle protocol implementation not yet available");
+                        // Create the run options for the Tangle blueprint
+                        let run_opts = cargo_tangle::run::tangle::RunOpts {
+                            http_rpc_url: config.http_rpc_endpoint.clone(),
+                            ws_rpc_url: config.ws_rpc_endpoint.clone(),
+                            signer: None, // We'll get the signer from the keystore
+                            signer_evm: None, // We'll get the signer from the keystore
+                            blueprint_id: Some(
+                                protocol_settings
+                                    .tangle().map(|t| t.blueprint_id)
+                                    .map_err(|e| color_eyre::Report::msg(format!("Blueprint ID is required in the protocol settings: {e:?}")))?,
+                            ),
+                            keystore_path: Some(config.keystore_uri.clone()),
+                            data_dir: config.data_dir.clone(),
+                        };
+
+                        // Run the blueprint
+                        cargo_tangle::run::tangle::run_blueprint(run_opts).await?;
                     }
                     _ => {
                         return Err(Error::UnsupportedProtocol(protocol.to_string()).into());
                     }
                 }
+            }
+            BlueprintCommands::ListRequests { ws_rpc_url } => {
+                let requests = commands::list_requests(ws_rpc_url).await?;
+                commands::print_requests(requests);
+            }
+            BlueprintCommands::Register {
+                ws_rpc_url,
+                blueprint_id,
+                keystore_uri,
+            } => commands::register(ws_rpc_url, blueprint_id, keystore_uri).await?,
+            BlueprintCommands::AcceptRequest {
+                ws_rpc_url,
+                min_exposure_percent,
+                max_exposure_percent,
+                restaking_percent,
+                keystore_uri,
+                request_id,
+            } => {
+                commands::accept_request(
+                    ws_rpc_url,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    restaking_percent,
+                    keystore_uri,
+                    request_id,
+                )
+                .await?;
+            }
+            BlueprintCommands::RejectRequest {
+                ws_rpc_url,
+                keystore_uri,
+                request_id,
+            } => {
+                commands::reject_request(ws_rpc_url, keystore_uri, request_id).await?;
+            }
+            BlueprintCommands::RequestService {
+                ws_rpc_url,
+                blueprint_id,
+                min_exposure_percent,
+                max_exposure_percent,
+                target_operators,
+                value,
+                keystore_uri,
+            } => {
+                commands::request_service(
+                    ws_rpc_url,
+                    blueprint_id,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    target_operators,
+                    value,
+                    keystore_uri,
+                )
+                .await?;
+            }
+            BlueprintCommands::SubmitJob {
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                keystore_uri,
+                job,
+                params_file,
+            } => {
+                commands::submit_job(
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
+                    keystore_uri,
+                    job,
+                    params_file,
+                )
+                .await?;
             }
         },
         Commands::Key { command } => match command {
@@ -534,7 +811,9 @@ async fn main() -> color_eyre::Result<()> {
                 let mnemonic = keys::generate_mnemonic(word_count)?;
                 eprintln!("Generated mnemonic phrase:");
                 eprintln!("{}", mnemonic);
-                eprintln!("\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys.");
+                eprintln!(
+                    "\nWARNING: Store this mnemonic phrase securely. It can be used to recover your keys."
+                );
             }
         },
     }
@@ -666,6 +945,27 @@ fn init_tracing_subscriber() {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(fmt_layer)
         .init();
+}
+
+pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
+    AssetSecurityCommitment {
+        asset: a,
+        exposure_percent: Percent(p),
+    }
+}
+
+pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
+    mut res: TxProgress<T, C>,
+) -> ExtrinsicEvents<T> {
+    let mut val = Err("Failed to get in block success".into());
+    while let Some(Ok(event)) = res.next().await {
+        let Some(block) = event.as_in_block() else {
+            continue;
+        };
+        val = block.wait_for_success().await;
+    }
+
+    val.unwrap()
 }
 
 #[cfg(test)]

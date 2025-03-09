@@ -20,7 +20,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 /// # Errors
 /// * If the `BoundedString` cannot be converted to a `String`
 pub fn bounded_string_to_string(string: &BoundedString) -> Result<String> {
-    let bytes: &Vec<u8> = &string.0 .0;
+    let bytes: &Vec<u8> = &string.0.0;
     let ret = String::from_utf8(bytes.clone())?;
     Ok(ret)
 }
@@ -69,15 +69,17 @@ pub fn get_formatted_os_string() -> String {
 pub fn get_download_url(binary: &GadgetBinary, fetcher: &GithubFetcher) -> String {
     let os = get_formatted_os_string();
     let ext = if os == "windows" { ".exe" } else { "" };
-    let owner = String::from_utf8(fetcher.owner.0 .0.clone()).expect("Should be a valid owner");
-    let repo = String::from_utf8(fetcher.repo.0 .0.clone()).expect("Should be a valid repo");
-    let tag = String::from_utf8(fetcher.tag.0 .0.clone()).expect("Should be a valid tag");
+    let owner = String::from_utf8(fetcher.owner.0.0.clone()).expect("Should be a valid owner");
+    let repo = String::from_utf8(fetcher.repo.0.0.clone()).expect("Should be a valid repo");
+    let tag = String::from_utf8(fetcher.tag.0.0.clone()).expect("Should be a valid tag");
     let binary_name =
-        String::from_utf8(binary.name.0 .0.clone()).expect("Should be a valid binary name");
+        String::from_utf8(binary.name.0.0.clone()).expect("Should be a valid binary name");
     let os_name = format!("{:?}", binary.os).to_lowercase();
     let arch_name = format!("{:?}", binary.arch).to_lowercase();
     // https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
-    format!("https://github.com/{owner}/{repo}/releases/download/v{tag}/{binary_name}-{os_name}-{arch_name}{ext}")
+    format!(
+        "https://github.com/{owner}/{repo}/releases/download/v{tag}/{binary_name}-{os_name}-{arch_name}{ext}"
+    )
 }
 
 /// Makes a file executable by setting the executable permission bits on Unix systems.

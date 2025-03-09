@@ -1,13 +1,20 @@
-use crate::node::testnet::{Error, SubstrateNode, TANGLE_NODE_ENV};
+use crate::error::Error;
+use crate::testnet::{SubstrateNode, TANGLE_NODE_ENV};
 use gadget_std::fs;
 use gadget_std::io::Write;
 use gadget_std::path::PathBuf;
-use reqwest;
+use tangle_subxt::subxt::utils::AccountId32;
 
+pub mod deploy;
+pub mod error;
+pub mod foundry;
 pub mod testnet;
 pub mod transactions;
 
 pub use testnet::NodeConfig;
+
+pub type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.10/tangle-testnet-manual-seal-darwin-amd64";
 const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.10/tangle-testnet-manual-seal-linux-amd64";
@@ -111,11 +118,7 @@ pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
 #[macro_export]
 /// A template that makes creating domain-specific macros for tangle-based blueprints easier
 macro_rules! tangle_blueprint_test_template {
-    (
-        $N:tt,
-        $test_logic:expr,
-        $node_config:expr,
-    ) => {
+    ($N:tt, $test_logic:expr, $node_config:expr,) => {
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
         #[::gadget_sdk::tokio::test(flavor = "multi_thread", crate = "::gadget_sdk::tokio")]

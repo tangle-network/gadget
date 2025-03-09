@@ -1,5 +1,5 @@
-pub use gadget_clients::tangle::client::TangleClient;
 pub use gadget_clients::Error;
+pub use gadget_clients::tangle::client::TangleClient;
 use gadget_config::GadgetConfiguration;
 
 /// `TangleContext` trait provides access to the Tangle client from the context.

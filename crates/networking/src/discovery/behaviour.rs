@@ -16,8 +16,8 @@ use libp2p::{
     mdns::{self, Event as MdnsEvent},
     relay,
     swarm::{
-        behaviour::toggle::Toggle, derive_prelude::*, dial_opts::DialOpts, NetworkBehaviour,
-        ToSwarm,
+        NetworkBehaviour, ToSwarm, behaviour::toggle::Toggle, derive_prelude::*,
+        dial_opts::DialOpts,
     },
     upnp,
 };
@@ -368,7 +368,7 @@ impl<K: KeyType> NetworkBehaviour for DiscoveryBehaviour<K> {
                         peer_id,
                         handler,
                         event,
-                    })
+                    });
                 }
                 ToSwarm::CloseConnection {
                     peer_id,
@@ -377,20 +377,20 @@ impl<K: KeyType> NetworkBehaviour for DiscoveryBehaviour<K> {
                     return Poll::Ready(ToSwarm::CloseConnection {
                         peer_id,
                         connection,
-                    })
+                    });
                 }
                 ToSwarm::ListenOn { opts } => return Poll::Ready(ToSwarm::ListenOn { opts }),
                 ToSwarm::RemoveListener { id } => {
-                    return Poll::Ready(ToSwarm::RemoveListener { id })
+                    return Poll::Ready(ToSwarm::RemoveListener { id });
                 }
                 ToSwarm::NewExternalAddrCandidate(addr) => {
-                    return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr))
+                    return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr));
                 }
                 ToSwarm::ExternalAddrConfirmed(addr) => {
-                    return Poll::Ready(ToSwarm::ExternalAddrConfirmed(addr))
+                    return Poll::Ready(ToSwarm::ExternalAddrConfirmed(addr));
                 }
                 ToSwarm::ExternalAddrExpired(addr) => {
-                    return Poll::Ready(ToSwarm::ExternalAddrExpired(addr))
+                    return Poll::Ready(ToSwarm::ExternalAddrExpired(addr));
                 }
                 _ => {}
             }

@@ -2,8 +2,8 @@ use crate::{
     behaviours::{GadgetBehaviour, GadgetBehaviourConfig, GadgetBehaviourEvent},
     blueprint_protocol::{BlueprintProtocolEvent, InstanceMessageRequest, InstanceMessageResponse},
     discovery::{
-        behaviour::{DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
         PeerInfo, PeerManager,
+        behaviour::{DerivedDiscoveryBehaviourEvent, DiscoveryEvent},
     },
     error::Error,
     service_handle::NetworkServiceHandle,
@@ -14,11 +14,10 @@ use crossbeam_channel::{self, Receiver, SendError, Sender};
 use futures::StreamExt;
 use gadget_crypto::KeyType;
 use libp2p::{
-    identify,
+    Multiaddr, PeerId, Swarm, SwarmBuilder, identify,
     identity::Keypair,
     kad, mdns, ping,
-    swarm::{dial_opts::DialOpts, SwarmEvent},
-    Multiaddr, PeerId, Swarm, SwarmBuilder,
+    swarm::{SwarmEvent, dial_opts::DialOpts},
 };
 use std::{collections::HashSet, fmt::Display, sync::Arc, time::Duration};
 use tracing::trace;

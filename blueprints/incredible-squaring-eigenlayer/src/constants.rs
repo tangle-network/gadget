@@ -1,4 +1,4 @@
-use alloy_primitives::{address, Address, U256};
+use alloy_primitives::{Address, U256, address};
 use lazy_static::lazy_static;
 use std::env;
 

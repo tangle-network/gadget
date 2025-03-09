@@ -28,5 +28,5 @@ pub trait BackendClient {
     ///
     /// The block having that number.
     async fn block_by_number(&self, number: BlockNumberOrTag)
-        -> Result<Option<Block>, Self::Error>;
+    -> Result<Option<Block>, Self::Error>;
 }

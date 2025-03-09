@@ -30,7 +30,9 @@ pub fn find_config_field(
                 }
                 Err(Error::new_spanned(
                     input_ident,
-                    format!("No field with #[{tag_name}] attribute found, please add #[{tag_name}] to the field that holds the `{tag_ty}`"),
+                    format!(
+                        "No field with #[{tag_name}] attribute found, please add #[{tag_name}] to the field that holds the `{tag_ty}`"
+                    ),
                 ))
             }
             Fields::Unnamed(fields) => {
@@ -45,7 +47,9 @@ pub fn find_config_field(
                 }
                 Err(Error::new_spanned(
                     input_ident,
-                    format!("No field with #[{tag_name}] attribute found, please add #[{tag_name}] to the field that holds the `{tag_ty}`"),
+                    format!(
+                        "No field with #[{tag_name}] attribute found, please add #[{tag_name}] to the field that holds the `{tag_ty}`"
+                    ),
                 ))
             }
             Fields::Unit => Err(Error::new_spanned(
