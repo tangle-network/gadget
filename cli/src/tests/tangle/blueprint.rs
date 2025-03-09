@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tempfile::TempDir;
 
 /// Creates a temporary directory with the incredible-squaring blueprint
@@ -173,11 +173,14 @@ pub struct MyContext {
 )]
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 pub fn xsquare(x: u64, _context: MyContext) -> Result<u64, Infallible> {
-    Ok(x.saturating_pow(2))
+    let result = x.saturating_pow(2);
+    println!("CALCULATED RESULT: {}", result);
+    Ok(result)
 }
 
 #[blueprint_sdk::main(env)]
 async fn main() {
+    println!("0000000000000000000000000000000000000000000000000000000000000000000000000");
     let context = MyContext {
         env: env.clone(),
         call_id: None,
@@ -191,12 +194,13 @@ async fn main() {
     );
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let tangle_config = TangleConfig::default();
+    let tangle_config = TangleConfig::default().with_exit_after_register(false);
     BlueprintRunner::new(tangle_config, env)
         .job(x_square)
         .run()
         .await?;
 
+    println!("EXITING....");
     info!("Exiting...");
     Ok(())
 }"#,

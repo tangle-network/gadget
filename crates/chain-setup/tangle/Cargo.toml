@@ -16,15 +16,12 @@ dialoguer = { workspace = true }
 escargot = { workspace = true }
 
 gadget-networking = { workspace = true }
-gadget-runners = { workspace = true, features = ["tangle"] }
 gadget-config = { workspace = true, features = ["tangle", "networking"] }
 gadget-contexts = { workspace = true, features = ["tangle"] }
-gadget-macros = { workspace = true, features = ["tangle"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
 gadget-utils-tangle = { workspace = true }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-core-testing-utils = { workspace = true }
-gadget-event-listeners = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-blueprint-serde = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
@@ -67,14 +64,11 @@ cargo_metadata = { workspace = true }
 default = ["std"]
 std = [
     "gadget-std/std",
-    "gadget-runners/std",
     "gadget-networking/std",
     "gadget-config/std",
     "gadget-contexts/std",
-    "gadget-macros/std",
     "gadget-crypto-tangle-pair-signer/std",
     "gadget-clients/std",
-    "gadget-event-listeners/std",
     "gadget-keystore/std",
     "gadget-blueprint-serde/std",
     "thiserror/std",

@@ -14,7 +14,6 @@ pub struct TestSourceFetcher {
 #[async_trait]
 impl BinarySourceFetcher for TestSourceFetcher {
     async fn get_binary(&self) -> Result<PathBuf> {
-        // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
             cargo_package,
             base_path,

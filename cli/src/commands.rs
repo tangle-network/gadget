@@ -6,10 +6,10 @@ use gadget_crypto::sp_core::SpSr25519;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_logging::info;
-use gadget_blueprint_serde::{new_bounded_string, Field};
+use gadget_blueprint_serde::new_bounded_string;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceBlueprint;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceRequest;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{
     Asset, AssetSecurityCommitment, AssetSecurityRequirement, MembershipModel,
 };
@@ -25,7 +25,9 @@ use gadget_keystore::backends::Backend;
 use gadget_utils_tangle::TxProgressExt;
 use serde_json;
 
-pub async fn list_requests(ws_rpc_url: String) -> Result<()> {
+pub async fn list_requests(
+    ws_rpc_url: String,
+) -> Result<Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>> {
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     let service_requests_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
@@ -50,9 +52,13 @@ pub async fn list_requests(ws_rpc_url: String) -> Result<()> {
         requests.push((id, request));
     }
 
+    Ok(requests)
+}
+
+pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>) {
     if requests.is_empty() {
         gadget_logging::info!("No service requests found");
-        return Ok(());
+        return;
     }
 
     println!("\nService Requests");
@@ -60,7 +66,7 @@ pub async fn list_requests(ws_rpc_url: String) -> Result<()> {
 
     for (request_id, request) in requests {
         println!("Request ID: {}", request_id);
-        println!("Blueprint: {}", request.blueprint);
+        println!("Blueprint ID: {}", request.blueprint);
         println!("Owner: {}", request.owner);
         println!("Permitted Callers: {:?}", request.permitted_callers);
         println!("Security Requirements: {:?}", request.security_requirements);
@@ -69,8 +75,6 @@ pub async fn list_requests(ws_rpc_url: String) -> Result<()> {
         println!("TTL: {:?}", request.ttl);
         println!("=============================================");
     }
-
-    Ok(())
 }
 
 pub async fn accept_request(
@@ -187,7 +191,7 @@ pub async fn submit_job(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     job: u8,
     params_file: Option<String>,
-) -> Result<()> {
+) -> Result<JobCalled> {
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
@@ -215,8 +219,18 @@ pub async fn submit_job(
 
     // Get job arguments either from file or prompt
     let job_args = if let Some(file_path) = params_file {
-        // Load arguments from file
-        load_job_args_from_file(&file_path)?
+        // Get job definition
+        if job as usize >= service_blueprint.jobs.0.len() {
+            return Err(color_eyre::eyre::eyre!(
+                "Job ID {} not found in blueprint",
+                job
+            ));
+        }
+        let job_definition = &service_blueprint.jobs.0[job as usize];
+        info!("Job definition: {:?}", job_definition);
+
+        // Load arguments from file based on job definition
+        load_job_args_from_file(&file_path, &job_definition.params.0)?
     } else {
         // Prompt user for arguments based on the job definition
         if job as usize >= service_blueprint.jobs.0.len() {
@@ -235,7 +249,7 @@ pub async fn submit_job(
             .metadata
             .description
             .as_ref()
-            .map(|desc| decode_bounded_string(desc))
+            .map(decode_bounded_string)
             .unwrap_or_default();
 
         println!("Job: {} - {}", job_name, job_description);
@@ -267,7 +281,7 @@ pub async fn submit_job(
             && signer.account_id() == job_called.caller
         {
             info!("Job {} successfully called on service {}", job, service_id);
-            return Ok(());
+            return Ok(job_called);
         }
     }
     panic!("Job was not called");
@@ -279,7 +293,7 @@ fn decode_bounded_string(bounded_string: &BoundedString) -> String {
 }
 
 /// Load job arguments from a JSON file
-fn load_job_args_from_file(file_path: &str) -> Result<Vec<InputValue>> {
+fn load_job_args_from_file(file_path: &str, param_types: &[FieldType]) -> Result<Vec<InputValue>> {
     use std::fs;
     use std::path::Path;
 
@@ -292,13 +306,114 @@ fn load_job_args_from_file(file_path: &str) -> Result<Vec<InputValue>> {
     }
 
     let content = fs::read_to_string(path)?;
-    let args: Vec<String> = serde_json::from_str(&content)?;
+    let json_values: serde_json::Value = serde_json::from_str(&content)?;
 
-    // Parse each argument string into an InputValue
+    if !json_values.is_array() {
+        return Err(color_eyre::eyre::eyre!(
+            "Job arguments must be provided as a JSON array"
+        ));
+    }
+
+    let args = json_values.as_array().unwrap();
+
+    if args.len() != param_types.len() {
+        return Err(color_eyre::eyre::eyre!(
+            "Expected {} arguments but got {}",
+            param_types.len(),
+            args.len()
+        ));
+    }
+
+    // Parse each argument according to the expected parameter type
     let mut input_values = Vec::new();
-    for arg in args {
-        let input_value = input_value_parser(&arg)
-            .map_err(|e| color_eyre::eyre::eyre!("Failed to parse argument from file: {}", e))?;
+    for (i, (arg, param_type)) in args.iter().zip(param_types.iter()).enumerate() {
+        let input_value = match param_type {
+            FieldType::Uint8 => {
+                let value = arg.as_u64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be a u8 integer", i)
+                })?;
+                if value > u8::MAX as u64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds u8 range", i));
+                }
+                InputValue::Uint8(value as u8)
+            }
+            FieldType::Uint16 => {
+                let value = arg.as_u64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be a u16 integer", i)
+                })?;
+                if value > u16::MAX as u64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds u16 range", i));
+                }
+                InputValue::Uint16(value as u16)
+            }
+            FieldType::Uint32 => {
+                let value = arg.as_u64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be a u32 integer", i)
+                })?;
+                if value > u32::MAX as u64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds u32 range", i));
+                }
+                InputValue::Uint32(value as u32)
+            }
+            FieldType::Uint64 => {
+                let value = arg.as_u64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be a u64 integer", i)
+                })?;
+                InputValue::Uint64(value)
+            }
+            FieldType::Int8 => {
+                let value = arg.as_i64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be an i8 integer", i)
+                })?;
+                if value < i8::MIN as i64 || value > i8::MAX as i64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds i8 range", i));
+                }
+                InputValue::Int8(value as i8)
+            }
+            FieldType::Int16 => {
+                let value = arg.as_i64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be an i16 integer", i)
+                })?;
+                if value < i16::MIN as i64 || value > i16::MAX as i64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds i16 range", i));
+                }
+                InputValue::Int16(value as i16)
+            }
+            FieldType::Int32 => {
+                let value = arg.as_i64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be an i32 integer", i)
+                })?;
+                if value < i32::MIN as i64 || value > i32::MAX as i64 {
+                    return Err(color_eyre::eyre::eyre!("Argument {} exceeds i32 range", i));
+                }
+                InputValue::Int32(value as i32)
+            }
+            FieldType::Int64 => {
+                let value = arg.as_i64().ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Argument {} must be an i64 integer", i)
+                })?;
+                InputValue::Int64(value)
+            }
+            FieldType::Bool => {
+                let value = arg
+                    .as_bool()
+                    .ok_or_else(|| color_eyre::eyre::eyre!("Argument {} must be a boolean", i))?;
+                InputValue::Bool(value)
+            }
+            FieldType::String => {
+                let value = arg
+                    .as_str()
+                    .ok_or_else(|| color_eyre::eyre::eyre!("Argument {} must be a string", i))?;
+                InputValue::String(new_bounded_string(value.to_string()))
+            }
+            _ => {
+                return Err(color_eyre::eyre::eyre!(
+                    "Unsupported parameter type: {:?}",
+                    param_type
+                ));
+            }
+        };
+
         input_values.push(input_value);
     }
 
@@ -306,8 +421,8 @@ fn load_job_args_from_file(file_path: &str) -> Result<Vec<InputValue>> {
 }
 
 /// Prompt the user for job parameters based on the parameter types
-fn prompt_for_job_params(param_types: &Vec<FieldType>) -> Result<Vec<InputValue>> {
-    use dialoguer::{Input, Select};
+fn prompt_for_job_params(param_types: &[FieldType]) -> Result<Vec<InputValue>> {
+    use dialoguer::Input;
 
     let mut args = Vec::new();
 
@@ -388,192 +503,6 @@ fn prompt_for_job_params(param_types: &Vec<FieldType>) -> Result<Vec<InputValue>
     }
 
     Ok(args)
-}
-
-/// Prompt the user for job arguments based on the blueprint
-fn prompt_for_job_args(job_id: u8, blueprint: &ServiceBlueprint) -> Result<Vec<InputValue>> {
-    use dialoguer::{Input, Select};
-
-    println!("Enter arguments for job {}:", job_id);
-
-    // In a real implementation, we would extract job parameter information from the blueprint
-    // For now, we'll just prompt for the number of arguments and their types
-
-    let num_args: usize = Input::new()
-        .with_prompt("Number of arguments")
-        .default(0)
-        .interact()?;
-
-    let mut args = Vec::new();
-
-    for i in 0..num_args {
-        // Prompt for argument type
-        let type_options = &[
-            "Uint8", "Uint16", "Uint32", "Uint64", "Uint128", "Int8", "Int16", "Int32", "Int64",
-            "Int128", "Bool", "Bytes", "String",
-        ];
-
-        let type_idx = Select::new()
-            .with_prompt(format!("Select type for argument {}", i + 1))
-            .items(type_options)
-            .default(3) // Default to Uint64
-            .interact()?;
-
-        // Prompt for value based on selected type
-        match type_options[type_idx] {
-            "Uint8" => {
-                let value: u8 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Uint8(value));
-            }
-            "Uint16" => {
-                let value: u16 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Uint16(value));
-            }
-            "Uint32" => {
-                let value: u32 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Uint32(value));
-            }
-            "Uint64" => {
-                let value: u64 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Uint64(value));
-            }
-            // "Uint128" => {
-            //     let value: String = Input::new()
-            //         .with_prompt("Enter value")
-            //         .interact()?;
-            //     let value = value.parse::<u128>()
-            //         .map_err(|e| color_eyre::eyre::eyre!("Failed to parse u128: {}", e))?;
-            //     args.push(InputValue::(value));
-            // },
-            "Int8" => {
-                let value: i8 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Int8(value));
-            }
-            "Int16" => {
-                let value: i16 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Int16(value));
-            }
-            "Int32" => {
-                let value: i32 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Int32(value));
-            }
-            "Int64" => {
-                let value: i64 = Input::new().with_prompt("Enter value").interact()?;
-                args.push(InputValue::Int64(value));
-            }
-            // "Int128" => {
-            //     let value: String = Input::new()
-            //         .with_prompt("Enter value")
-            //         .interact()?;
-            //     let value = value.parse::<i128>()
-            //         .map_err(|e| color_eyre::eyre::eyre!("Failed to parse i128: {}", e))?;
-            //     args.push(InputValue::Int128(value));
-            // },
-            "Bool" => {
-                let value: bool = Input::new()
-                    .with_prompt("Enter value (true/false)")
-                    .interact()?;
-                args.push(InputValue::Bool(value));
-            }
-            // "Bytes" => {
-            //     let value: String = Input::new()
-            //         .with_prompt("Enter hex bytes (without 0x prefix)")
-            //         .interact()?;
-            //     let bytes = hex::decode(&value)
-            //         .map_err(|e| color_eyre::eyre::eyre!("Failed to parse hex bytes: {}", e))?;
-            //     args.push(InputValue::Bytes(bytes.into()));
-            // },
-            "String" => {
-                let value: String = Input::new().with_prompt("Enter string value").interact()?;
-                args.push(InputValue::String(new_bounded_string(value)));
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    Ok(args)
-}
-
-/// Helper function to parse InputValue from string (for use in main.rs)
-pub fn input_value_parser(s: &str) -> Result<InputValue, String> {
-    // Parse the input string based on its format
-    if s.starts_with("u8:") {
-        // Parse as Uint8
-        let value = s
-            .trim_start_matches("u8:")
-            .parse::<u8>()
-            .map_err(|e| format!("Failed to parse u8 value: {}", e))?;
-        Ok(InputValue::Uint8(value))
-    } else if s.starts_with("u16:") {
-        // Parse as Uint16
-        let value = s
-            .trim_start_matches("u16:")
-            .parse::<u16>()
-            .map_err(|e| format!("Failed to parse u16 value: {}", e))?;
-        Ok(InputValue::Uint16(value))
-    } else if s.starts_with("u32:") {
-        // Parse as Uint32
-        let value = s
-            .trim_start_matches("u32:")
-            .parse::<u32>()
-            .map_err(|e| format!("Failed to parse u32 value: {}", e))?;
-        Ok(InputValue::Uint32(value))
-    } else if s.starts_with("u64:") {
-        // Parse as Uint64
-        let value = s
-            .trim_start_matches("u64:")
-            .parse::<u64>()
-            .map_err(|e| format!("Failed to parse u64 value: {}", e))?;
-        Ok(InputValue::Uint64(value))
-    } else if s.starts_with("i8:") {
-        // Parse as Int8
-        let value = s
-            .trim_start_matches("i8:")
-            .parse::<i8>()
-            .map_err(|e| format!("Failed to parse i8 value: {}", e))?;
-        Ok(InputValue::Int8(value))
-    } else if s.starts_with("i16:") {
-        // Parse as Int16
-        let value = s
-            .trim_start_matches("i16:")
-            .parse::<i16>()
-            .map_err(|e| format!("Failed to parse i16 value: {}", e))?;
-        Ok(InputValue::Int16(value))
-    } else if s.starts_with("i32:") {
-        // Parse as Int32
-        let value = s
-            .trim_start_matches("i32:")
-            .parse::<i32>()
-            .map_err(|e| format!("Failed to parse i32 value: {}", e))?;
-        Ok(InputValue::Int32(value))
-    } else if s.starts_with("i64:") {
-        // Parse as Int64
-        let value = s
-            .trim_start_matches("i64:")
-            .parse::<i64>()
-            .map_err(|e| format!("Failed to parse i64 value: {}", e))?;
-        Ok(InputValue::Int64(value))
-    } else if s.starts_with("bool:") {
-        // Parse as Bool
-        let value = s
-            .trim_start_matches("bool:")
-            .parse::<bool>()
-            .map_err(|e| format!("Failed to parse bool value: {}", e))?;
-        Ok(InputValue::Bool(value))
-    } else if s.starts_with("string:") {
-        // Parse as String
-        let value = s.trim_start_matches("string:").to_string();
-        Ok(InputValue::String(new_bounded_string(value)))
-    } else {
-        // Default to u64 if no prefix is provided
-        match s.parse::<u64>() {
-            Ok(value) => Ok(InputValue::Uint64(value)),
-            Err(_) => Err(format!(
-                "Failed to parse input value: {}. Use prefix like 'u64:', 'string:', etc.",
-                s
-            )),
-        }
-    }
 }
 
 pub async fn register(

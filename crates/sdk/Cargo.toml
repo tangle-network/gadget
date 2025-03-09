@@ -22,6 +22,7 @@ gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
+document-features = { workspace = true }
 gadget-chain-setup = { workspace = true }
 document-features = { workspace = true }
 
