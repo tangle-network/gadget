@@ -1,4 +1,4 @@
-//! Re-exported from https://github.com/Layr-Labs/eigensdk-rs/blob/main/crates/chainio/clients/eth/src/instrumented_client.rs
+//! Re-exported from <https://github.com/Layr-Labs/eigensdk-rs/blob/main/crates/chainio/clients/eth/src/instrumented_client.rs>
 
 use crate::client::BackendClient;
 use alloy_consensus::TxEnvelope;
@@ -42,6 +42,9 @@ pub enum InstrumentedClientError {
     ErrorGettingVersion,
     #[error("error running command")]
     CommandError,
+
+    #[error(transparent)]
+    Rpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
 }
 
 #[async_trait::async_trait]
@@ -61,7 +64,7 @@ impl BackendClient for InstrumentedClient {
         self.instrument_function("eth_blockNumber", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get block number {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get block number {:?}", err.to_string().as_str());
             })
             .map_err(|_err| InstrumentedClientError::CommandError)
             .map(|result: U64| result.to())
@@ -90,14 +93,15 @@ impl BackendClient for InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get block by number {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
             .map_err(|_err| InstrumentedClientError::CommandError)
     }
 }
 
+#[allow(clippy::missing_errors_doc)] // The error types are self-explanatory
 impl InstrumentedClient {
-    /// Creates a new instance of the InstrumentedClient.
+    /// Creates a new instance of the `InstrumentedClient`.
     ///
     /// # Arguments
     ///
@@ -105,7 +109,7 @@ impl InstrumentedClient {
     ///
     /// # Returns
     ///
-    /// A new instance of the InstrumentedClient.
+    /// A new instance of the `InstrumentedClient`.
     ///
     /// # Errors
     ///
@@ -129,7 +133,7 @@ impl InstrumentedClient {
         })
     }
 
-    /// Creates a new instance of the InstrumentedClient that supports ws connection.
+    /// Creates a new instance of the `InstrumentedClient` that supports ws connection.
     ///
     /// # Arguments
     ///
@@ -137,7 +141,7 @@ impl InstrumentedClient {
     ///
     /// # Returns
     ///
-    /// A new instance of the InstrumentedClient.
+    /// A new instance of the `InstrumentedClient`.
     ///
     /// # Errors
     ///
@@ -149,8 +153,7 @@ impl InstrumentedClient {
         let ws_client = ProviderBuilder::new()
             .disable_recommended_fillers()
             .on_ws(ws_connect)
-            .await
-            .unwrap();
+            .await?;
         let net_version = ws_client
             .get_net_version()
             .await
@@ -165,7 +168,7 @@ impl InstrumentedClient {
         })
     }
 
-    /// Creates a new instance of the InstrumentedClient from an existing client (`RootProvider`).
+    /// Creates a new instance of the `InstrumentedClient` from an existing client (`RootProvider`).
     ///
     /// # Arguments
     ///
@@ -173,7 +176,7 @@ impl InstrumentedClient {
     ///
     /// # Returns
     ///
-    /// A new instance of the InstrumentedClient.
+    /// A new instance of the `InstrumentedClient`.
     ///
     /// # Errors
     ///
@@ -206,7 +209,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_chainId", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get chain id {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get chain id {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -229,7 +232,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBalance", (account, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get balance {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get balance {:?}", err.to_string().as_str());
             })
     }
 
@@ -246,7 +249,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockByHash", (hash, true))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get block by hash {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get block by hash {:?}", err.to_string().as_str());
             })
     }
 
@@ -268,7 +271,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_call", (call, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to call contract {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to call contract {:?}", err.to_string().as_str());
             })
     }
 
@@ -290,7 +293,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getCode", (address, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get code {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get code {:?}", err.to_string().as_str());
             })
     }
 
@@ -307,7 +310,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_estimateGas", (tx,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to estimate gas {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to estimate gas {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -333,9 +336,10 @@ impl InstrumentedClient {
         )
         .await
         .inspect_err(|err| {
-            gadget_logging::error!("Failed to get fee history {:?}", err.to_string().as_str())
+            gadget_logging::error!("Failed to get fee history {:?}", err.to_string().as_str());
         })
     }
+
     /// Executes a filter query.
     ///
     /// # Arguments
@@ -349,7 +353,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getLogs", (filter,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get filter logs {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get filter logs {:?}", err.to_string().as_str());
             })
     }
 
@@ -370,7 +374,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get header by hash {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
     }
 
@@ -394,7 +398,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get header by number {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
     }
 
@@ -416,7 +420,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionCount", (account, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get nonce {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get nonce {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -437,11 +441,12 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get pending balance {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
     }
 
     /// Executes a message call transaction using the EVM.
+    ///
     /// The state seen by the contract call is the pending state.
     ///
     /// # Arguments
@@ -468,11 +473,12 @@ impl InstrumentedClient {
         self.instrument_function("eth_getCode", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get pending code {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get pending code {:?}", err.to_string().as_str());
             })
     }
 
     /// Returns the account nonce of the given account in the pending state.
+    ///
     /// This is the nonce that should be used for the next transaction.
     ///
     /// # Arguments
@@ -486,7 +492,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionCount", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get pending nonce {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get pending nonce {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -508,7 +514,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get pending storage {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
     }
 
@@ -524,7 +530,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get transaction count {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
             .map(|result: U64| result.to())
     }
@@ -544,7 +550,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_sendRawTransaction", (hex::encode(encoded_tx),))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to send transaction {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to send transaction {:?}", err.to_string().as_str());
             })
     }
 
@@ -568,12 +574,12 @@ impl InstrumentedClient {
         self.instrument_function("eth_getStorageAt", (account, key, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get storage {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get storage {:?}", err.to_string().as_str());
             })
     }
 
     /// Subscribes to the results of a streaming filter query.
-    /// *Note:* this method fails if the InstrumentedClient does not use a web socket client.
+    ///
     /// # Arguments
     ///
     /// * `filter` - A filter query.
@@ -584,7 +590,7 @@ impl InstrumentedClient {
     ///
     /// # Errors
     ///
-    /// * If ws_client is `None`.
+    /// * If `ws_client` is `None`.
     pub async fn subscribe_filter_logs<R: RpcRecv>(
         &self,
         filter: Filter,
@@ -596,7 +602,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get logs subscription id {:?}",
                     err.to_string().as_str(),
-                )
+                );
             })?;
         if let Some(ws_client) = self.ws_client.as_ref() {
             ws_client.get_subscription(id.into()).await
@@ -608,7 +614,6 @@ impl InstrumentedClient {
     }
 
     /// Subscribes to notifications about the current blockchain head.
-    /// *Note:* this method fails if the InstrumentedClient does not use a web socket client.
     ///
     /// # Returns
     ///
@@ -616,7 +621,7 @@ impl InstrumentedClient {
     ///
     /// # Errors
     ///
-    /// * If ws_client is `None`.
+    /// * If `ws_client` is `None`.
     pub async fn subscribe_new_head<R: RpcRecv>(&self) -> TransportResult<Subscription<R>> {
         let id: U256 = self
             .instrument_function("eth_subscribe", ("newHeads",))
@@ -625,7 +630,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to subscribe new head {:?}",
                     err.to_string().as_str()
-                )
+                );
             })?;
         if let Some(ws_client) = self.ws_client.as_ref() {
             ws_client.get_subscription(id.into()).await
@@ -645,7 +650,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_gasPrice", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to suggest gas price {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to suggest gas price {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -662,12 +667,13 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to suggest gas tip cap {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
             .map(|result: U64| result.to())
     }
 
     /// Retrieves the current progress of the sync algorithm.
+    ///
     /// If there's no sync currently running, it returns None.
     ///
     /// # Returns
@@ -677,7 +683,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_syncing", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get sync progress {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get sync progress {:?}", err.to_string().as_str());
             })
     }
 
@@ -697,7 +703,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get transaction by hash {:?}",
                     err.to_string().as_str(),
-                )
+                );
             })
     }
 
@@ -717,7 +723,7 @@ impl InstrumentedClient {
                 gadget_logging::error!(
                     "Failed to get transaction count {:?}",
                     err.to_string().as_str()
-                )
+                );
             })
             .map(|result: U64| result.to())
     }
@@ -740,12 +746,13 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionByBlockHashAndIndex", (block_hash, index))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get transaction {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get transaction {:?}", err.to_string().as_str());
             })
     }
 
     /// Returns the receipt of a transaction by transaction hash.
-    /// *Note:* the receipt is not available for pending transactions.
+    ///
+    /// NOTE: the receipt is not available for pending transactions.
     ///
     /// # Arguments
     ///
@@ -758,7 +765,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionReceipt", (tx_hash,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get receipt {:?}", err.to_string().as_str())
+                gadget_logging::error!("Failed to get receipt {:?}", err.to_string().as_str());
             })
     }
 
