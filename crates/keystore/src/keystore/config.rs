@@ -59,6 +59,7 @@ impl KeystoreConfig {
     /// let keystore = Keystore::new(config)?;
     /// # Ok(()) }
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -79,6 +80,7 @@ impl KeystoreConfig {
     /// ```
     ///
     /// [`InMemoryStorage`]: crate::storage::InMemoryStorage
+    #[must_use]
     pub fn in_memory(mut self, value: bool) -> Self {
         self.in_memory = value;
         self
@@ -102,6 +104,7 @@ impl KeystoreConfig {
     /// [`FileStorage`]: crate::storage::FileStorage
     /// [`FileStorage::new()`]: crate::storage::FileStorage::new
     #[cfg(feature = "std")]
+    #[must_use]
     pub fn fs_root<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
         self.fs_root = Some(path.as_ref().to_path_buf());
         self
@@ -129,6 +132,7 @@ impl KeystoreConfig {
         /// ```
         ///
         /// [`RemoteConfig`]: crate::remote::RemoteConfig
+        #[must_use]
         pub fn remote(mut self, remote_config: crate::remote::RemoteConfig) -> Self {
             self.remote_configs.push(remote_config);
             self

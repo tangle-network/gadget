@@ -40,6 +40,12 @@ pub struct AwsRemoteSigner {
 }
 
 impl AwsRemoteSigner {
+    /// Create a new `AwsRemoteSigner`
+    ///
+    /// # Errors
+    ///
+    /// Will fail if any of the keys specified in the [`AwsRemoteSignerConfig`] cannot be loaded, for
+    /// any reason.
     pub async fn new(config: AwsRemoteSignerConfig) -> Result<Self> {
         let mut signers = BTreeMap::new();
 

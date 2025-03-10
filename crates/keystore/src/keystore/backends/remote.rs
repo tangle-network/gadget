@@ -15,6 +15,7 @@ pub struct RemoteEntry {
 
 impl RemoteEntry {
     /// Create a new remote signer entry
+    #[must_use]
     pub fn new(config: RemoteConfig, capabilities: RemoteCapabilities) -> Self {
         Self {
             config,
@@ -23,11 +24,13 @@ impl RemoteEntry {
     }
 
     /// Get the remote signer configuration
+    #[must_use]
     pub fn config(&self) -> &RemoteConfig {
         &self.config
     }
 
     /// Get the remote signer capabilities
+    #[must_use]
     pub fn capabilities(&self) -> &RemoteCapabilities {
         &self.capabilities
     }

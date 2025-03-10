@@ -56,6 +56,12 @@ impl Keystore {
     /// keystore.generate::<Ed25519Zebra>(None)?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// If an [`fs_root`] is set, the creation of a [`FileStorage`] could fail. See [`FileStorage::new()`].
+    ///
+    /// [`fs_root`]: KeystoreConfig::fs_root
     pub fn new(config: KeystoreConfig) -> Result<Self> {
         let config = config.finalize();
 
@@ -335,7 +341,7 @@ impl Backend for Keystore {
     fn get_storage_backends<T: KeyType>(&self) -> Result<&[LocalStorageEntry]> {
         self.storages
             .get(&T::key_type_id())
-            .map(|v| v.as_slice())
+            .map(Vec::as_slice)
             .ok_or(Error::KeyTypeNotSupported)
     }
 }

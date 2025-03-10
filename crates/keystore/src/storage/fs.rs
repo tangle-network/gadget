@@ -77,8 +77,7 @@ impl RawStorage for FileStorage {
             fs::create_dir_all(parent)?;
         }
 
-        let data = (public_bytes.to_vec(), secret_bytes.to_vec());
-        let encoded = serde_json::to_vec(&data)?;
+        let encoded = serde_json::to_vec(&(&public_bytes, &secret_bytes))?;
         fs::write(path, encoded)?;
         Ok(())
     }
@@ -125,7 +124,7 @@ impl RawStorage for FileStorage {
         let iter = fs::read_dir(type_dir)
             .into_iter()
             .flatten()
-            .filter_map(|entry| entry.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|entry| fs::read(entry.path()).ok())
             .filter_map(|data| {
                 serde_json::from_slice::<(Vec<u8>, Vec<u8>)>(&data)
