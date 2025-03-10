@@ -17,6 +17,12 @@ use url::Url;
 pub trait ProtocolSettingsT: Sized + 'static {
     type Settings;
 
+    /// Load the protocol-specific settings from the given [`BlueprintSettings`].
+    ///
+    /// # Errors
+    ///
+    /// Failure is dependent on the protocol being used. The most likely culprit will be missing
+    /// certain variables.
     fn load(settings: BlueprintSettings)
     -> Result<Self, Box<dyn core::error::Error + Send + Sync>>;
     fn protocol(&self) -> &'static str;
@@ -56,6 +62,7 @@ impl Protocol {
         Ok(None)
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         #[allow(unreachable_patterns)]
         match self {
@@ -251,6 +258,8 @@ impl BlueprintEnvironment {
 
     // TODO: this shouldn't be exclusive to the std feature
     #[cfg(feature = "std")]
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)] // TODO: Should return errors
     pub fn keystore(&self) -> Keystore {
         let config = KeystoreConfig::new().fs_root(self.keystore_uri.clone());
         Keystore::new(config).expect("Failed to create keystore")

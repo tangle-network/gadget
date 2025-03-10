@@ -148,11 +148,10 @@ async fn register_bls_impl(
     let now = std::time::SystemTime::now();
     let sig_expiry = now
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| U256::from(duration.as_secs()) + U256::from(86400))
-        .unwrap_or_else(|_| {
-            blueprint_core::info!("System time seems to be before the UNIX epoch.");
-            U256::from(0)
-        });
+        .map_or_else(|_| {
+        blueprint_core::info!("System time seems to be before the UNIX epoch.");
+        U256::from(0)
+    }, |duration| U256::from(duration.as_secs()) + U256::from(86400));
 
     let quorum_nums = Bytes::from(vec![0]);
 

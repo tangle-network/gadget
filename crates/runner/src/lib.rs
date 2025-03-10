@@ -37,15 +37,17 @@ use tower::Service;
 pub trait BlueprintConfig: Send + Sync {
     fn register(
         &self,
-        _env: &BlueprintEnvironment,
+        env: &BlueprintEnvironment,
     ) -> impl Future<Output = Result<(), Error>> + Send {
+        let _ = env;
         async { Ok(()) }
     }
 
     fn requires_registration(
         &self,
-        _env: &BlueprintEnvironment,
+        env: &BlueprintEnvironment,
     ) -> impl Future<Output = Result<bool, Error>> + Send {
+        let _ = env;
         async { Ok(true) }
     }
 
@@ -330,7 +332,7 @@ impl<F> FinalizedBlueprintRunner<F>
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    #[allow(trivial_casts)]
+    #[allow(trivial_casts, clippy::too_many_lines)]
     async fn run(self) -> Result<(), Error> {
         if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?;

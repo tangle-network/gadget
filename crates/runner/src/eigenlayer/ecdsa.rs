@@ -74,6 +74,7 @@ async fn requires_registration_ecdsa_impl(env: &BlueprintEnvironment) -> Result<
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn register_ecdsa_impl(
     env: &BlueprintEnvironment,
     earnings_receiver_address: Address,
