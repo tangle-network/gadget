@@ -132,17 +132,12 @@ pub(crate) async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         .sign_and_submit_then_watch_default(&sudo_call, account_id)
         .await?;
     let evts = wait_for_in_block_success(res).await?;
-    let ev = evts
-        .find_first::<MasterBlueprintServiceManagerRevised>()?;
+    let ev = evts.find_first::<MasterBlueprintServiceManagerRevised>()?;
     match ev {
-        Some(ev) => {
-            Ok(ev)
-        }
-        None => {
-            Err(TransactionError::Other(
-                "no MBSM Revised Event emitted".into(),
-            ))
-        }
+        Some(ev) => Ok(ev),
+        None => Err(TransactionError::Other(
+            "no MBSM Revised Event emitted".into(),
+        )),
     }
 }
 

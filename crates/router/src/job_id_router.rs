@@ -75,11 +75,7 @@ where
             .insert(id, Handler::Boxed(BoxedIntoRoute::from_job(job)));
     }
 
-    pub(super) fn route_service<I, T>(
-        &mut self,
-        job_id: I,
-        service: T,
-    )
+    pub(super) fn route_service<I, T>(&mut self, job_id: I, service: T)
     where
         I: IntoJobId,
         T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
@@ -200,7 +196,9 @@ where
         };
 
         match self.call_always_routes(call, context) {
-            Ok(catch_all_futures) => Ok(iter::once(matched_call_future).chain(catch_all_futures).collect::<FuturesUnordered<_>>()),
+            Ok(catch_all_futures) => Ok(iter::once(matched_call_future)
+                .chain(catch_all_futures)
+                .collect::<FuturesUnordered<_>>()),
             Err(_) => Ok(iter::once(matched_call_future).collect::<FuturesUnordered<_>>()),
         }
     }

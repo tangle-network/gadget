@@ -249,7 +249,10 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockByHash", (hash, true))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get block by hash {:?}", err.to_string().as_str());
+                gadget_logging::error!(
+                    "Failed to get block by hash {:?}",
+                    err.to_string().as_str()
+                );
             })
     }
 
@@ -492,7 +495,10 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionCount", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get pending nonce {:?}", err.to_string().as_str());
+                gadget_logging::error!(
+                    "Failed to get pending nonce {:?}",
+                    err.to_string().as_str()
+                );
             })
             .map(|result: U64| result.to())
     }
@@ -650,7 +656,10 @@ impl InstrumentedClient {
         self.instrument_function("eth_gasPrice", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to suggest gas price {:?}", err.to_string().as_str());
+                gadget_logging::error!(
+                    "Failed to suggest gas price {:?}",
+                    err.to_string().as_str()
+                );
             })
             .map(|result: U64| result.to())
     }
@@ -683,7 +692,10 @@ impl InstrumentedClient {
         self.instrument_function("eth_syncing", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get sync progress {:?}", err.to_string().as_str());
+                gadget_logging::error!(
+                    "Failed to get sync progress {:?}",
+                    err.to_string().as_str()
+                );
             })
     }
 

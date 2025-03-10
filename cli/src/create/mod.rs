@@ -21,9 +21,7 @@ pub fn new_blueprint(
     println!("Generating blueprint with name: {}", name);
 
     let source = source.unwrap_or_default();
-    let blueprint_variant = blueprint_type
-        .map(|t| t.get_type())
-        .unwrap_or_default();
+    let blueprint_variant = blueprint_type.map(|t| t.get_type()).unwrap_or_default();
     let template_path_opt: Option<cargo_generate::TemplatePath> = source.into();
 
     let template_path = template_path_opt.unwrap_or_else(|| {

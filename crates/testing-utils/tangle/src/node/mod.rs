@@ -92,11 +92,9 @@ pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
             .add_binary_path("../../tangle/target/release/tangle")
             .add_binary_path("../../../tangle/target/release/tangle");
     } else {
-        let binary_path = download_tangle_binary().await.map_err(|e| {
-            Error::Io(std::io::Error::other(
-                e.to_string(),
-            ))
-        })?;
+        let binary_path = download_tangle_binary()
+            .await
+            .map_err(|e| Error::Io(std::io::Error::other(e.to_string())))?;
         builder.add_binary_path(binary_path.to_string_lossy().to_string());
     }
 

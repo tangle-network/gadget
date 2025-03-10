@@ -58,7 +58,10 @@ impl EigenlayerDeployOpts {
                 .into_path();
             temp_dir.to_string_lossy().to_string()
         } else {
-            keystore_path.map_or_else(|| "./keystore".to_string(), |p| p.as_ref().to_string_lossy().to_string())
+            keystore_path.map_or_else(
+                || "./keystore".to_string(),
+                |p| p.as_ref().to_string_lossy().to_string(),
+            )
         };
 
         Self {
@@ -496,8 +499,11 @@ fn deploy_single_contract(
         Path::new(&opts.contracts_path).join("out").display()
     );
 
-    if let Some(args) = get_constructor_args(&contract_json, &contract_name, opts.constructor_args.as_ref())
-    {
+    if let Some(args) = get_constructor_args(
+        &contract_json,
+        &contract_name,
+        opts.constructor_args.as_ref(),
+    ) {
         if !args.is_empty() {
             cmd_str.push_str(" --constructor-args");
             for value in args {

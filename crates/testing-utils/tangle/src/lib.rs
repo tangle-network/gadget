@@ -1,5 +1,5 @@
-use tangle_subxt::subxt_core::utils::AccountId32;
 pub use gadget_core_testing_utils::Error;
+use tangle_subxt::subxt_core::utils::AccountId32;
 
 #[cfg(test)]
 mod tests;

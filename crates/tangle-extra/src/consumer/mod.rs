@@ -116,14 +116,14 @@ where
                         call_id,
                         service_id,
                         result,
-                    }) = consumer.buffer.pop_front() else
-                    {
+                    }) = consumer.buffer.pop_front()
+                    else {
                         return Poll::Ready(Ok(()));
                     };
 
                     let tx = api::tx()
-                            .services()
-                            .submit_result(service_id, call_id, result);
+                        .services()
+                        .submit_result(service_id, call_id, result);
                     let fut =
                         crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
 

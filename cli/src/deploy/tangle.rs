@@ -425,8 +425,7 @@ fn resolve_path_relative_to_package(
     if path.starts_with('/') {
         std::path::PathBuf::from(path)
     } else {
-        workspace_or_package_manifest_path(package)
-            .join(path)
+        workspace_or_package_manifest_path(package).join(path)
     }
 }
 

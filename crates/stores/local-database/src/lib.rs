@@ -1,7 +1,7 @@
 mod error;
 
-use std::io::ErrorKind;
 pub use error::Error;
+use std::io::ErrorKind;
 
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
@@ -54,7 +54,10 @@ where
     /// * Unable to write to `path`
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let path = path.as_ref();
-        let parent_dir = path.parent().ok_or(Error::Io(std::io::Error::new(ErrorKind::NotFound, "parent directory not found")))?;
+        let parent_dir = path.parent().ok_or(Error::Io(std::io::Error::new(
+            ErrorKind::NotFound,
+            "parent directory not found",
+        )))?;
 
         // Create the parent directory if it doesn't exist
         fs::create_dir_all(parent_dir)?;
@@ -65,8 +68,7 @@ where
         } else {
             // Create an empty file with default empty JSON object
             let empty_data = HashMap::new();
-            let json_string =
-                serde_json::to_string(&empty_data)?;
+            let json_string = serde_json::to_string(&empty_data)?;
             fs::write(path, json_string)?;
             empty_data
         };

@@ -1,4 +1,3 @@
-use std::io;
 use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
 use crate::node::transactions::setup_operator_and_service_multiple;
@@ -19,6 +18,7 @@ use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_logging::debug;
+use std::io;
 use std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
@@ -345,13 +345,12 @@ where
                 &all_preferences,
                 exit_after_registration,
             )
-                .await
-                .map_err(|e| Error::Setup(e.to_string()))?
+            .await
+            .map_err(|e| Error::Setup(e.to_string()))?
         };
 
         // Create and initialize the new multi-node environment
-        let executor =
-            MultiNodeTestEnv::new::<N>(self.config.clone(), self.context.clone());
+        let executor = MultiNodeTestEnv::new::<N>(self.config.clone(), self.context.clone());
 
         Ok((executor, service_id, blueprint_id))
     }
@@ -430,11 +429,7 @@ where
     /// # Panics
     ///
     /// If the results don't match the expected outputs
-    pub fn verify_job(
-        &self,
-        results: &JobResultSubmitted,
-        expected: impl AsRef<[OutputValue]>,
-    ) {
+    pub fn verify_job(&self, results: &JobResultSubmitted, expected: impl AsRef<[OutputValue]>) {
         assert_eq!(
             results.result.len(),
             expected.as_ref().len(),

@@ -25,8 +25,7 @@ struct ProducerState {
     block_stream:
         Pin<Box<dyn Stream<Item = Result<TangleBlock, subxt::Error>> + Send + Unpin + 'static>>,
     buffer: VecDeque<JobCall>,
-    block_in_progress:
-        Option<Pin<BlockToJobCallsFut>>,
+    block_in_progress: Option<Pin<BlockToJobCallsFut>>,
 }
 
 impl ProducerState {

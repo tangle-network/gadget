@@ -39,7 +39,12 @@ where
         J: Job<T, ()> + Send + Sync + 'static,
         T: 'static,
     {
-        self.router = Some(self.router.take().expect("router should always exist").route(self.job_index, job));
+        self.router = Some(
+            self.router
+                .take()
+                .expect("router should always exist")
+                .route(self.job_index, job),
+        );
         self.job_index += 1;
         self
     }
@@ -49,7 +54,12 @@ where
     where
         B: BackgroundService + Send + 'static,
     {
-        self.builder = Some(self.builder.take().expect("router should always exist").background_service(service));
+        self.builder = Some(
+            self.builder
+                .take()
+                .expect("router should always exist")
+                .background_service(service),
+        );
         self
     }
 

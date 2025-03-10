@@ -70,10 +70,7 @@ where
 {
     /// Creates a new multi-node test environment
     #[must_use]
-    pub fn new<const N: usize>(
-        config: TangleTestConfig,
-        context: Ctx,
-    ) -> Self {
+    pub fn new<const N: usize>(config: TangleTestConfig, context: Ctx) -> Self {
         const { assert!(N > 0, "Must have at least 1 initial node") };
 
         let (command_tx, command_rx) = mpsc::channel(32);

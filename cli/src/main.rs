@@ -231,10 +231,7 @@ pub enum DeployTarget {
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     init_tracing_subscriber();
-    let args: Vec<String> = if std::env::args()
-        .nth(1)
-        .is_some_and(|x| x.eq("tangle"))
-    {
+    let args: Vec<String> = if std::env::args().nth(1).is_some_and(|x| x.eq("tangle")) {
         // since this runs as a cargo subcommand, we need to skip the first argument
         // to get the actual arguments for the subcommand
         std::env::args().skip(1).collect()
@@ -399,7 +396,8 @@ async fn main() -> color_eyre::Result<()> {
                     settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
                 if !settings_file.exists() {
                     return Err(color_eyre::Report::msg(format!(
-                        "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist", settings_file.display()
+                        "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist",
+                        settings_file.display()
                     )));
                 }
                 let protocol_settings = load_protocol_settings(protocol, &settings_file)?;

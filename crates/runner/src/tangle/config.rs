@@ -145,8 +145,8 @@ pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bo
         .map_err(|e| {
             <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
         })?;
-    let is_registered = operator_profile
-        .is_some_and(|p| p.blueprints.0.contains(&settings.blueprint_id));
+    let is_registered =
+        operator_profile.is_some_and(|p| p.blueprints.0.contains(&settings.blueprint_id));
 
     Ok(!is_registered)
 }

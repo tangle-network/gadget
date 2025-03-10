@@ -112,8 +112,7 @@ where
     where
         E: Into<BoxError> + 'static,
     {
-        self.producers
-            .push(Box::new(producer.map_err(Into::into)));
+        self.producers.push(Box::new(producer.map_err(Into::into)));
         self
     }
 
