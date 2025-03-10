@@ -8,6 +8,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 # Core CLI dependencies - always included
 anyhow = { workspace = true }
@@ -128,7 +131,3 @@ evm = [
     "gadget-keystore/evm",
     "gadget-clients/evm",
 ]
-
-[lints.clippy]
-large_enum_variant = "allow" # TODO
-result_large_err = "allow"

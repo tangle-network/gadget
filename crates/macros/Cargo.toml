@@ -6,6 +6,9 @@ edition.workspace = true
 homepage.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 proc-macro = true
 
@@ -36,9 +39,6 @@ rustversion = "1.0"
 default = []
 evm = ["dep:serde_json"]
 __private = ["syn/visit-mut"]
-
-[lints]
-workspace = true
 
 [package.metadata.cargo-public-api-crates]
 allowed = []
