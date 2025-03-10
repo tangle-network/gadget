@@ -26,6 +26,7 @@ impl EigenlayerBLSConfig {
     ///
     /// By default, a Runner created with this config will exit after registration (Pre-Registration). To change
     /// this, use [`EigenlayerBLSConfig::with_exit_after_register`] passing false.
+    #[must_use]
     pub fn new(earnings_receiver_address: Address, delegation_approver_address: Address) -> Self {
         Self {
             earnings_receiver_address,
@@ -35,6 +36,7 @@ impl EigenlayerBLSConfig {
     }
 
     /// Sets whether the Runner should exit after registration or continue with execution.
+    #[must_use]
     pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
         self.exit_after_register = should_exit_after_registration;
         self

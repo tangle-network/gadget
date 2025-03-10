@@ -82,6 +82,7 @@ pub struct TangleConfig {
 }
 
 impl TangleConfig {
+    #[must_use]
     pub fn new(price_targets: PriceTargets) -> Self {
         Self {
             price_targets,
@@ -89,6 +90,7 @@ impl TangleConfig {
         }
     }
 
+    #[must_use]
     pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
         self.exit_after_register = should_exit_after_registration;
         self
@@ -143,8 +145,7 @@ pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bo
             <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
         })?;
     let is_registered = operator_profile
-        .map(|p| p.blueprints.0.iter().any(|&id| id == settings.blueprint_id))
-        .unwrap_or(false);
+        .is_some_and(|p| p.blueprints.0.contains(&settings.blueprint_id));
 
     Ok(!is_registered)
 }
