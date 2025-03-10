@@ -154,7 +154,7 @@ fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> Path
                 .as_std_path()
                 .to_path_buf()
         },
-        |workspace_dir| PathBuf::from(workspace_dir),
+        PathBuf::from,
     )
 }
 
@@ -415,9 +415,7 @@ fn resolve_path_relative_to_package(
     if path.starts_with('/') {
         std::path::PathBuf::from(path)
     } else {
-        workspace_or_package_manifest_path(package)
-            .join(path)
-            .into()
+        workspace_or_package_manifest_path(package).join(path)
     }
 }
 
