@@ -6926,6 +6926,7 @@ dependencies = [
  "alloy-transport",
  "async-trait",
  "blueprint-sdk",
+ "gadget-context-derive",
  "proc-macro2",
  "quote",
  "round-based",
