@@ -1,15 +1,14 @@
 use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
 use crate::{InputValue, OutputValue, keys::inject_tangle_key};
-use gadget_chain_setup::tangle::testnet::SubstrateNode;
-use gadget_chain_setup::tangle::transactions;
-use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
-use crate::node::transactions::setup_operator_and_service_multiple;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::ContextConfig;
 use blueprint_runner::config::SupportedChains;
 use blueprint_runner::error::RunnerError;
 use blueprint_runner::tangle::config::PriceTargets;
+use gadget_chain_setup::tangle::testnet::SubstrateNode;
+use gadget_chain_setup::tangle::transactions;
+use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
 use gadget_client_tangle::client::TangleClient;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_core_testing_utils::harness::TestHarness;
@@ -62,7 +61,16 @@ pub struct TangleTestHarness<Ctx> {
     _node: SubstrateNode,
 }
 
-pub(crate) async fn generate_env_from_node_id(
+/// Create a new Tangle test harness
+///
+/// # Returns
+///
+/// The [`BlueprintEnvironment`] for the relevant node
+///
+/// # Errors
+///
+/// Returns an error if the keystore fails to be created
+pub async fn generate_env_from_node_id(
     identity: &str,
     http_endpoint: Url,
     ws_endpoint: Url,
