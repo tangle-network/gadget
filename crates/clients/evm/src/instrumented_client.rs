@@ -849,7 +849,7 @@ mod tests {
             .get_max_priority_fee_per_gas()
             .await
             .unwrap();
-        assert_eq!(expected_fee_per_gas as u64, fee_per_gas);
+        assert_eq!(expected_fee_per_gas, u128::from(fee_per_gas));
     }
 
     #[tokio::test]
@@ -860,7 +860,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new(&http_endpoint).await.unwrap();
         let gas_price = instrumented_client.suggest_gas_price().await.unwrap();
         let expected_gas_price = provider.clone().get_gas_price().await.unwrap();
-        assert_eq!(gas_price, expected_gas_price as u64);
+        assert_eq!(u128::from(gas_price), expected_gas_price);
     }
 
     #[tokio::test]
@@ -911,7 +911,7 @@ mod tests {
         let instrumented_client = InstrumentedClient::new_ws(&ws_endpoint).await.unwrap();
         let subscription: TransportResult<Subscription<SubscriptionResult>> =
             instrumented_client.subscribe_new_head().await;
-        assert!(subscription.is_ok())
+        assert!(subscription.is_ok());
     }
 
     #[tokio::test]

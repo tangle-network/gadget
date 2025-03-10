@@ -21,7 +21,7 @@ struct TestEnvironment {
 }
 
 async fn setup_test_environment() -> TestEnvironment {
-    let (_container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
+    let (container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(false).await;
 
     // Create test configuration
     let context_config = ContextConfig::create_eigenlayer_config(
@@ -37,7 +37,7 @@ async fn setup_test_environment() -> TestEnvironment {
     let env = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 
     TestEnvironment {
-        _container,
+        _container: container,
         http_endpoint,
         ws_endpoint,
         config,
