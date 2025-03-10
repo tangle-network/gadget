@@ -21,7 +21,7 @@ pub fn build_contracts(contract_dirs: Vec<&str>) {
     }
 
     // Get the project root directory
-    let root = PathBuf::from(workspace_or_manifest_dir());
+    let root = workspace_or_manifest_dir();
 
     // Try to find the `forge` executable dynamically
     let forge_executable = find_forge_executable();
@@ -77,7 +77,7 @@ fn workspace_or_manifest_dir() -> PathBuf {
 /// - If forge's `soldeer` is not installed.
 pub fn soldeer_install() {
     // Get the project root directory
-    let root = PathBuf::from(workspace_or_manifest_dir());
+    let root = workspace_or_manifest_dir();
 
     // Check if the dependencies directory exists and is not empty
     let dependencies_dir = root.join("dependencies");
@@ -105,7 +105,7 @@ pub fn soldeer_install() {
 /// - If forge's `soldeer` is not installed.
 pub fn soldeer_update() {
     // Get the project root directory
-    let root = PathBuf::from(workspace_or_manifest_dir());
+    let root = workspace_or_manifest_dir();
 
     // Try to find the `forge` executable dynamically
     let forge_executable = find_forge_executable();
