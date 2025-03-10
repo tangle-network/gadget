@@ -383,6 +383,7 @@ impl Debug for NodeState {
 }
 
 /// Commands that can be sent to individual nodes
+#[non_exhaustive]
 enum NodeCommand {
     Shutdown,
 }
@@ -535,17 +536,16 @@ where
         result.map_err(|e| Error::Setup(e.to_string()))
     }
 
-    #[expect(clippy::never_loop, reason = "only have a shutdown command for now")]
     fn spawn_command_handler(node: &Self, mut command_rx: mpsc::Receiver<NodeCommand>) {
         let state = node.state.clone();
         tokio::task::spawn(async move {
-            while let Some(cmd) = command_rx.recv().await {
-                match cmd {
-                    NodeCommand::Shutdown => {
-                        let mut state = state.write().await;
-                        state.is_running = false;
-                        break;
-                    }
+            let Some(cmd) = command_rx.recv().await else {
+                return;
+            };
+            match cmd {
+                NodeCommand::Shutdown => {
+                    let mut state = state.write().await;
+                    state.is_running = false;
                 }
             }
         });
