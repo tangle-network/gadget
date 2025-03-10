@@ -67,6 +67,7 @@ fn resolve_evm_contract_path_by_name(name: &str) -> PathBuf {
         .join(format!("{name}.json"))
 }
 
+#[doc(hidden)]
 impl PartialBlueprintJson {
     pub fn finalize(self) -> Result<ServiceBlueprint<'static>, Error> {
         let Some(mut manager) = self.manager else {
@@ -88,7 +89,7 @@ impl PartialBlueprintJson {
             .into_iter()
             .enumerate()
             .map(|(job_id, job)| {
-                let mut job: JobDefinition = job.into();
+                let mut job: JobDefinition<'_> = job.into();
                 job.job_id = job_id as u64;
                 job
             })
@@ -172,7 +173,7 @@ fn generate_gadget_for_current_crate() -> Result<Gadget<'static>, Error> {
     } else {
         eprintln!("[WARN] No gadget metadata found in the Cargo.toml.");
         eprintln!("[WARN] For more information, see: <TODO>");
-    };
+    }
 
     let has_test_fetcher = sources.iter().any(|fetcher| {
         matches!(
@@ -191,7 +192,7 @@ fn generate_gadget_for_current_crate() -> Result<Gadget<'static>, Error> {
                 cargo_bin: "main".into(),
                 base_path: format!("{}", root.display()).into(),
             }),
-        })
+        });
     }
 
     assert_ne!(sources.len(), 0, "No sources found for the gadget");
