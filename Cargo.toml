@@ -25,6 +25,8 @@ struct_excessive_bools = "allow"
 large_enum_variant = "allow"                 # TODO: Fix instances of this
 result_large_err = "allow"                   # TODO: Fix instances of this
 similar_names = "allow"
+assigning_clones = "allow"
+transmute_ptr_to_ptr = "allow"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

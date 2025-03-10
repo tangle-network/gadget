@@ -1,3 +1,4 @@
+use std::io;
 use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
 use crate::node::transactions::setup_operator_and_service_multiple;
@@ -62,7 +63,7 @@ pub struct TangleTestHarness<Ctx> {
     _node: crate::node::testnet::SubstrateNode,
 }
 
-pub async fn generate_env_from_node_id(
+pub(crate) async fn generate_env_from_node_id(
     identity: &str,
     http_endpoint: Url,
     ws_endpoint: Url,
@@ -211,7 +212,7 @@ where
                 env,
                 client,
                 preferences,
-            })
+            });
         }
 
         Ok(nodes)
@@ -251,30 +252,42 @@ where
     }
 
     /// Creates deploy options for a blueprint
+    ///
+    /// # Errors
+    ///
+    /// See [`read_cargo_toml_file()`]
+    ///
+    /// [`read_cargo_toml_file()`]: gadget_core_testing_utils::read_cargo_toml_file
     pub fn create_deploy_opts(
         &self,
         manifest_path: std::path::PathBuf,
-    ) -> cargo_tangle::deploy::tangle::Opts {
-        cargo_tangle::deploy::tangle::Opts {
-            pkg_name: Some(self.get_blueprint_name(&manifest_path)),
+    ) -> io::Result<cargo_tangle::deploy::tangle::Opts> {
+        Ok(cargo_tangle::deploy::tangle::Opts {
+            pkg_name: Some(self.get_blueprint_name(&manifest_path)?),
             http_rpc_url: self.http_endpoint.to_string(),
             ws_rpc_url: self.ws_endpoint.to_string(),
             manifest_path,
             signer: Some(self.sr25519_signer.clone()),
             signer_evm: Some(self.alloy_key.clone()),
-        }
+        })
     }
 
-    pub fn get_blueprint_name(&self, manifest_path: &std::path::Path) -> String {
-        let manifest = gadget_core_testing_utils::read_cargo_toml_file(manifest_path)
-            .expect("Failed to read blueprint's Cargo.toml");
-        manifest.package.unwrap().name
+    #[allow(clippy::unused_self)]
+    fn get_blueprint_name(&self, manifest_path: &std::path::Path) -> io::Result<String> {
+        let manifest = gadget_core_testing_utils::read_cargo_toml_file(manifest_path)?;
+        Ok(manifest.package.unwrap().name)
     }
 
     /// Deploys a blueprint from the current directory and returns its ID
+    ///
+    /// # Errors
+    ///
+    /// See [`deploy_to_tangle()`]
+    ///
+    /// [`deploy_to_tangle()`]: cargo_tangle::deploy::tangle::deploy_to_tangle
     pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
-        let opts = self.create_deploy_opts(manifest_path);
+        let opts = self.create_deploy_opts(manifest_path)?;
         let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts)
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
@@ -284,10 +297,14 @@ where
     /// Sets up a complete service environment with initialized event handlers
     ///
     /// # Returns
-    /// A tuple of the test environment, the service ID, and the blueprint ID i.e., (test_env, service_id, blueprint_id)
+    /// A tuple of the test environment, the service ID, and the blueprint ID i.e., (`test_env`, `service_id`, `blueprint_id`)
     ///
     /// # Note
     /// The Service ID will always be 0 if automatic registration is disabled, as there is not yet a service to have an ID
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::deploy_blueprint()`] and [`MultiNodeTestEnv::new()`]
     pub async fn setup_services<const N: usize>(
         &self,
         exit_after_registration: bool,
@@ -300,7 +317,9 @@ where
         let nodes = self.get_all_node_info::<N>().await?;
 
         // Setup operator and get service
-        let service_id = if !exit_after_registration {
+        let service_id = if exit_after_registration {
+            0
+        } else {
             let mut all_clients = Vec::new();
             let mut all_signers = Vec::new();
             let mut all_preferences = Vec::new();
@@ -326,15 +345,13 @@ where
                 &all_preferences,
                 exit_after_registration,
             )
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?
-        } else {
-            0
+                .await
+                .map_err(|e| Error::Setup(e.to_string()))?
         };
 
         // Create and initialize the new multi-node environment
         let executor =
-            MultiNodeTestEnv::new::<N>(self.config.clone(), self.context.clone()).await?;
+            MultiNodeTestEnv::new::<N>(self.config.clone(), self.context.clone());
 
         Ok((executor, service_id, blueprint_id))
     }
@@ -348,6 +365,10 @@ where
     ///
     /// # Returns
     /// The submitted job if successful
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transaction fails
     pub async fn submit_job(
         &self,
         service_id: u64,
@@ -376,6 +397,10 @@ where
     ///
     /// # Returns
     /// The job results if execution was successful
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no job result is found.
     pub async fn wait_for_job_execution(
         &self,
         service_id: u64,
@@ -401,22 +426,24 @@ where
     ///
     /// # Returns
     /// The verified results if they match expectations
+    ///
+    /// # Panics
+    ///
+    /// If the results don't match the expected outputs
     pub fn verify_job(
         &self,
-        results: JobResultSubmitted,
-        expected: Vec<OutputValue>,
-    ) -> Result<JobResultSubmitted, Error> {
+        results: &JobResultSubmitted,
+        expected: impl AsRef<[OutputValue]>,
+    ) {
         assert_eq!(
             results.result.len(),
-            expected.len(),
+            expected.as_ref().len(),
             "Number of outputs doesn't match expected"
         );
 
-        for (result, expected) in results.result.iter().zip(expected.iter()) {
+        for (result, expected) in results.result.iter().zip(expected.as_ref().iter()) {
             assert_eq!(result, expected);
         }
-
-        Ok(results)
     }
 }
 

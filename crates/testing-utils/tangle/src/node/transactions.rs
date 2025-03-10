@@ -1,4 +1,3 @@
-use crate::{InputValue, OutputValue};
 use alloy_primitives::Address;
 use alloy_provider::network::AnyNetwork;
 use alloy_provider::{
@@ -62,8 +61,7 @@ sol! {
     constructor(address payable _protocolFeesReceiver);
 }
 
-/// Deploy a new MBSM revision and returns the result.
-pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
+pub(crate) async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     evm_rpc_endpoint: &str,
     client: &TestClient,
     account_id: &T,
@@ -135,11 +133,24 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
         .await?;
     let evts = wait_for_in_block_success(res).await?;
     let ev = evts
-        .find_first::<MasterBlueprintServiceManagerRevised>()?
-        .expect("MBSM Revised Event to be emitted");
-    Ok(ev)
+        .find_first::<MasterBlueprintServiceManagerRevised>()?;
+    match ev {
+        Some(ev) => {
+            Ok(ev)
+        }
+        None => {
+            Err(TransactionError::Other(
+                "no MBSM Revised Event emitted".into(),
+            ))
+        }
+    }
 }
 
+/// Create a new blueprint
+///
+/// # Errors
+///
+/// Returns an error if the transaction fails
 pub async fn create_blueprint<T: Signer<TangleConfig>>(
     client: &TestClient,
     account_id: &T,
@@ -155,6 +166,11 @@ pub async fn create_blueprint<T: Signer<TangleConfig>>(
     Ok(())
 }
 
+/// Become and operator
+///
+/// # Errors
+///
+/// Returns an error if the transaction fails
 pub async fn join_operators<T: Signer<TangleConfig>>(
     client: &TestClient,
     account_id: &T,
@@ -173,7 +189,12 @@ pub async fn join_operators<T: Signer<TangleConfig>>(
     Ok(())
 }
 
-pub async fn register_blueprint<T: Signer<TangleConfig>>(
+/// Register as an operator for `blueprint_id`
+///
+/// # Errors
+///
+/// Returns an error if the transaction fails
+pub async fn register_for_blueprint<T: Signer<TangleConfig>>(
     client: &TestClient,
     account_id: &T,
     blueprint_id: u64,
@@ -194,6 +215,14 @@ pub async fn register_blueprint<T: Signer<TangleConfig>>(
     Ok(())
 }
 
+/// Submit a job call for the given `service_id`
+///
+/// This will submit the job, and verify that there is a `JobCalled` event with the correct `service_id`,
+/// `job_id`, `caller`, and in the future, `call_id`.
+///
+/// # Errors
+///
+/// No matching `JobCalled` event is found
 pub async fn submit_job<T: Signer<TangleConfig>>(
     client: &TestClient,
     user: &T,
@@ -230,6 +259,11 @@ pub async fn submit_job<T: Signer<TangleConfig>>(
 /// This is meant for testing.
 ///
 /// `user` will be the only permitted caller, and all `test_nodes` will be selected as operators.
+///
+/// # Errors
+///
+/// Returns an error if the transaction fails
+#[allow(clippy::cast_possible_truncation)]
 pub async fn request_service<T: Signer<TangleConfig>>(
     client: &TestClient,
     user: &T,
@@ -252,7 +286,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
         blueprint_id,
         Vec::new(),
         test_nodes,
-        Default::default(),
+        Vec::new(),
         security_requirements,
         1000,
         Asset::Custom(0),
@@ -268,7 +302,7 @@ pub async fn request_service<T: Signer<TangleConfig>>(
     Ok(())
 }
 
-pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
+async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
     mut res: TxProgress<T, C>,
 ) -> Result<ExtrinsicEvents<T>, TransactionError> {
     let mut val = Err("Failed to get in block success".into());
@@ -282,7 +316,7 @@ pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
     val.map_err(Into::into)
 }
 
-pub async fn wait_for_completion_of_tangle_job(
+pub(crate) async fn wait_for_completion_of_tangle_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
@@ -321,19 +355,7 @@ pub async fn wait_for_completion_of_tangle_job(
     Err(TransactionError::NoJobResult)
 }
 
-pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, TransactionError> {
-    let call = api::storage().services().next_blueprint_id();
-    let res = client
-        .subxt_client()
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&call)
-        .await?;
-    Ok(res)
-}
-
-pub async fn get_next_service_id(client: &TestClient) -> Result<u64, TransactionError> {
+async fn get_next_service_id(client: &TestClient) -> Result<u64, TransactionError> {
     let call = api::storage().services().next_instance_id();
     let res = client
         .subxt_client()
@@ -345,19 +367,7 @@ pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Transaction
     Ok(res)
 }
 
-pub async fn get_next_call_id(client: &TestClient) -> Result<u64, TransactionError> {
-    let call = api::storage().services().next_job_call_id();
-    let res = client
-        .subxt_client()
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&call)
-        .await?;
-    Ok(res)
-}
-
-pub async fn get_latest_mbsm_revision(
+pub(crate) async fn get_latest_mbsm_revision(
     client: &TestClient,
 ) -> Result<Option<(u64, H160)>, TransactionError> {
     let call = api::storage()
@@ -374,6 +384,7 @@ pub async fn get_latest_mbsm_revision(
     Ok(res.0.pop().map(|addr| (ver, addr.0.into())))
 }
 
+#[must_use]
 pub fn get_security_requirement(a: AssetId, p: &[u8; 2]) -> AssetSecurityRequirement<AssetId> {
     AssetSecurityRequirement {
         asset: Asset::Custom(a),
@@ -382,6 +393,7 @@ pub fn get_security_requirement(a: AssetId, p: &[u8; 2]) -> AssetSecurityRequire
     }
 }
 
+#[must_use]
 pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
     AssetSecurityCommitment {
         asset: a,
@@ -390,7 +402,7 @@ pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitm
 }
 
 /// Approves a service request. This is meant for testing, and will always approve the request.
-pub async fn approve_service<T: Signer<TangleConfig>>(
+async fn approve_service<T: Signer<TangleConfig>>(
     client: &TestClient,
     caller: &T,
     request_id: u64,
@@ -417,46 +429,20 @@ pub async fn approve_service<T: Signer<TangleConfig>>(
     Ok(())
 }
 
-pub async fn get_next_request_id(client: &TestClient) -> Result<u64, TransactionError> {
+async fn get_next_request_id(client: &TestClient) -> Result<u64, TransactionError> {
     info!("Fetching next request ID ...");
     let next_request_id_addr = api::storage().services().next_service_request_id();
     let next_request_id = client
         .subxt_client()
         .storage()
         .at_latest()
-        .await
-        .expect("Failed to fetch latest block")
+        .await?
         .fetch_or_default(&next_request_id_addr)
-        .await
-        .expect("Failed to fetch next request ID");
+        .await?;
     Ok(next_request_id)
 }
 
-/// Sets up an operator for a blueprint and returns the created service ID
-/// This function:
-/// 1. Joins the operator set
-/// 2. Registers for the blueprint
-/// 3. Requests a new service
-/// 4. Approves the service request
-/// 5. Returns the newly created service ID from events
-pub async fn setup_operator_and_service<T: Signer<TangleConfig>>(
-    client: &TestClient,
-    sr25519_signer: T,
-    blueprint_id: u64,
-    preferences: Preferences,
-    exit_after_registration: bool,
-) -> Result<u64, TransactionError> {
-    setup_operator_and_service_multiple(
-        &[client.clone()],
-        &[sr25519_signer],
-        blueprint_id,
-        &[preferences],
-        exit_after_registration,
-    )
-    .await
-}
-
-pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
+pub(crate) async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     clients: &[TestClient],
     sr25519_signers: &[T],
     blueprint_id: u64,
@@ -474,7 +460,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     for ((operator, client), preferences) in sr25519_signers.iter().zip(clients).zip(preferences) {
         join_operators(client, operator).await?;
         // Register for blueprint
-        register_blueprint(
+        register_for_blueprint(
             client,
             operator,
             blueprint_id,
@@ -490,7 +476,7 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
 
     let accounts = sr25519_signers
         .iter()
-        .map(|s| s.account_id())
+        .map(Signer::account_id)
         .collect::<Vec<_>>();
     request_service(alice_client, alice_signer, blueprint_id, accounts, 0, None).await?;
 
@@ -523,44 +509,4 @@ pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
         return Err(TransactionError::ServiceIdMismatch);
     }
     Ok(new_service_id.saturating_sub(1))
-}
-
-/// Submits a job to a service and verifies the outputs match the expected values.
-///
-/// # Warning
-/// This method should only be used in a single node context. For multi-node testing,
-/// use the multi-node test harness methods instead.
-///
-/// # Arguments
-/// * `client` - The test client to use for submitting the job
-/// * `signer` - The signer to use for submitting the job
-/// * `service_id` - The ID of the service to submit the job to
-/// * `job` - The job to submit
-/// * `inputs` - The inputs to provide to the job
-/// * `expected_outputs` - The expected outputs from the job
-///
-/// # Returns
-/// The job results if successful
-pub async fn submit_and_verify_job<T: Signer<TangleConfig>>(
-    client: &TestClient,
-    signer: &T,
-    service_id: u64,
-    job: Job,
-    inputs: Vec<InputValue>,
-    expected_outputs: Vec<OutputValue>,
-) -> Result<JobResultSubmitted, TransactionError> {
-    let job = submit_job(client, signer, service_id, job, inputs, 0).await?;
-    let results = wait_for_completion_of_tangle_job(client, service_id, job.call_id, 1).await?;
-
-    assert_eq!(
-        results.result.len(),
-        expected_outputs.len(),
-        "Number of outputs doesn't match expected"
-    );
-
-    for (result, expected) in results.result.iter().zip(expected_outputs.iter()) {
-        assert_eq!(result, expected);
-    }
-
-    Ok(results)
 }

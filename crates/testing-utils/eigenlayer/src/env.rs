@@ -43,6 +43,7 @@ pub struct EigenlayerTestEnvironment {
 /// # Description
 /// - Sets all the necessary environment variables for the necessary EigenLayer Contract Addresses.
 /// - Returns a [`EigenlayerTestEnvironment`] struct containing the test environment state.
+#[allow(clippy::missing_panics_doc)]
 pub async fn setup_eigenlayer_test_environment(
     http_endpoint: &str,
     ws_endpoint: &str,
@@ -114,8 +115,8 @@ pub async fn setup_eigenlayer_test_environment(
             service_manager_address: SERVICE_MANAGER_ADDR,
             stake_registry_address: STAKE_REGISTRY_ADDR,
             strategy_manager_address: STRATEGY_MANAGER_ADDR,
-            avs_directory_address: Default::default(),
-            rewards_coordinator_address: Default::default(),
+            avs_directory_address: Address::default(),
+            rewards_coordinator_address: Address::default(),
             permission_controller_address: PERMISSION_CONTROLLER_ADDR,
         },
     }

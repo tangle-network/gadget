@@ -98,26 +98,31 @@ where
 
 impl<Ctx> EigenlayerTestHarness<Ctx> {
     /// Gets a provider for the HTTP endpoint
+    #[must_use]
     pub fn provider(&self) -> RootProvider {
         get_provider_http(self.http_endpoint.as_str())
     }
 
     /// Gets the list of accounts
+    #[must_use]
     pub fn accounts(&self) -> &[Address] {
         &self.accounts
     }
 
     /// Gets the owner account (first account)
+    #[must_use]
     pub fn owner_account(&self) -> Address {
         self.accounts[1]
     }
 
     /// Gets the aggregator account (ninth account)
+    #[must_use]
     pub fn aggregator_account(&self) -> Address {
         self.accounts[9]
     }
 
     /// Gets the task generator account (fourth account)
+    #[must_use]
     pub fn task_generator_account(&self) -> Address {
         self.accounts[4]
     }
