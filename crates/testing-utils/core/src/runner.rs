@@ -33,24 +33,32 @@ where
         }
     }
 
+    #[expect(clippy::missing_panics_doc)]
     pub fn add_job<J, T>(&mut self, job: J) -> &mut Self
     where
         J: Job<T, ()> + Send + Sync + 'static,
         T: 'static,
     {
-        self.router = Some(self.router.take().unwrap().route(self.job_index, job));
+        self.router = Some(self.router.take().expect("router should always exist").route(self.job_index, job));
         self.job_index += 1;
         self
     }
 
+    #[expect(clippy::missing_panics_doc)]
     pub fn add_background_service<B>(&mut self, service: B) -> &mut Self
     where
         B: BackgroundService + Send + 'static,
     {
-        self.builder = Some(self.builder.take().unwrap().background_service(service));
+        self.builder = Some(self.builder.take().expect("router should always exist").background_service(service));
         self
     }
 
+    /// Start the runner
+    ///
+    /// # Errors
+    ///
+    /// See [`BlueprintRunnerBuilder::run()`]
+    #[expect(clippy::missing_panics_doc)]
     pub async fn run(self) -> Result<(), Error> {
         self.builder
             .unwrap()
@@ -64,6 +72,11 @@ pub trait TestEnv: Sized {
     type Config: BlueprintConfig;
     type Context: Clone + Send + Sync + 'static;
 
+    /// Create a new test environment
+    ///
+    /// # Errors
+    ///
+    /// Errors depend on the implementation.
     fn new(
         config: Self::Config,
         env: BlueprintEnvironment,
