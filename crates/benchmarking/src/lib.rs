@@ -115,6 +115,7 @@ impl<R: Runtime> Bencher<R> {
     /// println!("{}", summary);
     /// ```
     #[cfg(feature = "std")] // TODO: Benchmark execution time for WASM?
+    #[allow(clippy::needless_pass_by_value)]
     pub fn stop<N: ToString>(&self, name: N, job_id: u8) -> BenchmarkSummary {
         let pid = sysinfo::get_current_pid().expect("Failed to get current process ID");
         let s = sysinfo::System::new_all();

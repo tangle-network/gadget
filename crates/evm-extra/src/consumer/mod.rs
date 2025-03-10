@@ -5,9 +5,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 
 use alloy_provider::fillers::{FillProvider, JoinFill, RecommendedFillers, WalletFiller};
-#[cfg(feature = "tracing")]
-use alloy_provider::network::ReceiptResponse;
-use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet};
+use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet, ReceiptResponse};
 use alloy_provider::{Network, Provider, RootProvider};
 use alloy_rpc_types::TransactionRequest;
 use alloy_transport::TransportError;

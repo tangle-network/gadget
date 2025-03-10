@@ -10,7 +10,6 @@ pub(crate) mod macros;
 
 #[doc(hidden)]
 pub mod __private {
-    #[cfg(feature = "tracing")]
     pub use tracing;
 }
 
@@ -48,7 +47,11 @@ macro_rules! tracing_macros {
             #[cfg(not(feature = "tracing"))]
             #[macro_export]
             macro_rules! $name {
-                ($d($d tt:tt)*) => {};
+                ($d($d tt:tt)*) => {
+                    if false {
+                        let _ = $crate::__private::tracing::$name!($d($d tt)*);
+                    }
+                };
             }
         )*
     }
