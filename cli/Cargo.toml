@@ -8,6 +8,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 # Core CLI dependencies - always included
 anyhow = { workspace = true }
@@ -19,7 +22,7 @@ escargot = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
 color-eyre = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["full"] }
 hex = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
@@ -128,7 +131,3 @@ evm = [
     "gadget-keystore/evm",
     "gadget-clients/evm",
 ]
-
-[lints.clippy]
-large_enum_variant = "allow" # TODO
-result_large_err = "allow"

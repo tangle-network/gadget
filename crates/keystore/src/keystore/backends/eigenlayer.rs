@@ -1,22 +1,39 @@
-use super::*;
-use crate::{Error, Keystore};
-use bn254::Bn254Backend;
+use super::bn254::Bn254Backend;
+use crate::{Error, Keystore, Result};
 use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::k256::{K256Signature, K256SigningKey, K256VerifyingKey};
-use gadget_crypto::{BytesEncoding, KeyTypeId};
+use gadget_crypto::{BytesEncoding, KeyType, KeyTypeId};
+use gadget_std::boxed::Box;
 
 #[async_trait::async_trait]
 pub trait EigenlayerBackend: Bn254Backend {
     /// Generate a new ECDSA key pair from seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<K256VerifyingKey>;
 
     /// Generate an ECDSA key pair from a string seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn ecdsa_generate_from_string(&self, secret: &str) -> Result<K256VerifyingKey>;
 
     /// Sign a message using ECDSA key
+    ///
+    /// # Errors
+    ///
+    /// * No ECDSA key entry exists for `public`
+    /// * Depending on the backend, this may error when attempting to open and/or read the keystore.
     fn ecdsa_sign(&self, public: &K256VerifyingKey, msg: &[u8]) -> Result<K256Signature>;
 
     /// Get the secret key for an ECDSA public key
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to open and/or read the keystore.
     fn expose_ecdsa_secret(&self, public: &K256VerifyingKey) -> Result<Option<K256SigningKey>>;
 
     /// Iterate over all ECDSA public keys

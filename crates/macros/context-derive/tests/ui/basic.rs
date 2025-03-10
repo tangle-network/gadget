@@ -1,8 +1,8 @@
+use blueprint_sdk::clients::GadgetServicesClient as _;
 use blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext as _;
 use blueprint_sdk::contexts::keystore::KeystoreContext as _;
 use blueprint_sdk::contexts::services::ServicesContext as _;
 use blueprint_sdk::contexts::tangle::TangleClientContext as _;
-use blueprint_sdk::macros::ext::clients::GadgetServicesClient as _;
 use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::std::sync::Arc;
 use blueprint_sdk::stores::local_database::LocalDatabase;
@@ -27,7 +27,7 @@ fn main() {
         let ctx = MyContext {
             foo: "bar".to_string(),
             config: BlueprintEnvironment::default(),
-            store: Arc::new(LocalDatabase::open("test.json")),
+            store: Arc::new(LocalDatabase::open("test.json").unwrap()),
             call_id: None,
         };
 

@@ -56,6 +56,12 @@ impl Keystore {
     /// keystore.generate::<Ed25519Zebra>(None)?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// If an [`fs_root`] is set, the creation of a [`FileStorage`] could fail. See [`FileStorage::new()`].
+    ///
+    /// [`fs_root`]: KeystoreConfig::fs_root
     pub fn new(config: KeystoreConfig) -> Result<Self> {
         let config = config.finalize();
 
@@ -111,6 +117,7 @@ impl Keystore {
     }
 
     /// Register a storage backend for a key type with priority
+    #[allow(clippy::unnecessary_wraps)]
     fn register_storage(
         &mut self,
         key_type_id: KeyTypeId,
@@ -335,7 +342,7 @@ impl Backend for Keystore {
     fn get_storage_backends<T: KeyType>(&self) -> Result<&[LocalStorageEntry]> {
         self.storages
             .get(&T::key_type_id())
-            .map(|v| v.as_slice())
+            .map(Vec::as_slice)
             .ok_or(Error::KeyTypeNotSupported)
     }
 }
@@ -374,7 +381,7 @@ mod tests {
             paste::paste! {
                 #[tokio::test]
                 async fn [<test_local_ $key_ty:snake>]() -> Result<()> {
-                    test_local_operations_inner::<$key_ty>().await
+                    test_local_operations_inner::<$key_ty>()
                 }
             }
             )+
@@ -392,7 +399,7 @@ mod tests {
     // sp-core backend
     local_operations!(SpBls377, SpBls381, SpEcdsa, SpSr25519,);
 
-    async fn test_local_operations_inner<T: KeyType>() -> Result<()>
+    fn test_local_operations_inner<T: KeyType>() -> Result<()>
     where
         <T as gadget_crypto::KeyType>::Error: IntoCryptoError,
     {
@@ -407,9 +414,10 @@ mod tests {
         // List local keys
         let local_keys = keystore.list_local::<T>()?;
         assert_eq!(local_keys.len(), 1);
-        if local_keys[0] != public {
-            panic!("Expected local key to be the same as generated key");
-        }
+        assert_eq!(
+            local_keys[0], public,
+            "Expected local key to be the same as generated key"
+        );
 
         Ok(())
     }

@@ -37,6 +37,7 @@ impl InMemoryStorage {
     /// storage.store::<K256Ecdsa>(&public, &secret)?;
     /// # Ok(()) }
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: RwLock::new(BTreeMap::new()),
@@ -86,8 +87,7 @@ impl RawStorage for InMemoryStorage {
     fn contains_raw(&self, type_id: KeyTypeId, public_bytes: Vec<u8>) -> bool {
         let data = self.data.read();
         data.get(&type_id)
-            .map(|type_map| type_map.contains_key(&public_bytes[..]))
-            .unwrap_or(false)
+            .is_some_and(|type_map| type_map.contains_key(&public_bytes[..]))
     }
 
     fn list_raw(&self, type_id: KeyTypeId) -> Box<dyn Iterator<Item = Box<[u8]>> + '_> {

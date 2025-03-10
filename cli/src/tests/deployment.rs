@@ -12,6 +12,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)]
 async fn test_deploy_local_on_anvil() -> Result<()> {
     setup_log();
 
@@ -26,7 +27,7 @@ async fn test_deploy_local_on_anvil() -> Result<()> {
     let keystore_path = temp_dir.path().join("./keystore");
 
     // Write the test contract
-    let contract_content = r#"// SPDX-License-Identifier: MIT
+    let contract_content = r"// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
 contract TestContract {
@@ -46,12 +47,12 @@ contract TestContract {
         return value;
     }
 }
-"#;
+";
 
     fs::write(contract_src_dir.join("TestContract.sol"), contract_content)?;
 
     // Write the second test contract
-    let second_contract_content = r#"// SPDX-License-Identifier: MIT
+    let second_contract_content = r"// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
 contract SimpleStorage {
@@ -71,7 +72,7 @@ contract SimpleStorage {
         return storedData;
     }
 }
-"#;
+";
 
     fs::write(
         contract_src_dir.join("SimpleStorage.sol"),
@@ -80,11 +81,11 @@ contract SimpleStorage {
 
     // Create foundry.toml
     let foundry_content = format!(
-        r#"[profile.default]
+        r"[profile.default]
 src = 'src'
 out = '{}'
 libs = ['lib']
-evm_version = 'shanghai'"#,
+evm_version = 'shanghai'",
         contract_out_dir
             .strip_prefix(temp_dir.path())
             .unwrap()
@@ -137,7 +138,7 @@ evm_version = 'shanghai'"#,
     assert!(simple_storage_json.exists());
 
     // Deploy the contract
-    let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
+    let contract_addresses = deploy_avs_contracts(&opts)?;
     let &test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))

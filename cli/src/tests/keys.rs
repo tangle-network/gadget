@@ -13,15 +13,13 @@ fn test_cli_fs_key_generation() -> Result<()> {
     let temp_dir = tempdir()?;
     let output_path = temp_dir.path();
 
-    for key_type in [
+    for key_type in &[
         KeyTypeId::Sr25519,
         KeyTypeId::Ed25519,
         KeyTypeId::Ecdsa,
         KeyTypeId::Bls381,
         KeyTypeId::Bn254,
-    ]
-    .iter()
-    {
+    ] {
         println!("Testing key generation for: {:?}", key_type);
         let (public, secret) = generate_key(*key_type, Some(&output_path), None, true)?;
         assert!(!public.is_empty());
@@ -53,15 +51,13 @@ fn test_cli_fs_key_generation() -> Result<()> {
 
 #[test]
 fn test_cli_mem_key_generation() -> Result<()> {
-    for key_type in [
+    for key_type in &[
         KeyTypeId::Sr25519,
         KeyTypeId::Ed25519,
         KeyTypeId::Ecdsa,
         KeyTypeId::Bls381,
         KeyTypeId::Bn254,
-    ]
-    .iter()
-    {
+    ] {
         println!("Testing key generation for: {:?}", key_type);
         let (public, secret) = generate_key(*key_type, None::<&PathBuf>, None, true)?;
         assert!(!public.is_empty());

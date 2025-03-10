@@ -20,6 +20,7 @@ pub struct TangleServicesClient<C: Config> {
 
 impl<C: Config> TangleServicesClient<C> {
     /// Create a new services client
+    #[must_use]
     pub fn new(rpc_client: OnlineClient<C>) -> Self {
         Self { rpc_client }
     }
@@ -86,6 +87,7 @@ where
     }
 
     /// Query the current Blueprint owner
+    #[allow(clippy::missing_errors_doc)]
     pub async fn current_blueprint_owner(
         &self,
         at: [u8; 32],
@@ -101,6 +103,7 @@ where
     }
 
     /// Get the current service operators with their restake exposure
+    #[allow(clippy::missing_errors_doc)]
     pub async fn current_service_operators(
         &self,
         at: [u8; 32],
@@ -113,7 +116,7 @@ where
             Some(instances) => {
                 let mut ret = Vec::new();
                 for (account, security_commitments) in instances.operator_security_commitments.0 {
-                    ret.push((account, security_commitments.0))
+                    ret.push((account, security_commitments.0));
                 }
                 Ok(ret)
             }

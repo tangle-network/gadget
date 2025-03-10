@@ -11,6 +11,11 @@ use url::Url;
 /// `rpc_url` - The RPC URL.
 /// `tx_hash` - The hash of the transaction.
 ///
+/// # Errors
+///
+/// * Bad RPC URL
+/// * See [`PendingTransactionBuilder::get_receipt()`]
+///
 /// # Returns
 ///
 /// A [`TransportResult`] containing the transaction hash.

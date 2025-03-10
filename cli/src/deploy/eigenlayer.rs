@@ -36,6 +36,11 @@ pub struct EigenlayerDeployOpts {
 }
 
 impl EigenlayerDeployOpts {
+    /// # Panics
+    ///
+    /// When used in a local testnet environment with no specified keystore, this will panic if it
+    /// cannot create a temporary directory to use for the keystore.
+    #[must_use]
     pub fn new(
         rpc_url: String,
         contracts_path: Option<String>,
@@ -53,9 +58,10 @@ impl EigenlayerDeployOpts {
                 .into_path();
             temp_dir.to_string_lossy().to_string()
         } else {
-            keystore_path
-                .map(|p| p.as_ref().to_string_lossy().to_string())
-                .unwrap_or_else(|| "./keystore".to_string())
+            keystore_path.map_or_else(
+                || "./keystore".to_string(),
+                |p| p.as_ref().to_string_lossy().to_string(),
+            )
         };
 
         Self {
@@ -110,9 +116,14 @@ impl EigenlayerDeployOpts {
     }
 }
 
+// TODO(donovan): use a tempdir
 /// Initializes the test keystore with Anvil's Account 0. Generating the `./test-keystore` directory if it doesn't exist
 ///
 /// Returns the path to the Temporary Directory, which must be kept alive as long as the keystore needs to be accessed.
+///
+/// # Errors
+///
+/// See [`Keystore::new()`]
 pub fn initialize_test_keystore() -> Result<()> {
     // For local testnet with no specified keystore, use a temporary directory
     let keystore_path = Path::new("./test-keystore");
@@ -180,12 +191,13 @@ fn find_contract_files(contracts_path: &str) -> Result<Vec<String>> {
             if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
                 // Read the file content to check if it's an interface
                 let content = fs::read_to_string(&path)?;
-                if !content.contains("interface I") {
-                    if let Some(path_str) = path.to_str() {
-                        contract_files.push(path_str.to_string());
-                    }
-                } else {
+                if content.contains("interface I") {
                     debug!("Skipping interface file: {}", path.display());
+                    continue;
+                }
+
+                if let Some(path_str) = path.to_str() {
+                    contract_files.push(path_str.to_string());
                 }
             }
         }
@@ -245,7 +257,7 @@ fn select_next_contract(available_contracts: &[String]) -> Result<String> {
 fn get_constructor_args(
     contract_json: &Value,
     contract_name: &str,
-    provided_args: &Option<HashMap<String, Vec<String>>>,
+    provided_args: Option<&HashMap<String, Vec<String>>>,
 ) -> Option<Vec<String>> {
     // Find the constructor in the ABI
     let abi = contract_json.get("abi")?.as_array()?;
@@ -334,7 +346,7 @@ fn build_function_signature(function_name: &str, args: &[(String, String)]) -> S
     format!("{}({})", function_name, args_str)
 }
 
-async fn initialize_contract_if_needed(
+fn initialize_contract_if_needed(
     opts: &EigenlayerDeployOpts,
     contract_json: &Value,
     contract_name: &str,
@@ -460,7 +472,7 @@ async fn initialize_contract_if_needed(
     Ok(())
 }
 
-async fn deploy_single_contract(
+fn deploy_single_contract(
     opts: &EigenlayerDeployOpts,
     contract_path: &str,
 ) -> Result<(String, Address)> {
@@ -487,18 +499,21 @@ async fn deploy_single_contract(
         Path::new(&opts.contracts_path).join("out").display()
     );
 
-    if let Some(args) = get_constructor_args(&contract_json, &contract_name, &opts.constructor_args)
-    {
+    if let Some(args) = get_constructor_args(
+        &contract_json,
+        &contract_name,
+        opts.constructor_args.as_ref(),
+    ) {
         if !args.is_empty() {
             cmd_str.push_str(" --constructor-args");
             for value in args {
                 // Quote the value if it's not already quoted
-                let formatted_value = if !value.starts_with('"') {
-                    format!("\"{}\"", value)
-                } else {
+                let formatted_value = if value.starts_with('"') {
                     value
+                } else {
+                    format!("\"{}\"", value)
                 };
-                cmd_str.push_str(&format!(" {}", formatted_value.replace("0x", "")));
+                cmd_str = format!("{cmd_str} {}", formatted_value.replace("0x", ""));
             }
         }
     }
@@ -517,8 +532,8 @@ async fn deploy_single_contract(
     }
 
     // Try to find address in stdout first, then stderr if not found
-    let address = extract_address_from_output(output.stdout.clone())
-        .or_else(|_| extract_address_from_output(output.stderr.clone()))
+    let address = extract_address_from_output(&output.stdout)
+        .or_else(|_| extract_address_from_output(&output.stderr))
         .map_err(|_| {
             color_eyre::eyre::eyre!("Failed to find contract address in deployment output")
         })?;
@@ -537,12 +552,20 @@ async fn deploy_single_contract(
     println!("{}", style("━".repeat(50)).purple());
 
     // Check for initialization
-    initialize_contract_if_needed(opts, &contract_json, &contract_name, address).await?;
+    initialize_contract_if_needed(opts, &contract_json, &contract_name, address)?;
 
     Ok((contract_name, address))
 }
 
-pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap<String, Address>> {
+/// Deploy all contracts under the contracts directory
+///
+/// # Errors
+///
+/// * The specified `contracts_path` does not exist
+/// * [forge create] fails
+///
+/// [forge create]: https://book.getfoundry.sh/reference/forge/forge-create
+pub fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap<String, Address>> {
     let mut deployed_addresses = HashMap::new();
     let contract_files = find_contract_files(&opts.contracts_path)?;
 
@@ -552,7 +575,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
         let mut remaining_contracts = contract_files.clone();
         while !remaining_contracts.is_empty() {
             let selected_contract = select_next_contract(&remaining_contracts)?;
-            let (contract_name, address) = deploy_single_contract(opts, &selected_contract).await?;
+            let (contract_name, address) = deploy_single_contract(opts, &selected_contract)?;
             deployed_addresses.insert(contract_name, address);
 
             // Remove the deployed contract from remaining contracts
@@ -562,7 +585,7 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
         print_section_header("Contract Deployment");
 
         for contract_path in contract_files {
-            let (contract_name, address) = deploy_single_contract(opts, &contract_path).await?;
+            let (contract_name, address) = deploy_single_contract(opts, &contract_path)?;
             deployed_addresses.insert(contract_name, address);
         }
     }
@@ -570,8 +593,13 @@ pub async fn deploy_avs_contracts(opts: &EigenlayerDeployOpts) -> Result<HashMap
     Ok(deployed_addresses)
 }
 
-pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
-    let addresses = deploy_avs_contracts(&opts).await?;
+/// Deploy all contracts and print a summary
+///
+/// # Errors
+///
+/// See [`deploy_avs_contracts()`]
+pub fn deploy_to_eigenlayer(opts: &EigenlayerDeployOpts) -> Result<()> {
+    let addresses = deploy_avs_contracts(opts)?;
     print_section_header("Deployment Summary");
     println!("{}", style("━".repeat(50)).cyan());
     for (contract, address) in addresses {
@@ -585,8 +613,8 @@ pub async fn deploy_to_eigenlayer(opts: EigenlayerDeployOpts) -> Result<()> {
     Ok(())
 }
 
-pub fn extract_address_from_output(output: Vec<u8>) -> Result<Address> {
-    let output = String::from_utf8_lossy(&output);
+fn extract_address_from_output(output: &[u8]) -> Result<Address> {
+    let output = String::from_utf8_lossy(output);
     debug!("Attempting to extract address from output:\n{}", output);
 
     // Possible patterns to search for deployed address

@@ -16,7 +16,7 @@ path = "src/main.rs"
 # Blueprint dependencies
 blueprint-sdk = { workspace = true, features = ["eigenlayer", "macros", "testing"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 
 # Alloy dependencies
 alloy-contract = { workspace = true }

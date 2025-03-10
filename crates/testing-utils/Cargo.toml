@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 gadget-core-testing-utils = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true, optional = true }
@@ -18,6 +21,3 @@ default = []
 anvil = ["gadget-anvil-testing-utils"]
 tangle = ["gadget-tangle-testing-utils"]
 eigenlayer = ["gadget-eigenlayer-testing-utils"]
-
-[lints]
-workspace = true

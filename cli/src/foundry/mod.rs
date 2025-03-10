@@ -37,6 +37,7 @@ impl Default for FoundryToolchain {
 }
 
 impl FoundryToolchain {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             forge: forge::Forge::new(),

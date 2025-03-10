@@ -5,6 +5,9 @@ description = "Tangle Network extra utilities for Blueprint framework"
 edition.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 blueprint-core.workspace = true
 bytes.workspace = true
@@ -19,7 +22,7 @@ serde.workspace = true
 pin-project-lite = { workspace = true }
 
 # Macros
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["alloc"], optional = true }
 cargo_metadata = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 

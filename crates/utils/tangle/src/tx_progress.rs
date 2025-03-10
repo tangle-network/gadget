@@ -44,6 +44,7 @@ pub trait TxProgressExt<T: subxt::Config, C> {
 
 #[async_trait::async_trait]
 impl<T: subxt::Config, C: OnlineClientT<T>> TxProgressExt<T, C> for subxt::tx::TxProgress<T, C> {
+    #[allow(clippy::needless_continue)]
     async fn wait_for_in_block(mut self) -> Result<TxInBlock<T, C>, subxt::Error> {
         while let Some(status) = self.next().await {
             match status? {
@@ -57,10 +58,11 @@ impl<T: subxt::Config, C: OnlineClientT<T>> TxProgressExt<T, C> for subxt::tx::T
                 TxStatus::Dropped { message } => {
                     return Err(TransactionError::Dropped(message).into());
                 }
-                // Ignore and wait for next status event:
+                // Ignore and wait for next status event
                 _ => continue,
             }
         }
+
         Err(subxt::error::RpcError::SubscriptionDropped.into())
     }
 

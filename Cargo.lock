@@ -6926,6 +6926,7 @@ dependencies = [
  "alloy-transport",
  "async-trait",
  "blueprint-sdk",
+ "gadget-context-derive",
  "proc-macro2",
  "quote",
  "round-based",
@@ -7315,6 +7316,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.11",
 ]
 
 [[package]]

@@ -2383,6 +2383,7 @@ dependencies = [
  "pin-project-lite",
  "tiny-keccak",
  "tower",
+ "tracing",
 ]
 
 [[package]]

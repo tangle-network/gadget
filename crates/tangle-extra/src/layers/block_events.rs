@@ -80,6 +80,7 @@ where
 pub struct AddBlockEventsLayer(pub TangleClient);
 
 impl AddBlockEventsLayer {
+    #[must_use]
     pub fn new(client: TangleClient) -> Self {
         Self(client)
     }

@@ -12,19 +12,41 @@ use serde::de::DeserializeOwned;
 #[async_trait::async_trait]
 pub trait EvmBackend: Send + Sync {
     /// Create an EVM wallet from a private key
+    ///
+    /// # Errors
+    ///
+    /// * If the `private_key` is invalid
     fn create_wallet_from_private_key(&self, private_key: &[u8]) -> Result<EthereumWallet>;
 
     /// Create an EVM wallet from a string seed
+    ///
+    /// # Errors
+    ///
+    /// See [`EvmBackend::create_wallet_from_private_key`]
     fn create_wallet_from_string_seed(&self, seed: &str) -> Result<EthereumWallet>;
 
     /// Get the EVM address for a public key
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to open and/or read the keystore.
     fn get_address<T: KeyType>(&self, public: &T::Public) -> Result<Address>
     where
         T::Public: DeserializeOwned;
 
     // Optional mnemonic features
+    /// Create a wallet from a mnemonic string
+    ///
+    /// # Errors
+    ///
+    /// * If the mnemonic is invalid
     fn create_wallet_from_mnemonic(&self, mnemonic: &str) -> Result<EthereumWallet>;
 
+    /// Create a wallet from a mnemonic string with a derivation path
+    ///
+    /// # Errors
+    ///
+    /// * If the mnemonic is invalid
     fn create_wallet_from_mnemonic_with_path(
         &self,
         mnemonic: &str,
