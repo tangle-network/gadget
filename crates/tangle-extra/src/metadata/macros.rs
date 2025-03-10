@@ -485,7 +485,7 @@ mod tests {
                     result: vec![FieldType::Uint64],
                 }
             ]
-        )
+        );
     }
 
     #[test]
