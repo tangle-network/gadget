@@ -54,7 +54,7 @@ impl ProtocolSettingsT for TangleProtocolSettings {
 /// This provides a [`Default`] impl for a zeroed-out [`PriceTargets`].
 ///
 /// [`PriceTargets`]: tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PriceTargets(pub TanglePriceTargets);
 
 impl From<TanglePriceTargets> for PriceTargets {
@@ -75,7 +75,7 @@ impl Default for PriceTargets {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct TangleConfig {
     pub price_targets: PriceTargets,
     pub exit_after_register: bool,

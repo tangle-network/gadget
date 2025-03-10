@@ -65,15 +65,11 @@ async fn requires_registration_bls_impl(env: &BlueprintEnvironment) -> Result<bo
     let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
 
-    let ecdsa_public = env
-        .keystore()
-        .first_local::<K256Ecdsa>()
-        .map_err(|e| RunnerError::Keystore(e.to_string()))?;
+    let ecdsa_public = env.keystore().first_local::<K256Ecdsa>()?;
     let ecdsa_secret = env
         .keystore()
-        .expose_ecdsa_secret(&ecdsa_public)
-        .map_err(|e| RunnerError::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
-        .ok_or_else(|| RunnerError::Keystore("No ECDSA secret found".into()))?;
+        .expose_ecdsa_secret(&ecdsa_public)?
+        .ok_or_else(|| RunnerError::Other("No ECDSA secret found".into()))?;
     let operator_address = ecdsa_secret
         .alloy_address()
         .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;
@@ -112,15 +108,11 @@ async fn register_bls_impl(
     let avs_directory_address = contract_addresses.avs_directory_address;
     let permission_controller_address = contract_addresses.permission_controller_address;
 
-    let ecdsa_public = env
-        .keystore()
-        .first_local::<K256Ecdsa>()
-        .map_err(|e| RunnerError::Keystore(e.to_string()))?;
+    let ecdsa_public = env.keystore().first_local::<K256Ecdsa>()?;
     let ecdsa_secret = env
         .keystore()
-        .expose_ecdsa_secret(&ecdsa_public)
-        .map_err(|e| RunnerError::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
-        .ok_or_else(|| RunnerError::Keystore("No ECDSA secret found".into()))?;
+        .expose_ecdsa_secret(&ecdsa_public)?
+        .ok_or_else(|| RunnerError::Other("No ECDSA secret found".into()))?;
     let operator_address = ecdsa_secret
         .alloy_address()
         .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;

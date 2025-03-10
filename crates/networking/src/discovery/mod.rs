@@ -1,8 +1,8 @@
 use std::{num::NonZero, time::Duration};
 
 use libp2p::{
-    kad::{self, store::MemoryStore},
     PeerId, StreamProtocol,
+    kad::{self, store::MemoryStore},
 };
 
 pub mod behaviour;

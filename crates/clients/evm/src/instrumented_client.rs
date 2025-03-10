@@ -3,7 +3,7 @@
 use crate::client::BackendClient;
 use alloy_consensus::TxEnvelope;
 use alloy_json_rpc::{RpcRecv, RpcSend};
-use alloy_primitives::{Address, BlockHash, BlockNumber, Bytes, ChainId, B256, U256, U64};
+use alloy_primitives::{Address, B256, BlockHash, BlockNumber, Bytes, ChainId, U64, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider, WsConnect};
 use alloy_pubsub::Subscription;
 use alloy_rlp::Encodable;
@@ -811,9 +811,9 @@ mod tests {
     use alloy_consensus::{SignableTransaction, TxLegacy};
     use alloy_network::TxSignerSync;
     use alloy_primitives::address;
-    use alloy_primitives::{bytes, TxKind::Call, U256};
+    use alloy_primitives::{TxKind::Call, U256, bytes};
     use alloy_rpc_types::eth::{
-        pubsub::SubscriptionResult, BlockId, BlockNumberOrTag, BlockTransactionsKind,
+        BlockId, BlockNumberOrTag, BlockTransactionsKind, pubsub::SubscriptionResult,
     };
     use alloy_signer_local::PrivateKeySigner;
     use gadget_anvil_testing_utils::{start_default_anvil_testnet, wait_transaction};

@@ -7,7 +7,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use futures_util::Sink;
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tangle_subxt::parity_scale_codec::Decode;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::OnlineClient;
@@ -47,7 +47,7 @@ pub struct TangleConsumer<S> {
     client: Arc<OnlineClient<TangleConfig>>,
     signer: Arc<S>,
     buffer: VecDeque<DerivedJobResult>,
-    state: State,
+    state: Mutex<State>,
 }
 
 impl<S> TangleConsumer<S>
@@ -60,7 +60,7 @@ where
             client: Arc::new(client),
             signer: Arc::new(signer),
             buffer: VecDeque::new(),
-            state: State::WaitingForResult,
+            state: Mutex::new(State::WaitingForResult),
         }
     }
 }
@@ -102,34 +102,37 @@ where
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.buffer.is_empty() && self.state.is_waiting() {
+        let consumer = self.get_mut();
+        let mut state = consumer.state.lock().unwrap();
+
+        if consumer.buffer.is_empty() && state.is_waiting() {
             return Poll::Ready(Ok(()));
         }
 
-        let consumer = self.get_mut();
         loop {
-            match consumer.state {
+            match &mut *state {
                 State::WaitingForResult => {
-                    let Some(DerivedJobResult {
+                    if let Some(DerivedJobResult {
                         call_id,
                         service_id,
                         result,
                     }) = consumer.buffer.pop_front()
-                    else {
+                    {
+                        let tx = api::tx()
+                            .services()
+                            .submit_result(service_id, call_id, result);
+                        let fut =
+                            crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
+                        // Store the new future in state.
+                        *state = State::ProcessingBlock(Box::pin(fut));
+                        continue;
+                    } else {
                         return Poll::Ready(Ok(()));
-                    };
-
-                    let tx = api::tx()
-                        .services()
-                        .submit_result(service_id, call_id, result);
-                    let fut =
-                        crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
-                    consumer.state = State::ProcessingBlock(Box::pin(fut));
-                    continue;
+                    }
                 }
-                State::ProcessingBlock(ref mut future) => match future.as_mut().poll(cx) {
+                State::ProcessingBlock(future) => match future.as_mut().poll(cx) {
                     Poll::Ready(Ok(_extrinsic_events)) => {
-                        consumer.state = State::WaitingForResult;
+                        *state = State::WaitingForResult;
                         continue;
                     }
                     Poll::Ready(Err(e)) => return Poll::Ready(Err(e.into())),

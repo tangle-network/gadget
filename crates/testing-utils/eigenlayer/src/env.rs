@@ -1,11 +1,11 @@
 use alloy_primitives::Uint;
-use alloy_primitives::{address, Address};
+use alloy_primitives::{Address, address};
 use alloy_provider::Provider;
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_anvil_testing_utils::get_receipt;
-use gadget_config::protocol::EigenlayerContractAddresses;
 use gadget_logging::info;
 use gadget_utils::evm::get_provider_http;
 
@@ -35,7 +35,7 @@ pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
     pub ws_endpoint: String,
     pub accounts: Vec<Address>,
-    pub eigenlayer_contract_addresses: EigenlayerContractAddresses,
+    pub eigenlayer_contract_addresses: EigenlayerProtocolSettings,
 }
 
 /// Sets up the test environment for the EigenLayer Blueprint.
@@ -51,30 +51,32 @@ pub async fn setup_eigenlayer_test_environment(
 
     let accounts = provider.get_accounts().await.unwrap();
 
-    std::env::set_var(
-        "ALLOCATION_MANAGER_ADDR",
-        ALLOCATION_MANAGER_ADDR.to_string(),
-    );
-    std::env::set_var(
-        "REGISTRY_COORDINATOR_ADDR",
-        REGISTRY_COORDINATOR_ADDR.to_string(),
-    );
-    std::env::set_var(
-        "OPERATOR_STATE_RETRIEVER_ADDR",
-        OPERATOR_STATE_RETRIEVER_ADDR.to_string(),
-    );
-    std::env::set_var(
-        "DELEGATION_MANAGER_ADDR",
-        DELEGATION_MANAGER_ADDR.to_string(),
-    );
-    std::env::set_var(
-        "PERMISSION_CONTROLLER_ADDR",
-        PERMISSION_CONTROLLER_ADDR.to_string(),
-    );
-    std::env::set_var("SERVICE_MANAGER_ADDR", SERVICE_MANAGER_ADDR.to_string());
-    std::env::set_var("STAKE_REGISTRY_ADDR", STAKE_REGISTRY_ADDR.to_string());
-    std::env::set_var("STRATEGY_MANAGER_ADDR", STRATEGY_MANAGER_ADDR.to_string());
-    std::env::set_var("ERC20_MOCK_ADDR", ERC20_MOCK_ADDR.to_string());
+    unsafe {
+        std::env::set_var(
+            "ALLOCATION_MANAGER_ADDR",
+            ALLOCATION_MANAGER_ADDR.to_string(),
+        );
+        std::env::set_var(
+            "REGISTRY_COORDINATOR_ADDR",
+            REGISTRY_COORDINATOR_ADDR.to_string(),
+        );
+        std::env::set_var(
+            "OPERATOR_STATE_RETRIEVER_ADDR",
+            OPERATOR_STATE_RETRIEVER_ADDR.to_string(),
+        );
+        std::env::set_var(
+            "DELEGATION_MANAGER_ADDR",
+            DELEGATION_MANAGER_ADDR.to_string(),
+        );
+        std::env::set_var(
+            "PERMISSION_CONTROLLER_ADDR",
+            PERMISSION_CONTROLLER_ADDR.to_string(),
+        );
+        std::env::set_var("SERVICE_MANAGER_ADDR", SERVICE_MANAGER_ADDR.to_string());
+        std::env::set_var("STAKE_REGISTRY_ADDR", STAKE_REGISTRY_ADDR.to_string());
+        std::env::set_var("STRATEGY_MANAGER_ADDR", STRATEGY_MANAGER_ADDR.to_string());
+        std::env::set_var("ERC20_MOCK_ADDR", ERC20_MOCK_ADDR.to_string());
+    }
 
     let registry_coordinator =
         RegistryCoordinator::new(REGISTRY_COORDINATOR_ADDR, provider.clone());
@@ -106,7 +108,7 @@ pub async fn setup_eigenlayer_test_environment(
         http_endpoint: http_endpoint.to_string(),
         ws_endpoint: ws_endpoint.to_string(),
         accounts,
-        eigenlayer_contract_addresses: EigenlayerContractAddresses {
+        eigenlayer_contract_addresses: EigenlayerProtocolSettings {
             allocation_manager_address: ALLOCATION_MANAGER_ADDR,
             registry_coordinator_address: REGISTRY_COORDINATOR_ADDR,
             operator_state_retriever_address: OPERATOR_STATE_RETRIEVER_ADDR,

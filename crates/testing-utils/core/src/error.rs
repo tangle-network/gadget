@@ -1,4 +1,4 @@
-use gadget_runners::core::error::RunnerError;
+use blueprint_runner::error::RunnerError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

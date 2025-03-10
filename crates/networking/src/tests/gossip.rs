@@ -1,4 +1,4 @@
-use super::{init_tracing, wait_for_handshake_completion, TestNode};
+use super::{TestNode, init_tracing, wait_for_handshake_completion};
 use crate::{
     discovery::peers::VerificationIdentifierKey,
     service::AllowedKeys,

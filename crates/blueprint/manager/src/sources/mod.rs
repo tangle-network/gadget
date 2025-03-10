@@ -2,7 +2,7 @@ use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
 use async_trait::async_trait;
-use gadget_config::GadgetConfiguration;
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use std::path::PathBuf;
 
 pub mod github;
@@ -18,7 +18,7 @@ pub trait BinarySourceFetcher: Send + Sync {
 
 #[must_use]
 pub fn process_arguments_and_env(
-    gadget_config: &GadgetConfiguration,
+    gadget_config: &BlueprintEnvironment,
     manager_opts: &BlueprintManagerConfig,
     blueprint_id: u64,
     service_id: u64,

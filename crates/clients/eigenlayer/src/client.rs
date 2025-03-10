@@ -1,6 +1,7 @@
 use crate::error::Result;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::{Provider, RootProvider};
+use blueprint_runner::config::BlueprintEnvironment;
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use eigensdk::common::get_ws_provider;
 use eigensdk::logging::get_test_logger;
@@ -11,25 +12,24 @@ use eigensdk::utils::slashing::core::allocationmanager::{
 };
 use eigensdk::utils::slashing::core::delegationmanager::DelegationManager;
 use eigensdk::utils::slashing::middleware::operatorstateretriever::OperatorStateRetriever;
-use gadget_config::GadgetConfiguration;
 use gadget_std::collections::HashMap;
 use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
-/// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
+/// Client that provides access to EigenLayer utility functions through the use of the [`BlueprintEnvironment`].
 #[derive(Clone)]
 pub struct EigenlayerClient {
-    pub config: GadgetConfiguration,
+    pub config: BlueprintEnvironment,
 }
 
 impl EigenlayerClient {
-    /// Creates a new instance of the [`EigenlayerClient`] given a [`GadgetConfiguration`].
-    pub fn new(config: GadgetConfiguration) -> Self {
+    /// Creates a new instance of the [`EigenlayerClient`] given a [`BlueprintEnvironment`].
+    pub fn new(config: BlueprintEnvironment) -> Self {
         Self { config }
     }
 
-    /// Get the [`GadgetConfiguration`] for this client
-    pub fn config(&self) -> &GadgetConfiguration {
+    /// Get the [`BlueprintEnvironment`] for this client
+    pub fn config(&self) -> &BlueprintEnvironment {
         &self.config
     }
 

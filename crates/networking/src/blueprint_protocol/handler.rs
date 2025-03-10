@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
 use alloy_primitives::Address;
-use gadget_crypto::{hashing::keccak_256, BytesEncoding, KeyType};
-use libp2p::{request_response, PeerId};
+use gadget_crypto::{BytesEncoding, KeyType, hashing::keccak_256};
+use libp2p::{PeerId, request_response};
 use tracing::{debug, warn};
 
 use crate::blueprint_protocol::HandshakeMessage;

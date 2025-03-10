@@ -1,7 +1,7 @@
 use alloy_contract::{CallBuilder, CallDecoder};
-use alloy_primitives::{address, Uint};
-use alloy_provider::network::Ethereum;
+use alloy_primitives::{Uint, address};
 use alloy_provider::Provider;
+use alloy_provider::network::Ethereum;
 use alloy_rpc_types_eth::TransactionReceipt;
 use dialoguer::console::style;
 use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
@@ -15,9 +15,9 @@ use gadget_std::time::Duration;
 use std::fs::{self};
 use tempfile::TempDir;
 use testcontainers::{
+    ContainerAsync, GenericImage, ImageExt,
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
-    ContainerAsync, GenericImage, ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
 
@@ -26,7 +26,7 @@ mod state;
 
 pub use error::Error;
 use gadget_utils_evm::get_provider_http;
-pub use state::{get_default_state, get_default_state_json, AnvilState};
+pub use state::{AnvilState, get_default_state, get_default_state_json};
 
 pub type Container = ContainerAsync<GenericImage>;
 

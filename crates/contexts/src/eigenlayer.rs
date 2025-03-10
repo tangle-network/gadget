@@ -1,6 +1,6 @@
-pub use gadget_clients::eigenlayer::client::EigenlayerClient;
+use blueprint_runner::config::BlueprintEnvironment;
 use gadget_clients::Error;
-use gadget_config::GadgetConfiguration;
+pub use gadget_clients::eigenlayer::client::EigenlayerClient;
 
 /// Provides access to Eigenlayer utilities through its [`EigenlayerClient`].
 #[async_trait::async_trait]
@@ -9,7 +9,7 @@ pub trait EigenlayerContext {
 }
 
 #[async_trait::async_trait]
-impl EigenlayerContext for GadgetConfiguration {
+impl EigenlayerContext for BlueprintEnvironment {
     async fn eigenlayer_client(&self) -> Result<EigenlayerClient, Error> {
         Ok(EigenlayerClient::new(self.clone()))
     }

@@ -8,7 +8,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use gadget_blueprint_serde::{new_bounded_string, BoundedVec, Field};
+//! use gadget_blueprint_serde::{BoundedVec, Field, new_bounded_string};
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -70,7 +70,7 @@ use error::Result;
 /// # Examples
 ///
 /// ```rust
-/// use gadget_blueprint_serde::{new_bounded_string, BoundedVec, Field};
+/// use gadget_blueprint_serde::{BoundedVec, Field, new_bounded_string};
 /// use serde::Serialize;
 ///
 /// #[derive(Serialize)]
@@ -117,7 +117,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use gadget_blueprint_serde::{new_bounded_string, BoundedVec, Field};
+/// use gadget_blueprint_serde::{BoundedVec, Field, new_bounded_string};
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize, Debug)]

@@ -5,6 +5,7 @@ use crate::types::{GadgetProcess, ProcessOutput, SerializedGadgetProcess, Status
 use crate::utils::get_process_info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::fs;
 use sysinfo::{Pid, System};
 use tokio::sync::broadcast;
@@ -149,10 +150,14 @@ impl GadgetProcessManager {
         loop {
             match process.read_until_default_timeout().await {
                 Ok(ProcessOutput::Output(output)) => {
-                    output_stream.push_str(&format!("{output:?}\n"));
+                    output_stream
+                        .write_fmt(format_args!("{output:?}\n"))
+                        .map_err(Error::Fmt)?;
                 }
                 Ok(ProcessOutput::Exhausted(output)) => {
-                    output_stream.push_str(&format!("{output:?}\n"));
+                    output_stream
+                        .write_fmt(format_args!("{output:?}\n"))
+                        .map_err(Error::Fmt)?;
                     break;
                 }
                 Ok(ProcessOutput::Waiting) => {}

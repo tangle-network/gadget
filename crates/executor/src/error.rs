@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt, io};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -17,6 +17,8 @@ pub enum Error {
     StreamError(sysinfo::Pid, String),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
+    #[error("Formatting error: {0}")]
+    Fmt(#[from] fmt::Error),
     #[error("JSON serialization error: {0}")]
     SerdeJson(#[from] serde_json::Error),
     #[error("Process startup error: {0}")]
