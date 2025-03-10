@@ -227,14 +227,13 @@ pub enum DeployTarget {
 }
 
 #[tokio::main]
-#[allow(clippy::needless_return)]
+#[allow(clippy::needless_return, clippy::too_many_lines)]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     init_tracing_subscriber();
     let args: Vec<String> = if std::env::args()
         .nth(1)
-        .map(|x| x.eq("tangle"))
-        .unwrap_or(false)
+        .is_some_and(|x| x.eq("tangle"))
     {
         // since this runs as a cargo subcommand, we need to skip the first argument
         // to get the actual arguments for the subcommand
@@ -371,7 +370,7 @@ async fn main() -> color_eyre::Result<()> {
                         let opts = EigenlayerDeployOpts::new(
                             rpc_url
                                 .as_ref()
-                                .map(|s| s.to_string())
+                                .map(ToString::to_string)
                                 .ok_or_else(|| {
                                     color_eyre::Report::msg(
                                         "The --rpc-url flag is required when deploying to a non-local network",
@@ -400,7 +399,7 @@ async fn main() -> color_eyre::Result<()> {
                     settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
                 if !settings_file.exists() {
                     return Err(color_eyre::Report::msg(format!(
-                        "The --settings-file flag needs to be provided with a valid path, or the file {settings_file:?} needs to exist",
+                        "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist", settings_file.display()
                     )));
                 }
                 let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
