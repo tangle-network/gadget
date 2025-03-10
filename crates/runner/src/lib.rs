@@ -129,7 +129,7 @@ where
     }
 
     /// Append a background service to the list
-    pub fn background_service(mut self, service: impl BackgroundService + Send + 'static) -> Self {
+    pub fn background_service(mut self, service: impl BackgroundService + 'static) -> Self {
         self.background_services
             .push(DynBackgroundService::boxed(service));
         self
