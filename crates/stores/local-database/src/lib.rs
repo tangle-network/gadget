@@ -290,7 +290,7 @@ mod tests {
         for i in 0..10 {
             let db_clone = Arc::clone(&db);
             let handle = thread::spawn(move || {
-                db_clone.set(&format!("key{}", i), i as u32).unwrap();
+                db_clone.set(&format!("key{}", i), i).unwrap();
             });
             handles.push(handle);
         }
@@ -302,7 +302,7 @@ mod tests {
 
         assert_eq!(db.len(), 10);
         for i in 0..10 {
-            assert_eq!(db.get(&format!("key{}", i)), Some(i as u32));
+            assert_eq!(db.get(&format!("key{}", i)), Some(i));
         }
     }
 }
