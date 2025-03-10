@@ -40,7 +40,6 @@ gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }
 gadget-chain-setup = { workspace = true, features = ["std", "tangle", "anvil"] }
-blueprint-runner = { workspace = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
 

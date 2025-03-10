@@ -917,6 +917,7 @@ fn init_tracing_subscriber() {
         .init();
 }
 
+#[must_use]
 pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
     AssetSecurityCommitment {
         asset: a,
@@ -924,6 +925,19 @@ pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitm
     }
 }
 
+/// Waits for a transaction to be included in a block and returns the success event.
+///
+/// # Arguments
+///
+/// * `res` - A `TxProgress` object representing the progress of a transaction.
+///
+/// # Returns
+///
+/// A `Result` containing the success event or an error.
+///
+/// # Panics
+///
+/// Panics if the transaction fails to be included in a block.
 pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
     mut res: TxProgress<T, C>,
 ) -> ExtrinsicEvents<T> {

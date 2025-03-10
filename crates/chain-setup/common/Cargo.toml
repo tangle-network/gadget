@@ -1,26 +1,23 @@
 [package]
 name = "gadget-chain-setup-common"
 version = "0.1.0"
-edition = "2024"
+description = "Common chain setup utilities for use with the Blueprint SDK"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 gadget-std = { workspace = true }
-gadget-logging = { workspace = true }
-tracing = { workspace = true }
-dirs = { workspace = true }
-reqwest = { workspace = true, features = ["json", "default-tls"] }
-serde_json = { workspace = true }
 color-eyre = { workspace = true }
 
 gadget-networking = { workspace = true }
-gadget-config = { workspace = true, features = ["tangle", "networking"] }
 gadget-contexts = { workspace = true, features = ["tangle"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
 gadget-clients = { workspace = true, features = ["tangle"] }
-gadget-core-testing-utils = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-blueprint-serde = { workspace = true }
-gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-crypto = { workspace = true, features = [
     "k256",
     "sr25519-schnorrkel",
@@ -31,36 +28,21 @@ gadget-crypto = { workspace = true, features = [
     "sp-core-bls",
     "tangle-pair-signer",
 ] }
-tnt-core-bytecode = { workspace = true }
-
-alloy-provider = { workspace = true, features = ["ws"] }
 alloy-signer-local = { workspace = true }
-alloy-rpc-types = { workspace = true, features = ["eth"] }
-alloy-rpc-types-eth = { workspace = true }
-alloy-json-rpc = { workspace = true }
-alloy-transport = { workspace = true }
-alloy-sol-types = { workspace = true }
-alloy-primitives = { workspace = true }
 sp-core = { workspace = true }
 tangle-subxt = { workspace = true }
-
-async-trait = { workspace = true }
-futures = { workspace = true }
-tempfile = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-gadget-client-tangle = { workspace = true }
-url = { workspace = true }
 thiserror = { workspace = true }
-cargo_metadata = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
+    "sp-core/std",
+    "tangle-subxt/std",
     "gadget-std/std",
     "gadget-networking/std",
-    "gadget-config/std",
     "gadget-contexts/std",
     "gadget-crypto-tangle-pair-signer/std",
+    "gadget-crypto/std",
     "gadget-clients/std",
     "gadget-keystore/std",
     "gadget-blueprint-serde/std",

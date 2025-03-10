@@ -433,17 +433,20 @@ impl<K: KeyType> NetworkBehaviour for BlueprintProtocolBehaviour<K> {
                     };
 
                     let public_key = K::public_from_secret(&key_pair);
-                    self.send_request(&e.peer_id, InstanceMessageRequest::Handshake {
-                        verification_id_key: if self.use_address_for_handshake_verification {
-                            VerificationIdentifierKey::EvmAddress(
-                                get_address_from_compressed_pubkey(&public_key.to_bytes()),
-                            )
-                        } else {
-                            VerificationIdentifierKey::InstancePublicKey(public_key)
+                    self.send_request(
+                        &e.peer_id,
+                        InstanceMessageRequest::Handshake {
+                            verification_id_key: if self.use_address_for_handshake_verification {
+                                VerificationIdentifierKey::EvmAddress(
+                                    get_address_from_compressed_pubkey(&public_key.to_bytes()),
+                                )
+                            } else {
+                                VerificationIdentifierKey::InstancePublicKey(public_key)
+                            },
+                            signature,
+                            msg: handshake_msg,
                         },
-                        signature,
-                        msg: handshake_msg,
-                    });
+                    );
 
                     debug!(%e.peer_id, "Sent handshake request");
                     self.outbound_handshakes.insert(e.peer_id, Instant::now());

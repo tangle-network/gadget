@@ -61,7 +61,7 @@ sol! {
     constructor(address payable _protocolFeesReceiver);
 }
 
-pub(crate) async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
+pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     evm_rpc_endpoint: &str,
     client: &TestClient,
     account_id: &T,
@@ -311,7 +311,7 @@ async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
     val.map_err(Into::into)
 }
 
-pub(crate) async fn wait_for_completion_of_tangle_job(
+pub async fn wait_for_completion_of_tangle_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
@@ -362,7 +362,7 @@ async fn get_next_service_id(client: &TestClient) -> Result<u64, TransactionErro
     Ok(res)
 }
 
-pub(crate) async fn get_latest_mbsm_revision(
+pub async fn get_latest_mbsm_revision(
     client: &TestClient,
 ) -> Result<Option<(u64, H160)>, TransactionError> {
     let call = api::storage()
@@ -437,7 +437,7 @@ async fn get_next_request_id(client: &TestClient) -> Result<u64, TransactionErro
     Ok(next_request_id)
 }
 
-pub(crate) async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
+pub async fn setup_operator_and_service_multiple<T: Signer<TangleConfig>>(
     clients: &[TestClient],
     sr25519_signers: &[T],
     blueprint_id: u64,

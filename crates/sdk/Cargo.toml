@@ -26,8 +26,9 @@ gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
 document-features = { workspace = true }
-gadget-chain-setup = { workspace = true }
 async-trait = { workspace = true }
+gadget-chain-setup = { workspace = true }
+
 
 # Macros
 blueprint-macros = { workspace = true, optional = true }
@@ -85,6 +86,7 @@ std = [
     "gadget-logging/std",
     # Tangle
     "tangle-subxt/std",
+    "gadget-utils/std",
     # Extras
     "blueprint-tangle-extra?/std",
     "blueprint-evm-extra?/std",
@@ -95,6 +97,7 @@ std = [
 web = [
     # Tangle
     "tangle-subxt/web",
+    "gadget-utils/web"
 ]
 
 ## Enable [tracing] support

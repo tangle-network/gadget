@@ -56,6 +56,7 @@ default = ["std", "networking"]
 std = [
     "gadget-keystore/std",
     "gadget-std/std",
+    "gadget-utils/std",
 ]
 
 ## Enable networking support for [`BlueprintEnvironment`](crate::config::BlueprintEnvironment)

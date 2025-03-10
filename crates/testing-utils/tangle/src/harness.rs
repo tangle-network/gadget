@@ -17,8 +17,8 @@ use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_logging::debug;
-use std::io;
-use std::path::{Path, PathBuf};
+use gadget_std::io;
+use gadget_std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
@@ -261,9 +261,9 @@ where
     /// [`read_cargo_toml_file()`]: gadget_core_testing_utils::read_cargo_toml_file
     pub fn create_deploy_opts(
         &self,
-        manifest_path: std::path::PathBuf,
-    ) -> io::Result<cargo_tangle::deploy::tangle::Opts> {
-        Ok(cargo_tangle::deploy::tangle::Opts {
+        manifest_path: PathBuf,
+    ) -> io::Result<gadget_chain_setup::tangle::deploy::Opts> {
+        Ok(gadget_chain_setup::tangle::deploy::Opts {
             pkg_name: Some(self.get_blueprint_name(&manifest_path)?),
             http_rpc_url: self.http_endpoint.to_string(),
             ws_rpc_url: self.ws_endpoint.to_string(),

@@ -1,8 +1,8 @@
 use alloy_signer_local::PrivateKeySigner;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::run_blueprint_manager;
+use blueprint_runner::config::BlueprintEnvironment;
 use color_eyre::eyre::{Result, eyre};
-use gadget_config::GadgetConfiguration;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_logging::info;
 use sp_core::sr25519;
@@ -28,12 +28,23 @@ pub struct RunOpts {
 }
 
 /// Runs a blueprint using the blueprint manager
+///
+/// # Arguments
+///
+/// * `opts` - Options for running the blueprint
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Blueprint ID is not provided
+/// * Failed to create or configure the blueprint manager
+/// * Failed to run the blueprint
 pub async fn run_blueprint(opts: RunOpts) -> Result<()> {
     let blueprint_id = opts
         .blueprint_id
         .ok_or_else(|| eyre!("Blueprint ID is required"))?;
 
-    let mut gadget_config = GadgetConfiguration::default();
+    let mut gadget_config = BlueprintEnvironment::default();
     gadget_config.http_rpc_endpoint = opts.http_rpc_url.clone();
     gadget_config.ws_rpc_endpoint = opts.ws_rpc_url.clone();
 

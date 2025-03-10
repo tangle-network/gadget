@@ -36,6 +36,7 @@ color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"
 [features]
 default = ["std"]
 std = [
+	"blueprint-runner/std",
 	"gadget-client-core/std",
 	"gadget-keystore/std",
 	"gadget-logging/std",

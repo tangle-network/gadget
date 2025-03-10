@@ -2,7 +2,7 @@
 use blueprint_runner::tangle::config::{decompress_pubkey, PriceTargets};
 use color_eyre::Result;
 use gadget_chain_setup::tangle::InputValue;
-use gadget_clients::tangle::client::{BlueprintId, OnlineClient};
+use gadget_clients::tangle::client::OnlineClient;
 use gadget_crypto::sp_core::SpSr25519;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::{Keystore, KeystoreConfig};
@@ -26,6 +26,26 @@ use gadget_keystore::backends::Backend;
 use gadget_utils_tangle::TxProgressExt;
 use serde_json;
 
+/// Lists all service requests from the Tangle Network.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+///
+/// # Returns
+///
+/// A vector of tuples containing request IDs and service requests.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to query storage
+/// * Failed to parse storage data
+///
+/// # Panics
+///
+/// Panics if the key bytes cannot be converted to a request ID.
 pub async fn list_requests(
     ws_rpc_url: String,
 ) -> Result<Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>> {
@@ -49,13 +69,22 @@ pub async fn list_requests(
     while let Some(result) = storage_query.next().await {
         let result = result?;
         let request = result.value;
-        let id = u64::from_le_bytes(result.key_bytes[32..].try_into().unwrap());
+        let id = u64::from_le_bytes(
+            result.key_bytes[32..]
+                .try_into()
+                .expect("Invalid key bytes format"),
+        );
         requests.push((id, request));
     }
 
     Ok(requests)
 }
 
+/// Prints the given list of service requests with their details.
+///
+/// # Arguments
+///
+/// * `requests` - A vector of tuples containing request IDs and service requests.
 pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>) {
     if requests.is_empty() {
         gadget_logging::info!("No service requests found");
@@ -78,6 +107,29 @@ pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>
     }
 }
 
+/// Accepts a service request.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+/// * `_min_exposure_percent` - Minimum exposure percentage (currently unused)
+/// * `_max_exposure_percent` - Maximum exposure percentage (currently unused)
+/// * `restaking_percent` - Percentage of stake to restake
+/// * `keystore_uri` - URI for the keystore
+/// * `request_id` - ID of the request to accept
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to sign or submit the transaction
+/// * Transaction failed
+///
+/// # Panics
+///
+/// Panics if:
+/// * Failed to create keystore
+/// * Failed to get keys from keystore
 pub async fn accept_request(
     ws_rpc_url: String,
     _min_exposure_percent: u8,
@@ -111,6 +163,26 @@ pub async fn accept_request(
     Ok(())
 }
 
+/// Rejects a service request.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+/// * `keystore_uri` - URI for the keystore
+/// * `request_id` - ID of the request to reject
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to sign or submit the transaction
+/// * Transaction failed
+///
+/// # Panics
+///
+/// Panics if:
+/// * Failed to create keystore
+/// * Failed to get keys from keystore
 pub async fn reject_request(
     ws_rpc_url: String,
     keystore_uri: String,
@@ -136,6 +208,30 @@ pub async fn reject_request(
     Ok(())
 }
 
+/// Requests a service from the Tangle Network.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+/// * `blueprint_id` - ID of the blueprint to request
+/// * `min_exposure_percent` - Minimum exposure percentage
+/// * `max_exposure_percent` - Maximum exposure percentage
+/// * `target_operators` - List of target operators
+/// * `value` - Value to stake
+/// * `keystore_uri` - URI for the keystore
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to sign or submit the transaction
+/// * Transaction failed
+///
+/// # Panics
+///
+/// Panics if:
+/// * Failed to create keystore
+/// * Failed to get keys from keystore
 pub async fn request_service(
     ws_rpc_url: String,
     blueprint_id: u64,
@@ -154,7 +250,8 @@ pub async fn request_service(
     let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
     let signer = TanglePairSigner::new(pair.0);
 
-    let min_operators = target_operators.len() as u32;
+    let min_operators = u32::try_from(target_operators.len())
+        .map_err(|_| color_eyre::eyre::eyre!("Too many operators"))?;
     let security_requirements = vec![AssetSecurityRequirement {
         asset: Asset::Custom(0),
         min_exposure_percent: Percent(min_exposure_percent),
@@ -164,10 +261,10 @@ pub async fn request_service(
         .services()
         .request(
             None,
-            blueprint_id as BlueprintId,
+            blueprint_id,
             Vec::new(),
             target_operators,
-            Default::default(),
+            Vec::default(),
             security_requirements,
             1000,
             Asset::Custom(0),
@@ -184,6 +281,37 @@ pub async fn request_service(
     Ok(())
 }
 
+/// Submits a job to a service.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+/// * `service_id` - ID of the service to submit the job to
+/// * `blueprint_id` - ID of the blueprint
+/// * `keystore_uri` - URI for the keystore
+/// * `job` - Job ID
+/// * `params_file` - Optional path to a file containing job parameters
+///
+/// # Returns
+///
+/// Details of the job call.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to sign or submit the transaction
+/// * Transaction failed
+/// * Blueprint not found
+/// * Job ID not found in blueprint
+/// * Parameter file not found or invalid
+///
+/// # Panics
+///
+/// Panics if:
+/// * Failed to create keystore
+/// * Failed to get keys from keystore
+/// * Job was not called successfully
 pub async fn submit_job(
     ws_rpc_url: String,
     service_id: Option<u64>,
@@ -288,12 +416,31 @@ pub async fn submit_job(
     panic!("Job was not called");
 }
 
-/// Helper function to decode a BoundedString to a regular String
+/// Helper function to decode a `BoundedString` to a regular String
 fn decode_bounded_string(bounded_string: &BoundedString) -> String {
     String::from_utf8_lossy(&bounded_string.0.0).to_string()
 }
 
 /// Load job arguments from a JSON file
+///
+/// # Arguments
+///
+/// * `file_path` - Path to the JSON file
+/// * `param_types` - Types of parameters expected
+///
+/// # Returns
+///
+/// A vector of input values parsed from the file.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * File not found
+/// * File content is not valid JSON
+/// * JSON is not an array
+/// * Number of arguments doesn't match expected parameters
+/// * Arguments don't match expected types
+#[allow(clippy::too_many_lines)]
 fn load_job_args_from_file(file_path: &str, param_types: &[FieldType]) -> Result<Vec<InputValue>> {
     use std::fs;
     use std::path::Path;
@@ -333,28 +480,37 @@ fn load_job_args_from_file(file_path: &str, param_types: &[FieldType]) -> Result
                 let value = arg.as_u64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be a u8 integer", i)
                 })?;
-                if value > u8::MAX as u64 {
+                if value > u64::from(u8::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds u8 range", i));
                 }
-                InputValue::Uint8(value as u8)
+                InputValue::Uint8(
+                    u8::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to u8"))?,
+                )
             }
             FieldType::Uint16 => {
                 let value = arg.as_u64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be a u16 integer", i)
                 })?;
-                if value > u16::MAX as u64 {
+                if value > u64::from(u16::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds u16 range", i));
                 }
-                InputValue::Uint16(value as u16)
+                InputValue::Uint16(
+                    u16::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to u16"))?,
+                )
             }
             FieldType::Uint32 => {
                 let value = arg.as_u64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be a u32 integer", i)
                 })?;
-                if value > u32::MAX as u64 {
+                if value > u64::from(u32::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds u32 range", i));
                 }
-                InputValue::Uint32(value as u32)
+                InputValue::Uint32(
+                    u32::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to u32"))?,
+                )
             }
             FieldType::Uint64 => {
                 let value = arg.as_u64().ok_or_else(|| {
@@ -366,28 +522,37 @@ fn load_job_args_from_file(file_path: &str, param_types: &[FieldType]) -> Result
                 let value = arg.as_i64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be an i8 integer", i)
                 })?;
-                if value < i8::MIN as i64 || value > i8::MAX as i64 {
+                if value < i64::from(i8::MIN) || value > i64::from(i8::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds i8 range", i));
                 }
-                InputValue::Int8(value as i8)
+                InputValue::Int8(
+                    i8::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to i8"))?,
+                )
             }
             FieldType::Int16 => {
                 let value = arg.as_i64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be an i16 integer", i)
                 })?;
-                if value < i16::MIN as i64 || value > i16::MAX as i64 {
+                if value < i64::from(i16::MIN) || value > i64::from(i16::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds i16 range", i));
                 }
-                InputValue::Int16(value as i16)
+                InputValue::Int16(
+                    i16::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to i16"))?,
+                )
             }
             FieldType::Int32 => {
                 let value = arg.as_i64().ok_or_else(|| {
                     color_eyre::eyre::eyre!("Argument {} must be an i32 integer", i)
                 })?;
-                if value < i32::MIN as i64 || value > i32::MAX as i64 {
+                if value < i64::from(i32::MIN) || value > i64::from(i32::MAX) {
                     return Err(color_eyre::eyre::eyre!("Argument {} exceeds i32 range", i));
                 }
-                InputValue::Int32(value as i32)
+                InputValue::Int32(
+                    i32::try_from(value)
+                        .map_err(|_| color_eyre::eyre::eyre!("Failed to convert to i32"))?,
+                )
             }
             FieldType::Int64 => {
                 let value = arg.as_i64().ok_or_else(|| {
@@ -506,6 +671,27 @@ fn prompt_for_job_params(param_types: &[FieldType]) -> Result<Vec<InputValue>> {
     Ok(args)
 }
 
+/// Registers a blueprint.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+/// * `blueprint_id` - ID of the blueprint to register
+/// * `keystore_uri` - URI for the keystore
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to sign or submit the transaction
+/// * Transaction failed
+/// * Missing ECDSA key
+///
+/// # Panics
+///
+/// Panics if:
+/// * Failed to create keystore
+/// * Failed to get keys from keystore
 pub async fn register(
     ws_rpc_url: String,
     blueprint_id: u64,
