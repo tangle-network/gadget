@@ -24,7 +24,7 @@ impl<E> Route<E> {
         T::Future: Send + 'static,
     {
         Self(BoxCloneSyncService::new(
-            svc.map_response(|r| r.into_job_result()),
+            svc.map_response(IntoJobResult::into_job_result),
         ))
     }
 

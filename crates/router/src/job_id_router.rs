@@ -1,7 +1,6 @@
 use crate::boxed::BoxedIntoRoute;
 use crate::future::{Route, RouteFuture};
 use crate::routing::RouteId;
-use alloc::borrow::Cow;
 use alloc::vec::Vec;
 use blueprint_core::{IntoJobId, IntoJobResult, Job, JobCall, JobId};
 use core::{fmt, iter};
@@ -64,7 +63,7 @@ impl<Ctx> JobIdRouter<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    pub(super) fn route<I, J, T>(&mut self, job_id: I, job: J) -> Result<(), Cow<'static, str>>
+    pub(super) fn route<I, J, T>(&mut self, job_id: I, job: J)
     where
         I: IntoJobId,
         J: Job<T, Ctx>,
@@ -74,15 +73,13 @@ where
         self.job_to_route_id.insert(job_id.into_job_id(), id);
         self.routes
             .insert(id, Handler::Boxed(BoxedIntoRoute::from_job(job)));
-
-        Ok(())
     }
 
     pub(super) fn route_service<I, T>(
         &mut self,
         job_id: I,
         service: T,
-    ) -> Result<(), Cow<'static, str>>
+    )
     where
         I: IntoJobId,
         T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
@@ -92,10 +89,9 @@ where
         let id = self.next_route_id();
         self.job_to_route_id.insert(job_id.into_job_id(), id);
         self.routes.insert(id, Handler::Route(Route::new(service)));
-        Ok(())
     }
 
-    pub(super) fn always<J, T>(&mut self, job: J) -> Result<(), Cow<'static, str>>
+    pub(super) fn always<J, T>(&mut self, job: J)
     where
         J: Job<T, Ctx>,
         T: 'static,
@@ -103,8 +99,6 @@ where
         let _ = self.fallback.take();
         self.always_routes
             .push(Handler::Boxed(BoxedIntoRoute::from_job(job)));
-
-        Ok(())
     }
 
     pub(super) fn layer<L>(self, layer: L) -> JobIdRouter<Ctx>
@@ -189,7 +183,7 @@ where
 
             blueprint_core::trace!(?call, "No job found, checking always routes");
             let catch_all_futures = self.call_always_routes(call, context)?;
-            return Ok(FuturesUnordered::from_iter(catch_all_futures));
+            return Ok(catch_all_futures.collect::<FuturesUnordered<_>>());
         };
 
         blueprint_core::trace!("Job found for id {:?}", parts.job_id);
@@ -206,10 +200,8 @@ where
         };
 
         match self.call_always_routes(call, context) {
-            Ok(catch_all_futures) => Ok(FuturesUnordered::from_iter(
-                iter::once(matched_call_future).chain(catch_all_futures),
-            )),
-            Err(_) => Ok(FuturesUnordered::from_iter(iter::once(matched_call_future))),
+            Ok(catch_all_futures) => Ok(iter::once(matched_call_future).chain(catch_all_futures).collect::<FuturesUnordered<_>>()),
+            Err(_) => Ok(iter::once(matched_call_future).collect::<FuturesUnordered<_>>()),
         }
     }
 
@@ -243,13 +235,12 @@ impl<Ctx> JobIdRouter<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    pub(super) fn fallback<J, T>(&mut self, job: J) -> Result<(), Cow<'static, str>>
+    pub(super) fn fallback<J, T>(&mut self, job: J)
     where
         J: Job<T, Ctx>,
         T: 'static,
     {
         self.fallback = Some(Handler::Boxed(BoxedIntoRoute::from_job(job)));
-        Ok(())
     }
 
     pub(super) fn call_fallback(
@@ -269,8 +260,8 @@ where
 impl<Ctx> Default for JobIdRouter<Ctx> {
     fn default() -> Self {
         Self {
-            routes: Default::default(),
-            job_to_route_id: Default::default(),
+            routes: HashMap::default(),
+            job_to_route_id: HashMap::default(),
             prev_route_id: RouteId(0),
             always_routes: Vec::new(),
             fallback: None,
@@ -282,7 +273,9 @@ impl<Ctx> fmt::Debug for JobIdRouter<Ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("JobIdRouter")
             .field("routes", &self.routes)
-            .finish()
+            .field("always_routes", &self.always_routes)
+            .field("fallback", &self.fallback)
+            .finish_non_exhaustive()
     }
 }
 
