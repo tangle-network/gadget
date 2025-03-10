@@ -1,14 +1,12 @@
 use super::*;
 use alloy_primitives::address;
 use alloy_provider::Provider;
+use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use client::EigenlayerClient;
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
-use gadget_config::{
-    load, protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    GadgetConfiguration,
-};
-use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
+use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
 use gadget_eigenlayer_testing_utils::env::EigenlayerTestEnvironment;
+use gadget_eigenlayer_testing_utils::env::setup_eigenlayer_test_environment;
 
 struct TestEnvironment {
     // Unused, stored here to keep it from dropping early
@@ -17,7 +15,7 @@ struct TestEnvironment {
     http_endpoint: String,
     #[expect(dead_code)]
     ws_endpoint: String,
-    config: GadgetConfiguration,
+    config: BlueprintEnvironment,
     #[expect(dead_code)]
     env: EigenlayerTestEnvironment,
 }
@@ -32,9 +30,9 @@ async fn setup_test_environment() -> TestEnvironment {
         String::new(),
         None,
         SupportedChains::LocalTestnet,
-        EigenlayerContractAddresses::default(),
+        EigenlayerProtocolSettings::default(),
     );
-    let config = load(context_config).unwrap();
+    let config = BlueprintEnvironment::load_with_config(context_config).unwrap();
 
     let env = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 

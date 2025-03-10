@@ -5,7 +5,7 @@
 //! ## Features
 #![doc = document_features::document_features!()]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![warn(missing_docs)]
+// TODO: #![warn(missing_docs)]
 
 extern crate alloc;
 
@@ -33,15 +33,20 @@ use tokio::sync::oneshot;
 use tower::Service;
 
 /// Configuration for the blueprint registration procedure
-#[allow(async_fn_in_trait)]
 #[dynosaur::dynosaur(DynBlueprintConfig)]
 pub trait BlueprintConfig: Send + Sync {
-    async fn register(&self, _env: &BlueprintEnvironment) -> Result<(), Error> {
-        Ok(())
+    fn register(
+        &self,
+        _env: &BlueprintEnvironment,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        async { Ok(()) }
     }
 
-    async fn requires_registration(&self, _env: &BlueprintEnvironment) -> Result<bool, Error> {
-        Ok(true)
+    fn requires_registration(
+        &self,
+        _env: &BlueprintEnvironment,
+    ) -> impl Future<Output = Result<bool, Error>> + Send {
+        async { Ok(true) }
     }
 
     /// Controls whether the runner should exit after registration
@@ -57,17 +62,18 @@ unsafe impl Sync for DynBlueprintConfig<'_> {}
 
 impl BlueprintConfig for () {}
 
-#[allow(async_fn_in_trait)]
 #[dynosaur::dynosaur(DynBackgroundService)]
 pub trait BackgroundService: Send + Sync {
-    async fn start(&self) -> Result<oneshot::Receiver<Result<(), Error>>, Error>;
+    fn start(
+        &self,
+    ) -> impl Future<Output = Result<oneshot::Receiver<Result<(), Error>>, Error>> + Send;
 }
 
 unsafe impl Send for DynBackgroundService<'_> {}
 unsafe impl Sync for DynBackgroundService<'_> {}
 
-type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Unpin + 'static>;
-type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Unpin + 'static>;
+type Producer = Box<dyn Stream<Item = Result<JobCall, BoxError>> + Send + Sync + Unpin + 'static>;
+type Consumer = Box<dyn Sink<JobResult, Error = BoxError> + Send + Sync + Unpin + 'static>;
 
 /// A builder for a [`BlueprintRunner`]
 pub struct BlueprintRunnerBuilder<F> {
@@ -97,7 +103,7 @@ where
     /// [producer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/producers/index.html
     pub fn producer<E>(
         mut self,
-        producer: impl Stream<Item = Result<JobCall, E>> + Send + Unpin + 'static,
+        producer: impl Stream<Item = Result<JobCall, E>> + Send + Sync + Unpin + 'static,
     ) -> Self
     where
         E: Into<BoxError>,
@@ -112,7 +118,7 @@ where
     /// [consumer]: https://docs.rs/blueprint_sdk/latest/blueprint_sdk/consumers/index.html
     pub fn consumer<E>(
         mut self,
-        consumer: impl Sink<JobResult, Error = E> + Send + Unpin + 'static,
+        consumer: impl Sink<JobResult, Error = E> + Send + Sync + Unpin + 'static,
     ) -> Self
     where
         E: Into<BoxError>,
@@ -123,7 +129,7 @@ where
     }
 
     /// Append a background service to the list
-    pub fn background_service(mut self, service: impl BackgroundService + 'static) -> Self {
+    pub fn background_service(mut self, service: impl BackgroundService + Send + 'static) -> Self {
         self.background_services
             .push(DynBackgroundService::boxed(service));
         self
@@ -169,6 +175,10 @@ where
         let Some(router) = self.router else {
             return Err(Error::NoRouter);
         };
+
+        if self.producers.is_empty() {
+            return Err(Error::NoProducers);
+        }
 
         let runner = FinalizedBlueprintRunner {
             config: self.config,

@@ -1,5 +1,20 @@
 use alloc::sync::Arc;
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use tangle_subxt::subxt;
+
+pub(crate) struct SyncFuture<T>(pub T);
+
+unsafe impl<T: Send> Sync for SyncFuture<T> {}
+
+impl<T: Future> Future for SyncFuture<T> {
+    type Output = T::Output;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let inner = unsafe { self.map_unchecked_mut(|s| &mut s.0) };
+        inner.poll(cx)
+    }
+}
 
 /// Send a transaction to the Tangle network.
 ///

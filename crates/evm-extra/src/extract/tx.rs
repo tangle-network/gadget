@@ -13,7 +13,7 @@ impl IntoJobResult for Tx {
     fn into_job_result(self) -> Option<blueprint_core::JobResult> {
         let tx_bytes = serde_json::to_vec(&self.0)
             .inspect_err(|e| {
-                blueprint_core::error!("Failed to serialize transaction: {e}, details: {e:?}")
+                blueprint_core::error!("Failed to serialize transaction: {e}, details: {e:?}");
             })
             .ok()?;
         let job_result = blueprint_core::JobResult::new(tx_bytes.into());

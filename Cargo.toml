@@ -1,12 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "cli",
-    "blueprints/*",
-    "crates/*",
-    "examples/incredible-squaring-eigenlayer"
-]
-exclude = ["blueprints/incredible-squaring-symbiotic"]
+members = ["cli", "crates/*"]
 
 [workspace.package]
 authors = ["Tangle Network"]
@@ -28,8 +22,8 @@ single_match_else = "allow"
 uninlined_format_args = "allow"
 needless_late_init = "allow"
 struct_excessive_bools = "allow"
-large_enum_variant = "allow" # TODO: Fix instances of this
-result_large_err = "allow" # TODO: Fix instances of this
+large_enum_variant = "allow"                 # TODO: Fix instances of this
+result_large_err = "allow"                   # TODO: Fix instances of this
 similar_names = "allow"
 
 [workspace.lints.rustdoc]
@@ -50,15 +44,12 @@ blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-fe
 blueprint-producers-extra = { version = "0.1.0", path = "crates/producers-extra", default-features = false }
 
 # Blueprint Examples
-testing = { version = "0.1.0", path = "./blueprints/testing", default-features = false }
-blueprint-examples = { version = "0.1.0", path = "./blueprints/examples", default-features = false }
-incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
-incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./blueprints/incredible-squaring-eigenlayer", default-features = false }
+incredible-squaring-blueprint = { version = "0.1.1", path = "./examples/incredible-squaring", default-features = false }
+incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./examples/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
 blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
-blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
 
@@ -88,8 +79,6 @@ gadget-executor = { version = "0.1.0", path = "./crates/executor", default-featu
 # Macros
 blueprint-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
 gadget-blueprint-proc-macro-core = { version = "0.4.0", path = "./crates/macros/core", default-features = false }
-gadget-blueprint-proc-macro = { version = "0.6.0", path = "./crates/macros/blueprint-proc-macro", default-features = false }
-gadget-blueprint-proc-macro-playground = { version = "0.1.1", path = "./crates/macros/playground", default-features = false }
 gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
 
 # Stores
@@ -97,7 +86,6 @@ gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features 
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
 
 # SDK
-gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
@@ -149,7 +137,7 @@ tokio-cron-scheduler = { version = "0.13.0", default-features = false }
 tokio-stream = { version = "0.1.17", default-features = false }
 pin-project-lite = "0.2.7"
 tower = { version = "0.5.2", default-features = false }
-async-stream = { version = "0.3.6", default-features = false}
+async-stream = { version = "0.3.6", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }
@@ -181,7 +169,7 @@ serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_test = { version = "1.0.177", default-features = false }
-dynosaur = { version = "0.1.3", default-features = false }
+dynosaur = { git = "https://github.com/spastorino/dynosaur.git", rev = "7a761a3", default-features = false }
 bytes = { version = "1.10.1", default-features = false }
 hashbrown = { version = "0.15.2", default-features = false }
 

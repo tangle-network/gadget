@@ -49,15 +49,11 @@ async fn requires_registration_ecdsa_impl(env: &BlueprintEnvironment) -> Result<
     let provider = get_provider_http(&env.http_rpc_endpoint);
     let contract_addresses = env.protocol_settings.eigenlayer()?;
 
-    let ecdsa_public = env
-        .keystore()
-        .first_local::<K256Ecdsa>()
-        .map_err(|e| RunnerError::Keystore(e.to_string()))?;
+    let ecdsa_public = env.keystore().first_local::<K256Ecdsa>()?;
     let ecdsa_secret = env
         .keystore()
-        .expose_ecdsa_secret(&ecdsa_public)
-        .map_err(|e| RunnerError::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
-        .ok_or_else(|| RunnerError::Keystore("No ECDSA secret found".into()))?;
+        .expose_ecdsa_secret(&ecdsa_public)?
+        .ok_or_else(|| RunnerError::Other("No ECDSA secret found".into()))?;
     let operator_address = ecdsa_secret
         .alloy_address()
         .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;
@@ -93,15 +89,11 @@ async fn register_ecdsa_impl(
     let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
     let permission_controller_address = contract_addresses.permission_controller_address;
 
-    let ecdsa_public = env
-        .keystore()
-        .first_local::<K256Ecdsa>()
-        .map_err(|e| RunnerError::Keystore(e.to_string()))?;
+    let ecdsa_public = env.keystore().first_local::<K256Ecdsa>()?;
     let ecdsa_secret = env
         .keystore()
-        .expose_ecdsa_secret(&ecdsa_public)
-        .map_err(|e| RunnerError::Keystore(format!("Failed to expose ECDSA secret: {}", e)))?
-        .ok_or_else(|| RunnerError::Keystore("No ECDSA secret found".into()))?;
+        .expose_ecdsa_secret(&ecdsa_public)?
+        .ok_or_else(|| RunnerError::Other("No ECDSA secret found".into()))?;
     let operator_address = ecdsa_secret
         .alloy_address()
         .map_err(|e| RunnerError::Eigenlayer(e.to_string()))?;
@@ -109,7 +101,7 @@ async fn register_ecdsa_impl(
     let operator_private_key = hex::encode(ecdsa_secret.0.to_bytes());
     blueprint_core::info!("Operator private key: {}", operator_private_key);
     let wallet = PrivateKeySigner::from_str(&operator_private_key)
-        .map_err(|_| RunnerError::Keystore("Invalid private key".into()))?;
+        .map_err(|_| RunnerError::Other("Invalid private key".into()))?;
 
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
