@@ -147,13 +147,19 @@ jobs:
         with:
           tool: nextest
 
-      - name: Add extra args
+      - name: Determine nextest profile
         run: |
-          if [[ "${{ matrix.package }}" == "gadget-networking" ]]; then
-            echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
-          else
-            echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
-          fi
+          SERIAL_CRATES=("gadget-tangle-testing-utils" "gadget-networking")
+          PROFILE=ci
+
+          for crate in "${SERIAL_CRATES[@]}"; do
+            if [[ "${{ matrix.package }}" == "$crate" ]]; then
+              PROFILE=serial
+              break
+            fi
+          done
+
+          echo "cargo_nextest_args=--profile $PROFILE" >> $GITHUB_ENV
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: tests

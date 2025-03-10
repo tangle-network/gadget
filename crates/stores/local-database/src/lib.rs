@@ -18,10 +18,12 @@ use serde::{de::DeserializeOwned, Serialize};
 /// ```no_run
 /// use gadget_store_local_database::LocalDatabase;
 ///
-/// let db = LocalDatabase::<u64>::open("data.json");
+/// # fn main() -> Result<(), gadget_store_local_database::Error> {
+/// let db = LocalDatabase::<u64>::open("data.json")?;
 ///
-/// db.set("key", 42);
+/// db.set("key", 42)?;
 /// assert_eq!(db.get("key"), Some(42));
+/// # Ok(()) }
 /// ```
 #[derive(Debug)]
 pub struct LocalDatabase<T> {
