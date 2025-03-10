@@ -23,7 +23,7 @@ where
     }
 }
 
-/// A random number generator that works in both std and no_std environments
+/// A random number generator that works in both std and `no_std` environments
 pub struct GadgetRng(RngImpl);
 
 #[cfg(feature = "std")]
@@ -34,6 +34,7 @@ type RngImpl = StdRng;
 
 impl GadgetRng {
     /// Create a new cryptographically secure random number generator
+    #[must_use]
     pub fn new() -> Self {
         #[cfg(feature = "std")]
         {
@@ -46,10 +47,12 @@ impl GadgetRng {
     }
 
     /// Create a deterministic RNG from a seed (for testing only)
-    #[allow(unused_variables)]
+    #[must_use]
     pub fn from_seed(seed: [u8; 32]) -> Self {
         #[cfg(feature = "std")]
         {
+            // TODO: ??
+            let _ = seed;
             // Always use OsRng in std for security
             Self(rand::rngs::OsRng)
         }
@@ -78,7 +81,7 @@ impl RngCore for GadgetRng {
         self.0.next_u64()
     }
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest)
+        self.0.fill_bytes(dest);
     }
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
         self.0.try_fill_bytes(dest)
@@ -103,6 +106,7 @@ impl RngCore for GadgetRng {
 }
 
 /// Create a deterministic RNG for testing
+#[must_use]
 pub fn test_rng() -> GadgetRng {
     const TEST_SEED: [u8; 32] = [
         1, 0, 0, 0, 23, 0, 0, 0, 200, 1, 0, 0, 210, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

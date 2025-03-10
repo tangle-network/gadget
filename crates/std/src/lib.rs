@@ -57,30 +57,6 @@ pub mod tokio_ext;
 
 pub use num_traits::{One, Zero};
 
-/// Returns the ceiling of the base-2 logarithm of `x`.
-///
-/// ```
-/// use gadget_std::log2;
-///
-/// assert_eq!(log2(16), 4);
-/// assert_eq!(log2(17), 5);
-/// assert_eq!(log2(1), 0);
-/// assert_eq!(log2(0), 0);
-/// assert_eq!(log2(usize::MAX), (core::mem::size_of::<usize>() * 8) as u32);
-/// assert_eq!(log2(1 << 15), 15);
-/// assert_eq!(log2(2usize.pow(18)), 18);
-/// ```
-#[inline(always)]
-pub const fn log2(x: usize) -> u32 {
-    if x == 0 {
-        0
-    } else if x.is_power_of_two() {
-        1usize.leading_zeros() - x.leading_zeros()
-    } else {
-        0usize.leading_zeros() - x.leading_zeros()
-    }
-}
-
 /// Creates parallel iterator over refs if `parallel` feature is enabled.
 ///
 /// Additionally, if the object being iterated implements
