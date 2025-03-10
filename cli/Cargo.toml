@@ -22,7 +22,7 @@ escargot = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
 color-eyre = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["full"] }
 hex = { workspace = true }
 tracing = { workspace = true, features = ["log"] }

@@ -22,7 +22,7 @@ serde.workspace = true
 pin-project-lite = { workspace = true }
 
 # Macros
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["alloc"], optional = true }
 cargo_metadata = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 

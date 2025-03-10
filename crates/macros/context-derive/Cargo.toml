@@ -28,7 +28,7 @@ blueprint-sdk = { workspace = true, features = [
     "tangle",
     "testing",
     "networking",
-    "local-store"
+    "local-store",
 ] }
 
 async-trait.workspace = true

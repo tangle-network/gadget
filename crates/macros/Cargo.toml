@@ -23,7 +23,7 @@ syn = { version = "2.0", features = [
 ] }
 
 # EVM
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true, features = ["alloc"], optional = true }
 
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["macros"] }

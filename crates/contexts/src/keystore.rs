@@ -1,5 +1,4 @@
-use blueprint_runner::config::BlueprintEnvironment;
-use gadget_keystore::{Keystore, KeystoreConfig};
+use gadget_keystore::Keystore;
 
 /// `KeystoreContext` trait provides access to the generic keystore from the context.
 pub trait KeystoreContext {
@@ -7,9 +6,10 @@ pub trait KeystoreContext {
     fn keystore(&self) -> Keystore;
 }
 
-impl KeystoreContext for BlueprintEnvironment {
+#[cfg(feature = "std")]
+impl KeystoreContext for blueprint_runner::config::BlueprintEnvironment {
     fn keystore(&self) -> Keystore {
-        let config = KeystoreConfig::new().fs_root(self.keystore_uri.clone());
+        let config = gadget_keystore::KeystoreConfig::new().fs_root(self.keystore_uri.clone());
         Keystore::new(config).expect("Failed to create keystore")
     }
 }

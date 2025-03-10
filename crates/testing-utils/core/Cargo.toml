@@ -27,4 +27,4 @@ futures = { workspace = true }
 async-trait = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
