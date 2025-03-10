@@ -166,7 +166,7 @@ cid = { version = "0.11.1", default-features = false }
 indexmap = { version = "2.5.0", default-features = false }
 lazy_static = { version = "1.5.0", default-features = false }
 serde = { version = "1.0.208", default-features = false }
-serde_bytes = { version = "0.11.15", default-features = false }
+serde_bytes = { version = "0.11.17", default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_test = { version = "1.0.177", default-features = false }
 dynosaur = { git = "https://github.com/spastorino/dynosaur.git", rev = "7a761a3", default-features = false }
