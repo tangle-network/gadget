@@ -1,0 +1,54 @@
+[package]
+name = "blueprint-tangle-extra"
+version = "0.1.0"
+description = "Tangle Network extra utilities for Blueprint framework"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+blueprint-core.workspace = true
+bytes.workspace = true
+document-features = { workspace = true }
+futures-core.workspace = true
+futures-util.workspace = true
+tower = { workspace = true, features = ["filter"] }
+gadget-blueprint-serde.workspace = true
+gadget-utils = { workspace = true, features = ["tangle"], optional = true }
+tangle-subxt.workspace = true
+serde.workspace = true
+pin-project-lite = { workspace = true }
+
+# Macros
+serde_json = { workspace = true, optional = true }
+cargo_metadata = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+# Metadata types
+cid = { workspace = true, features = ["serde", "alloc"], optional = true }
+
+[dev-dependencies]
+paste = { workspace = true }
+
+[features]
+default = ["std", "tracing", "macros"]
+
+#! ### Core
+
+## Enable standard library support
+std = ["dep:gadget-utils", "futures-util/std", "gadget-utils/std"]
+
+## Enable support for web targets
+web = ["dep:gadget-utils", "futures-util/std", "gadget-utils/web"]
+
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
+tracing = ["blueprint-core/tracing"]
+
+#! ### Other
+
+## Enable access to the metadata types used in `blueprint.json` generation
+metadata-types = ["dep:cid"]
+
+## Enable access to the [`blueprint!`](crate::blueprint) macro
+macros = ["dep:serde_json", "dep:cargo_metadata", "dep:thiserror", "metadata-types"]

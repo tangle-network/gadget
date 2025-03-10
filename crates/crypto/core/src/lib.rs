@@ -4,7 +4,7 @@ use gadget_std::fmt::Debug;
 use gadget_std::hash::Hash;
 use gadget_std::string::String;
 use gadget_std::vec::Vec;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 pub mod aggregation;
 

@@ -9,7 +9,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-config = { workspace = true, features = ["eigenlayer"] }
+blueprint-runner = { workspace = true }
+
 gadget-client-core = { workspace = true }
 gadget-std = { workspace = true }
 gadget-utils-evm = { workspace = true }
@@ -37,6 +38,8 @@ tokio-util = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
+gadget-eigenlayer-testing-utils.workspace = true
 gadget-anvil-testing-utils = { workspace = true }
 gadget-utils-evm = { workspace = true }
 alloy-primitives = { workspace = true }
@@ -45,7 +48,6 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = ["std"]
 std = [
-	"gadget-config/std",
 	"gadget-std/std",
 	"gadget-utils-evm/std",
 	"tokio/full",

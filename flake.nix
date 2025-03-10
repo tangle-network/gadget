@@ -1,5 +1,5 @@
 {
-  description = "Webb Gadgets development environment";
+  description = "Tangle Blueprints development environment";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -11,7 +11,7 @@
       };
     };
     foundry = {
-      url = "github:shazow/foundry.nix/monthly";
+      url = "github:shazow/foundry.nix/stable";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -42,7 +42,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "gadgets";
+          name = "blueprints";
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.clang
@@ -70,7 +70,6 @@
           ];
           packages = [
             pkgs.cargo-nextest
-            pkgs.cargo-machete
             pkgs.cargo-expand
             pkgs.cargo-dist
           ];

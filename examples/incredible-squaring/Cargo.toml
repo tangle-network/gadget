@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["incredible-squaring-lib", "incredible-squaring-bin"]
+
+[workspace.package]
+version = "0.1.1"
+description = "An experimental blueprint"
+edition = "2024"
+
+[workspace.dependencies]
+incredible-squaring-blueprint-lib = { path = "incredible-squaring-lib" }
+
+blueprint-sdk = { path = "../../crates/sdk", default-features = false }
+tokio = { version = "1.43.0", default-features = false }
+color-eyre = "0.6.3"
+tower = { version = "0.5.2", default-features = false }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing = "0.1.41"

@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
 use alloy_primitives::Address;
-use gadget_crypto::{hashing::keccak_256, BytesEncoding, KeyType};
-use libp2p::{request_response, PeerId};
+use gadget_crypto::{BytesEncoding, KeyType, hashing::keccak_256};
+use libp2p::{PeerId, request_response};
 use tracing::{debug, warn};
 
 use crate::blueprint_protocol::HandshakeMessage;
@@ -242,7 +242,7 @@ impl<K: KeyType> BlueprintProtocolBehaviour<K> {
             .clone()
             .into_read_only()
             .iter()
-            .filter(|(_, &time)| now.duration_since(time) > INBOUND_HANDSHAKE_TIMEOUT)
+            .filter(|&(_, &time)| now.duration_since(time) > INBOUND_HANDSHAKE_TIMEOUT)
             .map(|(peer_id, _)| *peer_id)
             .collect();
 
@@ -257,7 +257,7 @@ impl<K: KeyType> BlueprintProtocolBehaviour<K> {
             .clone()
             .into_read_only()
             .iter()
-            .filter(|(_, &time)| now.duration_since(time) > OUTBOUND_HANDSHAKE_TIMEOUT)
+            .filter(|&(_, &time)| now.duration_since(time) > OUTBOUND_HANDSHAKE_TIMEOUT)
             .map(|(peer_id, _)| *peer_id)
             .collect();
 

@@ -65,48 +65,27 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --tests --examples -- -D warnings
 
-  testing:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Generate matrix for workspace crates
+        id: set-matrix
+        run: |
+          matrix=$(cargo metadata --format-version 1 --no-deps | jq -c '[.packages[] | .name]')
+          echo "Generated matrix: $matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  test-incredible-squaring-tangle:
     timeout-minutes: 30
-    name: cargo test
+    name: Tangle incredible squaring
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          [
-            # Blueprints
-            incredible-squaring-blueprint,
-            incredible-squaring-blueprint-eigenlayer,
-            blueprint-examples,
-
-            # Macros
-            gadget-blueprint-proc-macro,
-            gadget-blueprint-proc-macro-core,
-            gadget-context-derive,
-
-            # Clients
-            gadget-client-eigenlayer,
-            gadget-client-evm,
-            gadget-client-tangle,
-
-            # Crypto
-            gadget-crypto-sp-core,
-            gadget-crypto-ed25519,
-            gadget-crypto-bls,
-            gadget-crypto-k256,
-            gadget-crypto-sr25519,
-
-            # Event listeners
-            gadget-event-listeners-core,
-            gadget-event-listeners-cronjob,
-
-            gadget-blueprint-serde,
-            gadget-config,
-            gadget-keystore,
-            gadget-std,
-          ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -126,52 +105,34 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf and gmp
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgmp-dev
-
       - uses: taiki-e/install-action@v2
         with:
           tool: nextest
 
-      - name: Add extra args
-        run: |
-          # if test == "gadget_context_derive", add --features="networking", else ""
-          if [[ "${{ matrix.package }}" == "gadget-context-derive" ]]; then
-            echo "cargo_nextest_args=--features networking" >> $GITHUB_ENV
-          elif [[ "${{ matrix.package }}" == "incredible-squaring-blueprint" || "${{ matrix.package }}" == "incredible-squaring-blueprint-eigenlayer" || "${{ matrix.package }}" == "blueprint-examples" ]]; then
-            echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
-          else
-            echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
-          fi
-
       - name: tests
-        run: cargo nextest run --package ${{ matrix.package }} ${{ env.cargo_nextest_args }}
+        working-directory: examples/incredible-squaring/incredible-squaring-lib
+        run: cargo nextest run
 
-      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
-      - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc
-
-  macos_tests:
+  testing:
+    needs: generate-matrix
     timeout-minutes: 30
     name: cargo test
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
     strategy:
       fail-fast: false
       matrix:
-        package:
-          [
-            gadget-networking,
-            gadget-executor,
-            gadget-utils-tangle,
-            gadget-tangle-testing-utils,
-          ]
+        package: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Verify Forge installation
+        run: forge --version
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly
@@ -182,17 +143,18 @@ jobs:
         with:
           cache-on-failure: "true"
 
-      - name: install protobuf and gmp
-        run: |
-          brew install protobuf gmp 
-
       - uses: taiki-e/install-action@v2
         with:
           tool: nextest
 
-      - name: tests
-        run: cargo nextest run --profile serial --package ${{ matrix.package }}
+      - name: Add extra args
+        run: |
+          if [[ "${{ matrix.package }}" == "gadget-networking" ]]; then
+            echo "cargo_nextest_args=--profile serial" >> $GITHUB_ENV
+          else
+            echo "cargo_nextest_args=--profile ci" >> $GITHUB_ENV
+          fi
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
-      - name: doc tests
-        run: cargo test --package ${{ matrix.package }} --doc
+      - name: tests
+        run: cargo nextest run --no-tests pass --package ${{ matrix.package }} ${{ env.cargo_nextest_args }} && cargo test --package ${{ matrix.package }} --doc

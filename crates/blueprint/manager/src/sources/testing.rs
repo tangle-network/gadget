@@ -20,9 +20,9 @@ impl BinarySourceFetcher for TestSourceFetcher {
             base_path,
             ..
         } = &self.fetcher;
-        let cargo_bin = String::from_utf8(cargo_package.0 .0.clone())
+        let cargo_bin = String::from_utf8(cargo_package.0.0.clone())
             .map_err(|err| Error::Other(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
-        let base_path_str = String::from_utf8(base_path.0 .0.clone())
+        let base_path_str = String::from_utf8(base_path.0.0.clone())
             .map_err(|err| Error::Other(format!("Failed to parse `base_path`: {:?}", err)))?;
         let git_repo_root = get_git_repo_root_path().await?;
 

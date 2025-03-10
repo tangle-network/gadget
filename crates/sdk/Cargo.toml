@@ -1,7 +1,7 @@
 [package]
 name = "blueprint-sdk"
 version = "0.1.0"
-description = "SDK for building Tangle Blueprints"
+description = "Blueprint SDK for building decentralized and distributed services."
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,27 +10,36 @@ repository.workspace = true
 
 [dependencies]
 # Required dependencies
+blueprint-core = { workspace = true }
+blueprint-router = { workspace = true }
+blueprint-runner = { workspace = true }
+blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
-gadget-config = { workspace = true }
 gadget-clients = { workspace = true }
-gadget-event-listeners = { workspace = true }
 gadget-crypto = { workspace = true }
 gadget-logging = { workspace = true }
-gadget-runners = { workspace = true }
 gadget-utils = { workspace = true }
 gadget-std = { workspace = true }
+document-features = { workspace = true }
+async-trait = { workspace = true }
 
-# K, V Stores
-gadget-stores = { workspace = true, optional = true }
+# Macros
+blueprint-macros = { workspace = true, optional = true }
+gadget-context-derive = { workspace = true, optional = true }
 
-# Tangle
+# Tangle-specific extras
+blueprint-tangle-extra = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
 
-# EigenLayer and EVM
+# Eigenlayer and EVM-specific extras
+blueprint-evm-extra = { workspace = true, optional = true }
 alloy = { workspace = true, optional = true, features = ["full"] }
 alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
+
+# K, V Stores
+gadget-stores = { workspace = true, optional = true }
 
 # Error Handling
 thiserror = { workspace = true }
@@ -39,105 +48,131 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 # Required Features for macro resolution
-gadget-macros = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false }
 
 # Networking-related dependencies
 gadget-networking = { workspace = true, optional = true }
 gadget-contexts = { workspace = true }
-gadget-context-derive = { workspace = true, optional = true }
+
 # Round-based protocol support
 gadget-networking-round-based-extension = { workspace = true, optional = true }
-
 
 # Optional dependencies for testing
 gadget-testing-utils = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 
 # Optional dependencies for build
-blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
 [features]
-default = ["std"]
+default = ["std", "tracing"]
+
+#! ### Core
+
+## Enable standard library support
 std = [
-	# Core
-	"gadget-keystore/std",
-	"gadget-config/std",
-	"gadget-clients/std",
-	"gadget-event-listeners/std",
-	"gadget-crypto/std",
-	"gadget-logging/std",
-	"gadget-runners/std",
-	# Tangle
-	"tangle-subxt?/std",
-	# Macros
-	"gadget-macros?/std",
+    # Core
+    "blueprint-core/std",
+    "blueprint-runner/std",
+    "gadget-keystore/std",
+    "gadget-clients/std",
+    "gadget-crypto/std",
+    "gadget-logging/std",
+    # Tangle
+    "tangle-subxt/std",
+    # Extras
+    "blueprint-tangle-extra?/std",
+    "blueprint-evm-extra?/std"
 ]
 
+## Enable support for web targets
 web = [
-	# Core
-	"gadget-clients/web",
-	# Tangle
-	"tangle-subxt?/web",
-	# Macros
-	"gadget-macros?/web",
+    # Tangle
+    "tangle-subxt/web",
 ]
 
-macros = ["dep:gadget-macros", "dep:gadget-context-derive"]
-
-build = ["dep:blueprint-metadata", "dep:blueprint-build-utils"]
-
-tangle = [
-	"dep:tangle-subxt",
-	"dep:gadget-crypto-tangle-pair-signer",
-	"gadget-clients/tangle",
-	"gadget-runners/tangle",
-	"gadget-macros?/tangle",
-	"gadget-testing-utils?/tangle",
-	"gadget-utils/tangle",
-	"gadget-event-listeners/tangle",
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
+tracing = [
+    "blueprint-core/tracing",
+    "blueprint-router/tracing",
+    "blueprint-producers-extra/tracing",
+    "blueprint-tangle-extra?/tracing"
 ]
 
-evm = [
-	"dep:alloy",
-	"dep:alloy-json-abi",
-	"gadget-clients/evm",
-	"gadget-crypto-tangle-pair-signer?/evm",
-	"gadget-utils/evm",
-	"gadget-testing-utils?/anvil",
-	"gadget-macros?/evm",
-	"gadget-event-listeners/evm",
-]
-
-eigenlayer = [
-	"dep:alloy",
-	"dep:alloy-json-abi",
-	"dep:eigensdk",
-	"gadget-clients/eigenlayer",
-	"gadget-runners/eigenlayer",
-	"gadget-testing-utils?/eigenlayer",
-	"gadget-utils/eigenlayer",
-	"gadget-macros?/eigenlayer",
-	"gadget-event-listeners/evm",
-]
-
-testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]
-
+## Enable networking support
 networking = [
-	"dep:gadget-networking",
-	"gadget-contexts/networking",
-	"gadget-keystore/std",
-	"gadget-config/networking",
-	"gadget-macros?/networking",
-	"gadget-context-derive?/networking",
+    "dep:gadget-networking",
+    "gadget-contexts/networking",
+    "gadget-keystore/std",
+    "gadget-context-derive?/networking",
 ]
 
+## Enable local KV stores
 local-store = ["gadget-stores/local"]
 
+## Enable [round-based] networking capability
+##
+## [round-based]: https://github.com/LFDT-Lockness/round-based
 round-based-compat = ["dep:gadget-networking-round-based-extension"]
 
-cronjob = ["gadget-event-listeners/cronjob"]
+## Enable all macros of subcrates
+macros = [
+    "dep:blueprint-macros",
+    "dep:gadget-context-derive",
+    "blueprint-tangle-extra?/macros"
+]
 
-[lints.clippy]
-large_enum_variant = "allow" # TODO
+## Enable [Tangle] support
+##
+## [Tangle]: https://tangle.tools
+tangle = [
+    "dep:blueprint-tangle-extra",
+    "dep:tangle-subxt",
+    "dep:gadget-crypto-tangle-pair-signer",
+    "gadget-clients/tangle",
+    "gadget-contexts/tangle",
+    "gadget-context-derive?/tangle",
+    "gadget-testing-utils?/tangle",
+    "gadget-utils/tangle",
+    "blueprint-runner/tangle",
+]
+
+## Enable EVM support
+evm = [
+    "dep:blueprint-evm-extra",
+    "dep:alloy",
+    "dep:alloy-json-abi",
+    "gadget-clients/evm",
+    "gadget-contexts/evm",
+    "gadget-crypto-tangle-pair-signer?/evm",
+    "gadget-utils/evm",
+    "blueprint-macros?/evm",
+    "gadget-testing-utils?/anvil",
+]
+
+## Enable [Eigenlayer] support
+##
+## [Eigenlayer]: https://eigenlayer.xyz
+eigenlayer = [
+    "dep:eigensdk",
+    "gadget-contexts/eigenlayer",
+    "gadget-clients/eigenlayer",
+    "evm",
+]
+
+## Enable build-time utilities
+build = ["dep:blueprint-build-utils", "macros"]
+
+## Enable testing utilities
+testing = ["dep:gadget-testing-utils", "dep:tempfile", "std"]
+
+#! ### Extra producers
+
+## Enable the cron job producer
+cronjob = ["blueprint-producers-extra/cron"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

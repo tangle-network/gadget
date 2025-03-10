@@ -1,0 +1,4 @@
+@eigenlayer-middleware/=dependencies/eigenlayer-middleware-0.1.0/
+@openzeppelin-upgrades/=dependencies/eigenlayer-middleware-0.1.0/lib/openzeppelin-contracts-upgradeable/
+@openzeppelin/=dependencies/eigenlayer-middleware-0.1.0/lib/openzeppelin-contracts/
+forge-std/=dependencies/forge-std-1.9.6/src/

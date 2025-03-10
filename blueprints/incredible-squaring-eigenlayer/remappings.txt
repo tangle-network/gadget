@@ -1,2 +1,0 @@
-eigenlayer-middleware/=dependencies/eigenlayer-middleware-0.4.3/
-forge-std-1.9.5/=dependencies/forge-std-1.9.5/

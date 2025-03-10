@@ -1,24 +1,23 @@
 use alloy_contract::{CallBuilder, CallDecoder};
-use alloy_primitives::{address, Uint};
-use alloy_provider::network::Ethereum;
+use alloy_primitives::{Uint, address};
 use alloy_provider::Provider;
+use alloy_provider::network::Ethereum;
 use alloy_rpc_types_eth::TransactionReceipt;
-use alloy_transport::Transport;
 use dialoguer::console::style;
-use eigensdk::utils::middleware::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
-use eigensdk::utils::middleware::registrycoordinator::IStakeRegistry::StrategyParams;
-use eigensdk::utils::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_eigenlayer_bindings::ecdsa_stake_registry::ECDSAStakeRegistry::{self, Quorum};
-use gadget_eigenlayer_bindings::pauser_registry::PauserRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
+use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
+use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
+use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
+use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
 use gadget_logging::{error, info};
 use gadget_std::sync::{Arc, Mutex};
 use gadget_std::time::Duration;
 use std::fs::{self};
 use tempfile::TempDir;
 use testcontainers::{
+    ContainerAsync, GenericImage, ImageExt,
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
-    ContainerAsync, GenericImage, ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
 
@@ -27,7 +26,7 @@ mod state;
 
 pub use error::Error;
 use gadget_utils_evm::get_provider_http;
-pub use state::{get_default_state, get_default_state_json, AnvilState};
+pub use state::{AnvilState, get_default_state, get_default_state_json};
 
 pub type Container = ContainerAsync<GenericImage>;
 
@@ -58,14 +57,13 @@ pub fn print_info(message: &str) {
 fn write_and_display_settings(
     http_endpoint: &str,
     ws_endpoint: &str,
-    pauser_registry: &str,
     ecdsa_registry: &str,
 ) -> std::io::Result<()> {
     // Display current deployment variables
     print_section_header("Deployment Variables");
     let deployment_vars = format!(
-        "# Network Settings\nANVIL_HTTP_ENDPOINT={}\nANVIL_WS_ENDPOINT={}\n\n# Contract Registry\nPAUSER_REGISTRY_ADDRESS={}\nECDSA_STAKE_REGISTRY_ADDRESS={}\n",
-        http_endpoint, ws_endpoint, pauser_registry, ecdsa_registry
+        "# Network Settings\nANVIL_HTTP_ENDPOINT={}\nANVIL_WS_ENDPOINT={}\n\n# Contract Registry\nECDSA_STAKE_REGISTRY_ADDRESS={}\n",
+        http_endpoint, ws_endpoint, ecdsa_registry
     );
     println!("{}", style(deployment_vars.trim()).dim());
 
@@ -259,15 +257,15 @@ pub async fn start_anvil_container(
     print_info("Deploying core contracts...");
 
     // Some setup is required before we can interact with the contract
-    let accounts = provider.get_accounts().await.unwrap();
-    let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
-        .await
-        .unwrap();
-    let pauser_registry_address = *pauser_registry.address();
-    print_success(
-        "Pauser Registry deployed",
-        Some(&format!("Address: {}", pauser_registry_address)),
-    );
+    // let accounts = provider.get_accounts().await.unwrap();
+    // let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
+    //     .await
+    //     .unwrap();
+    // let pauser_registry_address = *pauser_registry.address();
+    // print_success(
+    //     "Pauser Registry deployed",
+    //     Some(&format!("Address: {}", pauser_registry_address)),
+    // );
 
     let delegation_manager_address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
     let service_manager_address = address!("34B40BA116d5Dec75548a9e9A8f15411461E8c70");
@@ -301,7 +299,7 @@ pub async fn start_anvil_container(
     let strategies = vec![strategy_params];
 
     print_info("Creating Quorum...");
-    let _receipt = get_receipt(registry_coordinator.createQuorum(
+    let _receipt = get_receipt(registry_coordinator.createTotalDelegatedStakeQuorum(
         operator_set_params,
         Uint::from(0),
         strategies,
@@ -344,7 +342,6 @@ pub async fn start_anvil_container(
     if let Err(e) = write_and_display_settings(
         &http_endpoint,
         &ws_endpoint,
-        &pauser_registry_address.to_string(),
         &ecdsa_stake_registry_address.to_string(),
     ) {
         error!("Failed to write settings: {}", e);
@@ -414,8 +411,7 @@ pub async fn get_receipt<T, P, D>(
     call: CallBuilder<T, P, D, Ethereum>,
 ) -> Result<TransactionReceipt, Error>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum>,
+    P: Provider<Ethereum>,
     D: CallDecoder,
 {
     let pending_tx = match call.send().await {

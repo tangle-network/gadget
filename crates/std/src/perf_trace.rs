@@ -60,8 +60,8 @@ pub mod inner {
     macro_rules! start_timer {
         ($msg:expr) => {{
             use $crate::perf_trace::inner::{
-                compute_indent, AtomicUsize, Colorize, Instant, Ordering, ToString, NUM_INDENT,
-                PAD_CHAR,
+                AtomicUsize, Colorize, Instant, NUM_INDENT, Ordering, PAD_CHAR, ToString,
+                compute_indent,
             };
 
             let msg = $msg();
@@ -84,8 +84,8 @@ pub mod inner {
         }};
         ($time:expr, $msg:expr) => {{
             use $crate::perf_trace::inner::{
-                compute_indent, format, AtomicUsize, Colorize, Instant, Ordering, ToString,
-                NUM_INDENT, PAD_CHAR,
+                AtomicUsize, Colorize, Instant, NUM_INDENT, Ordering, PAD_CHAR, ToString,
+                compute_indent, format,
             };
 
             let time = $time.time;
@@ -129,8 +129,8 @@ pub mod inner {
     macro_rules! add_to_trace {
         ($title:expr, $msg:expr) => {{
             use $crate::perf_trace::{
-                compute_indent, compute_indent_whitespace, format, AtomicUsize, Colorize, Instant,
-                Ordering, ToString, NUM_INDENT, PAD_CHAR,
+                AtomicUsize, Colorize, Instant, NUM_INDENT, Ordering, PAD_CHAR, ToString,
+                compute_indent, compute_indent_whitespace, format,
             };
 
             let start_msg = "StartMsg".yellow().bold();

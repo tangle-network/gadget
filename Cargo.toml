@@ -1,16 +1,10 @@
 [workspace]
 resolver = "2"
-members = [
-    "cli",
-    "blueprints/*",
-    "crates/*",
-    "crates/networking/extensions/*"
-]
-exclude = ["blueprints/incredible-squaring-symbiotic"]
+members = ["cli", "crates/*"]
 
 [workspace.package]
 authors = ["Tangle Network"]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 homepage = "https://tangle.tools"
 repository = "https://github.com/tangle-network/gadget"
@@ -28,8 +22,8 @@ single_match_else = "allow"
 uninlined_format_args = "allow"
 needless_late_init = "allow"
 struct_excessive_bools = "allow"
-large_enum_variant = "allow" # TODO: Fix instances of this
-result_large_err = "allow" # TODO: Fix instances of this
+large_enum_variant = "allow"                 # TODO: Fix instances of this
+result_large_err = "allow"                   # TODO: Fix instances of this
 similar_names = "allow"
 
 [workspace.lints.rustdoc]
@@ -39,21 +33,25 @@ broken_intra_doc_links = "deny"
 # SDKs (overarching crates that include all other crates)
 blueprint-sdk = { version = "0.1.0", path = "./crates/sdk", default-features = false }
 
+# Job system
+blueprint-core = { version = "0.1.0", path = "crates/core", default-features = false }
+blueprint-router = { version = "0.1.0", path = "crates/router", default-features = false }
+blueprint-runner = { version = "0.1.0", path = "crates/runner", default-features = false }
+
+# Extras
+blueprint-tangle-extra = { version = "0.1.0", path = "crates/tangle-extra", default-features = false }
+blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-features = false }
+blueprint-producers-extra = { version = "0.1.0", path = "crates/producers-extra", default-features = false }
+
 # Blueprint Examples
-testing = { version = "0.1.0", path = "./blueprints/testing", default-features = false }
-blueprint-examples = { version = "0.1.0", path = "./blueprints/examples", default-features = false }
-incredible-squaring-blueprint = { version = "0.1.1", path = "./blueprints/incredible-squaring", default-features = false }
-incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./blueprints/incredible-squaring-eigenlayer", default-features = false }
+incredible-squaring-blueprint = { version = "0.1.1", path = "./examples/incredible-squaring", default-features = false }
+incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./examples/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
 blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
 blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
-blueprint-metadata = { version = "0.2.1", path = "./crates/blueprint/metadata", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
 gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
-
-# Bindings
-gadget-eigenlayer-bindings = { version = "0.1.0", path = "./crates/eigenlayer-bindings", default-features = false }
 
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
@@ -75,36 +73,19 @@ gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
 gadget-contexts = { version = "0.1.0", path = "./crates/contexts", default-features = false }
 
-# Event listeners
-gadget-event-listeners = { version = "0.1.0", path = "./crates/event-listeners", default-features = false }
-gadget-event-listeners-core = { version = "0.1.0", path = "./crates/event-listeners/core", default-features = false }
-gadget-event-listeners-evm = { version = "0.1.0", path = "./crates/event-listeners/evm", default-features = false }
-gadget-event-listeners-cronjob = { version = "0.1.0", path = "./crates/event-listeners/cronjob", default-features = false }
-gadget-event-listeners-tangle = { version = "0.1.0", path = "./crates/event-listeners/tangle", default-features = false }
-
 # Executor
 gadget-executor = { version = "0.1.0", path = "./crates/executor", default-features = false }
 
 # Macros
-gadget-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
+blueprint-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
 gadget-blueprint-proc-macro-core = { version = "0.4.0", path = "./crates/macros/core", default-features = false }
-gadget-blueprint-proc-macro = { version = "0.6.0", path = "./crates/macros/blueprint-proc-macro", default-features = false }
-gadget-blueprint-proc-macro-playground = { version = "0.1.1", path = "./crates/macros/playground", default-features = false }
 gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
 
 # Stores
 gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
 gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local-database", default-features = false }
 
-# Runners
-gadget-runners = { version = "0.1.0", path = "./crates/runners", default-features = false }
-gadget-runner-core = { version = "0.1.0", path = "./crates/runners/core", default-features = false }
-gadget-runner-eigenlayer = { version = "0.1.0", path = "./crates/runners/eigenlayer", default-features = false }
-gadget-runner-tangle = { version = "0.1.0", path = "./crates/runners/tangle", default-features = false }
-gadget-runner-symbiotic = { version = "0.1.0", path = "./crates/runners/symbiotic", default-features = false }
-
 # SDK
-gadget-config = { version = "0.1.0", path = "./crates/config", default-features = false }
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
@@ -150,10 +131,14 @@ crossbeam = { version = "0.8", default-features = false }
 crossbeam-channel = { version = "0.5", default-features = false }
 futures = { version = "0.3.30", default-features = false }
 futures-util = { version = "0.3.31", default-features = false }
-tokio = { version = "1.40", default-features = false }
-tokio-util = { version = "0.7.12", default-features = false }
-tokio-cron-scheduler = "0.13.0"
+futures-core = { version = "0.3.31", default-features = false }
+tokio = { version = "1.43.0", default-features = false }
+tokio-util = { version = "0.7.13", default-features = false }
+tokio-cron-scheduler = { version = "0.13.0", default-features = false }
 tokio-stream = { version = "0.1.17", default-features = false }
+pin-project-lite = "0.2.7"
+tower = { version = "0.5.2", default-features = false }
+async-stream = { version = "0.3.6", default-features = false }
 
 # CLI & Configuration
 cargo-generate = { version = "0.22.1", default-features = false }
@@ -174,6 +159,7 @@ schnorrkel = { version = "0.11.4", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
 tnt-bls = { version = "0.1.8", default-features = false }
+tiny-keccak = { version = "2.0.2", default-features = false }
 
 # Data Structures & Serialization
 bitvec = { version = "1.0.1", default-features = false, features = ["atomic", "alloc"] }
@@ -185,6 +171,9 @@ serde = { version = "1.0.208", default-features = false }
 serde_bytes = { version = "0.11.15", default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_test = { version = "1.0.177", default-features = false }
+dynosaur = { git = "https://github.com/spastorino/dynosaur.git", rev = "7a761a3", default-features = false }
+bytes = { version = "1.10.1", default-features = false }
+hashbrown = { version = "0.15.2", default-features = false }
 
 # Error Handling & Logging
 anyhow = { version = "1.0.93", default-features = false }
@@ -212,6 +201,7 @@ sysinfo = { version = "0.31.2", default-features = false }
 tempfile = { version = "3.13.0", default-features = false }
 uuid = { version = "1.10.0", default-features = false }
 blake3 = { version = "1.5.5", default-features = false }
+chrono = { version = "0.4.40", default-features = false }
 
 # Development & Testing
 auto_impl = { version = "1.2.1", default-features = false }
@@ -228,38 +218,39 @@ typed-builder = { version = "0.19", default-features = false }
 dirs = { version = "6.0.0", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
 indicatif = { version = "0.17.8", default-features = false }
+document-features = "0.2.11"
 
 # Alloy (EVM)
-alloy = { version = "0.9", default-features = false }
+alloy = { version = "0.11", default-features = false }
 alloy-primitives = { version = "0.8", default-features = false }
 alloy-json-abi = { version = "0.8", default-features = false }
-alloy-json-rpc = { version = "0.9", default-features = false }
+alloy-json-rpc = { version = "0.11", default-features = false }
 alloy-dyn-abi = { version = "0.8", default-features = false }
 alloy-sol-types = { version = "0.8", default-features = false }
 alloy-rlp = { version = "0.3", default-features = false }
-alloy-rpc-client = { version = "0.9", default-features = false }
-alloy-rpc-types = { version = "0.9", default-features = false }
-alloy-rpc-types-eth = { version = "0.9", default-features = false }
-alloy-provider = { version = "0.9", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.9", default-features = false }
-alloy-signer = { version = "0.9", default-features = false }
-alloy-signer-local = { version = "0.9", default-features = false }
-alloy-network = { version = "0.9", default-features = false }
-alloy-node-bindings = { version = "0.9", default-features = false }
-alloy-contract = { version = "0.9", default-features = false }
-alloy-consensus = { version = "0.9", default-features = false }
-alloy-transport = { version = "0.9", default-features = false }
-alloy-transport-http = { version = "0.9", default-features = false }
+alloy-rpc-client = { version = "0.11", default-features = false }
+alloy-rpc-types = { version = "0.11", default-features = false }
+alloy-rpc-types-eth = { version = "0.11", default-features = false }
+alloy-provider = { version = "0.11", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.11", default-features = false }
+alloy-signer = { version = "0.11", default-features = false }
+alloy-signer-local = { version = "0.11", default-features = false }
+alloy-network = { version = "0.11", default-features = false }
+alloy-node-bindings = { version = "0.11", default-features = false }
+alloy-contract = { version = "0.11", default-features = false }
+alloy-consensus = { version = "0.11", default-features = false }
+alloy-transport = { version = "0.11", default-features = false }
+alloy-transport-http = { version = "0.11", default-features = false }
 ripemd = { version = "0.1.3", default-features = false }
 libsecp256k1 = { version = "0.7.1", default-features = false }
 
 # Remote signing
-alloy-signer-aws = { version = "0.9", default-features = false }
-alloy-signer-gcp = { version = "0.9", default-features = false }
-alloy-signer-ledger = { version = "0.9", default-features = false, features = ["eip712"] }
+alloy-signer-aws = { version = "0.11", default-features = false }
+alloy-signer-gcp = { version = "0.11", default-features = false }
+alloy-signer-ledger = { version = "0.11", default-features = false, features = ["eip712"] }
 aws-config = { version = "1", default-features = false }
 aws-sdk-kms = { version = "1", default-features = false }
-gcloud-sdk = { version = "0.25", default-features = false }
+gcloud-sdk = { version = "0.26", default-features = false }
 
 # Arkworks
 ark-bn254 = { version = "0.5.0", default-features = false }
@@ -272,7 +263,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { version = "0.2.0", default-features = false }
+eigensdk = { git = "https://github.com/Serial-ATA/eigensdk-rs.git", branch = "alloy-update", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 

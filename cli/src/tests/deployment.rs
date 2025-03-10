@@ -1,8 +1,7 @@
-use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
+use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use alloy_provider::RootProvider;
-use alloy_transport::BoxTransport;
+use blueprint_runner::config::SupportedChains;
 use color_eyre::eyre::Result;
-use gadget_config::supported_chains::SupportedChains;
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
@@ -163,15 +162,12 @@ evm_version = 'shanghai'"#,
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let test_contract = alloy_contract::ContractInstance::<
-        BoxTransport,
-        RootProvider<BoxTransport>,
-        alloy_network::Ethereum,
-    >::new(
-        test_contract_address,
-        provider.clone(),
-        alloy_contract::Interface::new(abi),
-    );
+    let test_contract =
+        alloy_contract::ContractInstance::<RootProvider, alloy_network::Ethereum>::new(
+            test_contract_address,
+            provider.clone(),
+            alloy_contract::Interface::new(abi),
+        );
 
     // We will arbitrarily set the value to 123 for testing
     let value = alloy_dyn_abi::DynSolValue::from(alloy_primitives::U256::from(123));
@@ -234,15 +230,12 @@ evm_version = 'shanghai'"#,
     let provider = get_provider_http(&http_endpoint);
 
     // Create a contract instance
-    let simple_storage_contract = alloy_contract::ContractInstance::<
-        BoxTransport,
-        RootProvider<BoxTransport>,
-        alloy_network::Ethereum,
-    >::new(
-        simple_storage_address,
-        provider.clone(),
-        alloy_contract::Interface::new(abi),
-    );
+    let simple_storage_contract =
+        alloy_contract::ContractInstance::<RootProvider, alloy_network::Ethereum>::new(
+            simple_storage_address,
+            provider.clone(),
+            alloy_contract::Interface::new(abi),
+        );
 
     // Verify the contract data
     let get_result = simple_storage_contract

@@ -1,0 +1,51 @@
+[package]
+name = "blueprint-evm-extra"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Blueprint dependencies
+blueprint-core.workspace = true
+
+# Alloy dependencies
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true, features = ["pubsub"] }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true, features = ["eth"] }
+alloy-transport = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-rlp = { workspace = true }
+alloy-transport-http = { workspace = true }
+
+# Async dependencies
+async-stream = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+pin-project-lite = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tower = { workspace = true, features = ["filter"] }
+
+# Utils
+bytes = { workspace = true }
+document-features = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = ["std", "tracing"]
+
+#! ### Core
+
+## Enable standard library support. Currently unused
+std = ["serde_json/std"]
+
+## Enable [tracing] support
+##
+## [tracing]: https://crates.io/crates/tracing
+tracing = ["blueprint-core/tracing"]

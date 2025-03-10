@@ -1,14 +1,11 @@
-use crate::env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
 use crate::Error;
+use crate::env::{EigenlayerTestEnvironment, setup_eigenlayer_test_environment};
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
-use alloy_transport::BoxTransport;
-use gadget_anvil_testing_utils::keys::{inject_anvil_key, ANVIL_PRIVATE_KEYS};
-use gadget_anvil_testing_utils::{start_default_anvil_testnet, Container};
-use gadget_config::{
-    protocol::EigenlayerContractAddresses, supported_chains::SupportedChains, ContextConfig,
-    GadgetConfiguration,
-};
+use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
+use gadget_anvil_testing_utils::keys::{ANVIL_PRIVATE_KEYS, inject_anvil_key};
+use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
 use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
 use gadget_utils::evm::get_provider_http;
 use tempfile::TempDir;
@@ -19,28 +16,31 @@ use url::Url;
 pub struct EigenlayerTestConfig {
     pub http_endpoint: Option<Url>,
     pub ws_endpoint: Option<Url>,
-    pub eigenlayer_contract_addresses: Option<EigenlayerContractAddresses>,
-    pub pauser_registry_address: Option<Address>,
+    pub eigenlayer_contract_addresses: Option<EigenlayerProtocolSettings>,
 }
 
 /// Test harness for Eigenlayer network tests
-pub struct EigenlayerTestHarness {
+pub struct EigenlayerTestHarness<Ctx> {
     base: BaseTestHarness<EigenlayerTestConfig>,
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
     pub accounts: Vec<Address>,
-    pub eigenlayer_contract_addresses: EigenlayerContractAddresses,
-    pub pauser_registry_address: Address,
+    pub eigenlayer_contract_addresses: EigenlayerProtocolSettings,
     _temp_dir: tempfile::TempDir,
     _container: Container,
+    _phantom: core::marker::PhantomData<Ctx>,
 }
 
 #[async_trait::async_trait]
-impl TestHarness for EigenlayerTestHarness {
+impl<Ctx> TestHarness for EigenlayerTestHarness<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     type Config = EigenlayerTestConfig;
+    type Context = Ctx;
     type Error = Error;
 
-    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
+    async fn setup(test_dir: TempDir, _context: Self::Context) -> Result<Self, Self::Error> {
         // Start local Anvil testnet
         let (container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
 
@@ -50,7 +50,6 @@ impl TestHarness for EigenlayerTestHarness {
             http_endpoint,
             ws_endpoint,
             eigenlayer_contract_addresses,
-            pauser_registry_address,
         } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 
         // Setup temporary testing keystore
@@ -68,14 +67,14 @@ impl TestHarness for EigenlayerTestHarness {
         );
 
         // Load environment
-        let env = gadget_config::load(context_config).map_err(|e| Error::Setup(e.to_string()))?;
+        let env = BlueprintEnvironment::load_with_config(context_config)
+            .map_err(|e| Error::Setup(e.to_string()))?;
 
         // Create config
         let config = EigenlayerTestConfig {
             http_endpoint: Some(Url::parse(&http_endpoint)?),
             ws_endpoint: Some(Url::parse(&ws_endpoint)?),
             eigenlayer_contract_addresses: Some(eigenlayer_contract_addresses),
-            pauser_registry_address: Some(pauser_registry_address),
         };
 
         let base = BaseTestHarness::new(env, config);
@@ -86,20 +85,20 @@ impl TestHarness for EigenlayerTestHarness {
             ws_endpoint: Url::parse(&ws_endpoint)?,
             accounts,
             eigenlayer_contract_addresses,
-            pauser_registry_address,
             _temp_dir: test_dir,
             _container: container,
+            _phantom: core::marker::PhantomData,
         })
     }
 
-    fn env(&self) -> &GadgetConfiguration {
+    fn env(&self) -> &BlueprintEnvironment {
         &self.base.env
     }
 }
 
-impl EigenlayerTestHarness {
+impl<Ctx> EigenlayerTestHarness<Ctx> {
     /// Gets a provider for the HTTP endpoint
-    pub fn provider(&self) -> RootProvider<BoxTransport> {
+    pub fn provider(&self) -> RootProvider {
         get_provider_http(self.http_endpoint.as_str())
     }
 

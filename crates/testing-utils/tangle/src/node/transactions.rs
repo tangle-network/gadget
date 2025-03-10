@@ -2,21 +2,21 @@ use crate::{InputValue, OutputValue};
 use alloy_primitives::Address;
 use alloy_provider::network::AnyNetwork;
 use alloy_provider::{
-    network::{ReceiptResponse, TransactionBuilder},
     PendingTransactionError, Provider, WsConnect,
+    network::{ReceiptResponse, TransactionBuilder},
 };
 use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::{sol, SolConstructor};
+use alloy_sol_types::{SolConstructor, sol};
 use gadget_clients::tangle::client::{TangleClient as TestClient, TangleConfig};
 use gadget_logging::{error, info};
 use sp_core::H160;
 use tangle_subxt::subxt::{
+    Config,
     blocks::ExtrinsicEvents,
     client::OnlineClientT,
-    tx::{signer::Signer, TxProgress},
+    tx::{TxProgress, signer::Signer},
     utils::AccountId32,
-    Config,
 };
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::AssetSecurityCommitment;
@@ -75,7 +75,6 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
 
     let wallet = alloy_provider::network::EthereumWallet::from(signer_evm);
     let provider = alloy_provider::ProviderBuilder::new()
-        .with_recommended_fillers()
         .network::<AnyNetwork>()
         .wallet(wallet)
         .on_ws(WsConnect::new(evm_rpc_endpoint))
@@ -126,7 +125,7 @@ pub async fn deploy_new_mbsm_revision<T: Signer<TangleConfig>>(
     info!("MBSM Contract deployed at: {mbsm_address}");
     let sudo_call = api::tx().sudo().sudo(RuntimeCall::Services(
         Call::update_master_blueprint_service_manager {
-            address: mbsm_address.0 .0.into(),
+            address: mbsm_address.0.0.into(),
         },
     ));
     let res = client

@@ -1,10 +1,10 @@
-use crate::deploy::eigenlayer::{deploy_avs_contracts, EigenlayerDeployOpts};
+use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use crate::run::eigenlayer::run_eigenlayer_avs;
+use blueprint_runner::config::BlueprintEnvironment;
+use blueprint_runner::config::SupportedChains;
+use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
+use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use color_eyre::eyre::Result;
-use gadget_config::supported_chains::SupportedChains;
-use gadget_config::{
-    protocol::EigenlayerContractAddresses, protocol::ProtocolSettings, ContextConfig, Protocol,
-};
 use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
 
     let test_contract_address: Address = "{}".parse().expect("Invalid TEST_CONTRACT_ADDRESS");
     info!("Test contract address: {{}}", test_contract_address);
-    
+
     let temp_dir_str: String = "{}".to_string();
     info!("Temp dir str: {{}}", temp_dir_str);
 
@@ -198,14 +198,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .await
         .unwrap();
     info!("Successfully called getValue function");
-    
+
     let get_result_value: alloy_primitives::U256 =
         if let alloy_dyn_abi::DynSolValue::Uint(val, 256) = get_result[0] {{
             val
         }} else {{
             panic!("Expected Uint256, but did not receive correct type")
         }};
-    
+
     info!("Contract returned value: {{}}", get_result_value);
 
     if get_result_value == alloy_primitives::U256::from({}) {{
@@ -252,10 +252,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         None,
         SupportedChains::LocalTestnet,
         Protocol::Eigenlayer,
-        ProtocolSettings::from_eigenlayer(EigenlayerContractAddresses::default()),
+        ProtocolSettings::Eigenlayer(EigenlayerProtocolSettings::default()),
     );
 
-    let run_opts = gadget_config::load(config).expect("Failed to load GadgetConfiguration");
+    let run_opts = BlueprintEnvironment::load_with_config(config)
+        .expect("Failed to load BlueprintEnvironment");
 
     // Run the AVS
     let mut child =

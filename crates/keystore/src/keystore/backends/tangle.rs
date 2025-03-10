@@ -138,8 +138,8 @@ impl TangleBackend for Keystore {
 #[cfg(feature = "tangle-bls")]
 pub mod bls {
     use crate::error::{Error, Result};
-    use crate::keystore::backends::tangle::TangleBackend;
     use crate::keystore::Keystore;
+    use crate::keystore::backends::tangle::TangleBackend;
     use gadget_crypto::sp_core::{SpBls377Pair, SpBls381Pair};
     use gadget_crypto::{BytesEncoding, KeyTypeId};
     use sp_core::Pair;
@@ -216,10 +216,10 @@ pub mod bls {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::backends::Backend;
         use crate::KeystoreConfig;
-        use gadget_crypto::sp_core::{SpBls377, SpBls377Public, SpBls381, SpBls381Public};
+        use crate::backends::Backend;
         use gadget_crypto::KeyType;
+        use gadget_crypto::sp_core::{SpBls377, SpBls377Public, SpBls381, SpBls381Public};
         use sp_core::ByteArray;
 
         #[test]

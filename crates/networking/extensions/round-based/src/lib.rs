@@ -7,13 +7,13 @@ use gadget_networking::{
     types::{ParticipantInfo, ProtocolMessage},
 };
 use round_based::{Delivery, Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
     pin::Pin,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
     task::{Context, Poll},
 };

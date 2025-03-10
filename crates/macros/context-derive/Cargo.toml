@@ -25,7 +25,6 @@ blueprint-sdk = { workspace = true, features = [
     "macros",
     "evm",
     "tangle",
-    "eigenlayer",
     "testing",
     "networking",
     "local-store"
