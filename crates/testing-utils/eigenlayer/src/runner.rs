@@ -33,7 +33,7 @@ where
         Ok(Self {
             runner: Some(runner),
             config,
-            env: env,
+            env,
             runner_handle: Mutex::new(None),
         })
     }

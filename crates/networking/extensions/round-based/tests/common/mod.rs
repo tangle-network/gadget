@@ -194,12 +194,7 @@ pub async fn wait_for_peer_discovery<K: KeyType>(
     wait_for_condition(timeout, || {
         for (i, handle1) in handles.iter().enumerate() {
             for (j, handle2) in handles.iter().enumerate() {
-                if i != j
-                    && !handle1
-                        .peers()
-                        .iter()
-                        .any(|id| *id == handle2.local_peer_id)
-                {
+                if i != j && !handle1.peers().contains(&handle2.local_peer_id) {
                     return false;
                 }
             }

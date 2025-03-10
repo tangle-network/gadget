@@ -13,15 +13,10 @@ pub mod harness;
 pub mod runner;
 
 pub fn read_cargo_toml_file<P: AsRef<Path>>(path: P) -> std::io::Result<Manifest> {
-    let manifest = cargo_toml::Manifest::from_path(path).map_err(|err| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to read Cargo.toml: {err}"),
-        )
-    })?;
+    let manifest = cargo_toml::Manifest::from_path(path)
+        .map_err(|err| std::io::Error::other(format!("Failed to read Cargo.toml: {err}")))?;
     if manifest.package.is_none() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        return Err(std::io::Error::other(
             "No package section found in Cargo.toml",
         ));
     }

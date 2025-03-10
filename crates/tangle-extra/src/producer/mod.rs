@@ -18,13 +18,12 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 pub type TangleConfig = PolkadotConfig;
 pub type TangleClient = OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
-
+pub type JobCallsFuture = Pin<Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>>;
 struct ProducerState {
     block_stream:
         Pin<Box<dyn Stream<Item = Result<TangleBlock, subxt::Error>> + Send + Unpin + 'static>>,
     buffer: VecDeque<JobCall>,
-    block_in_progress:
-        Option<Pin<Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>>>,
+    block_in_progress: Option<JobCallsFuture>,
 }
 
 impl ProducerState {
@@ -107,10 +106,7 @@ impl Stream for TangleProducer {
                 None => match state.block_stream.as_mut().poll_next(cx) {
                     Poll::Ready(Some(Ok(block))) => {
                         let fut = block_to_job_calls(block);
-                        state.block_in_progress = Some(Box::pin(fut)
-                            as Pin<
-                                Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>,
-                            >);
+                        state.block_in_progress = Some(Box::pin(fut));
                         continue;
                     }
                     Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),

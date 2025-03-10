@@ -126,6 +126,7 @@ macro_rules! impl_into_job_definition {
 blueprint_core::all_the_tuples!(impl_into_job_definition);
 
 #[cfg(test)]
+#[allow(clippy::type_complexity)]
 mod tests {
     use blueprint_core::extract::Context;
 
