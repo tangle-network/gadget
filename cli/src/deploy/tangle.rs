@@ -38,7 +38,7 @@ impl Debug for Opts {
             .field("http_rpc_url", &self.http_rpc_url)
             .field("ws_rpc_url", &self.ws_rpc_url)
             .field("manifest_path", &self.manifest_path)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -61,7 +61,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
+async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
     rpc_url: T,
@@ -79,9 +79,19 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let mut blueprint = load_blueprint_metadata(&package)?;
     build_contracts_if_needed(&package, &blueprint).context("Building contracts")?;
     deploy_contracts_to_tangle(rpc_url.as_ref(), &package, &mut blueprint, signer_evm).await?;
-    bake_blueprint(blueprint)
+    bake_blueprint(&blueprint)
 }
 
+/// Deploy a blueprint to the Tangle Network
+///
+/// # Errors
+///
+/// * Any blueprint metadata is malformed
+/// * If `signer` is not provided, see [`load_signer_from_env()`]
+/// * `ws_rpc_url` is invalid
+/// * No `BlueprintCreated` event found under `signer`
+///
+/// [`load_signer_from_env()`]: crate::signer::load_signer_from_env
 pub async fn deploy_to_tangle(
     Opts {
         pkg_name,
@@ -154,11 +164,11 @@ fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> Path
                 .as_std_path()
                 .to_path_buf()
         },
-        |workspace_dir| PathBuf::from(workspace_dir),
+        PathBuf::from,
     )
 }
 
-pub fn load_blueprint_metadata(
+fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
 ) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
     let manifest_dir = workspace_or_package_manifest_path(package);
@@ -320,11 +330,11 @@ fn build_contracts_if_needed(
     Ok(())
 }
 
-/// Converts the ServiceBlueprint to a format that can be sent to the Tangle Network.
+// Converts the `ServiceBlueprint` to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
-    blueprint: gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
 ) -> Result<ServiceBlueprint> {
-    let mut blueprint_json = serde_json::to_value(&blueprint)?;
+    let mut blueprint_json = serde_json::to_value(blueprint)?;
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["name"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["description"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["author"]);
@@ -417,7 +427,6 @@ fn resolve_path_relative_to_package(
     } else {
         workspace_or_package_manifest_path(package)
             .join(path)
-            .into()
     }
 }
 
@@ -440,7 +449,7 @@ fn find_package<'m>(
             .ok_or(Error::NoPackageFound.into()),
         _otherwise => {
             eprintln!("Please specify the package to deploy:");
-            for package in metadata.packages.iter() {
+            for package in &metadata.packages {
                 eprintln!("Found: {}", package.name);
             }
             eprintln!();

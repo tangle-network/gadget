@@ -137,7 +137,7 @@ evm_version = 'shanghai'"#,
     assert!(simple_storage_json.exists());
 
     // Deploy the contract
-    let contract_addresses = deploy_avs_contracts(&opts).await.unwrap();
+    let contract_addresses = deploy_avs_contracts(&opts)?;
     let &test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))

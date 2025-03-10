@@ -26,6 +26,7 @@ pub enum Error {
     InvalidWordCount(u32),
 }
 
+#[allow(clippy::missing_errors_doc)]
 pub fn prompt_for_keys(key_types: Vec<KeyTypeId>) -> color_eyre::Result<Vec<(KeyTypeId, String)>> {
     let mut collected_keys = Vec::new();
     let all_key_types = [
@@ -77,6 +78,13 @@ pub fn prompt_for_keys(key_types: Vec<KeyTypeId>) -> color_eyre::Result<Vec<(Key
     Ok(collected_keys)
 }
 
+/// Import a key into the keystore
+///
+/// # Errors
+///
+/// If `output` is provided:
+/// * The keystore may fail to be created. See [`KeystoreConfig::fs_root()`].
+/// * The keystore may fail to write the new key. See [`Backend::insert()`].
 pub fn generate_key(
     key_type: KeyTypeId,
     output: Option<&impl AsRef<Path>>,
@@ -114,7 +122,7 @@ pub fn generate_key(
             let public = keystore.generate::<SpEcdsa>(seed)?;
             let secret = keystore.get_secret::<SpEcdsa>(&public)?;
             keystore.insert::<SpEcdsa>(&secret)?;
-            (public.to_bytes(), secret.to_bytes().to_vec())
+            (public.to_bytes(), secret.to_bytes())
         }
         KeyTypeId::Bls381 => {
             let public = keystore.generate::<SpBls381>(seed)?;
@@ -146,6 +154,13 @@ pub fn generate_key(
     Ok((public, secret))
 }
 
+/// Generate a new mnemonic
+///
+/// If no `word_count` is provided, it defaults to 12.
+///
+/// # Errors
+///
+/// The word count is not in the range of `12..=24` or is not divisible by 3
 pub fn generate_mnemonic(word_count: Option<u32>) -> Result<String> {
     let count = match word_count {
         Some(count) if !(12..=24).contains(&count) || count % 3 != 0 => {
@@ -159,6 +174,13 @@ pub fn generate_mnemonic(word_count: Option<u32>) -> Result<String> {
     Ok(mnemonic.to_string())
 }
 
+/// Import a key into the keystore
+///
+/// # Errors
+///
+/// * The key is not a valid hex string
+/// * The key is not a valid representation of the given `key_type`
+/// * The keystore, depending on the backend, may fail to open and/or write this new key
 pub fn import_key(
     protocol: Protocol,
     key_type: KeyTypeId,
@@ -215,6 +237,12 @@ pub fn import_key(
     Ok(public_key)
 }
 
+/// Get the hex encoded secret for a given public key
+///
+/// # Errors
+///
+/// * `public` is not a valid hex string
+/// * See [`Keystore::get_secret()`]
 pub fn export_key(key_type: KeyTypeId, public: &str, keystore_path: &Path) -> Result<String> {
     let mut config = KeystoreConfig::new();
     config = config.fs_root(keystore_path);
@@ -258,6 +286,12 @@ pub fn export_key(key_type: KeyTypeId, public: &str, keystore_path: &Path) -> Re
     Ok(secret)
 }
 
+/// Collect all keys from the keystore at `keystore_path`
+///
+/// # Errors
+///
+/// * See [`KeystoreConfig::fs_root()`] for potential IO errors
+/// * As this uses the filesystem, the keystore may fail to read the keys, for any reason.
 pub fn list_keys(keystore_path: &Path) -> Result<Vec<(KeyTypeId, String)>> {
     let mut config = KeystoreConfig::new();
     config = config.fs_root(keystore_path);

@@ -97,7 +97,7 @@ evm_version = 'shanghai'"#,
         .expect("Failed to build contracts");
 
     // Deploy contracts
-    let contract_addresses = deploy_avs_contracts(&opts).await?;
+    let contract_addresses = deploy_avs_contracts(&opts)?;
     let test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))

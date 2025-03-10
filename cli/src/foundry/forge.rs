@@ -23,6 +23,7 @@ impl Default for Forge {
     }
 }
 
+#[expect(clippy::unused_self)]
 impl Forge {
     /// Creates a new Forge instance with default settings.
     pub fn new() -> Self {
@@ -70,8 +71,7 @@ impl Forge {
         spinner.set_style(
             ProgressStyle::default_spinner()
                 .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈")
-                .template("{spinner:.green} {msg}")
-                .unwrap(),
+                .template("{spinner:.green} {msg}")?,
         );
 
         spinner.set_message("Building contracts...");

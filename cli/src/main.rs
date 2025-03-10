@@ -253,7 +253,7 @@ async fn main() -> color_eyre::Result<()> {
                 source,
                 blueprint_type,
             } => {
-                create::new_blueprint(name, source, blueprint_type)?;
+                create::new_blueprint(&name, source, blueprint_type)?;
             }
             BlueprintCommands::Deploy { target } => match target {
                 DeployTarget::Tangle {
@@ -327,14 +327,14 @@ async fn main() -> color_eyre::Result<()> {
                         deploy::eigenlayer::initialize_test_keystore()?;
 
                         // Deploy to local devnet
-                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                        let opts = EigenlayerDeployOpts::new(
                             http_endpoint.clone(),
                             contracts_path,
                             ordered_deployment,
                             chain,
                             keystore_path,
-                        ))
-                        .await?;
+                        );
+                        deploy_to_eigenlayer(&opts)?;
 
                         // Keep the process running and show helpful instructions
                         println!("\n{}", style("Local Testnet Active").green().bold());
@@ -368,7 +368,7 @@ async fn main() -> color_eyre::Result<()> {
                         signal::ctrl_c().await?;
                         println!("{}", style("\nShutting down devnet...").yellow());
                     } else {
-                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                        let opts = EigenlayerDeployOpts::new(
                             rpc_url
                                 .as_ref()
                                 .map(|s| s.to_string())
@@ -381,8 +381,8 @@ async fn main() -> color_eyre::Result<()> {
                             ordered_deployment,
                             chain,
                             keystore_path,
-                        ))
-                        .await?;
+                        );
+                        deploy_to_eigenlayer(&opts)?;
                     }
                 }
             },

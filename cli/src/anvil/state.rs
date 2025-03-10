@@ -15,11 +15,14 @@ pub struct AccountState {
 }
 
 /// Get the default Anvil state as a raw JSON string
+#[must_use]
 pub fn get_default_state_json() -> &'static str {
     DEFAULT_STATE
 }
 
-/// Get the default Anvil state parsed into the AnvilState struct
+/// Get the default Anvil state parsed into the `AnvilState` struct
+#[allow(clippy::missing_panics_doc)]
+#[must_use]
 pub fn get_default_state() -> AnvilState {
     serde_json::from_str(DEFAULT_STATE).expect("Failed to parse default state JSON")
 }
