@@ -116,10 +116,7 @@ impl Stream for TangleProducer {
                 None => match state.block_stream.as_mut().poll_next(cx) {
                     Poll::Ready(Some(Ok(block))) => {
                         let fut = block_to_job_calls(block);
-                        state.block_in_progress = Some(Box::pin(fut)
-                            as Pin<
-                                Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>,
-                            >);
+                        state.block_in_progress = Some(Box::pin(fut));
                         continue;
                     }
                     Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
