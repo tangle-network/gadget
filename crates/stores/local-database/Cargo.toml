@@ -10,6 +10,7 @@ workspace = true
 gadget-std = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
 
 [features]
 default = ["std"]
