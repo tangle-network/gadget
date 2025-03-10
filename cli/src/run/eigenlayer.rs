@@ -32,6 +32,12 @@ fn get_binary_name() -> Result<String> {
 }
 
 /// Run a compiled Eigenlayer AVS binary with the provided options
+///
+/// # Errors
+///
+/// * Failed to build the binary (if needed)
+/// * The binary fails to run, for any reason
+#[allow(clippy::missing_panics_doc)]
 pub async fn run_eigenlayer_avs(
     config: BlueprintEnvironment,
     chain: SupportedChains,
@@ -124,8 +130,7 @@ pub async fn run_eigenlayer_avs(
     let mut child = command
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn()?;
 
     // Handle stdout
     let stdout = child.stdout.take().expect("Failed to capture stdout");

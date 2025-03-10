@@ -8,6 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 description = "Core proc-macro primitives for generating Tangle Blueprint code"
 
+[lints]
+workspace = true
+
 [dependencies]
 gadget-std.workspace = true
 
@@ -21,6 +24,3 @@ serde_json = { workspace = true, features = ["alloc"] }
 [features]
 default = ["std"]
 std = ["serde/std", "cid/std", "gadget-std/std"]
-
-[lints]
-workspace = true

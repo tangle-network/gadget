@@ -1,5 +1,5 @@
 pub mod error;
-use error::*;
+use error::Error;
 
 use gadget_std::hash::Hash;
 

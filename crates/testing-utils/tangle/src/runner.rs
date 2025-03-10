@@ -68,7 +68,7 @@ impl<Ctx> Debug for TangleTestEnv<Ctx> {
         f.debug_struct("TangleTestEnv")
             .field("config", &self.config)
             .field("env", &self.env)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -85,7 +85,7 @@ where
         Ok(Self {
             runner: Some(runner),
             config,
-            env: env,
+            env,
             runner_handle: Mutex::new(None),
         })
     }
@@ -120,20 +120,20 @@ where
         let runner = self.runner.take().expect("Runner already running");
         let handle = tokio::spawn(async move { runner.run().await });
 
-        let mut _guard = self.runner_handle.lock().await;
-        *_guard = Some(handle);
+        let mut guard = self.runner_handle.lock().await;
+        *guard = Some(handle);
 
         // Brief delay to allow for startup
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // Just check if it failed immediately
-        let Some(handle) = _guard.take() else {
+        let Some(handle) = guard.take() else {
             return Err(Error::Tangle("Failed to spawn runner task".to_string()));
         };
 
         if !handle.is_finished() {
             // Put the handle back since the runner is still running
-            *_guard = Some(handle);
+            *guard = Some(handle);
             gadget_logging::info!("Runner started successfully");
             return Ok(());
         }
@@ -159,10 +159,10 @@ where
 impl<Ctx> Drop for TangleTestEnv<Ctx> {
     fn drop(&mut self) {
         futures::executor::block_on(async {
-            let mut _guard = self.runner_handle.lock().await;
-            if let Some(handle) = _guard.take() {
+            let mut guard = self.runner_handle.lock().await;
+            if let Some(handle) = guard.take() {
                 handle.abort();
             }
-        })
+        });
     }
 }

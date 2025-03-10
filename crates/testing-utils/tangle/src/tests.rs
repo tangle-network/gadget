@@ -64,7 +64,7 @@ async fn test_services_client() -> Result<(), Error> {
 
     // Query non-existent blueprint
     let blueprint = services
-        .get_blueprint_by_id(block_hash, 999999)
+        .get_blueprint_by_id(block_hash, 999_999)
         .await
         .unwrap();
     assert!(
@@ -125,7 +125,7 @@ async fn test_service_operators() -> Result<(), Error> {
 
     // Query service operators for a non-existent service
     let operators = services
-        .current_service_operators(block_hash, 999999)
+        .current_service_operators(block_hash, 999_999)
         .await
         .unwrap();
     assert!(

@@ -20,6 +20,7 @@ quote = { workspace = true }
 proc-macro2 = { workspace = true }
 
 [dev-dependencies]
+gadget-context-derive = { workspace = true, features = ["std", "tangle", "evm", "networking"] }
 blueprint-sdk = { workspace = true, features = [
     "std",
     "macros",

@@ -31,7 +31,7 @@ async fn test_incredible_squaring() -> Result<()> {
     let results = harness.wait_for_job_execution(service_id, job).await?;
 
     // Verify results match expected output
-    let results = harness.verify_job(results, vec![OutputValue::Uint64(25)])?;
+    harness.verify_job(&results, vec![OutputValue::Uint64(25)])?;
 
     assert_eq!(results.service_id, service_id);
     Ok(())

@@ -20,7 +20,7 @@ use crate::services::TangleServicesClient;
 
 /// The [Config](subxt::Config) providing the runtime types.
 pub type TangleConfig = PolkadotConfig;
-/// The client used to perform API calls, using the [TangleConfig].
+/// The client used to perform API calls, using the [`TangleConfig`].
 pub type OnlineClient = subxt::OnlineClient<TangleConfig>;
 type TangleBlock = Block<TangleConfig, OnlineClient>;
 type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
@@ -47,6 +47,10 @@ pub struct TangleClient {
 
 impl TangleClient {
     /// Create a new Tangle runtime client from an existing [`BlueprintEnvironment`].
+    ///
+    /// # Errors
+    ///
+    /// See [`Keystore::new()`]
     pub async fn new(config: BlueprintEnvironment) -> std::result::Result<Self, Error> {
         let keystore_config =
             KeystoreConfig::new().fs_root(config.keystore_uri.replace("file://", ""));
@@ -75,15 +79,18 @@ impl TangleClient {
     }
 
     /// Get the associated [`TangleServicesClient`]
+    #[must_use]
     pub fn services_client(&self) -> &TangleServicesClient<subxt::PolkadotConfig> {
         &self.services_client
     }
 
+    #[must_use]
     pub fn subxt_client(&self) -> &OnlineClient {
         &self.services_client().rpc_client
     }
 
-    /// Initialize the TangleRuntime instance by listening for finality notifications.
+    /// Initialize the `TangleRuntime` instance by listening for finality notifications.
+    ///
     /// This method must be called before using the instance.
     async fn initialize(&self) -> Result<()> {
         let finality_notification_stream = self
@@ -96,6 +103,7 @@ impl TangleClient {
         Ok(())
     }
 
+    #[must_use]
     pub fn runtime_api(
         &self,
         at: [u8; 32],
@@ -104,11 +112,13 @@ impl TangleClient {
         self.services_client.rpc_client.runtime_api().at(block_ref)
     }
 
+    #[must_use]
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
     }
 
     /// Get [`metadata`](OperatorMetadata) for an operator by [`Account ID`](AccountId32)
+    #[allow(clippy::missing_errors_doc)]
     pub async fn operator_metadata(
         &self,
         operator: AccountId32,
@@ -286,7 +296,7 @@ impl GadgetServicesClient for TangleClient {
             })?;
 
             if let Some(pref) = maybe_pref {
-                let public = ecdsa::Public::from_full(pref.key.as_slice()).map_err(|_| {
+                let public = ecdsa::Public::from_full(pref.key.as_slice()).map_err(|()| {
                     Error::Other(format!(
                         "Failed to convert the ECDSA public key for operator: {operator}"
                     ))

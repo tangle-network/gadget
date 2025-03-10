@@ -22,6 +22,7 @@ pub struct EigenlayerECDSAConfig {
 }
 
 impl EigenlayerECDSAConfig {
+    #[must_use]
     pub fn new(earnings_receiver_address: Address, delegation_approver_address: Address) -> Self {
         Self {
             earnings_receiver_address,
@@ -73,6 +74,7 @@ async fn requires_registration_ecdsa_impl(env: &BlueprintEnvironment) -> Result<
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn register_ecdsa_impl(
     env: &BlueprintEnvironment,
     earnings_receiver_address: Address,
@@ -146,10 +148,10 @@ async fn register_ecdsa_impl(
 
     let digest_hash_salt: FixedBytes<32> = FixedBytes::from([0x02; 32]);
     let now = std::time::SystemTime::now();
-    let sig_expiry = now
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| U256::from(duration.as_secs()) + U256::from(3600))
-        .unwrap_or_else(|_| U256::from(0));
+    let sig_expiry = now.duration_since(std::time::UNIX_EPOCH).map_or_else(
+        |_| U256::from(0),
+        |duration| U256::from(duration.as_secs()) + U256::from(3600),
+    );
 
     blueprint_core::info!(
         "Registration parameters: operator={:?}, manager={:?}, salt={:?}, expiry={:?}",

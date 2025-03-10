@@ -5,6 +5,9 @@ description = "Tangle Network extra utilities for Blueprint framework"
 edition.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 blueprint-core.workspace = true
 bytes.workspace = true

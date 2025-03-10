@@ -1,4 +1,4 @@
-//! Taken from https://github.com/Layr-Labs/evmsdk-rs/blob/main/crates/logging/src/tracing_logger.rs
+//! Taken from <https://github.com/Layr-Labs/evmsdk-rs/blob/main/crates/logging/src/tracing_logger.rs>
 
 use metrics::{Key, Label, describe_counter, describe_histogram};
 
@@ -6,6 +6,7 @@ use metrics::{Key, Label, describe_counter, describe_histogram};
 pub struct RpcCallsMetrics;
 
 impl RpcCallsMetrics {
+    #[must_use]
     pub fn new() -> Self {
         describe_histogram!(
             "evm_rpc_request_duration_seconds",
@@ -19,7 +20,6 @@ impl RpcCallsMetrics {
         Self
     }
 
-    /// set_rpc_request_duration_seconds
     pub fn set_rpc_request_duration_seconds(
         &self,
         method: &str,
@@ -37,7 +37,6 @@ impl RpcCallsMetrics {
         metrics::histogram!(key.to_string()).record(duration);
     }
 
-    /// set_rpc_request_total
     pub fn set_rpc_request_total(
         &self,
         method: &str,

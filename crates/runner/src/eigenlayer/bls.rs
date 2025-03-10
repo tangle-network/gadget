@@ -26,6 +26,7 @@ impl EigenlayerBLSConfig {
     ///
     /// By default, a Runner created with this config will exit after registration (Pre-Registration). To change
     /// this, use [`EigenlayerBLSConfig::with_exit_after_register`] passing false.
+    #[must_use]
     pub fn new(earnings_receiver_address: Address, delegation_approver_address: Address) -> Self {
         Self {
             earnings_receiver_address,
@@ -35,6 +36,7 @@ impl EigenlayerBLSConfig {
     }
 
     /// Sets whether the Runner should exit after registration or continue with execution.
+    #[must_use]
     pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
         self.exit_after_register = should_exit_after_registration;
         self
@@ -144,13 +146,13 @@ async fn register_bls_impl(
     let digest_hash: FixedBytes<32> = FixedBytes::from([0x02; 32]);
 
     let now = std::time::SystemTime::now();
-    let sig_expiry = now
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| U256::from(duration.as_secs()) + U256::from(86400))
-        .unwrap_or_else(|_| {
+    let sig_expiry = now.duration_since(std::time::UNIX_EPOCH).map_or_else(
+        |_| {
             blueprint_core::info!("System time seems to be before the UNIX epoch.");
             U256::from(0)
-        });
+        },
+        |duration| U256::from(duration.as_secs()) + U256::from(86400),
+    );
 
     let quorum_nums = Bytes::from(vec![0]);
 

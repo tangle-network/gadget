@@ -20,11 +20,13 @@ pub struct EigenlayerClient {
 
 impl EigenlayerClient {
     /// Creates a new instance of the [`EigenlayerClient`] given a [`BlueprintEnvironment`].
+    #[must_use]
     pub fn new(config: BlueprintEnvironment) -> Self {
         Self { config }
     }
 
     /// Get the [`BlueprintEnvironment`] for this client
+    #[must_use]
     pub fn config(&self) -> &BlueprintEnvironment {
         &self.config
     }
@@ -33,6 +35,7 @@ impl EigenlayerClient {
     ///
     /// # Returns
     /// - [`The HTTP provider`](RootProvider)
+    #[must_use]
     pub fn get_provider_http(&self) -> RootProvider {
         get_provider_http(&self.config.http_rpc_endpoint)
     }
@@ -41,11 +44,16 @@ impl EigenlayerClient {
     ///
     /// # Returns
     /// - [`The HTTP wallet provider`](RootProvider)
+    #[must_use]
     pub fn get_wallet_provider_http(&self, wallet: alloy_network::EthereumWallet) -> RootProvider {
         get_wallet_provider_http(&self.config.http_rpc_endpoint, wallet)
     }
 
     /// Get the provider for this client's websocket endpoint
+    ///
+    /// # Errors
+    ///
+    /// * Bad WS URL
     ///
     /// # Returns
     /// - [`The WS provider`](RootProvider<BoxTransport>)
@@ -76,6 +84,13 @@ impl EigenlayerClient {
     // }
 
     /// Provides a reader for the AVS registry.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
+    /// * See [`AvsRegistryChainReader::new()`]
+    ///
+    /// [`AvsRegistryChainReader::new()`]: eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new
     pub async fn avs_registry_reader(
         &self,
     ) -> Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader> {
@@ -94,6 +109,13 @@ impl EigenlayerClient {
     }
 
     /// Provides a writer for the AVS registry.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
+    /// * See [`AvsRegistryChainWriter::build_avs_registry_chain_writer()`]
+    ///
+    /// [`AvsRegistryChainWriter::build_avs_registry_chain_writer()`]: eigensdk::client_avsregistry::writer::AvsRegistryChainWriter::build_avs_registry_chain_writer
     pub async fn avs_registry_writer(
         &self,
         private_key: String,
@@ -114,6 +136,13 @@ impl EigenlayerClient {
     }
 
     /// Provides an operator info service.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
+    /// * See [`OperatorInfoServiceInMemory::new()`]
+    ///
+    /// [`OperatorInfoServiceInMemory::new()`]: eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory::new
     pub async fn operator_info_service_in_memory(
         &self,
     ) -> Result<(
@@ -135,6 +164,11 @@ impl EigenlayerClient {
     }
 
     /// Provides an AVS registry service chain caller.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`Self::operator_info_service_in_memory()`]
     pub async fn avs_registry_service_chain_caller_in_memory(
         &self,
     ) -> Result<
@@ -167,6 +201,10 @@ impl EigenlayerClient {
     }
 
     /// Provides a BLS aggregation service.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_service_chain_caller_in_memory()`]
     pub async fn bls_aggregation_service_in_memory(&self) -> Result<eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService<
         eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller<
             eigensdk::client_avsregistry::reader::AvsRegistryChainReader,
@@ -183,6 +221,11 @@ impl EigenlayerClient {
     }
 
     /// Get Operator stake in Quorums at a given block.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`AvsRegistryReader::get_operators_stake_in_quorums_at_block()`]
     pub async fn get_operator_stake_in_quorums_at_block(
         &self,
         block_number: u32,
@@ -196,6 +239,11 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's stake in Quorums at current block.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`AvsRegistryReader::get_operator_stake_in_quorums_of_operator_at_current_block()`]
     pub async fn get_operator_stake_in_quorums_at_current_block(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
@@ -208,6 +256,11 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator by ID.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`AvsRegistryReader::get_operator_from_id()`]
     pub async fn get_operator_by_id(&self, operator_id: [u8; 32]) -> Result<Address> {
         self.avs_registry_reader()
             .await?
@@ -217,6 +270,10 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator stake history.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_operator_stake_history(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
@@ -237,6 +294,10 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator stake update at a given index.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_operator_stake_update_at_index(
         &self,
         quorum_number: u8,
@@ -258,6 +319,10 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's stake at a given block number.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_operator_stake_at_block_number(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
@@ -299,6 +364,10 @@ impl EigenlayerClient {
     // }
 
     /// Get an Operator's latest stake update.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_latest_stake_update(
         &self,
         operator_id: alloy_primitives::FixedBytes<32>,
@@ -319,6 +388,11 @@ impl EigenlayerClient {
     }
 
     /// Get an Operator's ID as [`FixedBytes`] from its [`Address`].
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`AvsRegistryReader::get_operator_id()`]
     pub async fn get_operator_id(
         &self,
         operator_addr: Address,
@@ -331,6 +405,10 @@ impl EigenlayerClient {
     }
 
     /// Get the total stake at a given block number from a given index.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_total_stake_at_block_number_from_index(
         &self,
         quorum_number: u8,
@@ -353,6 +431,10 @@ impl EigenlayerClient {
     }
 
     /// Get the total stake history length of a given quorum.
+    ///
+    /// # Errors
+    ///
+    /// * The [`BlueprintEnvironment`] is not configured for Eigenlayer
     pub async fn get_total_stake_history_length(
         &self,
         quorum_number: u8,
@@ -372,6 +454,11 @@ impl EigenlayerClient {
     }
 
     /// Provides the public keys of existing registered operators within the provided block range.
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::avs_registry_reader()`]
+    /// * See [`AvsRegistryReader::query_existing_registered_operator_pub_keys()`]
     pub async fn query_existing_registered_operator_pub_keys(
         &self,
         start_block: u64,

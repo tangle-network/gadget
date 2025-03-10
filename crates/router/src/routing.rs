@@ -18,15 +18,6 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use tower::{BoxError, Layer, Service};
 
-macro_rules! panic_on_err {
-    ($expr:expr) => {
-        match $expr {
-            Ok(x) => x,
-            Err(err) => panic!("{err}"),
-        }
-    };
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct RouteId(pub u32);
 
@@ -65,31 +56,6 @@ impl<Ctx> fmt::Debug for Router<Ctx> {
     }
 }
 
-macro_rules! map_inner {
-    ($self_:ident, $inner:pat_param => $expr:expr) => {
-        #[allow(redundant_semicolons)]
-        {
-            let $inner = $self_.into_inner();
-            Router {
-                inner: Arc::new($expr),
-            }
-        }
-    };
-}
-
-macro_rules! tap_inner {
-    ( $self_:ident, mut $inner:ident => { $($stmt:stmt)* } ) => {
-        #[allow(redundant_semicolons)]
-        {
-            let mut $inner = $self_.into_inner();
-            $($stmt)*
-            Router {
-                inner: Arc::new($inner),
-            }
-        }
-    };
-}
-
 impl<Ctx> Router<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
@@ -100,7 +66,7 @@ where
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RouterInner {
-                job_id_router: Default::default(),
+                job_id_router: JobIdRouter::default(),
             }),
         }
     }
@@ -121,11 +87,18 @@ where
         J: Job<T, Ctx>,
         T: 'static,
     {
-        tap_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.route(job_id, job));
-        })
+        let mut inner = self.into_inner();
+        inner.job_id_router.route(job_id, job);
+        Router {
+            inner: Arc::new(inner),
+        }
     }
 
+    /// Add a [`Service`] to the router, with the given job ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `service` is a `Router`.
     pub fn route_service<T>(self, job_id: u32, service: T) -> Self
     where
         T: Service<JobCall, Error = BoxError> + Clone + Send + Sync + 'static,
@@ -139,9 +112,11 @@ where
             Err(service) => service,
         };
 
-        tap_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.route_service(job_id, service));
-        })
+        let mut inner = self.into_inner();
+        inner.job_id_router.route_service(job_id, service);
+        Router {
+            inner: Arc::new(inner),
+        }
     }
 
     /// Add a [`Job`] that *always* gets called, regardless of the job ID
@@ -154,9 +129,11 @@ where
         J: Job<T, Ctx>,
         T: 'static,
     {
-        tap_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.always(job));
-        })
+        let mut inner = self.into_inner();
+        inner.job_id_router.always(job);
+        Router {
+            inner: Arc::new(inner),
+        }
     }
 
     /// Add a [`Job`] that gets called if no other route matches
@@ -174,9 +151,11 @@ where
         J: Job<T, Ctx>,
         T: 'static,
     {
-        tap_inner!(self, mut this => {
-            panic_on_err!(this.job_id_router.fallback(job));
-        })
+        let mut inner = self.into_inner();
+        inner.job_id_router.fallback(job);
+        Router {
+            inner: Arc::new(inner),
+        }
     }
 
     pub fn layer<L>(self, layer: L) -> Router<Ctx>
@@ -187,20 +166,27 @@ where
         <L::Service as Service<JobCall>>::Error: Into<BoxError> + 'static,
         <L::Service as Service<JobCall>>::Future: Send + 'static,
     {
-        map_inner!(self, this => RouterInner {
-            job_id_router: this.job_id_router.layer(layer.clone()),
-        })
+        let inner = self.into_inner().job_id_router.layer(layer);
+        Router {
+            inner: Arc::new(RouterInner {
+                job_id_router: inner,
+            }),
+        }
     }
 
     /// True if the router currently has at least one route added.
+    #[must_use]
     pub fn has_routes(&self) -> bool {
         self.inner.job_id_router.has_routes()
     }
 
     pub fn with_context<Ctx2>(self, context: Ctx) -> Router<Ctx2> {
-        map_inner!(self, this => RouterInner {
-            job_id_router: this.job_id_router.with_context(context.clone()),
-        })
+        let inner = self.into_inner().job_id_router.with_context(context);
+        Router {
+            inner: Arc::new(RouterInner {
+                job_id_router: inner,
+            }),
+        }
     }
 
     pub(crate) fn call_with_context(
@@ -234,7 +220,7 @@ where
         self.inner
             .job_id_router
             .call_fallback(call, context)
-            .map(|future| FuturesUnordered::from_iter(iter::once(future)))
+            .map(|future| iter::once(future).collect::<FuturesUnordered<_>>())
     }
 
     /// Convert the router into a borrowed [`Service`] with a fixed request body type, to aid type
@@ -307,6 +293,7 @@ where
     }
 
     #[inline]
+    #[allow(clippy::needless_continue)]
     fn call(&mut self, call: JobCall<B>) -> Self::Future {
         let Some(mut futures) = self.call_with_context(call.map(Into::into), ()) else {
             return Box::pin(async { Ok(None) });

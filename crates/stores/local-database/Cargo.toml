@@ -3,10 +3,14 @@ name = "gadget-store-local-database"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 gadget-std = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["alloc"] }
+thiserror = { workspace = true }
 
 [features]
 default = ["std"]

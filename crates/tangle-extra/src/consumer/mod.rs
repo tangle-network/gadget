@@ -112,28 +112,26 @@ where
         loop {
             match &mut *state {
                 State::WaitingForResult => {
-                    if let Some(DerivedJobResult {
+                    let Some(DerivedJobResult {
                         call_id,
                         service_id,
                         result,
                     }) = consumer.buffer.pop_front()
-                    {
-                        let tx = api::tx()
-                            .services()
-                            .submit_result(service_id, call_id, result);
-                        let fut =
-                            crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
-                        // Store the new future in state.
-                        *state = State::ProcessingBlock(Box::pin(fut));
-                        continue;
-                    } else {
+                    else {
                         return Poll::Ready(Ok(()));
-                    }
+                    };
+
+                    let tx = api::tx()
+                        .services()
+                        .submit_result(service_id, call_id, result);
+                    let fut =
+                        crate::util::send(consumer.client.clone(), consumer.signer.clone(), tx);
+
+                    *state = State::ProcessingBlock(Box::pin(fut));
                 }
                 State::ProcessingBlock(future) => match future.as_mut().poll(cx) {
                     Poll::Ready(Ok(_extrinsic_events)) => {
                         *state = State::WaitingForResult;
-                        continue;
                     }
                     Poll::Ready(Err(e)) => return Poll::Ready(Err(e.into())),
                     Poll::Pending => return Poll::Pending,

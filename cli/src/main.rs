@@ -227,15 +227,11 @@ pub enum DeployTarget {
 }
 
 #[tokio::main]
-#[allow(clippy::needless_return)]
+#[allow(clippy::needless_return, clippy::too_many_lines)]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     init_tracing_subscriber();
-    let args: Vec<String> = if std::env::args()
-        .nth(1)
-        .map(|x| x.eq("tangle"))
-        .unwrap_or(false)
-    {
+    let args: Vec<String> = if std::env::args().nth(1).is_some_and(|x| x.eq("tangle")) {
         // since this runs as a cargo subcommand, we need to skip the first argument
         // to get the actual arguments for the subcommand
         std::env::args().skip(1).collect()
@@ -253,7 +249,7 @@ async fn main() -> color_eyre::Result<()> {
                 source,
                 blueprint_type,
             } => {
-                create::new_blueprint(name, source, blueprint_type)?;
+                create::new_blueprint(&name, source, blueprint_type)?;
             }
             BlueprintCommands::Deploy { target } => match target {
                 DeployTarget::Tangle {
@@ -327,14 +323,14 @@ async fn main() -> color_eyre::Result<()> {
                         deploy::eigenlayer::initialize_test_keystore()?;
 
                         // Deploy to local devnet
-                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                        let opts = EigenlayerDeployOpts::new(
                             http_endpoint.clone(),
                             contracts_path,
                             ordered_deployment,
                             chain,
                             keystore_path,
-                        ))
-                        .await?;
+                        );
+                        deploy_to_eigenlayer(&opts)?;
 
                         // Keep the process running and show helpful instructions
                         println!("\n{}", style("Local Testnet Active").green().bold());
@@ -368,10 +364,10 @@ async fn main() -> color_eyre::Result<()> {
                         signal::ctrl_c().await?;
                         println!("{}", style("\nShutting down devnet...").yellow());
                     } else {
-                        deploy_to_eigenlayer(EigenlayerDeployOpts::new(
+                        let opts = EigenlayerDeployOpts::new(
                             rpc_url
                                 .as_ref()
-                                .map(|s| s.to_string())
+                                .map(ToString::to_string)
                                 .ok_or_else(|| {
                                     color_eyre::Report::msg(
                                         "The --rpc-url flag is required when deploying to a non-local network",
@@ -381,8 +377,8 @@ async fn main() -> color_eyre::Result<()> {
                             ordered_deployment,
                             chain,
                             keystore_path,
-                        ))
-                        .await?;
+                        );
+                        deploy_to_eigenlayer(&opts)?;
                     }
                 }
             },
@@ -400,7 +396,8 @@ async fn main() -> color_eyre::Result<()> {
                     settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
                 if !settings_file.exists() {
                     return Err(color_eyre::Report::msg(format!(
-                        "The --settings-file flag needs to be provided with a valid path, or the file {settings_file:?} needs to exist",
+                        "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist",
+                        settings_file.display()
                     )));
                 }
                 let protocol_settings = load_protocol_settings(protocol, &settings_file)?;

@@ -69,10 +69,8 @@ where
     Ctx: Clone + Send + Sync + 'static,
 {
     /// Creates a new multi-node test environment
-    pub async fn new<const N: usize>(
-        config: TangleTestConfig,
-        context: Ctx,
-    ) -> Result<Self, Error> {
+    #[must_use]
+    pub fn new<const N: usize>(config: TangleTestConfig, context: Ctx) -> Self {
         const { assert!(N > 0, "Must have at least 1 initial node") };
 
         let (command_tx, command_rx) = mpsc::channel(32);
@@ -97,10 +95,15 @@ where
             event_tx,
         );
 
-        Ok(env)
+        env
     }
 
     /// Initializes the multi node test environment with N nodes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command channel closed prematurely
+    #[allow(clippy::missing_panics_doc)]
     pub async fn initialize(&mut self) -> Result<(), Error> {
         if self.initialized_tx.is_none() {
             // Already initialized
@@ -156,6 +159,11 @@ where
         }
     }
 
+    /// Send a start command to all nodes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command channel closed prematurely
     pub async fn start(&mut self) -> Result<(), Error> {
         // Start all nodes' runners
         let (result_tx, result_rx) = oneshot::channel();
@@ -170,7 +178,6 @@ where
         Ok(())
     }
 
-    /// Adds a new node to the test environment
     async fn add_node(&self, node_id: usize) -> Result<(), Error> {
         let (result_tx, result_rx) = oneshot::channel();
         self.command_tx
@@ -181,11 +188,16 @@ where
     }
 
     /// Subscribes to test environment events
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<TestEvent> {
         self.event_tx.subscribe()
     }
 
     /// Removes a node from the test environment
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command channel closed prematurely
     pub async fn remove_node(&self, node_id: usize) -> Result<(), Error> {
         let (result_tx, result_rx) = oneshot::channel();
         self.command_tx
@@ -196,6 +208,10 @@ where
     }
 
     /// Shuts down the test environment
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command channel closed prematurely
     pub async fn shutdown(&self) -> Result<(), Error> {
         self.command_tx
             .send(EnvironmentCommand::Shutdown)
@@ -404,11 +420,11 @@ where
         J: Job<T, ()> + Send + Sync + 'static,
         T: 'static,
     {
-        self.test_env.write().await.add_job(job)
+        self.test_env.write().await.add_job(job);
     }
 
     pub async fn add_background_service<K: BackgroundService + Send + 'static>(&self, service: K) {
-        self.test_env.write().await.add_background_service(service)
+        self.test_env.write().await.add_background_service(service);
     }
 
     pub async fn gadget_config(&self) -> BlueprintEnvironment {
@@ -422,7 +438,7 @@ impl<Ctx> Debug for NodeHandle<Ctx> {
             .field("node_id", &self.node_id)
             .field("signer", &self.signer.address())
             .field("test_env", &self.test_env)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -478,11 +494,15 @@ where
             test_env: Arc::new(RwLock::new(test_env)),
         });
 
-        Self::spawn_command_handler(node.clone(), command_rx);
+        Self::spawn_command_handler(&node, command_rx);
         Ok(node)
     }
 
     /// Shuts down the node
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the node fails to shutdown in time
     pub async fn shutdown(&self) -> Result<(), Error> {
         self.command_tx
             .send(NodeCommand::Shutdown)
@@ -502,6 +522,11 @@ where
         Err(Error::Setup("Node failed to shutdown in time".to_string()))
     }
 
+    /// Start the runner for this node
+    ///
+    /// # Errors
+    ///
+    /// Any errors will be from the runner itself, likely caused by job failure.
     pub async fn start_runner(&self) -> Result<(), Error> {
         let result = {
             let mut test_env_guard = self.test_env.write().await;
@@ -510,7 +535,8 @@ where
         result.map_err(|e| Error::Setup(e.to_string()))
     }
 
-    fn spawn_command_handler(node: Arc<Self>, mut command_rx: mpsc::Receiver<NodeCommand>) {
+    #[expect(clippy::never_loop, reason = "only have a shutdown command for now")]
+    fn spawn_command_handler(node: &Self, mut command_rx: mpsc::Receiver<NodeCommand>) {
         let state = node.state.clone();
         tokio::task::spawn(async move {
             while let Some(cmd) = command_rx.recv().await {
@@ -526,17 +552,19 @@ where
     }
 
     /// Gets a reference to the node's client
+    #[must_use]
     pub fn client(&self) -> &TangleClient {
         &self.client
     }
 
     /// Gets a reference to the node's signer
+    #[must_use]
     pub fn signer(&self) -> &TanglePairSigner<sp_core::sr25519::Pair> {
         &self.signer
     }
 }
 
-pub fn find_open_tcp_bind_port() -> u16 {
+fn find_open_tcp_bind_port() -> u16 {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Should bind to localhost");
     let port = listener
         .local_addr()

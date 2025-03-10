@@ -12,18 +12,52 @@ use sp_core::{ecdsa, ed25519, sr25519};
 #[async_trait::async_trait]
 pub trait TangleBackend: Send + Sync {
     // String-based Key Generation
+    /// Generate an ECDSA key pair from a string seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public>;
+
+    /// Generate an ed25519 key pair from a string seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn ed25519_generate_from_string(&self, string: &str) -> Result<ed25519::Public>;
+
+    /// Generate an sr25519 key pair from a string seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn sr25519_generate_from_string(&self, string: &str) -> Result<sr25519::Public>;
 
+    /// Insert an existing sr25519 key pair
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn create_sr25519_from_pair<T: Into<sr25519::Pair>>(
         &self,
         pair: T,
     ) -> Result<TanglePairSigner<sr25519::Pair>>;
+
+    /// Insert an existing ed25519 key pair
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn create_ed25519_from_pair<T: Into<ed25519::Pair>>(
         &self,
         pair: T,
     ) -> Result<TanglePairSigner<ed25519::Pair>>;
+
+    /// Insert an existing ECDSA key pair
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn create_ecdsa_from_pair<T: Into<ecdsa::Pair>>(
         &self,
         pair: T,
@@ -147,7 +181,17 @@ pub mod bls {
     #[async_trait::async_trait]
     pub trait TangleBlsBackend: TangleBackend {
         // BLS Key Generation Methods
+        /// Generate a BLS377 key pair from a string seed
+        ///
+        /// # Errors
+        ///
+        /// Depending on the backend, this may error when attempting to store the key into the keystore.
         fn bls377_generate_from_string(&self, string: &str) -> Result<sp_core::bls377::Public>;
+        /// Generate a BLS381 key pair from a string seed
+        ///
+        /// # Errors
+        ///
+        /// Depending on the backend, this may error when attempting to store the key into the keystore.
         fn bls381_generate_from_string(&self, string: &str) -> Result<sp_core::bls381::Public>;
     }
 

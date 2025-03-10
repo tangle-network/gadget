@@ -1,4 +1,4 @@
-//! Re-exported from https://github.com/Layr-Labs/eigensdk-rs/blob/main/crates/chainio/clients/eth/src/client.rs
+//! Re-exported from <https://github.com/Layr-Labs/eigensdk-rs/blob/main/crates/chainio/clients/eth/src/client.rs>
 
 use alloy_primitives::BlockNumber;
 use alloy_rpc_types::{Block, BlockNumberOrTag};

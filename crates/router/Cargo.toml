@@ -3,6 +3,9 @@ name = "blueprint-router"
 version = "0.1.0"
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 blueprint-core.workspace = true
 bytes.workspace = true

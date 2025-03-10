@@ -13,6 +13,7 @@ mod in_memory;
 pub use in_memory::InMemoryStorage;
 
 // Raw storage trait that can be made into a trait object
+#[allow(missing_docs, clippy::missing_errors_doc)] // TODO: determine if this should be doc(hidden)
 pub trait RawStorage: Send + Sync {
     fn store_raw(
         &self,
@@ -47,6 +48,7 @@ pub struct TypedStorage<S: RawStorage> {
     )),
     allow(unreachable_code, unused_variables, unused_mut)
 )]
+#[allow(missing_docs, clippy::missing_errors_doc)] // TODO: determine if this should be doc(hidden)
 impl<S: RawStorage> TypedStorage<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }

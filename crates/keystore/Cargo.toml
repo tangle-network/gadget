@@ -8,6 +8,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 # Core dependencies (always included)
 gadget-crypto.workspace = true

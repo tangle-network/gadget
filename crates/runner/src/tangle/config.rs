@@ -82,6 +82,7 @@ pub struct TangleConfig {
 }
 
 impl TangleConfig {
+    #[must_use]
     pub fn new(price_targets: PriceTargets) -> Self {
         Self {
             price_targets,
@@ -89,6 +90,7 @@ impl TangleConfig {
         }
     }
 
+    #[must_use]
     pub fn with_exit_after_register(mut self, should_exit_after_registration: bool) -> Self {
         self.exit_after_register = should_exit_after_registration;
         self
@@ -109,6 +111,7 @@ impl BlueprintConfig for TangleConfig {
     }
 }
 
+#[allow(clippy::missing_errors_doc)] // TODO: should this even be public?
 pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bool, RunnerError> {
     let settings = env.protocol_settings.tangle()?;
 
@@ -120,13 +123,13 @@ pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bo
     let keystore_config = KeystoreConfig::new()
         .in_memory(false)
         .fs_root(keystore_path);
-    let keystore = Keystore::new(keystore_config).unwrap();
+    let keystore = Keystore::new(keystore_config)?;
 
     // TODO: Key IDs
     let sr25519_key = keystore
         .first_local::<SpSr25519>()
         .map_err(TangleError::from)?;
-    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
+    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key)?;
     let signer: PairSigner<sp_core::sr25519::Pair> = PairSigner::new(sr25519_pair.0);
 
     let account_id = signer.account_id();
@@ -142,13 +145,13 @@ pub async fn requires_registration_impl(env: &BlueprintEnvironment) -> Result<bo
         .map_err(|e| {
             <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
         })?;
-    let is_registered = operator_profile
-        .map(|p| p.blueprints.0.iter().any(|&id| id == settings.blueprint_id))
-        .unwrap_or(false);
+    let is_registered =
+        operator_profile.is_some_and(|p| p.blueprints.0.contains(&settings.blueprint_id));
 
     Ok(!is_registered)
 }
 
+#[allow(clippy::missing_errors_doc)] // TODO: should this even be public?
 pub async fn register_impl(
     price_targets: PriceTargets,
     registration_args: RegistrationArgs,
@@ -163,13 +166,13 @@ pub async fn register_impl(
     let keystore_config = KeystoreConfig::new()
         .in_memory(false)
         .fs_root(keystore_path);
-    let keystore = Keystore::new(keystore_config).unwrap();
+    let keystore = Keystore::new(keystore_config)?;
 
     // TODO: Key IDs
     let sr25519_key = keystore
         .first_local::<SpSr25519>()
         .map_err(TangleError::from)?;
-    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key).unwrap();
+    let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_key)?;
     let signer = PairSigner::new(sr25519_pair.0);
 
     let ecdsa_key = keystore
@@ -221,6 +224,7 @@ pub async fn register_impl(
 }
 
 // TODO: Push this upstream: https://docs.rs/sp-core/latest/src/sp_core/ecdsa.rs.html#59-74
+#[must_use]
 pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
     // Uncompress the public key
     let pk = k256::PublicKey::from_sec1_bytes(compressed).ok()?;
@@ -237,6 +241,7 @@ pub fn decompress_pubkey(compressed: &[u8; 33]) -> Option<[u8; 65]> {
     Some(result)
 }
 
+#[allow(clippy::missing_errors_doc)] // TODO: should this even be public?
 pub async fn get_client(
     ws_url: &str,
     http_url: &str,

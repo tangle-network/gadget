@@ -19,12 +19,13 @@ pub type TangleConfig = PolkadotConfig;
 pub type TangleClient = OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 
+type BlockToJobCallsFut = Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>;
+
 struct ProducerState {
     block_stream:
         Pin<Box<dyn Stream<Item = Result<TangleBlock, subxt::Error>> + Send + Unpin + 'static>>,
     buffer: VecDeque<JobCall>,
-    block_in_progress:
-        Option<Pin<Box<dyn Future<Output = Result<Vec<JobCall>, subxt::Error>> + Send>>>,
+    block_in_progress: Option<Pin<BlockToJobCallsFut>>,
 }
 
 impl ProducerState {
@@ -46,7 +47,11 @@ pub struct TangleProducer {
 }
 
 impl TangleProducer {
-    /// Create a TangleProducer that yields job calls from finalized blocks.
+    /// Create a [`TangleProducer`] that yields job calls from finalized blocks.
+    ///
+    /// # Errors
+    ///
+    /// See [`BlocksClient::subscribe_finalized`]
     pub async fn finalized_blocks(client: TangleClient) -> Result<Self, subxt::Error> {
         let blocks_client = BlocksClient::new(client.clone());
         let stream = blocks_client.subscribe_finalized().await?;
@@ -57,7 +62,11 @@ impl TangleProducer {
         })
     }
 
-    /// Create a TangleProducer that yields job calls from best blocks.
+    /// Create a [`TangleProducer`] that yields job calls from best blocks.
+    ///
+    /// # Errors
+    ///
+    /// See [`BlocksClient::subscribe_best`]
     pub async fn best_blocks(client: TangleClient) -> Result<Self, subxt::Error> {
         let blocks_client = BlocksClient::new(client.clone());
         let stream = blocks_client.subscribe_best().await?;
@@ -77,6 +86,7 @@ impl TangleProducer {
 impl Stream for TangleProducer {
     type Item = Result<JobCall, subxt::Error>;
 
+    #[allow(trivial_casts, clippy::needless_continue)]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut state = self.state.lock().unwrap();
 
@@ -97,11 +107,10 @@ impl Stream for TangleProducer {
                         return Poll::Ready(Some(Err(e)));
                     }
                     Poll::Pending => {
-                        if let Some(job) = state.buffer.pop_front() {
-                            return Poll::Ready(Some(Ok(job)));
-                        } else {
+                        let Some(job) = state.buffer.pop_front() else {
                             return Poll::Pending;
-                        }
+                        };
+                        return Poll::Ready(Some(Ok(job)));
                     }
                 },
                 None => match state.block_stream.as_mut().poll_next(cx) {
@@ -116,11 +125,10 @@ impl Stream for TangleProducer {
                     Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
                     Poll::Ready(None) => return Poll::Ready(None),
                     Poll::Pending => {
-                        if let Some(job) = state.buffer.pop_front() {
-                            return Poll::Ready(Some(Ok(job)));
-                        } else {
+                        let Some(job) = state.buffer.pop_front() else {
                             return Poll::Pending;
-                        }
+                        };
+                        return Poll::Ready(Some(Ok(job)));
                     }
                 },
             }

@@ -1,20 +1,32 @@
-use super::*;
 use crate::Keystore;
 use crate::error::{Error, Result};
 use gadget_crypto::bn254::{
     ArkBlsBn254, ArkBlsBn254Public, ArkBlsBn254Secret, ArkBlsBn254Signature,
 };
-use gadget_crypto::{BytesEncoding, KeyTypeId};
+use gadget_crypto::{BytesEncoding, KeyType, KeyTypeId};
+use gadget_std::boxed::Box;
 
 #[async_trait::async_trait]
 pub trait Bn254Backend: Send + Sync {
     /// Generate a new BN254 key pair from seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<ArkBlsBn254Public>;
 
     /// Generate a BN254 key pair from a string seed
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to store the key into the keystore.
     fn bls_bn254_generate_from_string(&self, secret: &str) -> Result<ArkBlsBn254Public>;
 
     /// Sign a message using BN254 key
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to open and/or read the keystore.
     fn bls_bn254_sign(
         &self,
         public: &ArkBlsBn254Public,
@@ -22,6 +34,10 @@ pub trait Bn254Backend: Send + Sync {
     ) -> Result<Option<ArkBlsBn254Signature>>;
 
     /// Get the secret key for a BN254 public key
+    ///
+    /// # Errors
+    ///
+    /// Depending on the backend, this may error when attempting to open and/or read the keystore.
     fn expose_bls_bn254_secret(
         &self,
         public: &ArkBlsBn254Public,

@@ -13,6 +13,7 @@ use gadget_testing_utils::anvil::start_default_anvil_testnet;
 use tempfile::TempDir;
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)]
 async fn test_run_eigenlayer_avs() -> Result<()> {
     setup_log();
 
@@ -27,7 +28,7 @@ async fn test_run_eigenlayer_avs() -> Result<()> {
     let keystore_path = temp_dir.path().join("./keystore");
 
     // Write the test contract
-    let contract_content = r#"// SPDX-License-Identifier: MIT
+    let contract_content = r"// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
 contract TestContract {
@@ -47,16 +48,16 @@ contract TestContract {
         return value;
     }
 }
-"#;
+";
     fs::write(contract_src_dir.join("TestContract.sol"), contract_content)?;
 
     // Create foundry.toml
     let foundry_content = format!(
-        r#"[profile.default]
+        r"[profile.default]
 src = 'src'
 out = '{}'
 libs = ['lib']
-evm_version = 'shanghai'"#,
+evm_version = 'shanghai'",
         contract_out_dir
             .strip_prefix(temp_dir.path())
             .unwrap()
@@ -97,7 +98,7 @@ evm_version = 'shanghai'"#,
         .expect("Failed to build contracts");
 
     // Deploy contracts
-    let contract_addresses = deploy_avs_contracts(&opts).await?;
+    let contract_addresses = deploy_avs_contracts(&opts)?;
     let test_contract_address = contract_addresses
         .iter()
         .find(|(key, _value)| key.contains("TestContract"))
@@ -280,9 +281,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         }
 
         attempts += 1;
-        if attempts >= MAX_ATTEMPTS {
-            panic!("Test timed out waiting for success file");
-        }
+        assert!(
+            attempts < MAX_ATTEMPTS,
+            "Test timed out waiting for success file"
+        );
 
         interval.tick().await;
     }

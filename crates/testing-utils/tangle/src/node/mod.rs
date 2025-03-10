@@ -13,6 +13,11 @@ const TANGLE_RELEASE_MAC: &str = "https://github.com/tangle-network/tangle/relea
 const TANGLE_RELEASE_LINUX: &str = "https://github.com/tangle-network/tangle/releases/download/v1.2.10/tangle-testnet-manual-seal-linux-amd64";
 
 /// Downloads the appropriate Tangle binary for the current platform and returns the path
+///
+/// # Errors
+///
+/// * Unsupported platform
+/// * Unable to determine the user's cache directory
 pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let download_url = if cfg!(target_os = "macos") {
         TANGLE_RELEASE_MAC
@@ -67,7 +72,12 @@ pub async fn download_tangle_binary() -> Result<PathBuf, Box<dyn std::error::Err
 }
 
 /// Run a Tangle node with the given configuration.
+///
 /// The node will shut down when the returned handle is dropped.
+///
+/// # Errors
+///
+/// * If not using a local node, see [`download_tangle_binary`]
 pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
     let mut builder = SubstrateNode::builder();
 
@@ -82,12 +92,9 @@ pub async fn run(config: NodeConfig) -> Result<SubstrateNode, Error> {
             .add_binary_path("../../tangle/target/release/tangle")
             .add_binary_path("../../../tangle/target/release/tangle");
     } else {
-        let binary_path = download_tangle_binary().await.map_err(|e| {
-            Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        let binary_path = download_tangle_binary()
+            .await
+            .map_err(|e| Error::Io(std::io::Error::other(e.to_string())))?;
         builder.add_binary_path(binary_path.to_string_lossy().to_string());
     }
 

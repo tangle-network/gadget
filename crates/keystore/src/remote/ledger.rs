@@ -41,7 +41,7 @@ impl<'de> Deserialize<'de> for HDPathWrapper {
         let hd_path = if path.starts_with("m/44'/60'/") && path.ends_with("/0/0") {
             // LedgerLive format
             let parts: Vec<&str> = path.split('/').collect();
-            if let Ok(index) = parts[3].trim_end_matches("'").parse() {
+            if let Ok(index) = parts[3].trim_end_matches('\'').parse() {
                 HDPath::LedgerLive(index)
             } else {
                 HDPath::Other(path)
@@ -94,6 +94,12 @@ pub struct LedgerRemoteSigner {
 }
 
 impl LedgerRemoteSigner {
+    /// Create a new `LedgerRemoteSigner`
+    ///
+    /// # Errors
+    ///
+    /// Will fail if any of the keys specified in the [`LedgerRemoteSignerConfig`] cannot be loaded, for
+    /// any reason.
     pub async fn new(config: LedgerRemoteSignerConfig) -> Result<Self> {
         let mut signers = BTreeMap::new();
 
@@ -114,6 +120,11 @@ impl LedgerRemoteSigner {
         Ok(Self { signers })
     }
 
+    /// Get a signer for a specific chain ID
+    ///
+    /// # Errors
+    ///
+    /// Will fail if no signer is found for the given chain ID
     pub fn get_signer_for_chain(&self, chain_id: Option<u64>) -> Result<&LedgerKeyInstance> {
         self.signers
             .iter()

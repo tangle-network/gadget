@@ -89,7 +89,7 @@ pub enum Error {
     #[error("bls: {0}")]
     #[cfg(feature = "bls")]
     Bls(String),
-    /// An error occurred during bls_bn254 module operation
+    /// An error occurred during bn254 module operation
     #[error("bls_bn254: {0}")]
     #[cfg(feature = "bn254")]
     BlsBn254(String),
