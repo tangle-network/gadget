@@ -2631,15 +2631,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-eigenlayer-extra"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-network",
+ "alloy-primitives 0.8.21",
+ "alloy-provider",
+ "alloy-transport",
+ "blueprint-evm-extra",
+ "eigensdk",
+ "thiserror 2.0.11",
+]
+
+[[package]]
 name = "blueprint-evm-extra"
 version = "0.1.0"
 dependencies = [
  "alloy-consensus",
+ "alloy-network",
  "alloy-primitives 0.8.21",
  "alloy-provider",
  "alloy-rlp",
  "alloy-rpc-client",
  "alloy-rpc-types",
+ "alloy-signer-local",
  "alloy-sol-types 0.8.21",
  "alloy-transport",
  "alloy-transport-http",
@@ -2649,12 +2665,14 @@ dependencies = [
  "document-features",
  "futures",
  "futures-util",
+ "gadget-std",
  "pin-project-lite",
  "serde_json",
  "thiserror 2.0.11",
  "tokio",
  "tower 0.5.2",
  "tracing-subscriber 0.3.19",
+ "url",
 ]
 
 [[package]]
@@ -2743,6 +2761,7 @@ dependencies = [
  "alloy-signer",
  "alloy-signer-local",
  "blueprint-core",
+ "blueprint-evm-extra",
  "blueprint-router",
  "blueprint-sdk",
  "blueprint-tangle-extra",
@@ -2758,7 +2777,6 @@ dependencies = [
  "gadget-keystore",
  "gadget-networking",
  "gadget-std",
- "gadget-utils",
  "k256",
  "libp2p",
  "serde",
@@ -2799,7 +2817,6 @@ dependencies = [
  "gadget-std",
  "gadget-stores",
  "gadget-testing-utils",
- "gadget-utils",
  "serde",
  "tangle-subxt",
  "tempfile",
@@ -2815,17 +2832,20 @@ dependencies = [
  "bytes",
  "cargo_metadata 0.18.1",
  "cid",
+ "color-eyre",
  "document-features",
  "futures-core",
  "futures-util",
  "gadget-blueprint-serde",
- "gadget-utils",
+ "gadget-testing-utils",
  "paste",
  "pin-project-lite",
  "serde",
  "serde_json",
  "tangle-subxt",
+ "tempfile",
  "thiserror 2.0.11",
+ "tokio",
  "tower 0.5.2",
 ]
 
@@ -3358,7 +3378,9 @@ dependencies = [
  "alloy-transport",
  "anyhow",
  "bip39",
+ "blueprint-evm-extra",
  "blueprint-runner",
+ "blueprint-tangle-extra",
  "cargo-generate",
  "cargo_metadata 0.18.1",
  "clap",
@@ -3376,9 +3398,6 @@ dependencies = [
  "gadget-logging",
  "gadget-std",
  "gadget-testing-utils",
- "gadget-utils",
- "gadget-utils-evm",
- "gadget-utils-tangle",
  "hex",
  "indicatif",
  "reqwest 0.12.12",
@@ -6774,7 +6793,6 @@ dependencies = [
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
- "gadget-utils",
  "serde",
  "serde_json",
  "tempfile",
@@ -6835,13 +6853,13 @@ dependencies = [
  "alloy-provider",
  "alloy-pubsub",
  "alloy-transport",
+ "blueprint-evm-extra",
  "blueprint-runner",
  "eigensdk",
  "gadget-anvil-testing-utils",
  "gadget-client-core",
  "gadget-eigenlayer-testing-utils",
  "gadget-std",
- "gadget-utils-evm",
  "num-bigint 0.4.6",
  "thiserror 2.0.11",
  "tokio",
@@ -6868,12 +6886,12 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
+ "blueprint-evm-extra",
  "gadget-anvil-testing-utils",
  "gadget-client-core",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
- "gadget-utils-evm",
  "hex",
  "serde",
  "serde_json",
@@ -7133,6 +7151,7 @@ dependencies = [
  "alloy-transport",
  "async-trait",
  "blueprint-core",
+ "blueprint-evm-extra",
  "blueprint-runner",
  "eigensdk",
  "futures",
@@ -7140,7 +7159,6 @@ dependencies = [
  "gadget-core-testing-utils",
  "gadget-logging",
  "gadget-std",
- "gadget-utils",
  "serde",
  "serde_json",
  "tempfile",
@@ -7373,58 +7391,6 @@ dependencies = [
  "gadget-core-testing-utils",
  "gadget-eigenlayer-testing-utils",
  "gadget-tangle-testing-utils",
-]
-
-[[package]]
-name = "gadget-utils"
-version = "0.1.0"
-dependencies = [
- "gadget-utils-eigenlayer",
- "gadget-utils-evm",
- "gadget-utils-tangle",
-]
-
-[[package]]
-name = "gadget-utils-eigenlayer"
-version = "0.1.0"
-dependencies = [
- "alloy-contract",
- "alloy-network",
- "alloy-primitives 0.8.21",
- "alloy-provider",
- "alloy-transport",
- "eigensdk",
- "gadget-utils-evm",
- "thiserror 2.0.11",
-]
-
-[[package]]
-name = "gadget-utils-evm"
-version = "0.1.0"
-dependencies = [
- "alloy-network",
- "alloy-primitives 0.8.21",
- "alloy-provider",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
- "gadget-std",
- "url",
-]
-
-[[package]]
-name = "gadget-utils-tangle"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "color-eyre",
- "gadget-logging",
- "gadget-std",
- "gadget-testing-utils",
- "tangle-subxt",
- "tempfile",
- "tokio",
- "tracing",
 ]
 
 [[package]]

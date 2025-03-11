@@ -14,6 +14,7 @@ pub mod contract;
 pub mod event;
 
 /// Creates a filter for a specific contract and event type
+#[must_use]
 pub fn create_event_filter<E: SolEvent>(address: Address) -> Filter {
     Filter::new()
         .address(address)
@@ -21,11 +22,13 @@ pub fn create_event_filter<E: SolEvent>(address: Address) -> Filter {
 }
 
 /// Creates a filter for multiple event types from a single contract
+#[must_use]
 pub fn create_contract_filter(address: Address, event_signatures: &[&[u8; 32]]) -> Filter {
     Filter::new().address(address).events(event_signatures)
 }
 
 /// Creates a filter for a specific event type from any contract
+#[must_use]
 pub fn create_event_type_filter<E: SolEvent>() -> Filter {
     Filter::new().event_signature(E::SIGNATURE_HASH)
 }

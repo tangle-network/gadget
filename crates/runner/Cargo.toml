@@ -25,8 +25,6 @@ url = { workspace = true, features = ["serde"] }
 dynosaur = { workspace = true }
 document-features = { workspace = true }
 
-gadget-utils.workspace = true
-
 # Networking
 crossbeam-channel = { workspace = true, optional = true }
 gadget-networking = { workspace = true, optional = true }
@@ -38,6 +36,7 @@ tangle-subxt = { workspace = true, optional = true }
 k256 = { workspace = true, optional = true }
 
 # Eigenlayer
+blueprint-evm-extra = { workspace = true, optional = true }
 alloy-contract = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, features = ["serde"], optional = true }
 alloy-signer-local = { workspace = true, optional = true }
@@ -74,7 +73,6 @@ tangle = [
     "dep:tangle-subxt",
     "dep:blueprint-tangle-extra",
     "dep:k256",
-    "gadget-utils/tangle",
     "gadget-crypto/sp-core",
     "gadget-crypto/tangle-pair-signer"
 ]
@@ -83,12 +81,12 @@ tangle = [
 ##
 ## [Eigenlayer]: https://eigenlayer.xyz
 eigenlayer = [
+    "dep:blueprint-evm-extra",
     "dep:alloy-contract",
     "dep:alloy-primitives",
     "dep:alloy-signer-local",
     "dep:alloy-signer",
     "dep:eigensdk",
-    "gadget-utils/evm",
     "std", # TODO: keystore access requires the std feature
 ]
 

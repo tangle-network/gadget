@@ -13,13 +13,14 @@ workspace = true
 
 [dependencies]
 blueprint-runner = { workspace = true, features = ["eigenlayer"] }
+blueprint-evm-extra.workspace = true
 blueprint-core = { workspace = true }
+
 futures = { workspace = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
 gadget-logging = { workspace = true }
-gadget-utils = { workspace = true, features = ["eigenlayer", "evm", "std"] }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 alloy-primitives = { workspace = true }
