@@ -53,10 +53,9 @@ incredible-squaring-blueprint = { version = "0.1.1", path = "./examples/incredib
 incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./examples/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
-blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
-blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
-blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
-gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
+blueprint-manager = { version = "0.2.2", path = "./crates/manager", default-features = false }
+blueprint-build-utils = { version = "0.1.0", path = "./crates/build-utils", default-features = false }
+gadget-blueprint-serde = { version = "0.3.1", path = "./crates/serde", default-features = false }
 
 # Crypto
 gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
