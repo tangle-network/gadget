@@ -1,20 +1,22 @@
 use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
-use async_trait::async_trait;
-use blueprint_sdk::runner::config::{BlueprintEnvironment, SupportedChains};
+use blueprint_sdk::runner::config::BlueprintEnvironment;
 use std::path::PathBuf;
 
 pub mod github;
 pub mod testing;
 
-#[async_trait]
 #[auto_impl::auto_impl(Box)]
+#[dynosaur::dynosaur(pub(crate) DynBinarySourceFetcher)]
 pub trait BinarySourceFetcher: Send + Sync {
-    async fn get_binary(&self) -> Result<PathBuf>;
+    fn get_binary(&self) -> impl Future<Output = Result<PathBuf>> + Send;
     fn blueprint_id(&self) -> u64;
     fn name(&self) -> String;
 }
+
+unsafe impl Send for DynBinarySourceFetcher<'_> {}
+unsafe impl Sync for DynBinarySourceFetcher<'_> {}
 
 #[must_use]
 pub fn process_arguments_and_env(

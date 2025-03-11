@@ -1,6 +1,5 @@
 use crate::error::{Error, Result};
 use crate::sources::BinarySourceFetcher;
-use async_trait::async_trait;
 use gadget_logging::trace;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::TestFetcher;
@@ -11,7 +10,6 @@ pub struct TestSourceFetcher {
     pub gadget_name: String,
 }
 
-#[async_trait]
 impl BinarySourceFetcher for TestSourceFetcher {
     async fn get_binary(&self) -> Result<PathBuf> {
         let TestFetcher {

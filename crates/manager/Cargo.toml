@@ -41,7 +41,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "trac
 libp2p = { workspace = true }
 auto_impl = { workspace = true }
 parking_lot = { workspace = true }
-async-trait = { workspace = true }
+dynosaur = { workspace = true }
 sp-core = { workspace = true }
 
 [package.metadata.dist]

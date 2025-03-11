@@ -20,7 +20,6 @@ gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-crypto-sp-core = { workspace = true }
 
-async-trait = { workspace = true }
 auto_impl = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }

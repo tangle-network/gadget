@@ -132,7 +132,6 @@ alloy-json-abi = {{ version = "0.8" }}
 alloy-dyn-abi = {{ version = "0.8" }}
 alloy-contract = {{ version = "0.9" }}
 alloy-network = {{ version = "0.9" }}
-async-trait = {{ version = "0.1.86" }}
 serde = {{ version = "1.0", features = ["derive"] }}
 serde_json = "1.0"
 "#

@@ -13,7 +13,6 @@ use alloy_rpc_types_eth::{
 };
 use alloy_transport::{TransportError, TransportResult};
 use gadget_rpc_calls::RpcCallsMetrics as RpcCallsCollector;
-use gadget_std::boxed::Box;
 use gadget_std::string::String;
 use gadget_std::string::ToString;
 use gadget_std::time::Instant;
@@ -47,7 +46,6 @@ pub enum InstrumentedClientError {
     Rpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
 }
 
-#[async_trait::async_trait]
 impl BackendClient for InstrumentedClient {
     type Error = InstrumentedClientError;
 
@@ -793,14 +791,14 @@ impl InstrumentedClient {
     /// # Returns
     ///
     /// The result of the RPC call.
-    async fn instrument_function<'async_trait, P, R>(
+    async fn instrument_function<P, R>(
         &self,
         rpc_method_name: &str,
         params: P,
     ) -> TransportResult<R>
     where
-        P: RpcSend + 'async_trait,
-        R: RpcRecv + 'async_trait,
+        P: RpcSend,
+        R: RpcRecv,
     {
         let start = Instant::now();
         let method_string = String::from(rpc_method_name);
@@ -835,9 +833,9 @@ mod tests {
         BlockId, BlockNumberOrTag, BlockTransactionsKind, pubsub::SubscriptionResult,
     };
     use alloy_signer_local::PrivateKeySigner;
+    use blueprint_evm_extra::util::get_provider_http;
     use gadget_anvil_testing_utils::wait_transaction;
     use gadget_chain_setup_anvil::start_default_anvil_testnet;
-    use gadget_utils_evm::get_provider_http;
     use tokio;
 
     #[tokio::test]

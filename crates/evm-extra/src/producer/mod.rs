@@ -9,24 +9,25 @@ use alloc::collections::BTreeMap;
 use alloy_primitives::FixedBytes;
 use alloy_rpc_types::Log;
 use blueprint_core::{JobCall, extensions::Extensions, job_call::Parts, metadata::MetadataMap};
+use bytes::Bytes;
 pub use polling::{PollingConfig, PollingProducer};
 
 use crate::extract::{BlockHash, BlockNumber, BlockTimestamp, ContractAddress};
 
-/// Converts Logs to JobCalls
+/// Converts Logs to [`JobCall`]s
 pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
     let mut job_calls = Vec::new();
     let mut logs_by_block = BTreeMap::new();
     for log in logs {
-        if let Some(block_number) = log.block_number {
-            logs_by_block
-                .entry(block_number)
-                .or_insert(Vec::new())
-                .push(log);
-        } else {
+        let Some(block_number) = log.block_number else {
             blueprint_core::warn!(?log, "Missing block number");
             continue;
-        }
+        };
+
+        logs_by_block
+            .entry(block_number)
+            .or_insert(Vec::new())
+            .push(log);
     }
 
     for (block_number, logs) in logs_by_block {
@@ -42,10 +43,10 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
             metadata.insert(BlockHash::METADATA_KEY, *block_hash);
         } else {
             blueprint_core::warn!(?log0, "Missing block hash");
-        };
+        }
         if let Some(block_timestamp) = log0.block_timestamp {
             metadata.insert(BlockTimestamp::METADATA_KEY, block_timestamp);
-        };
+        }
         metadata.insert(ContractAddress::METADATA_KEY, **log0.address());
         extensions.insert(logs.clone());
         blueprint_core::trace!(?block_number, "Processing logs");
@@ -62,7 +63,7 @@ pub(crate) fn logs_to_job_calls(logs: Vec<Log>) -> Vec<JobCall> {
             let parts = Parts::new(id)
                 .with_metadata(metadata.clone())
                 .with_extensions(extensions.clone());
-            job_calls.push(JobCall::from_parts(parts, Default::default()));
+            job_calls.push(JobCall::from_parts(parts, Bytes::default()));
         }
     }
     job_calls

@@ -4,6 +4,7 @@ use crate::error::RunnerError;
 use alloy_primitives::{Address, FixedBytes, U256, hex};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
+use blueprint_evm_extra::util::get_provider_http;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
@@ -12,7 +13,6 @@ use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ISignatureUtils:
 use gadget_keystore::backends::Backend;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
 use gadget_keystore::crypto::k256::K256Ecdsa;
-use gadget_utils::evm::get_provider_http;
 use std::str::FromStr;
 
 #[derive(Clone, Copy)]

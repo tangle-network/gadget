@@ -110,7 +110,6 @@ where
                 State::ProcessingTransaction(ref mut fut) => match fut.as_mut().poll(cx) {
                     Poll::Ready(Ok(())) => {
                         this.state = State::WaitingForResult;
-                        continue;
                     }
                     Poll::Ready(Err(err)) => {
                         return Poll::Ready(Err(err.into()));

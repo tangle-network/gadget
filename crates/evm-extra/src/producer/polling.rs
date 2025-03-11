@@ -102,6 +102,7 @@ impl<P: Provider> PollingProducer<P> {
     /// # Arguments
     /// * `provider` - The EVM provider to use for fetching logs
     /// * `config` - Configuration parameters for the polling behavior
+    #[allow(clippy::cast_possible_truncation)]
     pub fn new(provider: Arc<P>, config: PollingConfig) -> Self {
         // Calculate initial block range accounting for confirmations
         let initial_start_block = config.start_block.saturating_sub(config.confirmations);
@@ -143,14 +144,13 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
 
             match this.state {
                 PollingState::Idle(ref mut fut) => match fut.as_mut().poll(cx) {
-                    Poll::Ready(_) => {
+                    Poll::Ready(()) => {
                         // Transition to fetching block number
                         blueprint_core::trace!(
                             "Polling interval elapsed, fetching current block number"
                         );
                         let fut = get_block_number(this.provider.clone());
                         this.state = PollingState::FetchingBlockNumber(Box::pin(fut));
-                        continue;
                     }
                     Poll::Pending => return Poll::Pending,
                 },
@@ -202,7 +202,6 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                         // Transition to fetching logs
                         let fut = get_logs(this.provider.clone(), this.filter.clone());
                         this.state = PollingState::FetchingLogs(Box::pin(fut));
-                        continue;
                     }
                     Poll::Ready(Err(e)) => {
                         blueprint_core::error!(
@@ -233,8 +232,6 @@ impl<P: Provider + 'static> Stream for PollingProducer<P> {
                         this.state = PollingState::Idle(Box::pin(tokio::time::sleep(
                             this.config.poll_interval,
                         )));
-
-                        continue;
                     }
                     Poll::Ready(Err(e)) => {
                         blueprint_core::error!(

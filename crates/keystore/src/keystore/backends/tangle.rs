@@ -9,7 +9,6 @@ use gadget_crypto::{BytesEncoding, KeyTypeId};
 use sp_core::Pair;
 use sp_core::{ecdsa, ed25519, sr25519};
 
-#[async_trait::async_trait]
 pub trait TangleBackend: Send + Sync {
     // String-based Key Generation
     /// Generate an ECDSA key pair from a string seed
@@ -178,7 +177,6 @@ pub mod bls {
     use gadget_crypto::{BytesEncoding, KeyTypeId};
     use sp_core::Pair;
 
-    #[async_trait::async_trait]
     pub trait TangleBlsBackend: TangleBackend {
         // BLS Key Generation Methods
         /// Generate a BLS377 key pair from a string seed

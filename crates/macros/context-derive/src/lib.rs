@@ -75,24 +75,10 @@ pub fn derive_tangle_client_context(input: TokenStream) -> TokenStream {
 #[cfg(feature = "tangle")]
 #[proc_macro_derive(ServicesContext, attributes(config))]
 pub fn derive_services_context(input: TokenStream) -> TokenStream {
-    const CALL_ID_TAG_NAME: &str = "call_id";
-    const CALL_ID_TAG_TYPE: &str = "Option<u64>";
-
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let result =
         cfg::find_config_field(&input.ident, &input.data, CONFIG_TAG_NAME, CONFIG_TAG_TYPE)
-            .and_then(|res| {
-                let call_id_field = cfg::find_config_field(
-                    &input.ident,
-                    &input.data,
-                    CALL_ID_TAG_NAME,
-                    CALL_ID_TAG_TYPE,
-                )?;
-                Ok((res, call_id_field))
-            })
-            .map(|(config_field, call_id_field)| {
-                tangle::services::generate_context_impl(input, config_field, call_id_field)
-            });
+            .map(|config_field| tangle::services::generate_context_impl(input, config_field));
 
     match result {
         Ok(expanded) => TokenStream::from(expanded),

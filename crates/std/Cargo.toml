@@ -12,7 +12,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true, optional = true }
 rand = { workspace = true, features = ["std_rng"] }
 rayon = { workspace = true, optional = true }
 num-traits.workspace = true
@@ -27,7 +26,7 @@ tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 [features]
 default = ["std"]
 std = ["thiserror/std", "getrandom"]
-tokio = ["dep:async-trait", "dep:tokio"]
+tokio = ["dep:tokio"]
 parallel = ["dep:rayon", "std"]
 print-trace = ["std"]
 getrandom = ["rand/std"]

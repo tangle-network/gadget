@@ -14,6 +14,7 @@ rust_2018_idioms = { level = "deny", priority = -1 }
 trivial_casts = "deny"
 trivial_numeric_casts = "deny"
 unused_import_braces = "deny"
+async_fn_in_trait = "allow"
 
 [workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }
@@ -45,6 +46,7 @@ blueprint-runner = { version = "0.1.0", path = "crates/runner", default-features
 # Extras
 blueprint-tangle-extra = { version = "0.1.0", path = "crates/tangle-extra", default-features = false }
 blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-features = false }
+blueprint-eigenlayer-extra = { version = "0.1.0", path = "crates/eigenlayer-extra", default-features = false }
 blueprint-producers-extra = { version = "0.1.0", path = "crates/producers-extra", default-features = false }
 
 # Blueprint Examples
@@ -52,11 +54,9 @@ incredible-squaring-blueprint = { version = "0.1.1", path = "./examples/incredib
 incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./examples/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
-blueprint-util-meta = { version = "0.1.0", path = "./crates/blueprint", default-features = false }
-blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
-blueprint-build-utils = { version = "0.1.0", path = "./crates/blueprint/build-utils", default-features = false }
-gadget-blueprint-serde = { version = "0.3.1", path = "./crates/blueprint/serde", default-features = false }
-gadget-blueprint-manager = { version = "0.2.2", path = "./crates/blueprint/manager", default-features = false }
+blueprint-manager = { version = "0.2.2", path = "./crates/manager", default-features = false }
+blueprint-build-utils = { version = "0.1.0", path = "./crates/build-utils", default-features = false }
+gadget-blueprint-serde = { version = "0.3.1", path = "./crates/serde", default-features = false }
 
 # Chain Setup
 gadget-chain-setup = { version = "0.1.0", path = "./crates/chain-setup", default-features = false }
@@ -89,7 +89,6 @@ gadget-executor = { version = "0.1.0", path = "./crates/executor", default-featu
 
 # Macros
 blueprint-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
-gadget-blueprint-proc-macro-core = { version = "0.4.0", path = "./crates/macros/core", default-features = false }
 gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
 
 # Stores
@@ -104,12 +103,6 @@ gadget-std = { version = "0.1.0", path = "./crates/std", default-features = fals
 # P2P
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
 gadget-networking-round-based-extension = { version = "0.1.0", path = "./crates/networking/extensions/round-based", default-features = false }
-
-# Utilities
-gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
-gadget-utils-evm = { version = "0.1.0", path = "./crates/utils/evm", default-features = false }
-gadget-utils-eigenlayer = { version = "0.1.0", path = "./crates/utils/eigenlayer", default-features = false }
-gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", default-features = false }
 
 # Testing utilities
 gadget-testing-utils = { version = "0.1.0", path = "./crates/testing-utils", default-features = false }
@@ -136,7 +129,6 @@ sp-io = { version = "38.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
 
 # Async & Runtime
-async-trait = { version = "0.1.86", default-features = false }
 crossbeam = { version = "0.8", default-features = false }
 crossbeam-channel = { version = "0.5", default-features = false }
 futures = { version = "0.3.30", default-features = false }
@@ -221,7 +213,7 @@ paste = { version = "1.0.15", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
 quote = { version = "1.0", default-features = false }
 rustdoc-types = { version = "0.35.0", default-features = false }
-syn = { version = "2.0.98", default-features = false }
+syn = { version = "2.0.100", default-features = false }
 trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
 dirs = { version = "6.0.0", default-features = false }

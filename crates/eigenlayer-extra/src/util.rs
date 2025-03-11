@@ -1,5 +1,5 @@
 use alloy_primitives::Address;
-use gadget_utils_evm::get_provider_http;
+use blueprint_evm_extra::util::get_provider_http;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

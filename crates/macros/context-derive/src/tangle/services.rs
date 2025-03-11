@@ -11,14 +11,8 @@ pub fn generate_context_impl(
         ..
     }: DeriveInput,
     config_field: FieldInfo,
-    call_id_field: FieldInfo,
 ) -> proc_macro2::TokenStream {
     let field_access_config = match config_field {
-        FieldInfo::Named(ident) => quote! { self.#ident },
-        FieldInfo::Unnamed(index) => quote! { self.#index },
-    };
-
-    let field_access_call_id = match call_id_field {
         FieldInfo::Named(ident) => quote! { self.#ident },
         FieldInfo::Unnamed(index) => quote! { self.#index },
     };
@@ -30,12 +24,7 @@ pub fn generate_context_impl(
     };
 
     quote! {
-        #[::blueprint_sdk::async_trait::async_trait]
         impl #impl_generics ::blueprint_sdk::contexts::services::ServicesContext for #name #ty_generics #where_clause {
-            fn get_call_id(&mut self) -> &mut Option<u64> {
-                &mut #field_access_call_id
-            }
-
             async fn services_client(&self) -> #config_ty {
                 let rpc_client = ::blueprint_sdk::tangle_subxt::subxt::OnlineClient::from_url(
                     &#field_access_config.http_rpc_endpoint

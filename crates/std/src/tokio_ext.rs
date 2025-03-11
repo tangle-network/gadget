@@ -4,32 +4,41 @@ use tokio::{sync::MutexGuard, time::error::Elapsed};
 /// An extension trait for tokio Mutex.
 ///
 /// This allows for locking a mutex with a given timeout.
-#[async_trait::async_trait]
 pub trait TokioMutexExt<T: Send> {
     /// Attempts to lock the mutex with a given timeout.
     ///
     /// # Errors
     ///
     /// Returns an error if the timeout expires before the lock is acquired.
-    async fn try_lock_timeout(&self, timeout: Duration) -> Result<MutexGuard<'_, T>, Elapsed>;
+    async fn try_lock_timeout<'a>(
+        &'a self,
+        timeout: Duration,
+    ) -> Result<MutexGuard<'a, T>, Elapsed>
+    where
+        T: 'a;
 
     /// Locks the mutex with a given timeout.
     ///
     /// # Panics
     ///
-    /// Panics if [try_lock_timeout] returns an error.
+    /// Panics if [`try_lock_timeout`] returns an error.
     ///
     /// [try_lock_timeout]: Self::try_lock_timeout
-    async fn lock_timeout(&self, timeout: Duration) -> MutexGuard<'_, T> {
+    async fn lock_timeout<'a>(&'a self, timeout: Duration) -> MutexGuard<'a, T>
+    where
+        T: 'a,
+    {
         self.try_lock_timeout(timeout)
             .await
             .expect("Timeout on mutex lock")
     }
 }
 
-#[async_trait::async_trait]
 impl<T: Send> TokioMutexExt<T> for tokio::sync::Mutex<T> {
-    async fn try_lock_timeout(&self, timeout: Duration) -> Result<MutexGuard<'_, T>, Elapsed> {
+    async fn try_lock_timeout<'a>(&'a self, timeout: Duration) -> Result<MutexGuard<'a, T>, Elapsed>
+    where
+        T: 'a,
+    {
         tokio::time::timeout(timeout, self.lock()).await
     }
 }

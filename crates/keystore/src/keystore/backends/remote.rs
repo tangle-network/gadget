@@ -36,7 +36,6 @@ impl RemoteEntry {
     }
 }
 
-#[async_trait::async_trait]
 pub trait RemoteBackend: Backend {
     /// Sign a message using a remote signer
     async fn sign_with_remote<T, R>(
@@ -62,7 +61,6 @@ pub trait RemoteBackend: Backend {
         R::KeyId: Send;
 }
 
-#[async_trait::async_trait]
 impl RemoteBackend for Keystore {
     /// Sign a message using a remote signer
     async fn sign_with_remote<T, R>(

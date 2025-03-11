@@ -6,7 +6,7 @@ use crate::sdk::utils::{
     bounded_string_to_string, generate_running_process_status_handle, make_executable,
 };
 use crate::sources::github::GithubBinaryFetcher;
-use crate::sources::{process_arguments_and_env, BinarySourceFetcher};
+use crate::sources::{process_arguments_and_env, BinarySourceFetcher, DynBinarySourceFetcher};
 use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use blueprint_sdk::runner::config::Protocol;
@@ -25,7 +25,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
 const DEFAULT_PROTOCOL: Protocol = Protocol::Tangle;
 
 pub struct VerifiedBlueprint<'a> {
-    pub(crate) fetcher: Box<dyn BinarySourceFetcher + 'a>,
+    pub(crate) fetcher: Box<DynBinarySourceFetcher<'a>>,
     pub(crate) blueprint: FilteredBlueprint,
 }
 
@@ -372,9 +372,9 @@ pub(crate) async fn handle_tangle_event(
 fn get_fetcher_candidates(
     blueprint: &FilteredBlueprint,
     manager_opts: &BlueprintManagerConfig,
-) -> Result<Vec<Box<dyn BinarySourceFetcher>>> {
+) -> Result<Vec<Box<DynBinarySourceFetcher<'static>>>> {
     let mut test_fetcher_idx = None;
-    let mut fetcher_candidates: Vec<Box<dyn BinarySourceFetcher>> = vec![];
+    let mut fetcher_candidates: Vec<Box<DynBinarySourceFetcher<'static>>> = vec![];
 
     let sources;
     match &blueprint.gadget {
@@ -400,7 +400,7 @@ fn get_fetcher_candidates(
                     gadget_name: blueprint.name.clone(),
                 };
 
-                fetcher_candidates.push(Box::new(fetcher));
+                fetcher_candidates.push(DynBinarySourceFetcher::boxed(fetcher));
             }
 
             GadgetSourceFetcher::Testing(test) => {
@@ -418,7 +418,7 @@ fn get_fetcher_candidates(
                 };
 
                 test_fetcher_idx = Some(source_idx);
-                fetcher_candidates.push(Box::new(fetcher));
+                fetcher_candidates.push(DynBinarySourceFetcher::boxed(fetcher));
             }
 
             _ => {
