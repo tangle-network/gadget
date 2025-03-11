@@ -2850,14 +2850,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blueprint-util-meta"
-version = "0.1.0"
-dependencies = [
- "blueprint-build-utils",
- "blueprint-manager",
-]
-
-[[package]]
 name = "bollard"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
