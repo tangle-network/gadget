@@ -23,7 +23,6 @@ pub fn generate_context_impl(
     let config_ty = quote! { ::blueprint_sdk::contexts::eigenlayer::EigenlayerClient };
 
     quote! {
-        #[::blueprint_sdk::async_trait::async_trait]
         impl #impl_generics ::blueprint_sdk::contexts::eigenlayer::EigenlayerContext for #name #ty_generics #where_clause {
             async fn eigenlayer_client(&self) -> std::result::Result<#config_ty, ::blueprint_sdk::clients::Error> {
                 static CLIENT: std::sync::OnceLock<#config_ty> = std::sync::OnceLock::new();

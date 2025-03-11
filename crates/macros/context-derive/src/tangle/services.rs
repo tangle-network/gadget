@@ -24,7 +24,6 @@ pub fn generate_context_impl(
     };
 
     quote! {
-        #[::blueprint_sdk::async_trait::async_trait]
         impl #impl_generics ::blueprint_sdk::contexts::services::ServicesContext for #name #ty_generics #where_clause {
             async fn services_client(&self) -> #config_ty {
                 let rpc_client = ::blueprint_sdk::tangle_subxt::subxt::OnlineClient::from_url(

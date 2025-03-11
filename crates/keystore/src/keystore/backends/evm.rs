@@ -9,7 +9,6 @@ use gadget_crypto::{BytesEncoding, KeyType};
 use gadget_std::string::ToString;
 use serde::de::DeserializeOwned;
 
-#[async_trait::async_trait]
 pub trait EvmBackend: Send + Sync {
     /// Create an EVM wallet from a private key
     ///

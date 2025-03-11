@@ -5,7 +5,6 @@ use gadget_std::hash::Hash;
 
 pub type OperatorSet<K, V> = std::collections::BTreeMap<K, V>;
 
-#[async_trait::async_trait]
 #[auto_impl::auto_impl(&, Arc)]
 pub trait GadgetServicesClient: Send + Sync + 'static {
     /// The ID of for operators at the blueprint/application layer. Typically a cryptograpgic key in the form of a point on

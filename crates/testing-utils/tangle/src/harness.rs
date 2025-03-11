@@ -96,7 +96,6 @@ pub(crate) async fn generate_env_from_node_id(
     Ok(env)
 }
 
-#[async_trait::async_trait]
 impl<Ctx> TestHarness for TangleTestHarness<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,

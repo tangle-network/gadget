@@ -6,7 +6,6 @@ use gadget_crypto::bn254::{
 use gadget_crypto::{BytesEncoding, KeyType, KeyTypeId};
 use gadget_std::boxed::Box;
 
-#[async_trait::async_trait]
 pub trait Bn254Backend: Send + Sync {
     /// Generate a new BN254 key pair from seed
     ///

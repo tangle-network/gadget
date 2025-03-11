@@ -2694,11 +2694,11 @@ dependencies = [
 name = "blueprint-manager"
 version = "0.2.2"
 dependencies = [
- "async-trait",
  "auto_impl",
  "blueprint-sdk",
  "clap",
  "color-eyre",
+ "dynosaur",
  "futures",
  "gadget-clients",
  "gadget-crypto",
@@ -2794,7 +2794,6 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-json-abi",
- "async-trait",
  "blueprint-build-utils",
  "blueprint-core",
  "blueprint-evm-extra",
@@ -6817,7 +6816,6 @@ dependencies = [
 name = "gadget-client-core"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "auto_impl",
  "gadget-std",
  "thiserror 2.0.11",
@@ -6865,7 +6863,6 @@ dependencies = [
  "alloy-signer-local",
  "alloy-transport",
  "alloy-transport-http",
- "async-trait",
  "blueprint-evm-extra",
  "gadget-anvil-testing-utils",
  "gadget-client-core",
@@ -6885,7 +6882,6 @@ dependencies = [
 name = "gadget-client-tangle"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "auto_impl",
  "blueprint-runner",
  "color-eyre",
@@ -6922,7 +6918,6 @@ dependencies = [
  "alloy-network",
  "alloy-provider",
  "alloy-transport",
- "async-trait",
  "blueprint-sdk",
  "gadget-context-derive",
  "proc-macro2",
@@ -6938,7 +6933,6 @@ dependencies = [
 name = "gadget-contexts"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "blueprint-runner",
  "gadget-clients",
  "gadget-keystore",
@@ -6952,7 +6946,6 @@ dependencies = [
 name = "gadget-core-testing-utils"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "blueprint-core",
  "blueprint-router",
  "blueprint-runner",
@@ -7129,7 +7122,6 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-rpc-types-eth",
  "alloy-transport",
- "async-trait",
  "blueprint-core",
  "blueprint-evm-extra",
  "blueprint-runner",
@@ -7178,7 +7170,6 @@ dependencies = [
  "ark-ec 0.5.0",
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
- "async-trait",
  "aws-config",
  "aws-sdk-kms",
  "blake3",
@@ -7229,7 +7220,6 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives 0.8.21",
  "anyhow",
- "async-trait",
  "auto_impl",
  "bincode",
  "blake3",
@@ -7297,7 +7287,6 @@ dependencies = [
 name = "gadget-std"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "colored",
  "num-traits",
  "rand 0.8.5",
@@ -7335,7 +7324,6 @@ dependencies = [
  "alloy-signer-local",
  "alloy-sol-types 0.8.21",
  "alloy-transport",
- "async-trait",
  "blueprint-core",
  "blueprint-runner",
  "blueprint-tangle-extra",

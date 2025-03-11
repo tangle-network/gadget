@@ -3,7 +3,6 @@ use crate::gadget::native::get_gadget_binary;
 use crate::sdk;
 use crate::sdk::utils::{get_download_url, hash_bytes_to_hex, valid_file_exists};
 use crate::sources::BinarySourceFetcher;
-use async_trait::async_trait;
 use gadget_logging::info;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::GithubFetcher;
@@ -15,7 +14,6 @@ pub struct GithubBinaryFetcher {
     pub gadget_name: String,
 }
 
-#[async_trait]
 impl BinarySourceFetcher for GithubBinaryFetcher {
     async fn get_binary(&self) -> Result<PathBuf> {
         let relevant_binary =

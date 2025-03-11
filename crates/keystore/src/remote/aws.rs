@@ -72,7 +72,6 @@ impl AwsRemoteSigner {
     }
 }
 
-#[async_trait::async_trait]
 impl EcdsaRemoteSigner<K256Ecdsa> for AwsRemoteSigner {
     type Public = K256VerifyingKey;
     type Signature = K256Signature;

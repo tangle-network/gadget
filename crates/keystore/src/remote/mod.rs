@@ -8,7 +8,6 @@ pub mod gcp;
 pub mod ledger;
 
 use crate::error::Result;
-use async_trait::async_trait;
 use gadget_crypto::KeyType;
 use gadget_std::future::Future;
 use serde::{de::DeserializeOwned, Serialize};
@@ -55,7 +54,6 @@ pub trait RemoteSigner<T: KeyType>: RemoteBackend {
 }
 
 // Keep existing EcdsaRemoteSigner for ECDSA-specific remote signing
-#[async_trait::async_trait]
 pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
     type Public: Clone
         + Ord
@@ -91,7 +89,6 @@ pub trait EcdsaRemoteSigner<T: KeyType>: Send + Sync {
 }
 
 // Generic remote operations trait for extensibility
-#[async_trait]
 pub trait RemoteOperations: Send + Sync {
     /// Get the type of remote system
     fn backend_type(&self) -> &'static str;

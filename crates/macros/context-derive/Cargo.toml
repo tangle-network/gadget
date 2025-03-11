@@ -31,7 +31,6 @@ blueprint-sdk = { workspace = true, features = [
     "local-store",
 ] }
 
-async-trait.workspace = true
 trybuild = { workspace = true }
 
 # EVM Stuff

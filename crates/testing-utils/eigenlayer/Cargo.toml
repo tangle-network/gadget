@@ -22,7 +22,6 @@ gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
 gadget-logging = { workspace = true }
 tempfile = { workspace = true }
-async-trait = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }

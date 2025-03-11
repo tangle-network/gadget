@@ -193,7 +193,6 @@ impl gadget_std::ops::Deref for TangleClient {
     }
 }
 
-#[async_trait::async_trait]
 impl EventsClient<TangleEvent> for TangleClient {
     async fn next_event(&self) -> Option<TangleEvent> {
         let mut lock = self
@@ -221,7 +220,7 @@ impl EventsClient<TangleEvent> for TangleClient {
                 drop(lock);
                 self.initialize().await.ok()?;
                 // Next time, the stream should be initialized.
-                self.next_event().await
+                Box::pin(async { self.next_event().await }).await
             }
         }
     }
@@ -244,7 +243,6 @@ impl EventsClient<TangleEvent> for TangleClient {
 
 pub type BlueprintId = u64;
 
-#[async_trait::async_trait]
 impl GadgetServicesClient for TangleClient {
     type PublicApplicationIdentity = ecdsa::Public;
     type PublicAccountIdentity = AccountId32;
