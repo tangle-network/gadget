@@ -54,12 +54,12 @@ incredible-squaring-blueprint = { version = "0.1.1", path = "./examples/incredib
 incredible-squaring-blueprint-eigenlayer = { version = "0.1.1", path = "./examples/incredible-squaring-eigenlayer", default-features = false }
 
 # Blueprint utils
-blueprint-manager = { version = "0.2.2", path = "./crates/manager", default-features = false }
+blueprint-manager = { version = "0.2.3", path = "./crates/manager", default-features = false }
 blueprint-build-utils = { version = "0.1.0", path = "./crates/build-utils", default-features = false }
-gadget-blueprint-serde = { version = "0.3.1", path = "./crates/serde", default-features = false }
+gadget-blueprint-serde = { version = "0.3.2", path = "./crates/serde", default-features = false }
 
 # Crypto
-gadget-crypto-core = { version = "0.1.0", path = "./crates/crypto/core", default-features = false }
+gadget-crypto-core = { version = "0.1.1", path = "./crates/crypto/core", default-features = false }
 gadget-crypto-k256 = { version = "0.1.0", path = "./crates/crypto/k256", default-features = false }
 gadget-crypto-sr25519 = { version = "0.1.0", path = "./crates/crypto/sr25519", default-features = false }
 gadget-crypto-ed25519 = { version = "0.1.0", path = "./crates/crypto/ed25519", default-features = false }
@@ -72,7 +72,7 @@ gadget-crypto-tangle-pair-signer = { version = "0.1.0", path = "./crates/crypto/
 
 # Clients
 gadget-clients = { version = "0.1.0", path = "./crates/clients", default-features = false }
-gadget-client-core = { version = "0.1.0", path = "./crates/clients/core", default-features = false }
+gadget-client-core = { version = "0.1.1", path = "./crates/clients/core", default-features = false }
 gadget-client-eigenlayer = { version = "0.1.0", path = "./crates/clients/eigenlayer", default-features = false }
 gadget-client-evm = { version = "0.1.0", path = "./crates/clients/evm", default-features = false }
 gadget-client-tangle = { version = "0.1.0", path = "./crates/clients/tangle", default-features = false }
@@ -83,7 +83,7 @@ gadget-executor = { version = "0.1.0", path = "./crates/executor", default-featu
 
 # Macros
 blueprint-macros = { version = "0.1.0", path = "./crates/macros", default-features = false }
-gadget-context-derive = { version = "0.3.1", path = "./crates/macros/context-derive", default-features = false }
+gadget-context-derive = { version = "0.3.2", path = "./crates/macros/context-derive", default-features = false }
 
 # Stores
 gadget-stores = { version = "0.1.0", path = "./crates/stores", default-features = false }
@@ -92,7 +92,7 @@ gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local
 # SDK
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
 gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
-gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
+gadget-std = { version = "0.1.1", path = "./crates/std", default-features = false }
 
 # P2P
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
