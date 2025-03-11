@@ -1,11 +1,12 @@
 //! EVM Consumer(s)
 
 use alloc::collections::VecDeque;
+use alloy_primitives::TxHash;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
 use alloy_provider::fillers::{FillProvider, JoinFill, RecommendedFillers, WalletFiller};
-use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet, ReceiptResponse};
+use alloy_provider::network::{Ethereum, EthereumWallet, NetworkWallet};
 use alloy_provider::{Network, Provider, RootProvider};
 use alloy_rpc_types::TransactionRequest;
 use alloy_transport::TransportError;
@@ -22,7 +23,7 @@ pub type AlloyProviderWithWallet<N, W> =
 
 enum State {
     WaitingForResult,
-    ProcessingTransaction(Pin<Box<dyn Future<Output = Result<(), TransportError>> + Send>>),
+    ProcessingTransaction(Pin<Box<dyn Future<Output = Result<TxHash, TransportError>> + Send>>),
 }
 
 impl core::fmt::Debug for State {
@@ -108,7 +109,7 @@ where
                     this.state = State::ProcessingTransaction(Box::pin(fut));
                 }
                 State::ProcessingTransaction(ref mut fut) => match fut.as_mut().poll(cx) {
-                    Poll::Ready(Ok(())) => {
+                    Poll::Ready(Ok(_)) => {
                         this.state = State::WaitingForResult;
                     }
                     Poll::Ready(Err(err)) => {
@@ -129,12 +130,16 @@ where
     }
 }
 
-async fn send_transaction<N, P>(provider: P, tx: TransactionRequest) -> Result<(), TransportError>
+async fn send_transaction<N, P>(
+    provider: P,
+    tx: TransactionRequest,
+) -> Result<TxHash, TransportError>
 where
     N: Network,
     N::TransactionRequest: From<TransactionRequest>,
     P: Provider<N>,
 {
+    use alloy_provider::network::ReceiptResponse;
     use alloy_transport::TransportErrorKind;
     let res = provider.send_transaction(tx.into()).await;
     let receipt_res = match res {
@@ -166,5 +171,5 @@ where
         "Transaction sent successfully",
     );
 
-    Ok(())
+    Ok(receipt.transaction_hash())
 }
