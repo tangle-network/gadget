@@ -158,7 +158,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 //  xx |     pub async fn my_job(TangleArg(_): TangleArg<u64>)  {}
 //     |                                   ^^^^ not found in this scope
 /// ```
-///
+/// 
 /// # Performance
 ///
 /// This macro has no effect when compiled with the release profile. (eg. `cargo build --release`)
