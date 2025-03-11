@@ -6916,7 +6916,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "testcontainers",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -6936,7 +6936,7 @@ dependencies = [
  "gadget-std",
  "sp-core",
  "tangle-subxt",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -6945,12 +6945,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
- "alloy-primitives 0.8.21",
+ "alloy-primitives 0.8.22",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-rpc-types-eth",
  "alloy-signer-local",
- "alloy-sol-types 0.8.21",
+ "alloy-sol-types 0.8.22",
  "alloy-transport",
  "blueprint-tangle-extra",
  "cargo_metadata 0.18.1",
@@ -6973,7 +6973,7 @@ dependencies = [
  "serde_json",
  "sp-core",
  "tangle-subxt",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tracing",
 ]
 

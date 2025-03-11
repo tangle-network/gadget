@@ -8,8 +8,6 @@ use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
-use gadget_testing_utils::anvil::start_default_anvil_testnet;
-use gadget_utils::evm::get_provider_http;
 use serde_json::Value;
 use tempfile::TempDir;
 
