@@ -24,12 +24,12 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
 
 const DEFAULT_PROTOCOL: Protocol = Protocol::Tangle;
 
-pub struct VerifiedBlueprint<'a> {
-    pub(crate) fetcher: Box<DynBinarySourceFetcher<'a>>,
+pub struct VerifiedBlueprint {
+    pub(crate) fetcher: Box<DynBinarySourceFetcher<'static>>,
     pub(crate) blueprint: FilteredBlueprint,
 }
 
-impl VerifiedBlueprint<'_> {
+impl VerifiedBlueprint {
     pub async fn start_services_if_needed(
         &self,
         gadget_config: &BlueprintEnvironment,
@@ -110,7 +110,7 @@ impl VerifiedBlueprint<'_> {
     }
 }
 
-impl Debug for VerifiedBlueprint<'_> {
+impl Debug for VerifiedBlueprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         format!(
             "{}/bid={}/sid(s)={:?}",

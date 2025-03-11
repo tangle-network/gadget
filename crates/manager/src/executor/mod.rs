@@ -276,25 +276,19 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     };
 
     drop(_span);
-    let _ = keystore_uri;
-    let _ = tx_stop;
-    let _ = start_tx;
-    drop(combined_task);
-    let _ = ecdsa_key;
-    todo!("start blueprint manager");
-    // let handle = tokio::spawn(combined_task);
-    //
-    // let handle = BlueprintManagerHandle {
-    //     start_tx: Some(start_tx),
-    //     shutdown_call: Some(tx_stop),
-    //     running_task: handle,
-    //     span,
-    //     sr25519_id: tangle_key,
-    //     ecdsa_id: ecdsa_key,
-    //     keystore_uri,
-    // };
-    //
-    // Ok(handle)
+    let handle = tokio::spawn(combined_task);
+
+    let handle = BlueprintManagerHandle {
+        start_tx: Some(start_tx),
+        shutdown_call: Some(tx_stop),
+        running_task: handle,
+        span,
+        sr25519_id: tangle_key,
+        ecdsa_id: ecdsa_key,
+        keystore_uri,
+    };
+
+    Ok(handle)
 }
 
 /// * Query to get Vec<RpcServicesWithBlueprint>

@@ -7460,7 +7460,6 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "thiserror 2.0.12",
- "tokio",
 ]
 
 [[package]]
