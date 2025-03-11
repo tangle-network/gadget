@@ -84,7 +84,7 @@ alloy-rpc-types-eth = { workspace = true, optional = true }
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = { workspace = true }
-gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
+gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer", "tangle"] }
 alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
 
