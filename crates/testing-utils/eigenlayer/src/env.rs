@@ -101,6 +101,8 @@ pub async fn setup_eigenlayer_test_environment(
     .await
     .unwrap();
 
+    dbg!(receipt);
+
     info!("Setup Eigenlayer test environment");
 
     EigenlayerTestEnvironment {
