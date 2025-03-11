@@ -213,13 +213,14 @@ paste = { version = "1.0.15", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
 quote = { version = "1.0", default-features = false }
 rustdoc-types = { version = "0.35.0", default-features = false }
-syn = { version = "2.0.100", default-features = false }
+syn = { version = "2.0", default-features = false }
 trybuild = { version = "1.0", default-features = false }
 typed-builder = { version = "0.19", default-features = false }
 dirs = { version = "6.0.0", default-features = false }
 serial_test = { version = "3.2.0", default-features = false }
 indicatif = { version = "0.17.8", default-features = false }
 document-features = "0.2.11"
+rustversion = "1.0.20"
 
 # Alloy (EVM)
 alloy = { version = "0.11", default-features = false }
@@ -264,7 +265,7 @@ rayon = { version = "1", default-features = false }
 zeroize = { version = "1.8.1", default-features = false }
 
 # Eigenlayer
-eigensdk = { git = "https://github.com/Serial-ATA/eigensdk-rs.git", branch = "alloy-update", default-features = false }
+eigensdk = { git = "https://github.com/Serial-ATA/eigensdk-rs.git", branch = "serial/alloy-0.11", default-features = false }
 rust-bls-bn254 = { version = "0.2.1", default-features = false }
 testcontainers = { version = "0.23.1", default-features = false }
 

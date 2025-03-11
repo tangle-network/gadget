@@ -50,7 +50,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 ///
 /// ```compile_fail
 /// # use blueprint_sdk::Router;
-/// # use blueprint_macros::debug_job;
+/// # use blueprint_sdk::macros::debug_job;
 /// #
 /// # #[tokio::main]
 /// # async fn main() {
@@ -74,7 +74,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 /// As the error message says, job function needs to be async.
 ///
 /// ```no_run
-/// use blueprint_sdk::{Router, debug_job};
+/// use blueprint_sdk::{Router, macros::debug_job};
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -93,8 +93,8 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 /// [`blueprint_sdk::Context`] argument:
 ///
 /// ```
-/// use blueprint_sdk::debug_job;
 /// use blueprint_sdk::extract::Context;
+/// use blueprint_sdk::macros::debug_job;
 ///
 /// #[debug_job]
 /// async fn job(
@@ -112,7 +112,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 ///
 /// ```
 /// use blueprint_sdk::extract::Context;
-/// use blueprint_sdk::{debug_job, extract::FromRef};
+/// use blueprint_sdk::{extract::FromRef, macros::debug_job};
 ///
 /// #[debug_job(context = AppContext)]
 /// async fn job(Context(app_ctx): Context<AppContext>, Context(inner_ctx): Context<InnerContext>) {
@@ -138,7 +138,7 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 /// This macro does not work for functions in an `impl` block that don't have a `self` parameter:
 ///
 /// ```compile_fail
-/// use blueprint_sdk::debug_job;
+/// use blueprint_sdk::macros::debug_job;
 /// use blueprint_tangle_extra::extract::TangleArg;
 ///
 /// struct App {}
