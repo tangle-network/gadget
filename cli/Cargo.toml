@@ -35,7 +35,6 @@ indicatif = { workspace = true }
 
 # Blueprint dependencies
 blueprint-runner = { workspace = true, features = ["networking"] }
-gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
 blueprint-tangle-extra = { workspace = true, default-features = true }
@@ -89,7 +88,6 @@ alloy-dyn-abi = { workspace = true }
 [features]
 default = ["std", "tangle", "eigenlayer"]
 std = [
-    "gadget-blueprint-proc-macro-core/std",
     "gadget-clients/std",
     "gadget-keystore/std",
     "gadget-logging/std",

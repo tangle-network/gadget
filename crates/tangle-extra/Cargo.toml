@@ -44,10 +44,10 @@ default = ["std", "tracing", "macros"]
 #! ### Core
 
 ## Enable standard library support
-std = ["futures-util/std"]
+std = ["futures-util/std", "cid?/std"]
 
 ## Enable support for web targets
-web = ["futures-util/std"]
+web = ["futures-util/std", "cid?/std"]
 
 ## Enable [tracing] support
 ##
