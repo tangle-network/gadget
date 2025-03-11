@@ -6,11 +6,8 @@ pub mod services;
 #[cfg(not(any(feature = "std", feature = "web")))]
 compile_error!("`std` or `web` feature required");
 
-use async_trait::async_trait;
 use auto_impl::auto_impl;
-use gadget_std::boxed::Box;
 
-#[async_trait]
 #[auto_impl(Arc)]
 pub trait EventsClient<Event>: Clone + Send + Sync {
     /// Fetch the next event from the client.

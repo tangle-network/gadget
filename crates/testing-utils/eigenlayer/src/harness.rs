@@ -31,7 +31,6 @@ pub struct EigenlayerTestHarness<Ctx> {
     _phantom: core::marker::PhantomData<Ctx>,
 }
 
-#[async_trait::async_trait]
 impl<Ctx> TestHarness for EigenlayerTestHarness<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,

@@ -142,7 +142,6 @@ impl From<K256VerifyingKey> for AddressWrapper {
     }
 }
 
-#[async_trait::async_trait]
 impl EcdsaRemoteSigner<K256Ecdsa> for LedgerRemoteSigner {
     type Public = AddressWrapper;
     type Signature = PrimitiveSignature;

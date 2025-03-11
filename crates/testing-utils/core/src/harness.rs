@@ -2,7 +2,6 @@ use blueprint_runner::config::BlueprintEnvironment;
 use tempfile::TempDir;
 
 /// Generic test harness trait that defines common functionality for all test harnesses
-#[async_trait::async_trait]
 pub trait TestHarness {
     /// The configuration type used by this harness
     type Config;

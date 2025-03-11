@@ -35,7 +35,6 @@ pub fn generate_context_impl(
         >;
 
         #[automatically_derived]
-        #[::blueprint_sdk::async_trait::async_trait]
         impl #impl_generics ::blueprint_sdk::contexts::instrumented_evm_client::EvmInstrumentedClientContext for #name #ty_generics #where_clause {
             async fn evm_client(&self) -> ::blueprint_sdk::contexts::instrumented_evm_client::InstrumentedClient {
                 ::blueprint_sdk::contexts::instrumented_evm_client::InstrumentedClient::new(

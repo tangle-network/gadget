@@ -18,7 +18,6 @@ hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
-async-trait = { workspace = true }
 url = { workspace = true }
 
 # Alloy dependencies

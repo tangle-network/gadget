@@ -2480,7 +2480,6 @@ dependencies = [
 name = "blueprint-sdk"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "blueprint-build-utils",
  "blueprint-core",
  "blueprint-evm-extra",
@@ -6197,7 +6196,6 @@ dependencies = [
 name = "gadget-client-core"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "auto_impl",
  "gadget-std",
  "thiserror 2.0.11",
@@ -6241,7 +6239,6 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-transport",
  "alloy-transport-http",
- "async-trait",
  "gadget-client-core",
  "gadget-logging",
  "gadget-rpc-calls",
@@ -6258,7 +6255,6 @@ dependencies = [
 name = "gadget-client-tangle"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "auto_impl",
  "blueprint-runner",
  "gadget-client-core",
@@ -6299,7 +6295,6 @@ dependencies = [
 name = "gadget-contexts"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "blueprint-runner",
  "gadget-clients",
  "gadget-keystore",
@@ -6312,7 +6307,6 @@ dependencies = [
 name = "gadget-core-testing-utils"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "blueprint-core",
  "blueprint-router",
  "blueprint-runner",
@@ -6483,7 +6477,6 @@ dependencies = [
  "ark-ec 0.5.0",
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
- "async-trait",
  "blake3",
  "ed25519-zebra",
  "gadget-crypto",
@@ -6522,7 +6515,6 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives 0.8.21",
  "anyhow",
- "async-trait",
  "auto_impl",
  "bincode",
  "blake3",
@@ -6560,7 +6552,6 @@ dependencies = [
 name = "gadget-std"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "colored",
  "num-traits",
  "rand 0.8.5",
@@ -6579,7 +6570,6 @@ dependencies = [
  "alloy-signer-local",
  "alloy-sol-types 0.8.21",
  "alloy-transport",
- "async-trait",
  "blueprint-core",
  "blueprint-runner",
  "blueprint-tangle-extra",

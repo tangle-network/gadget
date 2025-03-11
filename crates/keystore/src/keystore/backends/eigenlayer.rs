@@ -5,7 +5,6 @@ use gadget_crypto::k256::{K256Signature, K256SigningKey, K256VerifyingKey};
 use gadget_crypto::{BytesEncoding, KeyType, KeyTypeId};
 use gadget_std::boxed::Box;
 
-#[async_trait::async_trait]
 pub trait EigenlayerBackend: Bn254Backend {
     /// Generate a new ECDSA key pair from seed
     ///
@@ -40,7 +39,6 @@ pub trait EigenlayerBackend: Bn254Backend {
     fn iter_ecdsa(&self) -> Box<dyn Iterator<Item = K256VerifyingKey> + '_>;
 }
 
-#[async_trait::async_trait]
 impl EigenlayerBackend for Keystore {
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<K256VerifyingKey> {
         let secret =
