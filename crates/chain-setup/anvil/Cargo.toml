@@ -12,7 +12,6 @@ repository.workspace = true
 gadget-std = { workspace = true }
 gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true, features = ["eigenlayer", "evm"] }
-gadget-utils = { workspace = true, features = ["evm"] }
 alloy-contract = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
@@ -30,6 +29,5 @@ default = ["std"]
 std = [
     "gadget-std/std",
     "gadget-keystore/std",
-    "gadget-utils/std",
     "tokio/full",
 ]

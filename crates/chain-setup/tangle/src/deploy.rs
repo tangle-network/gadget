@@ -1,11 +1,11 @@
+use gadget_std::env;
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
-use gadget_blueprint_proc_macro_core::BlueprintServiceManager;
+use blueprint_tangle_extra::metadata::types::blueprint::BlueprintServiceManager;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
-use gadget_chain_setup_common::signer;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
 use serde_json::Value;
@@ -14,7 +14,7 @@ use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceBlueprint;
-use crate::foundry::FoundryToolchain;
+use gadget_chain_setup_common::signer::{load_evm_signer_from_env, load_signer_from_env};
 
 #[derive(Clone)]
 pub struct Opts {
@@ -39,7 +39,7 @@ impl Debug for Opts {
             .field("http_rpc_url", &self.http_rpc_url)
             .field("ws_rpc_url", &self.ws_rpc_url)
             .field("manifest_path", &self.manifest_path)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -62,7 +62,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
+async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
     rpc_url: T,
@@ -80,9 +80,19 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let mut blueprint = load_blueprint_metadata(&package)?;
     build_contracts_if_needed(&package, &blueprint).context("Building contracts")?;
     deploy_contracts_to_tangle(rpc_url.as_ref(), &package, &mut blueprint, signer_evm).await?;
-    bake_blueprint(blueprint)
+    bake_blueprint(&blueprint)
 }
 
+/// Deploy a blueprint to the Tangle Network
+///
+/// # Errors
+///
+/// * Any blueprint metadata is malformed
+/// * If `signer` is not provided, see [`load_signer_from_env()`]
+/// * `ws_rpc_url` is invalid
+/// * No `BlueprintCreated` event found under `signer`
+///
+/// [`load_signer_from_env()`]: crate::signer::load_signer_from_env
 pub async fn deploy_to_tangle(
     Opts {
         pkg_name,
@@ -94,18 +104,14 @@ pub async fn deploy_to_tangle(
     }: Opts,
 ) -> Result<u64> {
     // Load the manifest file into cargo metadata
-    let blueprint = generate_service_blueprint(
-        &manifest_path,
-        pkg_name.as_ref(),
-        &ws_rpc_url,
-        signer_evm.clone(),
-    )
-    .await?;
+    let blueprint =
+        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &ws_rpc_url, signer_evm)
+            .await?;
 
     let signer = if let Some(signer) = signer {
         signer
     } else {
-        signer::load_signer_from_env()?
+        load_signer_from_env()?
     };
 
     let my_account_id = signer.account_id();
@@ -118,7 +124,7 @@ pub async fn deploy_to_tangle(
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
     let result = if cfg!(test) {
-        use gadget_utils_tangle::TxProgressExt;
+        use blueprint_tangle_extra::util::TxProgressExt;
         progress.wait_for_in_block_success().await?
     } else {
         tracing::debug!("Waiting for the transaction to be finalized...");
@@ -147,21 +153,34 @@ pub async fn deploy_to_tangle(
     Ok(event.blueprint_id)
 }
 
-pub fn load_blueprint_metadata(
+/// Gets either `CARGO_WORKSPACE_DIR` for Tangle blueprints, or the package manifest directory
+/// for anything else.
+fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> PathBuf {
+    env::var("CARGO_WORKSPACE_DIR").map_or_else(
+        |_| {
+            package
+                .manifest_path
+                .parent()
+                .unwrap()
+                .as_std_path()
+                .to_path_buf()
+        },
+        PathBuf::from,
+    )
+}
+
+fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
-) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
-    let blueprint_json_path = package
-        .manifest_path
-        .parent()
-        .map(|p| p.join("blueprint.json"))
-        .unwrap();
+) -> Result<blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>> {
+    let manifest_dir = workspace_or_package_manifest_path(package);
+    let blueprint_json_path = manifest_dir.join("blueprint.json");
 
     if !blueprint_json_path.exists() {
         tracing::warn!("Could not find blueprint.json; running `cargo build`...");
-        // Need to run cargo build for the current package.
+        // Need to run cargo build. We don't know the package name, so unfortunately this will
+        // build the entire workspace.
         escargot::CargoBuild::new()
-            .manifest_path(&package.manifest_path)
-            .package(&package.name)
+            .manifest_path(manifest_dir.join("Cargo.toml"))
             .run()
             .context("Failed to build the package")?;
     }
@@ -175,7 +194,7 @@ pub fn load_blueprint_metadata(
 async fn deploy_contracts_to_tangle(
     rpc_url: &str,
     package: &cargo_metadata::Package,
-    blueprint: &mut gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &mut blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
@@ -225,7 +244,7 @@ async fn deploy_contracts_to_tangle(
     let signer = if let Some(signer) = signer_evm {
         signer
     } else {
-        signer::load_evm_signer_from_env()?
+        load_evm_signer_from_env()?
     };
 
     let wallet = alloy_provider::network::EthereumWallet::from(signer);
@@ -270,7 +289,7 @@ async fn deploy_contracts_to_tangle(
 /// Checks if the contracts need to be built and builds them if needed.
 fn build_contracts_if_needed(
     package: &cargo_metadata::Package,
-    blueprint: &gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
 ) -> Result<()> {
     let pathes_to_check = match blueprint.manager {
         BlueprintServiceManager::Evm(ref path) => vec![path],
@@ -294,7 +313,7 @@ fn build_contracts_if_needed(
         return Err(Error::ContractNotFound(contracts_dir.as_std_path().into()).into());
     }
 
-    let foundry = FoundryToolchain::new();
+    let foundry = crate::foundry::FoundryToolchain::new();
     foundry.check_installed_or_exit();
 
     // Change to contracts directory before building
@@ -312,11 +331,11 @@ fn build_contracts_if_needed(
     Ok(())
 }
 
-/// Converts the ServiceBlueprint to a format that can be sent to the Tangle Network.
+// Converts the `ServiceBlueprint` to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
-    blueprint: gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
 ) -> Result<ServiceBlueprint> {
-    let mut blueprint_json = serde_json::to_value(&blueprint)?;
+    let mut blueprint_json = serde_json::to_value(blueprint)?;
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["name"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["description"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["author"]);
@@ -407,7 +426,7 @@ fn resolve_path_relative_to_package(
     if path.starts_with('/') {
         std::path::PathBuf::from(path)
     } else {
-        package.manifest_path.parent().unwrap().join(path).into()
+        workspace_or_package_manifest_path(package).join(path)
     }
 }
 
@@ -430,7 +449,7 @@ fn find_package<'m>(
             .ok_or(Error::NoPackageFound.into()),
         _otherwise => {
             eprintln!("Please specify the package to deploy:");
-            for package in metadata.packages.iter() {
+            for package in &metadata.packages {
                 eprintln!("Found: {}", package.name);
             }
             eprintln!();

@@ -23,8 +23,8 @@ use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_keystore::backends::Backend;
-use gadget_utils_tangle::TxProgressExt;
 use serde_json;
+use blueprint_tangle_extra::util::TxProgressExt;
 
 /// Lists all service requests from the Tangle Network.
 ///

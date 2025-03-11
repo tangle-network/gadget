@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 blueprint-core = { workspace = true }
 blueprint-runner = { workspace = true, features = ["std", "tangle", "networking"] }
-blueprint-tangle-extra = { workspace = true }
+blueprint-tangle-extra = { workspace = true, features = ["std"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }
 gadget-contexts = { workspace = true, features = ["tangle", "std"] }

@@ -23,11 +23,10 @@ escargot = { workspace = true }
 gadget-networking = { workspace = true }
 gadget-contexts = { workspace = true, features = ["tangle"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
-gadget-utils-tangle = { workspace = true }
+blueprint-tangle-extra = { workspace = true }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-keystore = { workspace = true }
 gadget-blueprint-serde = { workspace = true }
-gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-chain-setup-common = { workspace = true }
 gadget-crypto = { workspace = true, features = [
     "k256",
@@ -58,6 +57,7 @@ cargo_metadata = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "blueprint-tangle-extra/std",
     "sp-core/std",
     "tangle-subxt/std",
     "gadget-std/std",
@@ -67,6 +67,5 @@ std = [
     "gadget-clients/std",
     "gadget-keystore/std",
     "gadget-blueprint-serde/std",
-    "gadget-utils-tangle/std",
     "thiserror/std",
 ]

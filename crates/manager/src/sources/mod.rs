@@ -1,7 +1,7 @@
 use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
-use blueprint_sdk::runner::config::BlueprintEnvironment;
+use blueprint_sdk::runner::config::{BlueprintEnvironment, SupportedChains};
 use std::path::PathBuf;
 
 pub mod github;
