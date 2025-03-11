@@ -2,12 +2,12 @@ use crate::Error;
 use crate::env::{EigenlayerTestEnvironment, setup_eigenlayer_test_environment};
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
+use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use gadget_anvil_testing_utils::keys::{ANVIL_PRIVATE_KEYS, inject_anvil_key};
 use gadget_anvil_testing_utils::{Container, start_default_anvil_testnet};
 use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
-use gadget_utils::evm::get_provider_http;
 use tempfile::TempDir;
 use url::Url;
 

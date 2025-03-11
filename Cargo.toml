@@ -45,6 +45,7 @@ blueprint-runner = { version = "0.1.0", path = "crates/runner", default-features
 # Extras
 blueprint-tangle-extra = { version = "0.1.0", path = "crates/tangle-extra", default-features = false }
 blueprint-evm-extra = { version = "0.1.0", path = "crates/evm-extra", default-features = false }
+blueprint-eigenlayer-extra = { version = "0.1.0", path = "crates/eigenlayer-extra", default-features = false }
 blueprint-producers-extra = { version = "0.1.0", path = "crates/producers-extra", default-features = false }
 
 # Blueprint Examples
@@ -97,12 +98,6 @@ gadget-std = { version = "0.1.0", path = "./crates/std", default-features = fals
 # P2P
 gadget-networking = { version = "0.1.0", path = "./crates/networking", default-features = false }
 gadget-networking-round-based-extension = { version = "0.1.0", path = "./crates/networking/extensions/round-based", default-features = false }
-
-# Utilities
-gadget-utils = { version = "0.1.0", path = "./crates/utils", default-features = false }
-gadget-utils-evm = { version = "0.1.0", path = "./crates/utils/evm", default-features = false }
-gadget-utils-eigenlayer = { version = "0.1.0", path = "./crates/utils/eigenlayer", default-features = false }
-gadget-utils-tangle = { version = "0.1.0", path = "./crates/utils/tangle", default-features = false }
 
 # Testing utilities
 gadget-testing-utils = { version = "0.1.0", path = "./crates/testing-utils", default-features = false }

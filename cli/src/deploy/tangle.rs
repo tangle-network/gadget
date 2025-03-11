@@ -123,7 +123,7 @@ pub async fn deploy_to_tangle(
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
     let result = if cfg!(test) {
-        use gadget_utils_tangle::TxProgressExt;
+        use blueprint_tangle_extra::util::TxProgressExt;
         progress.wait_for_in_block_success().await?
     } else {
         tracing::debug!("Waiting for the transaction to be finalized...");

@@ -835,8 +835,8 @@ mod tests {
         BlockId, BlockNumberOrTag, BlockTransactionsKind, pubsub::SubscriptionResult,
     };
     use alloy_signer_local::PrivateKeySigner;
+    use blueprint_evm_extra::util::get_provider_http;
     use gadget_anvil_testing_utils::{start_default_anvil_testnet, wait_transaction};
-    use gadget_utils_evm::get_provider_http;
     use tokio;
 
     #[tokio::test]

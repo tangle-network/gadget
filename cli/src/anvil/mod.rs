@@ -22,8 +22,8 @@ use tokio::io::AsyncBufReadExt;
 mod error;
 mod state;
 
+use blueprint_evm_extra::util::get_provider_http;
 pub use error::Error;
-use gadget_utils_evm::get_provider_http;
 pub use state::{AnvilState, get_default_state, get_default_state_json};
 
 pub type Container = ContainerAsync<GenericImage>;

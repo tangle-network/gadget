@@ -1,12 +1,19 @@
 [package]
 name = "blueprint-evm-extra"
 version = "0.1.0"
-edition.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 # Blueprint dependencies
 blueprint-core.workspace = true
+gadget-std.workspace = true
 
 # Alloy dependencies
 alloy-primitives = { workspace = true }
@@ -18,6 +25,8 @@ alloy-sol-types = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-rlp = { workspace = true }
 alloy-transport-http = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-network = { workspace = true }
 
 # Async dependencies
 async-stream = { workspace = true }
@@ -32,6 +41,7 @@ bytes = { workspace = true }
 document-features = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -43,7 +53,7 @@ default = ["std", "tracing"]
 #! ### Core
 
 ## Enable standard library support. Currently unused
-std = ["serde_json/std"]
+std = ["serde_json/std", "gadget-std/std"]
 
 ## Enable [tracing] support
 ##

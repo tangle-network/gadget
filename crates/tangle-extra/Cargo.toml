@@ -2,8 +2,11 @@
 name = "blueprint-tangle-extra"
 version = "0.1.0"
 description = "Tangle Network extra utilities for Blueprint framework"
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -16,7 +19,6 @@ futures-core.workspace = true
 futures-util.workspace = true
 tower = { workspace = true, features = ["filter"] }
 gadget-blueprint-serde.workspace = true
-gadget-utils = { workspace = true, features = ["tangle"], optional = true }
 tangle-subxt.workspace = true
 serde.workspace = true
 pin-project-lite = { workspace = true }
@@ -30,7 +32,11 @@ thiserror = { workspace = true, optional = true }
 cid = { workspace = true, features = ["serde", "alloc"], optional = true }
 
 [dev-dependencies]
+color-eyre = { workspace = true, features = ["color-spantrace", "track-caller"] }
+tempfile = { workspace = true }
 paste = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+gadget-testing-utils = { workspace = true, features = ["tangle"] }
 
 [features]
 default = ["std", "tracing", "macros"]
@@ -38,10 +44,10 @@ default = ["std", "tracing", "macros"]
 #! ### Core
 
 ## Enable standard library support
-std = ["dep:gadget-utils", "futures-util/std", "gadget-utils/std"]
+std = ["futures-util/std"]
 
 ## Enable support for web targets
-web = ["dep:gadget-utils", "futures-util/std", "gadget-utils/web"]
+web = ["futures-util/std"]
 
 ## Enable [tracing] support
 ##

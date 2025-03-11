@@ -21,6 +21,7 @@ pub mod layers;
 pub mod metadata;
 /// Tangle Network Job Producers
 pub mod producer;
+#[cfg(any(feature = "std", feature = "web"))]
 pub mod util;
 
 pub use tangle_subxt::subxt_core;

@@ -33,12 +33,12 @@ reqwest = { workspace = true }
 toml = { workspace = true }
 indicatif = { workspace = true }
 
-# Gadget dependencies
+# Blueprint dependencies
 blueprint-runner = { workspace = true, features = ["networking"] }
 gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, default-features = true }
-gadget-utils-tangle = { workspace = true, default-features = true }
+blueprint-tangle-extra = { workspace = true, default-features = true }
 dialoguer = { workspace = true, default-features = true }
 
 # Optional client dependencies
@@ -63,7 +63,7 @@ tnt-bls = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 eigensdk = { workspace = true, optional = true }
-gadget-utils-evm = { workspace = true, optional = true }
+blueprint-evm-extra = { workspace = true, optional = true }
 
 # Anvil dependencies
 testcontainers = { workspace = true, optional = true }
@@ -83,7 +83,6 @@ alloy-rpc-types-eth = { workspace = true, optional = true }
 gadget-keystore = { workspace = true, features = ["bn254"] }
 tempfile = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
-gadget-utils = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
 
@@ -95,7 +94,7 @@ std = [
     "gadget-keystore/std",
     "gadget-logging/std",
     "gadget-std/std",
-    "gadget-utils-tangle/std",
+    "blueprint-tangle-extra/std",
     "tangle-subxt/std",
 ]
 
@@ -118,16 +117,16 @@ eigenlayer = [
 
 # Core functionality features
 evm = [
-    "alloy-json-abi",
-    "alloy-primitives",
-    "alloy-contract",
-    "alloy-network",
-    "alloy-signer-local",
-    "alloy-provider",
-    "alloy-transport",
-    "alloy-rpc-types-eth",
-    "testcontainers",
-    "gadget-utils-evm",
+    "dep:alloy-json-abi",
+    "dep:alloy-primitives",
+    "dep:alloy-contract",
+    "dep:alloy-network",
+    "dep:alloy-signer-local",
+    "dep:alloy-provider",
+    "dep:alloy-transport",
+    "dep:alloy-rpc-types-eth",
+    "dep:testcontainers",
+    "dep:blueprint-evm-extra",
     "gadget-keystore/evm",
     "gadget-clients/evm",
 ]

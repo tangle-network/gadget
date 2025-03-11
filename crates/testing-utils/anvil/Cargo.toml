@@ -15,7 +15,6 @@ workspace = true
 gadget-std = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true, features = ["std", "eigenlayer", "evm"] }
-gadget-utils = { workspace = true, features = ["evm"] }
 alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }

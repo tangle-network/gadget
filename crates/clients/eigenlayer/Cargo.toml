@@ -16,7 +16,7 @@ blueprint-runner = { workspace = true }
 
 gadget-client-core = { workspace = true }
 gadget-std = { workspace = true }
-gadget-utils-evm = { workspace = true }
+blueprint-evm-extra = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
@@ -44,7 +44,7 @@ url = { workspace = true }
 tracing-subscriber.workspace = true
 gadget-eigenlayer-testing-utils.workspace = true
 gadget-anvil-testing-utils = { workspace = true }
-gadget-utils-evm = { workspace = true }
+blueprint-evm-extra = { workspace = true }
 alloy-primitives = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
@@ -52,7 +52,7 @@ tokio = { workspace = true, features = ["full"] }
 default = ["std"]
 std = [
 	"gadget-std/std",
-	"gadget-utils-evm/std",
+	"blueprint-evm-extra/std",
 	"tokio/full",
 	"gadget-client-core/std",
 	"url/std",

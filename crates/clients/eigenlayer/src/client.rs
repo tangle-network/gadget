@@ -1,6 +1,7 @@
 use crate::error::Result;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::{Provider, RootProvider};
+use blueprint_evm_extra::util::{get_provider_http, get_wallet_provider_http};
 use blueprint_runner::config::BlueprintEnvironment;
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use eigensdk::common::get_ws_provider;
@@ -9,7 +10,6 @@ use eigensdk::utils::rewardsv2::middleware::registrycoordinator::RegistryCoordin
 use eigensdk::utils::rewardsv2::middleware::stakeregistry::{IStakeRegistry, StakeRegistry};
 use eigensdk::utils::slashing::middleware::operatorstateretriever::OperatorStateRetriever;
 use gadget_std::collections::HashMap;
-use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
 /// Client that provides access to EigenLayer utility functions through the use of the [`BlueprintEnvironment`].
