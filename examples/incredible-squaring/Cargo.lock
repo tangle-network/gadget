@@ -3057,7 +3057,6 @@ dependencies = [
  "dialoguer",
  "dotenv",
  "escargot",
- "gadget-blueprint-proc-macro-core",
  "gadget-clients",
  "gadget-crypto",
  "gadget-crypto-core",
@@ -6182,16 +6181,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
  "byteorder",
-]
-
-[[package]]
-name = "gadget-blueprint-proc-macro-core"
-version = "0.4.0"
-dependencies = [
- "cid",
- "ethereum-types",
- "gadget-std",
- "serde",
 ]
 
 [[package]]

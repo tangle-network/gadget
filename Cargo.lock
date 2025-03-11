@@ -3382,7 +3382,6 @@ dependencies = [
  "dotenv",
  "eigensdk",
  "escargot",
- "gadget-blueprint-proc-macro-core",
  "gadget-clients",
  "gadget-crypto",
  "gadget-crypto-core",
@@ -6801,17 +6800,6 @@ dependencies = [
  "gadget-std",
  "sysinfo",
  "tokio",
-]
-
-[[package]]
-name = "gadget-blueprint-proc-macro-core"
-version = "0.4.0"
-dependencies = [
- "cid",
- "ethereum-types",
- "gadget-std",
- "serde",
- "serde_json",
 ]
 
 [[package]]

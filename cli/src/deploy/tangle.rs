@@ -4,7 +4,7 @@ use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
-use gadget_blueprint_proc_macro_core::BlueprintServiceManager;
+use blueprint_tangle_extra::metadata::types::blueprint::BlueprintServiceManager;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
@@ -170,7 +170,7 @@ fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> Path
 
 fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
-) -> Result<gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>> {
+) -> Result<blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>> {
     let manifest_dir = workspace_or_package_manifest_path(package);
     let blueprint_json_path = manifest_dir.join("blueprint.json");
 
@@ -193,7 +193,7 @@ fn load_blueprint_metadata(
 async fn deploy_contracts_to_tangle(
     rpc_url: &str,
     package: &cargo_metadata::Package,
-    blueprint: &mut gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &mut blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
@@ -288,7 +288,7 @@ async fn deploy_contracts_to_tangle(
 /// Checks if the contracts need to be built and builds them if needed.
 fn build_contracts_if_needed(
     package: &cargo_metadata::Package,
-    blueprint: &gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
 ) -> Result<()> {
     let pathes_to_check = match blueprint.manager {
         BlueprintServiceManager::Evm(ref path) => vec![path],
@@ -332,7 +332,7 @@ fn build_contracts_if_needed(
 
 // Converts the `ServiceBlueprint` to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
-    blueprint: &gadget_blueprint_proc_macro_core::ServiceBlueprint<'static>,
+    blueprint: &blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
 ) -> Result<ServiceBlueprint> {
     let mut blueprint_json = serde_json::to_value(blueprint)?;
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["name"]);
