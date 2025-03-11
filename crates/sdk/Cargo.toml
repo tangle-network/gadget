@@ -147,6 +147,7 @@ evm = [
     "dep:alloy-json-abi",
     "gadget-clients/evm",
     "gadget-contexts/evm",
+    "gadget-context-derive/evm",
     "gadget-crypto-tangle-pair-signer?/evm",
     "blueprint-macros?/evm",
     "gadget-testing-utils?/anvil",

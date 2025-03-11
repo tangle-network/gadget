@@ -3,7 +3,6 @@ use crate::error::{Result, Error};
 use crate::EventsClient;
 use gadget_std::sync::Arc;
 use gadget_std::time::Duration;
-use gadget_std::tokio_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
@@ -195,12 +194,13 @@ impl gadget_std::ops::Deref for TangleClient {
 
 impl EventsClient<TangleEvent> for TangleClient {
     async fn next_event(&self) -> Option<TangleEvent> {
-        let mut lock = self
-            .finality_notification_stream
-            .try_lock_timeout(Duration::from_millis(500))
-            .await
-            .ok()?;
-        match lock.as_mut() {
+        let mut finality_stream = tokio::time::timeout(
+            Duration::from_millis(500),
+            self.finality_notification_stream.lock(),
+        )
+        .await
+        .ok()?;
+        match finality_stream.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
                 let events = block.events().await.ok()?;
@@ -209,15 +209,17 @@ impl EventsClient<TangleEvent> for TangleClient {
                     hash: block.hash().into(),
                     events,
                 };
-                let mut lock2 = self
-                    .latest_finality_notification
-                    .lock_timeout(Duration::from_millis(500))
-                    .await;
-                *lock2 = Some(notification.clone());
+                let mut latest_finality = tokio::time::timeout(
+                    Duration::from_millis(500),
+                    self.latest_finality_notification.lock(),
+                )
+                .await
+                .ok()?;
+                *latest_finality = Some(notification.clone());
                 Some(notification)
             }
             None => {
-                drop(lock);
+                drop(finality_stream);
                 self.initialize().await.ok()?;
                 // Next time, the stream should be initialized.
                 Box::pin(async { self.next_event().await }).await
@@ -226,15 +228,16 @@ impl EventsClient<TangleEvent> for TangleClient {
     }
 
     async fn latest_event(&self) -> Option<TangleEvent> {
-        let lock = self
-            .latest_finality_notification
-            .try_lock_timeout(Duration::from_millis(500))
-            .await
-            .ok()?;
-        match &*lock {
+        let latest_finality = tokio::time::timeout(
+            Duration::from_millis(500),
+            self.latest_finality_notification.lock(),
+        )
+        .await
+        .ok()?;
+        match &*latest_finality {
             Some(notification) => Some(notification.clone()),
             None => {
-                drop(lock);
+                drop(latest_finality);
                 self.next_event().await
             }
         }
