@@ -306,10 +306,10 @@ fn build_contracts_if_needed(
     }
 
     // Get the contracts directory path
-    let root = package.manifest_path.parent().unwrap();
+    let root = workspace_or_package_manifest_path(package);
     let contracts_dir = root.join("contracts");
     if !contracts_dir.exists() {
-        return Err(Error::ContractNotFound(contracts_dir.as_std_path().into()).into());
+        return Err(Error::ContractNotFound(contracts_dir.into()).into());
     }
 
     let foundry = crate::foundry::FoundryToolchain::new();
