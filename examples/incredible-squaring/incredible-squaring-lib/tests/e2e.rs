@@ -1,5 +1,5 @@
 use blueprint_sdk::Job;
-use blueprint_sdk::logging::setup_log;
+use blueprint_sdk::testing::utils::setup_log;
 use blueprint_sdk::tangle::layers::TangleLayer;
 use blueprint_sdk::testing::tempfile;
 use blueprint_sdk::testing::utils::harness::TestHarness;

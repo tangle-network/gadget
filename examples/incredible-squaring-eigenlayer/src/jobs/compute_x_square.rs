@@ -9,7 +9,7 @@ use blueprint_sdk::contexts::keystore::KeystoreContext;
 use blueprint_sdk::crypto::bn254::ArkBlsBn254;
 use blueprint_sdk::keystore::backends::bn254::Bn254Backend;
 use blueprint_sdk::keystore::backends::Backend;
-use blueprint_sdk::logging::{error, info};
+use blueprint_sdk::{error, info};
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use std::convert::Infallible;
