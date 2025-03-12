@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use dialoguer::console::style;
 use gadget_chain_setup::tangle::deploy::{Opts, deploy_to_tangle};
-use gadget_chain_setup::tangle::testnet::SubstrateNode;
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
@@ -38,26 +37,13 @@ pub async fn deploy_tangle(
         let deploy_dir = temp_path.join("deploy_dir");
         fs::create_dir_all(&deploy_dir).await?;
 
-        let mut node_builder = SubstrateNode::builder();
-
-        node_builder
-            .arg("--dev")
-            .arg("--tmp")
-            .arg("--rpc-cors=all")
-            .arg("--rpc-methods=unsafe")
-            .arg("--rpc-external")
-            .arg("--ws-external");
-
-        let node = node_builder
-            .spawn()
-            .map_err(|e| color_eyre::Report::msg(format!("Failed to start Tangle node: {}", e)))?;
-
-        let ws_port = node.ws_port();
-
-        let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", ws_port))
-            .map_err(|e| color_eyre::Report::msg(format!("Failed to parse HTTP URL: {}", e)))?;
-        let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", ws_port))
-            .map_err(|e| color_eyre::Report::msg(format!("Failed to parse WS URL: {}", e)))?;
+        // Start Local Tangle Node
+        let node = gadget_chain_setup::tangle::run(
+            gadget_chain_setup::tangle::NodeConfig::new(false).with_log_target("evm", "trace"),
+        )
+        .await?;
+        let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
+        let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
         println!(
             "{}",
@@ -138,8 +124,23 @@ pub async fn deploy_tangle(
         println!("   {}", style(format!("cargo tangle blueprint register --ws-rpc-url $WS_RPC_URL --blueprint-id {} --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
         println!("\n{}", style("4. Request a service:").dim());
         println!("   {}", style(format!("cargo tangle blueprint request-service --ws-rpc-url $WS_RPC_URL --blueprint-id {} --min-exposure-percent 10 --max-exposure-percent 20 --target-operators <OPERATOR_ID> --value 0 --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
-        println!("\n{}", style("Press Ctrl+C to stop the testnet...").dim());
 
+        println!(
+            "\n{}",
+            style("The local Tangle testnet will continue running for testing purposes.")
+                .cyan()
+                .bold()
+        );
+        println!(
+            "{}",
+            style("It will remain active so you can interact with your deployed blueprint.").cyan()
+        );
+        println!(
+            "{}",
+            style("Press Ctrl+C to stop the testnet when you're done testing...").dim()
+        );
+
+        // Wait for Ctrl+C to keep the testnet running
         signal::ctrl_c().await?;
         println!("{}", style("\nShutting down devnet...").yellow());
     } else {
