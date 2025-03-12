@@ -79,7 +79,11 @@ where
     type Config = TangleConfig;
     type Context = Ctx;
 
-    fn new(config: Self::Config, env: BlueprintEnvironment, context: Ctx) -> Result<Self, Error> {
+    fn new(
+        config: Self::Config,
+        env: BlueprintEnvironment,
+        context: Self::Context,
+    ) -> Result<Self, Error> {
         let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone(), context);
 
         Ok(Self {
@@ -92,7 +96,7 @@ where
 
     fn add_job<J, T>(&mut self, job: J)
     where
-        J: Job<T, ()> + Send + Sync + 'static,
+        J: Job<T, Self::Context> + Send + Sync + 'static,
         T: 'static,
     {
         self.runner

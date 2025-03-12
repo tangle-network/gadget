@@ -8,7 +8,8 @@ use std::future;
 use std::future::Pending;
 
 pub struct TestRunner<Ctx> {
-    router: Option<Router>,
+    router: Option<Router<Ctx>>,
+    context: Option<Ctx>,
     job_index: usize,
     #[doc(hidden)]
     pub builder: Option<BlueprintRunnerBuilder<Pending<()>>>,
@@ -26,7 +27,8 @@ where
         let builder =
             BlueprintRunner::builder(config, env).with_shutdown_handler(future::pending());
         TestRunner {
-            router: Some(Router::new().with_context(context)),
+            router: Some(Router::new()),
+            context: Some(context),
             job_index: 0,
             builder: Some(builder),
             _phantom: core::marker::PhantomData,
@@ -36,7 +38,7 @@ where
     #[expect(clippy::missing_panics_doc)]
     pub fn add_job<J, T>(&mut self, job: J) -> &mut Self
     where
-        J: Job<T, ()> + Send + Sync + 'static,
+        J: Job<T, Ctx> + Send + Sync + 'static,
         T: 'static,
     {
         self.router = Some(
@@ -72,7 +74,7 @@ where
     pub async fn run(self) -> Result<(), Error> {
         self.builder
             .unwrap()
-            .router(self.router.unwrap())
+            .router(self.router.unwrap().with_context(self.context.unwrap()))
             .run()
             .await
     }
@@ -94,7 +96,7 @@ pub trait TestEnv: Sized {
     ) -> Result<Self, Error>;
     fn add_job<J, T>(&mut self, job: J)
     where
-        J: Job<T, ()> + Send + Sync + 'static,
+        J: Job<T, Self::Context> + Send + Sync + 'static,
         T: 'static;
     fn add_background_service<B>(&mut self, service: B)
     where
