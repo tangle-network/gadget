@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize, Serializer};
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 #[serde(transparent)]
 pub struct Optional<T: Default>(pub Option<T>);
 
-impl<T> Default for Optional<T> {
+impl<T: Default> Default for Optional<T> {
     fn default() -> Self {
         Self(None)
     }
