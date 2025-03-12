@@ -7274,14 +7274,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-logging"
-version = "0.1.0"
-dependencies = [
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
 name = "gadget-metrics"
 version = "0.1.0"
 dependencies = [
