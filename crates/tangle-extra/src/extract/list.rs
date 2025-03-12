@@ -1,6 +1,7 @@
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize, Serializer};
 
+// TODO(serial): Document, warn against using `Vec<T>` in tangle jobs
 #[derive(Deserialize, Default)]
 #[serde(transparent)]
 pub struct List<T: Default>(pub Vec<T>);

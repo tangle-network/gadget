@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize, Serializer};
 
+// TODO(serial): Document, warn against using `Option<T>` in tangle jobs
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct Optional<T: Default>(pub Option<T>);
