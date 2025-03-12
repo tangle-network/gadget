@@ -12,6 +12,13 @@ use tempfile::TempDir;
 use tokio::fs;
 use tokio::signal;
 use url::Url;
+
+/// Deploy a blueprint to the Tangle
+///
+/// # Errors
+///
+/// Returns a `color_eyre::Report` if an error occurs during deployment.
+#[allow(clippy::too_many_lines)]
 pub async fn deploy_tangle(
     http_rpc_url: String,
     ws_rpc_url: String,

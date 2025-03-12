@@ -6,6 +6,7 @@ use color_eyre::Result;
 use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::style;
 use dialoguer::{Confirm, Input, Select};
+use gadget_chain_setup::anvil::start_default_anvil_testnet;
 use gadget_crypto::KeyTypeId;
 use gadget_crypto::k256::K256Ecdsa;
 use gadget_keystore::backends::Backend;
@@ -18,6 +19,7 @@ use gadget_std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use tokio::signal;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EigenlayerDeployOpts {
@@ -650,4 +652,145 @@ fn extract_address_from_output(output: &[u8]) -> Result<Address> {
     Err(color_eyre::eyre::eyre!(
         "Failed to find or parse contract address in output"
     ))
+}
+
+/// Display helpful information about the devnet and deployed contracts
+///
+/// # Arguments
+///
+/// * `http_endpoint` - The HTTP endpoint of the devnet
+fn display_devnet_info(http_endpoint: &str) {
+    println!("\n{}", style("Local Testnet Active").green().bold());
+    println!("\n{}", style("To run your AVS:").cyan().bold());
+    println!("{}", style("1. Open a new terminal window").dim());
+    println!(
+        "{}",
+        style("2. Set your AVS-specific environment variables:").dim()
+    );
+    println!(
+        "   {}",
+        style(
+            "# Your AVS may require specific environment variables from the deployment output above"
+        )
+        .dim()
+    );
+    println!(
+        "   {}",
+        style("# For example: TASK_MANAGER_ADDRESS=<address> or other contract addresses").dim()
+    );
+    println!("\n{}", style("3. Run your AVS with:").dim());
+    println!(
+        "   {}\n   {}\n   {}\n   {}",
+        style("cargo tangle blueprint run \\").yellow(),
+        style("  -p eigenlayer \\").yellow(),
+        style(format!("  -u {} \\", http_endpoint)).yellow(),
+        style("  --keystore-path ./test-keystore").yellow()
+    );
+    println!(
+        "\n{}",
+        style("The deployment variables above show all contract addresses you may need.").dim()
+    );
+    println!("{}", style("Press Ctrl+C to stop the testnet...").dim());
+}
+
+/// Deploy an AVS to Eigenlayer
+///
+/// # Arguments
+///
+/// * `rpc_url` - The RPC URL to connect to
+/// * `contracts_path` - Path to the contracts directory
+/// * `ordered_deployment` - Whether to deploy contracts in an interactive ordered manner
+/// * `network` - The target chain type (local, testnet, mainnet). Local mainnet is inferred by URL.
+/// * `devnet` - Whether to start a local devnet
+/// * `keystore_path` - Path to the keystore
+///
+/// # Returns
+///
+/// A `Result` indicating success or an error
+///
+/// # Errors
+///
+/// Returns a `color_eyre::Report` if an error occurs during deployment.
+pub async fn deploy_eigenlayer(
+    rpc_url: Option<String>,
+    contracts_path: Option<String>,
+    ordered_deployment: bool,
+    network: String,
+    devnet: bool,
+    keystore_path: Option<std::path::PathBuf>,
+) -> Result<()> {
+    let build_status = gadget_std::process::Command::new("cargo")
+        .args(["build", "--release"])
+        .status()?;
+
+    if !build_status.success() {
+        return Err(color_eyre::Report::msg("Cargo build failed"));
+    }
+
+    // Validate that devnet is only used with local network
+    if devnet && network.to_lowercase() != "local" {
+        return Err(color_eyre::Report::msg(
+            "The --devnet flag can only be used with --network local",
+        ));
+    }
+
+    let chain = match network.to_lowercase().as_str() {
+        "local" => SupportedChains::LocalTestnet,
+        "testnet" => SupportedChains::Testnet,
+        "mainnet" => {
+            if rpc_url
+                .as_ref()
+                .is_some_and(|url| url.contains("127.0.0.1") || url.contains("localhost"))
+            {
+                SupportedChains::LocalMainnet
+            } else {
+                SupportedChains::Mainnet
+            }
+        }
+        _ => {
+            return Err(color_eyre::Report::msg(format!(
+                "Invalid network: {}",
+                network
+            )));
+        }
+    };
+
+    if chain == SupportedChains::LocalTestnet && devnet {
+        // Start local Anvil testnet
+        let (_container, http_endpoint, _ws_endpoint) = start_default_anvil_testnet(true).await;
+
+        initialize_test_keystore()?;
+
+        // Deploy to local devnet
+        let opts = EigenlayerDeployOpts::new(
+            http_endpoint.clone(),
+            contracts_path,
+            ordered_deployment,
+            chain,
+            keystore_path,
+        );
+        deploy_to_eigenlayer(&opts)?;
+
+        // Keep the process running and show helpful instructions
+        display_devnet_info(&http_endpoint);
+
+        // Wait for Ctrl+C to shut down
+        signal::ctrl_c().await?;
+        println!("{}", style("\nShutting down devnet...").yellow());
+    } else {
+        let opts = EigenlayerDeployOpts::new(
+            rpc_url.as_ref().map(ToString::to_string).ok_or_else(|| {
+                color_eyre::Report::msg(
+                    "The --rpc-url flag is required when deploying to a non-local network",
+                )
+            })?,
+            contracts_path,
+            ordered_deployment,
+            chain,
+            keystore_path,
+        );
+        deploy_to_eigenlayer(&opts)?;
+    }
+
+    Ok(())
 }

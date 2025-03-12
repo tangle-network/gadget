@@ -4,14 +4,10 @@ use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings,
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use blueprint_runner::error::ConfigError;
 use blueprint_runner::tangle::config::TangleProtocolSettings;
-use cargo_tangle::anvil::start_default_anvil_testnet;
 use cargo_tangle::create::BlueprintType;
-#[cfg(feature = "eigenlayer")]
-use cargo_tangle::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_to_eigenlayer};
 use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
 use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
-use dialoguer::console::style;
 use dotenv::from_path;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
 use tangle_subxt::subxt::client::OnlineClientT;
@@ -23,7 +19,6 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{Asset, AssetSecurityCommitment};
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
-use tokio::signal;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -206,7 +201,7 @@ pub enum BlueprintCommands {
     },
 
     /// Accept a Tangle service request
-    #[command(visible_alias = "resp")]
+    #[command(visible_alias = "accept")]
     AcceptRequest {
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
@@ -229,7 +224,7 @@ pub enum BlueprintCommands {
     },
 
     /// Reject a Tangle service request
-    #[command(visible_alias = "resp")]
+    #[command(visible_alias = "reject")]
     RejectRequest {
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL")]
@@ -385,14 +380,14 @@ async fn main() -> color_eyre::Result<()> {
                         .manifest
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                    crate::deploy::tangle::deploy_tangle(
+                    Box::pin(crate::deploy::tangle::deploy_tangle(
                         http_rpc_url,
                         ws_rpc_url,
                         package,
                         devnet,
                         keystore_path,
                         manifest_path,
-                    )
+                    ))
                     .await?;
                 }
                 #[cfg(feature = "eigenlayer")]
@@ -404,106 +399,15 @@ async fn main() -> color_eyre::Result<()> {
                     devnet,
                     keystore_path,
                 } => {
-                    let build_status = gadget_std::process::Command::new("cargo")
-                        .args(["build", "--release"])
-                        .status()?;
-
-                    if !build_status.success() {
-                        return Err(color_eyre::Report::msg("Cargo build failed"));
-                    }
-
-                    // Validate that devnet is only used with local network
-                    if devnet && network.to_lowercase() != "local" {
-                        return Err(color_eyre::Report::msg(
-                            "The --devnet flag can only be used with --network local",
-                        ));
-                    }
-
-                    let chain = match network.to_lowercase().as_str() {
-                        "local" => SupportedChains::LocalTestnet,
-                        "testnet" => SupportedChains::Testnet,
-                        "mainnet" => {
-                            if rpc_url.as_ref().is_some_and(|url| {
-                                url.contains("127.0.0.1") || url.contains("localhost")
-                            }) {
-                                SupportedChains::LocalMainnet
-                            } else {
-                                SupportedChains::Mainnet
-                            }
-                        }
-                        _ => {
-                            return Err(color_eyre::Report::msg(format!(
-                                "Invalid network: {}",
-                                network
-                            )));
-                        }
-                    };
-
-                    if chain == SupportedChains::LocalTestnet && devnet {
-                        // Start local Anvil testnet
-                        let (_container, http_endpoint, _ws_endpoint) =
-                            start_default_anvil_testnet(true).await;
-
-                        deploy::eigenlayer::initialize_test_keystore()?;
-
-                        // Deploy to local devnet
-                        let opts = EigenlayerDeployOpts::new(
-                            http_endpoint.clone(),
-                            contracts_path,
-                            ordered_deployment,
-                            chain,
-                            keystore_path,
-                        );
-                        deploy_to_eigenlayer(&opts)?;
-
-                        // Keep the process running and show helpful instructions
-                        println!("\n{}", style("Local Testnet Active").green().bold());
-                        println!("\n{}", style("To run your AVS:").cyan().bold());
-                        println!("{}", style("1. Open a new terminal window").dim());
-                        println!(
-                            "{}",
-                            style("2. Set your AVS-specific environment variables:").dim()
-                        );
-                        println!(
-                            "   {}",
-                            style("# Your AVS may require specific environment variables from the deployment output above").dim()
-                        );
-                        println!(
-                            "   {}",
-                            style("# For example: TASK_MANAGER_ADDRESS=<address> or other contract addresses").dim()
-                        );
-                        println!("\n{}", style("3. Run your AVS with:").dim());
-                        println!(
-                            "   {}\n   {}\n   {}\n   {}",
-                            style("cargo tangle blueprint run \\").yellow(),
-                            style("  -p eigenlayer \\").yellow(),
-                            style(format!("  -u {} \\", http_endpoint)).yellow(),
-                            style("  --keystore-path ./test-keystore").yellow()
-                        );
-                        println!(
-                            "\n{}",
-                            style("The deployment variables above show all contract addresses you may need.").dim()
-                        );
-                        println!("{}", style("Press Ctrl+C to stop the testnet...").dim());
-                        signal::ctrl_c().await?;
-                        println!("{}", style("\nShutting down devnet...").yellow());
-                    } else {
-                        let opts = EigenlayerDeployOpts::new(
-                            rpc_url
-                                .as_ref()
-                                .map(ToString::to_string)
-                                .ok_or_else(|| {
-                                    color_eyre::Report::msg(
-                                        "The --rpc-url flag is required when deploying to a non-local network",
-                                    )
-                                })?,
-                            contracts_path,
-                            ordered_deployment,
-                            chain,
-                            keystore_path,
-                        );
-                        deploy_to_eigenlayer(&opts)?;
-                    }
+                    crate::deploy::eigenlayer::deploy_eigenlayer(
+                        rpc_url,
+                        contracts_path,
+                        ordered_deployment,
+                        network,
+                        devnet,
+                        keystore_path,
+                    )
+                    .await?;
                 }
             },
             BlueprintCommands::Run {
