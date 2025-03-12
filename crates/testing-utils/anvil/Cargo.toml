@@ -12,9 +12,10 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+blueprint-core = { workspace = true, features = ["tracing"] }
 gadget-std = { workspace = true, features = ["std"] }
-gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true, features = ["std", "eigenlayer", "evm"] }
+
 alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
@@ -29,3 +30,7 @@ tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
 futures = { workspace = true }
 tempfile = { workspace = true}
+
+[features]
+default = ["tracing"]
+tracing = ["blueprint-core/tracing"]

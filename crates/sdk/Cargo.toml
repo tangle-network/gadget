@@ -20,7 +20,6 @@ blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-clients = { workspace = true }
 gadget-crypto = { workspace = true }
-gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
@@ -79,7 +78,6 @@ std = [
     "gadget-keystore/std",
     "gadget-clients/std",
     "gadget-crypto/std",
-    "gadget-logging/std",
     # Tangle
     "tangle-subxt/std",
     # Extras

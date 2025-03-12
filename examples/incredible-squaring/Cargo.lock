@@ -2536,7 +2536,6 @@ dependencies = [
  "gadget-crypto",
  "gadget-crypto-tangle-pair-signer",
  "gadget-keystore",
- "gadget-logging",
  "gadget-std",
  "gadget-testing-utils",
  "serde",
@@ -3085,6 +3084,7 @@ dependencies = [
  "alloy-transport",
  "anyhow",
  "bip39",
+ "blueprint-core",
  "blueprint-evm-extra",
  "blueprint-runner",
  "blueprint-tangle-extra",
@@ -3100,7 +3100,6 @@ dependencies = [
  "gadget-crypto",
  "gadget-crypto-core",
  "gadget-keystore",
- "gadget-logging",
  "gadget-std",
  "hex",
  "indicatif",
@@ -6300,8 +6299,8 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-transport",
  "alloy-transport-http",
+ "blueprint-core",
  "gadget-client-core",
- "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
  "hex",
@@ -6317,11 +6316,11 @@ name = "gadget-client-tangle"
 version = "0.1.0"
 dependencies = [
  "auto_impl",
+ "blueprint-core",
  "blueprint-runner",
  "gadget-client-core",
  "gadget-crypto-sp-core",
  "gadget-keystore",
- "gadget-logging",
  "gadget-std",
  "serde",
  "serde_json",
@@ -6375,12 +6374,12 @@ dependencies = [
  "futures",
  "gadget-clients",
  "gadget-keystore",
- "gadget-logging",
  "serde_json",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.3.19",
  "url",
 ]
 
@@ -6563,14 +6562,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-logging"
-version = "0.1.0"
-dependencies = [
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
 name = "gadget-networking"
 version = "0.1.0"
 dependencies = [
@@ -6584,7 +6575,6 @@ dependencies = [
  "futures",
  "gadget-crypto",
  "gadget-crypto-core",
- "gadget-logging",
  "gadget-std",
  "hex",
  "itertools 0.14.0",
@@ -6605,7 +6595,6 @@ dependencies = [
 name = "gadget-rpc-calls"
 version = "0.1.0"
 dependencies = [
- "gadget-logging",
  "metrics",
 ]
 
@@ -6643,7 +6632,6 @@ dependencies = [
  "gadget-core-testing-utils",
  "gadget-crypto-tangle-pair-signer",
  "gadget-keystore",
- "gadget-logging",
  "gadget-networking",
  "gadget-std",
  "reqwest 0.12.12",

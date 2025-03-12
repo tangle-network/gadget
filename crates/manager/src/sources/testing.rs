@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::sources::BinarySourceFetcher;
-use gadget_logging::trace;
+use blueprint_core::trace;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::TestFetcher;
 

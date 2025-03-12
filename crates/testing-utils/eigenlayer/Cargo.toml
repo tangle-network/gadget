@@ -20,7 +20,6 @@ futures = { workspace = true }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
-gadget-logging = { workspace = true }
 tempfile = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }

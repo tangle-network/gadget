@@ -34,9 +34,9 @@ toml = { workspace = true }
 indicatif = { workspace = true }
 
 # Blueprint dependencies
+blueprint-core = { workspace = true, features = ["tracing"] }
 blueprint-runner = { workspace = true, features = ["networking"] }
 gadget-std = { workspace = true, features = ["std"] }
-gadget-logging = { workspace = true, default-features = true }
 blueprint-tangle-extra = { workspace = true, default-features = true }
 dialoguer = { workspace = true, default-features = true }
 
@@ -90,7 +90,6 @@ default = ["std", "tangle", "eigenlayer"]
 std = [
     "gadget-clients/std",
     "gadget-keystore/std",
-    "gadget-logging/std",
     "gadget-std/std",
     "blueprint-tangle-extra/std",
     "tangle-subxt/std",

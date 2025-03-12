@@ -13,10 +13,9 @@ workspace = true
 
 [dependencies]
 blueprint-runner = { workspace = true, features = ["tangle"] }
-
+blueprint-core = { workspace = true }
 gadget-std = { workspace = true }
 gadget-client-core = { workspace = true }
-gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-crypto-sp-core = { workspace = true }
 
@@ -33,11 +32,10 @@ gadget-tangle-testing-utils = { workspace = true }
 color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
 
 [features]
-default = ["std"]
+default = ["std", "tracing"]
 std = [
 	"gadget-client-core/std",
 	"gadget-keystore/std",
-	"gadget-logging/std",
 	"gadget-std/std",
 	"serde/std",
 	"serde_json/std",
@@ -47,3 +45,5 @@ std = [
 web = [
 	"tangle-subxt/web"
 ]
+
+tracing = ["blueprint-core/tracing"]

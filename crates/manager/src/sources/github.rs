@@ -3,7 +3,7 @@ use crate::gadget::native::get_gadget_binary;
 use crate::sdk;
 use crate::sdk::utils::{get_download_url, hash_bytes_to_hex, valid_file_exists};
 use crate::sources::BinarySourceFetcher;
-use gadget_logging::info;
+use blueprint_core::info;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::gadget::GithubFetcher;
 use tokio::io::AsyncWriteExt;

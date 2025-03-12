@@ -82,22 +82,22 @@ where
         if !handle.is_finished() {
             // Put the handle back since the runner is still running
             *guard = Some(handle);
-            gadget_logging::info!("Runner started successfully");
+            blueprint_core::info!("Runner started successfully");
             return Ok(());
         }
 
-        gadget_logging::info!("Runner task finished OK");
+        blueprint_core::info!("Runner task finished OK");
         match handle.await {
             Ok(Ok(())) => Ok(()),
             Ok(Err(e)) => {
-                gadget_logging::error!("Runner failed during startup: {}", e);
+                blueprint_core::error!("Runner failed during startup: {}", e);
                 Err(Error::Eigenlayer(format!(
                     "Runner failed during startup: {}",
                     e
                 )))
             }
             Err(e) => {
-                gadget_logging::error!("Runner task panicked: {}", e);
+                blueprint_core::error!("Runner task panicked: {}", e);
                 Err(Error::Eigenlayer(format!("Runner task panicked: {}", e)))
             }
         }
