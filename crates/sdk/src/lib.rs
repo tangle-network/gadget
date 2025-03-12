@@ -21,7 +21,6 @@ pub use gadget_contexts as contexts;
 
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;
-pub use serde;
 pub use tokio;
 
 pub mod error;
@@ -57,6 +56,7 @@ pub mod macros {
 #[cfg(feature = "tangle")]
 mod tangle_feat {
     pub use blueprint_tangle_extra as tangle;
+    pub use gadget_blueprint_serde as serde;
     pub use tangle_subxt;
 }
 #[cfg(feature = "tangle")]

@@ -10,7 +10,7 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
-use blueprint_sdk::logging::{error, info, setup_log};
+use blueprint_sdk::{error, info, setup_log};
 use blueprint_sdk::runners::eigenlayer::bls::EigenlayerBLSConfig;
 use blueprint_sdk::testing::utils::anvil::anvil::*;
 use blueprint_sdk::testing::utils::eigenlayer::runner::EigenlayerBLSTestEnv;

@@ -148,7 +148,7 @@ serde_json = "1.0"
     // Create the binary that will interact with the contract
     let main_rs = format!(
         r#"use blueprint_sdk::alloy::primitives::Address;
-use blueprint_sdk::logging::info;
+use blueprint_sdk::info;
 use blueprint_sdk::std::{{string::ToString, fs, path::PathBuf}};
 use alloy_sol_types::sol;
 use alloy_transport::BoxTransport;

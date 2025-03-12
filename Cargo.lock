@@ -2860,6 +2860,7 @@ dependencies = [
  "blueprint-tangle-extra",
  "document-features",
  "eigensdk",
+ "gadget-blueprint-serde",
  "gadget-clients",
  "gadget-context-derive",
  "gadget-contexts",

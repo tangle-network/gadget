@@ -94,7 +94,8 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(self)
+        let value = value.serialize(self)?;
+        Ok(Field::Optional(value.field_type(), Box::new(Some(value))))
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {

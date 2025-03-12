@@ -33,6 +33,7 @@ gadget-context-derive = { workspace = true, optional = true }
 blueprint-tangle-extra = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
+gadget-blueprint-serde = { workspace = true, optional = true }
 
 # Eigenlayer and EVM-specific extras
 blueprint-evm-extra = { workspace = true, optional = true }
@@ -131,6 +132,7 @@ tangle = [
     "dep:blueprint-tangle-extra",
     "dep:tangle-subxt",
     "dep:gadget-crypto-tangle-pair-signer",
+    "dep:gadget-blueprint-serde",
     "gadget-clients/tangle",
     "gadget-contexts/tangle",
     "gadget-context-derive?/tangle",

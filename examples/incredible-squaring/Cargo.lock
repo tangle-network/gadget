@@ -2530,6 +2530,7 @@ dependencies = [
  "blueprint-runner",
  "blueprint-tangle-extra",
  "document-features",
+ "gadget-blueprint-serde",
  "gadget-clients",
  "gadget-context-derive",
  "gadget-contexts",
