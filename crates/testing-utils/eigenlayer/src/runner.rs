@@ -40,7 +40,7 @@ where
 
     fn add_job<J, T>(&mut self, job: J)
     where
-        J: Job<T, ()> + Send + Sync + 'static,
+        J: Job<T, Self::Context> + Send + Sync + 'static,
         T: 'static,
     {
         self.runner
