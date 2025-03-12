@@ -13,6 +13,10 @@ use cargo_tangle::{commands, create, deploy, keys};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 use dotenv::from_path;
+use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::{Keystore, KeystoreConfig};
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
 use tangle_subxt::subxt::client::OnlineClientT;
 use tangle_subxt::subxt::Config;
@@ -290,87 +294,8 @@ pub enum BlueprintCommands {
         /// Optional path to a JSON file containing job parameters
         #[arg(long)]
         params_file: Option<String>,
-        // /// The job arguments (optional, will prompt if not provided and no params file)
-        // #[arg(long, value_parser = input_value_parser)]
-        // args: Vec<InputValue>,
     },
 }
-
-// fn input_value_parser(s: &str) -> Result<InputValue, String> {
-//     // Parse the input string based on its format
-//     if s.starts_with("u8:") {
-//         // Parse as Uint8
-//         let value = s.trim_start_matches("u8:").parse::<u8>()
-//             .map_err(|e| format!("Failed to parse u8 value: {}", e))?;
-//         Ok(InputValue::Uint8(value))
-//     } else if s.starts_with("u16:") {
-//         // Parse as Uint16
-//         let value = s.trim_start_matches("u16:").parse::<u16>()
-//             .map_err(|e| format!("Failed to parse u16 value: {}", e))?;
-//         Ok(InputValue::Uint16(value))
-//     } else if s.starts_with("u32:") {
-//         // Parse as Uint32
-//         let value = s.trim_start_matches("u32:").parse::<u32>()
-//             .map_err(|e| format!("Failed to parse u32 value: {}", e))?;
-//         Ok(InputValue::Uint32(value))
-//     } else if s.starts_with("u64:") {
-//         // Parse as Uint64
-//         let value = s.trim_start_matches("u64:").parse::<u64>()
-//             .map_err(|e| format!("Failed to parse u64 value: {}", e))?;
-//         Ok(InputValue::Uint64(value))
-//     } else if s.starts_with("u128:") {
-//         // Parse as Uint128
-//         let value = s.trim_start_matches("u128:").parse::<u128>()
-//             .map_err(|e| format!("Failed to parse u128 value: {}", e))?;
-//         Ok(InputValue::Uint128(value))
-//     } else if s.starts_with("i8:") {
-//         // Parse as Int8
-//         let value = s.trim_start_matches("i8:").parse::<i8>()
-//             .map_err(|e| format!("Failed to parse i8 value: {}", e))?;
-//         Ok(InputValue::Int8(value))
-//     } else if s.starts_with("i16:") {
-//         // Parse as Int16
-//         let value = s.trim_start_matches("i16:").parse::<i16>()
-//             .map_err(|e| format!("Failed to parse i16 value: {}", e))?;
-//         Ok(InputValue::Int16(value))
-//     } else if s.starts_with("i32:") {
-//         // Parse as Int32
-//         let value = s.trim_start_matches("i32:").parse::<i32>()
-//             .map_err(|e| format!("Failed to parse i32 value: {}", e))?;
-//         Ok(InputValue::Int32(value))
-//     } else if s.starts_with("i64:") {
-//         // Parse as Int64
-//         let value = s.trim_start_matches("i64:").parse::<i64>()
-//             .map_err(|e| format!("Failed to parse i64 value: {}", e))?;
-//         Ok(InputValue::Int64(value))
-//     } else if s.starts_with("i128:") {
-//         // Parse as Int128
-//         let value = s.trim_start_matches("i128:").parse::<i128>()
-//             .map_err(|e| format!("Failed to parse i128 value: {}", e))?;
-//         Ok(InputValue::Int128(value))
-//     } else if s.starts_with("bool:") {
-//         // Parse as Bool
-//         let value = s.trim_start_matches("bool:").parse::<bool>()
-//             .map_err(|e| format!("Failed to parse bool value: {}", e))?;
-//         Ok(InputValue::Bool(value))
-//     } else if s.starts_with("bytes:") {
-//         // Parse as Bytes (hex string)
-//         let hex_str = s.trim_start_matches("bytes:");
-//         let bytes = hex::decode(hex_str)
-//             .map_err(|e| format!("Failed to parse bytes value: {}", e))?;
-//         Ok(InputValue::Bytes(bytes.into()))
-//     } else if s.starts_with("string:") {
-//         // Parse as String
-//         let value = s.trim_start_matches("string:").to_string();
-//         Ok(InputValue::String(value.into()))
-//     } else {
-//         // Default to u64 if no prefix is provided
-//         match s.parse::<u64>() {
-//             Ok(value) => Ok(InputValue::Uint64(value)),
-//             Err(_) => Err(format!("Failed to parse input value: {}. Use prefix like 'u64:', 'string:', etc.", s))
-//         }
-//     }
-// }
 
 #[derive(Subcommand, Debug)]
 pub enum DeployTarget {
@@ -381,7 +306,8 @@ pub enum DeployTarget {
             long,
             value_name = "URL",
             default_value = "https://rpc.tangle.tools",
-            env
+            env,
+            required_unless_present = "devnet"
         )]
         http_rpc_url: String,
         /// Tangle RPC URL to use
@@ -389,12 +315,19 @@ pub enum DeployTarget {
             long,
             value_name = "URL",
             default_value = "wss://rpc.tangle.tools",
-            env
+            env,
+            required_unless_present = "devnet"
         )]
         ws_rpc_url: String,
         /// The package to deploy (if the workspace has multiple packages).
         #[arg(short = 'p', long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
         package: Option<String>,
+        /// Start a local devnet using a Tangle test node
+        #[arg(long)]
+        devnet: bool,
+        /// The keystore path (defaults to ./keystore)
+        #[arg(short = 'k', long)]
+        keystore_path: Option<PathBuf>,
     },
     /// Deploy to Eigenlayer
     #[cfg(feature = "eigenlayer")]
@@ -450,20 +383,184 @@ async fn main() -> color_eyre::Result<()> {
                     http_rpc_url,
                     ws_rpc_url,
                     package,
+                    devnet,
+                    keystore_path,
                 } => {
                     let manifest_path = cli
                         .manifest
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                    let _ = deploy_to_tangle(Opts {
-                        pkg_name: package,
-                        http_rpc_url,
-                        ws_rpc_url,
-                        manifest_path,
-                        signer: None,
-                        signer_evm: None,
-                    })
-                    .await?;
+
+                    if devnet {
+                        use dialoguer::console::style;
+                        use gadget_chain_setup::tangle::testnet::SubstrateNode;
+                        use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
+                        use gadget_crypto::tangle_pair_signer::TanglePairSigner;
+                        use gadget_keystore::{Keystore, KeystoreConfig};
+                        use gadget_testing_utils::tangle::keys::inject_tangle_key;
+                        use tempfile::TempDir;
+                        use tokio::fs;
+                        use tokio::signal;
+                        use url::Url;
+
+                        println!(
+                            "{}",
+                            style("Starting local Tangle testnet...").cyan().bold()
+                        );
+
+                        let temp_dir = TempDir::new()?;
+                        let temp_path = temp_dir.path().to_path_buf();
+                        let deploy_dir = temp_path.join("deploy_dir");
+                        fs::create_dir_all(&deploy_dir).await?;
+
+                        let mut node_builder = SubstrateNode::builder();
+
+                        node_builder
+                            .arg("--dev")
+                            .arg("--tmp")
+                            .arg("--rpc-cors=all")
+                            .arg("--rpc-methods=unsafe")
+                            .arg("--rpc-external")
+                            .arg("--ws-external");
+
+                        let node = node_builder.spawn().map_err(|e| {
+                            color_eyre::Report::msg(format!("Failed to start Tangle node: {}", e))
+                        })?;
+
+                        let ws_port = node.ws_port();
+
+                        let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", ws_port))
+                            .map_err(|e| {
+                                color_eyre::Report::msg(format!("Failed to parse HTTP URL: {}", e))
+                            })?;
+                        let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", ws_port))
+                            .map_err(|e| {
+                                color_eyre::Report::msg(format!("Failed to parse WS URL: {}", e))
+                            })?;
+
+                        println!(
+                            "{}",
+                            style(format!(
+                                "Tangle node running at HTTP: {}, WS: {}",
+                                http_endpoint, ws_endpoint
+                            ))
+                            .green()
+                        );
+
+                        let keystore_uri = keystore_path
+                            .clone()
+                            .unwrap_or_else(|| PathBuf::from("./test-keystore"))
+                            .to_string_lossy()
+                            .to_string();
+
+                        let keystore_path_buf = PathBuf::from(&keystore_uri);
+                        fs::create_dir_all(&keystore_path_buf).await?;
+
+                        inject_tangle_key(&keystore_path_buf, "//Alice").map_err(|e| {
+                            color_eyre::Report::msg(format!("Failed to inject Alice's key: {}", e))
+                        })?;
+
+                        let keystore_config = KeystoreConfig::new().fs_root(keystore_uri.clone());
+                        let keystore = Keystore::new(keystore_config)?;
+
+                        let sr25519_public = keystore.first_local::<SpSr25519>()?;
+                        let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_public)?;
+                        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
+
+                        let ecdsa_public = keystore.first_local::<SpEcdsa>()?;
+                        let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_public)?;
+                        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
+                        let alloy_key = ecdsa_signer.alloy_key().map_err(|e| {
+                            color_eyre::Report::msg(format!("Failed to get Alloy key: {}", e))
+                        })?;
+
+                        println!(
+                            "{}",
+                            style("Deploying blueprint to local Tangle testnet...").cyan()
+                        );
+                        let blueprint_id = deploy_to_tangle(Opts {
+                            pkg_name: package,
+                            http_rpc_url: http_endpoint.to_string(),
+                            ws_rpc_url: ws_endpoint.to_string(),
+                            manifest_path,
+                            signer: Some(sr25519_signer),
+                            signer_evm: Some(alloy_key),
+                        })
+                        .await?;
+
+                        println!("\n{}", style("Local Tangle Testnet Active").green().bold());
+                        println!(
+                            "{}",
+                            style(format!("Blueprint ID: {}", blueprint_id)).green()
+                        );
+                        println!(
+                            "\n{}",
+                            style("To interact with your blueprint:").cyan().bold()
+                        );
+                        println!("{}", style("1. Open a new terminal window").dim());
+                        println!(
+                            "{}",
+                            style("2. Use the following environment variables:").dim()
+                        );
+                        println!(
+                            "   {}",
+                            style(format!("export WS_RPC_URL={}", ws_endpoint)).yellow()
+                        );
+                        println!(
+                            "   {}",
+                            style(format!("export HTTP_RPC_URL={}", http_endpoint)).yellow()
+                        );
+                        println!(
+                            "   {}",
+                            style(format!("export KEYSTORE_URI={}", keystore_uri)).yellow()
+                        );
+                        println!("\n{}", style("3. Register your blueprint:").dim());
+                        println!("   {}", style(format!("cargo tangle blueprint register --ws-rpc-url $WS_RPC_URL --blueprint-id {} --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
+                        println!("\n{}", style("4. Request a service:").dim());
+                        println!("   {}", style(format!("cargo tangle blueprint request-service --ws-rpc-url $WS_RPC_URL --blueprint-id {} --min-exposure-percent 10 --max-exposure-percent 20 --target-operators <OPERATOR_ID> --value 0 --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
+                        println!("\n{}", style("Press Ctrl+C to stop the testnet...").dim());
+
+                        signal::ctrl_c().await?;
+                        println!("{}", style("\nShutting down devnet...").yellow());
+                    } else {
+                        let keystore_path = if let Some(keystore_uri) = keystore_path {
+                            Some(keystore_uri)
+                        } else if PathBuf::from("./keystore").exists() {
+                            Some(PathBuf::from("./keystore"))
+                        } else {
+                            None
+                        };
+
+                        let (signer, signer_evm) = if let Some(keystore_uri) = keystore_path {
+                            let keystore_config =
+                                KeystoreConfig::new().fs_root(keystore_uri.clone());
+                            let keystore = Keystore::new(keystore_config)?;
+
+                            let sr25519_public = keystore.first_local::<SpSr25519>()?;
+                            let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_public)?;
+                            let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
+
+                            let ecdsa_public = keystore.first_local::<SpEcdsa>()?;
+                            let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_public)?;
+                            let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
+                            let alloy_key = ecdsa_signer.alloy_key().map_err(|e| {
+                                color_eyre::Report::msg(format!("Failed to get Alloy key: {}", e))
+                            })?;
+                            (Some(sr25519_signer), Some(alloy_key))
+                        } else {
+                            (None, None)
+                        };
+
+                        let _ = deploy_to_tangle(Opts {
+                            pkg_name: package,
+                            http_rpc_url,
+                            ws_rpc_url,
+                            manifest_path,
+                            signer,
+                            signer_evm,
+                        })
+                        .await?;
+                    }
                 }
                 #[cfg(feature = "eigenlayer")]
                 DeployTarget::Eigenlayer {

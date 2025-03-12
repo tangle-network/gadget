@@ -29,6 +29,7 @@ tracing = { workspace = true, features = ["log"] }
 thiserror = { workspace = true }
 bip39 = { workspace = true, features = ["rand_core", "rand"] }
 dotenv = { workspace = true }
+url = { workspace = true }
 reqwest = { workspace = true }
 toml = { workspace = true }
 indicatif = { workspace = true }
@@ -39,6 +40,7 @@ gadget-std = { workspace = true }
 gadget-logging = { workspace = true, default-features = true }
 blueprint-tangle-extra = { workspace = true, default-features = true }
 gadget-chain-setup = { workspace = true, features = ["tangle", "anvil"] }
+gadget-testing-utils = { workspace = true }
 gadget-blueprint-serde = { workspace = true, optional = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
@@ -108,6 +110,7 @@ tangle = [
     "dep:sp-core",
     "gadget-clients/tangle",
     "gadget-keystore/tangle-full",
+    "gadget-testing-utils/tangle",
     "gadget-blueprint-serde",
     "blueprint-runner/tangle",
     "evm",

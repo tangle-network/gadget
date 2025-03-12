@@ -3462,6 +3462,7 @@ dependencies = [
  "toml 0.8.20",
  "tracing",
  "tracing-subscriber 0.3.19",
+ "url",
 ]
 
 [[package]]
