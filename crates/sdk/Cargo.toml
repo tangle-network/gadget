@@ -108,7 +108,7 @@ networking = [
     "gadget-contexts/networking",
     "gadget-keystore/std",
     "gadget-context-derive?/networking",
-    "blueprint-runner?/networking"
+    "blueprint-runner/networking"
 ]
 
 ## Enable local KV stores
