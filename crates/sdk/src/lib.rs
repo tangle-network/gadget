@@ -16,9 +16,6 @@ pub use core::*;
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;
 
-/// Structured logging facilities
-pub use gadget_logging as logging;
-
 pub use gadget_clients as clients;
 pub use gadget_contexts as contexts;
 

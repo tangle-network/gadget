@@ -5,11 +5,11 @@ use blueprint_runner::config::SupportedChains;
 use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use color_eyre::eyre::Result;
-use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
 use gadget_testing_utils::anvil::start_default_anvil_testnet;
+use gadget_testing_utils::setup_log;
 use tempfile::TempDir;
 
 #[tokio::test]
@@ -231,7 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .output()
         .expect("Failed to build binary");
     if !build_output.status.success() {
-        gadget_logging::debug!("Cargo build output: {:?}", build_output);
+        blueprint_core::debug!("Cargo build output: {:?}", build_output);
         panic!("Failed to build binary")
     }
 
@@ -268,14 +268,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     const MAX_ATTEMPTS: u32 = 30; // 60 seconds total timeout
 
     loop {
-        gadget_logging::info!(
+        blueprint_core::info!(
             "Waiting for run to succeed (attempt {}/{})",
             attempts + 1,
             MAX_ATTEMPTS
         );
 
         if success_file.exists() {
-            gadget_logging::info!("Run succeeded!");
+            blueprint_core::info!("Run succeeded!");
             break;
         }
 

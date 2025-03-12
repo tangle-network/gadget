@@ -117,7 +117,7 @@ impl SubstrateNodeBuilder {
             let binary_path = &std::path::absolute(binary_path)
                 .expect("bad path")
                 .into_os_string();
-            gadget_logging::info!("Trying to spawn Tangle node binary at {:?}", binary_path);
+            blueprint_core::info!("Trying to spawn Tangle node binary at {:?}", binary_path);
             self.custom_flags
                 .insert("base-path".into(), Some(path.clone().into()));
 
@@ -207,7 +207,7 @@ impl SubstrateNodeBuilder {
             cmd.arg(arg);
         }
 
-        gadget_logging::trace!("Spawning Tangle node with command: {cmd:?}");
+        blueprint_core::trace!("Spawning Tangle node with command: {cmd:?}");
         cmd.spawn()
     }
 }
@@ -333,7 +333,7 @@ impl SubstrateNode {
         cmd.arg(format!("--rpc-port={}", self.ws_port));
         cmd.arg(format!("--port={}", self.p2p_port));
 
-        gadget_logging::debug!("Restarting Tangle node with command: {:?}", cmd);
+        blueprint_core::debug!("Restarting Tangle node with command: {:?}", cmd);
         cmd.spawn()
     }
 

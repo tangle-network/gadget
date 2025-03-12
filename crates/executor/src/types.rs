@@ -107,13 +107,13 @@ impl GadgetProcess {
 
     pub async fn read_until_timeout(&mut self, timeout: u64) -> Result<ProcessOutput, Error> {
         let mut messages = Vec::new();
-        gadget_logging::info!(
+        blueprint_core::info!(
             "{} : PROCESS STATUS : {:?}",
             self.process_name.to_string_lossy(),
             self.status
         );
         if self.status != Status::Active {
-            gadget_logging::info!(
+            blueprint_core::info!(
                 "{} : PROCESS IS NOT ACTIVE",
                 self.process_name.to_string_lossy()
             );
@@ -129,7 +129,7 @@ impl GadgetProcess {
                     Ok(output) => {
                         match output {
                             Err(e) => {
-                                gadget_logging::debug!(
+                                blueprint_core::debug!(
                                     "{} ended with: {}",
                                     self.process_name.to_string_lossy(),
                                     e
@@ -139,14 +139,14 @@ impl GadgetProcess {
                             Ok(inbound_message) => {
                                 if inbound_message.trim().is_empty() {
                                     // Stream is completed - process is finished
-                                    gadget_logging::debug!(
+                                    blueprint_core::debug!(
                                         "{} : STREAM COMPLETED - ENDING",
                                         self.process_name.to_string_lossy()
                                     );
                                     return Ok(ProcessOutput::Exhausted(messages));
                                 }
                                 // We received output from child process
-                                gadget_logging::debug!(
+                                blueprint_core::debug!(
                                     "{} : MESSAGE LOG : {}",
                                     self.process_name.to_string_lossy(),
                                     inbound_message
@@ -163,7 +163,7 @@ impl GadgetProcess {
                         }
                     }
                     Err(_timeout) => {
-                        gadget_logging::info!(
+                        blueprint_core::info!(
                             "{:?} read attempt timed out after {} second(s), continuing...",
                             self.process_name.clone(),
                             timeout
@@ -172,7 +172,7 @@ impl GadgetProcess {
                     }
                 }
             }
-            gadget_logging::debug!("EXECUTOR READ LOOP ENDED");
+            blueprint_core::debug!("EXECUTOR READ LOOP ENDED");
 
             if messages.is_empty() {
                 Ok(ProcessOutput::Waiting)
@@ -180,7 +180,7 @@ impl GadgetProcess {
                 Ok(ProcessOutput::Output(messages))
             }
         } else {
-            gadget_logging::warn!(
+            blueprint_core::warn!(
                 "{} encountered read error",
                 self.process_name.to_string_lossy()
             );
@@ -206,13 +206,13 @@ impl GadgetProcess {
                         let inbound_message = output;
                         if inbound_message.trim().is_empty() {
                             // Stream is completed - process is finished
-                            gadget_logging::debug!(
+                            blueprint_core::debug!(
                                 "{} : STREAM COMPLETED - ENDING",
                                 self.process_name.to_string_lossy()
                             );
                             return Ok(ProcessOutput::Exhausted(messages));
                         }
-                        gadget_logging::debug!(
+                        blueprint_core::debug!(
                             "{} : MESSAGE LOG : {}",
                             self.process_name.to_string_lossy(),
                             inbound_message.clone()
@@ -229,7 +229,7 @@ impl GadgetProcess {
                         }
                     }
                     Err(err) => {
-                        gadget_logging::warn!(
+                        blueprint_core::warn!(
                             "{} read attempt failed: {}",
                             self.process_name.to_string_lossy(),
                             err
@@ -240,7 +240,7 @@ impl GadgetProcess {
             }
         }
         // Reaching this point means there was some sort of error - we never got the substring
-        gadget_logging::warn!(
+        blueprint_core::warn!(
             "{} encountered read error",
             self.process_name.to_string_lossy()
         );

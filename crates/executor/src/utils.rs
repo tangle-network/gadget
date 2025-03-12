@@ -148,12 +148,12 @@ fn handle_output(
                 let message = format!("[{}] {}", source, line.trim());
                 if tx.send(message.clone()).is_err() {
                     // there are no active receivers, stop the task
-                    gadget_logging::error!("Error sending message: {}", message);
+                    blueprint_core::error!("Error sending message: {}", message);
                 }
             }
         }
         Err(e) => {
-            gadget_logging::error!("Error reading from {}: {}", source, e);
+            blueprint_core::error!("Error reading from {}: {}", source, e);
         }
     }
 }

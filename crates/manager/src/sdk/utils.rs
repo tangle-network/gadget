@@ -1,5 +1,5 @@
 use crate::error::Result;
-use gadget_logging::{info, warn};
+use blueprint_core::{info, warn};
 use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -17,10 +17,10 @@ path = "src/main.rs"
 
 [dependencies]
 blueprint-sdk = { workspace = true, features = ["std"] }
+blueprint-core = { workspace = true, features = ["tracing"] }
 gadget-clients = { workspace = true, features = ["std", "tangle"] }
 gadget-crypto = { workspace = true, features = ["std", "tangle-pair-signer"] }
 gadget-keystore = { workspace = true, features = ["std", "tangle"] }
-gadget-logging = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }
 gadget-std = { workspace = true, features = ["std"] }
 

@@ -19,7 +19,6 @@ cargo-tangle = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-networking = { workspace = true, features = ["std"] }
 gadget-contexts = { workspace = true, features = ["tangle", "std"] }
-gadget-logging = { workspace = true, features = ["std"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std", "evm"] }
 gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
@@ -46,3 +45,7 @@ tokio = { workspace = true, features = ["full"] }
 gadget-client-tangle = { workspace = true }
 url = { workspace = true }
 thiserror = { workspace = true, features = ["std"] }
+
+[features]
+default = ["tracing"]
+tracing = ["blueprint-core/tracing"]

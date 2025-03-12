@@ -3,13 +3,13 @@ use alloy_primitives::{Uint, address};
 use alloy_provider::Provider;
 use alloy_provider::network::Ethereum;
 use alloy_rpc_types_eth::TransactionReceipt;
+use blueprint_core::info;
 use dialoguer::console::style;
 use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry;
 use eigensdk::utils::rewardsv2::middleware::ecdsastakeregistry::ECDSAStakeRegistry::Quorum;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_logging::{error, info};
 use std::fs::{self};
 use tempfile::TempDir;
 use testcontainers::{
@@ -344,7 +344,7 @@ pub async fn start_anvil_container(
         &ws_endpoint,
         &ecdsa_stake_registry_address.to_string(),
     ) {
-        error!("Failed to write settings: {}", e);
+        blueprint_core::error!("Failed to write settings: {}", e);
     }
 
     print_section_header("Setup Complete");
@@ -419,7 +419,7 @@ where
     let pending_tx = match call.send().await {
         Ok(tx) => tx,
         Err(e) => {
-            error!("Failed to send transaction: {:?}", e);
+            blueprint_core::error!("Failed to send transaction: {:?}", e);
             return Err(e.into());
         }
     };
@@ -427,7 +427,7 @@ where
     let receipt = match pending_tx.get_receipt().await {
         Ok(receipt) => receipt,
         Err(e) => {
-            error!("Failed to get transaction receipt: {:?}", e);
+            blueprint_core::error!("Failed to get transaction receipt: {:?}", e);
             return Err(e.into());
         }
     };

@@ -16,7 +16,6 @@ blueprint-core = { workspace = true }
 blueprint-runner = { workspace = true }
 blueprint-router = { workspace = true }
 
-gadget-logging = { workspace = true, features = ["std"] }
 gadget-clients = { workspace = true, features = ["std"] }
 gadget-keystore = { workspace = true, features = ["std"] }
 cargo_toml = { workspace = true }
@@ -27,3 +26,4 @@ futures = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
+tracing-subscriber = { workspace = true }

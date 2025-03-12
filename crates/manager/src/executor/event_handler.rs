@@ -11,7 +11,7 @@ use gadget_clients::tangle::client::{TangleConfig, TangleEvent};
 use gadget_clients::tangle::services::{RpcServicesWithBlueprint, TangleServicesClient};
 use blueprint_sdk::runner::config::Protocol;
 use blueprint_sdk::runner::config::BlueprintEnvironment;
-use gadget_logging::{error, info, trace, warn};
+use blueprint_core::{error, info, trace, warn};
 use gadget_std::fmt::Debug;
 use gadget_std::sync::atomic::Ordering;
 use tangle_subxt::subxt::utils::AccountId32;

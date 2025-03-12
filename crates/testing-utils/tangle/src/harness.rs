@@ -6,6 +6,7 @@ use crate::{
     keys::inject_tangle_key,
     node::{NodeConfig, run, transactions},
 };
+use blueprint_core::debug;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::ContextConfig;
 use blueprint_runner::config::SupportedChains;
@@ -17,7 +18,6 @@ use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use gadget_logging::debug;
 use std::io;
 use std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;

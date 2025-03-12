@@ -3,11 +3,11 @@ use alloy_provider::RootProvider;
 use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::SupportedChains;
 use color_eyre::eyre::Result;
-use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
 use gadget_testing_utils::anvil::start_default_anvil_testnet;
+use gadget_testing_utils::setup_log;
 use serde_json::Value;
 use tempfile::TempDir;
 

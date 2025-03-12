@@ -482,7 +482,7 @@ where
         let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone(), context)?;
 
         let port = find_open_tcp_bind_port();
-        gadget_logging::info!("Binding node {node_id} to port {port}");
+        blueprint_core::info!("Binding node {node_id} to port {port}");
 
         let addr = Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/{port}"))
             .expect("Should parse MultiAddr");
