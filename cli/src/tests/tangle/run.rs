@@ -22,6 +22,7 @@ async fn test_run_blueprint() -> Result<()> {
     color_eyre::install()?;
     setup_log();
 
+    info!("Generating temporary Blueprint files");
     let (temp_dir, blueprint_dir) = create_test_blueprint();
     let temp_path = temp_dir.path().to_path_buf();
     let deploy_dir = temp_path.join("deploy_dir");
@@ -43,19 +44,6 @@ async fn test_run_blueprint() -> Result<()> {
 
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(&blueprint_dir)?;
-
-    let build_output = tokio::process::Command::new("cargo")
-        .arg("build")
-        .arg("--release")
-        .current_dir(&blueprint_dir)
-        .output()
-        .await?;
-
-    assert!(
-        build_output.status.success(),
-        "Failed to build blueprint: {}",
-        String::from_utf8_lossy(&build_output.stderr)
-    );
 
     let harness = TangleTestHarness::setup(temp_dir, ()).await?;
     let deployment_env = generate_env_from_node_id(
@@ -149,7 +137,7 @@ async fn test_run_blueprint() -> Result<()> {
 
     // We wait for the Binary to start up, otherwise it won't see the job
     // TODO: This is a hack, we should have a way to wait for the Binary to start up
-    tokio::time::sleep(Duration::from_secs(60)).await;
+    tokio::time::sleep(Duration::from_secs(80)).await;
 
     let job_called = crate::commands::submit_job(
         env.ws_rpc_endpoint.clone(),
