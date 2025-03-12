@@ -86,9 +86,9 @@ impl<T, E> JobResult<T, E> {
         }
     }
 
-    pub fn body(&self) -> Result<(&Parts, &T), &E> {
+    pub fn body(&self) -> Result<&T, &E> {
         match self {
-            JobResult::Ok { head, body } => Ok((head, body)),
+            JobResult::Ok { body, .. } => Ok(body),
             JobResult::Err(err) => Err(err),
         }
     }

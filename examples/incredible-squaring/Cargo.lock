@@ -6617,7 +6617,6 @@ dependencies = [
  "num-traits",
  "rand 0.8.5",
  "thiserror 2.0.12",
- "tokio",
 ]
 
 [[package]]
