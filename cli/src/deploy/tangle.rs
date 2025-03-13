@@ -231,7 +231,7 @@ pub async fn deploy_tangle(
             "\n{}",
             style("8. Submit a job for the Running Blueprint to process").dim()
         );
-        println!("   {}", style(format!("cargo tangle blueprint submit --job 0 --blueprint-id {} --service-id 0 --keystore-uri ./deploy-keystore", blueprint_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint submit --job 0 --blueprint-id {} --service-id 0 --watcher --keystore-uri ./deploy-keystore", blueprint_id)).yellow());
 
         println!(
             "\n{}",
