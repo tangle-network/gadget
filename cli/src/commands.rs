@@ -8,7 +8,7 @@ use gadget_crypto::sp_core::SpSr25519;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_logging::info;
-use gadget_blueprint_serde::new_bounded_string;
+use gadget_blueprint_serde::{from_field, new_bounded_string, BoundedVec, Field};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceRequest;
@@ -548,9 +548,11 @@ pub async fn submit_job(
                 .bold()
             );
 
+            let result_types = service_blueprint.jobs.0[job as usize].result.0.clone();
+
             info!("Job {} successfully called on service {}", job, service_id);
             if watcher {
-                check_job(ws_rpc_url, service_id, job_called.call_id, 0).await?;
+                check_job(ws_rpc_url, service_id, job_called.call_id, result_types, 0).await?;
             }
             return Ok(job_called);
         }
@@ -968,6 +970,7 @@ pub async fn check_job(
     ws_rpc_url: String,
     service_id: u64,
     call_id: u64,
+    result_types: Vec<FieldType>,
     timeout_seconds: u64,
 ) -> Result<()> {
     println!("{}", style("Connecting to Tangle Network...").cyan());
@@ -1053,11 +1056,7 @@ pub async fn check_job(
                             println!("{}", style("No output values returned").yellow());
                         } else {
                             for (i, output) in result.result.iter().enumerate() {
-                                println!(
-                                    "{}: {}",
-                                    style(format!("Output {}", i + 1)).green().bold(),
-                                    style(format!("{:?}", output)).green()
-                                );
+                                print_job_results(&result_types, i, output.clone());
                             }
                         }
 
@@ -1085,4 +1084,91 @@ pub async fn check_job(
             .bold()
     );
     Err(color_eyre::eyre::eyre!("Failed to find job results"))
+}
+
+fn print_job_results(result_types: &[FieldType], i: usize, field: Field<AccountId32>) {
+    let expected_type = result_types[i].clone();
+    let print_output = match expected_type {
+        FieldType::Void => "void".to_string(),
+        FieldType::Bool => {
+            let output: bool = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Uint8 => {
+            let output: u8 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Int8 => {
+            let output: i8 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Uint16 => {
+            let output: u16 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Int16 => {
+            let output: i16 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Uint32 => {
+            let output: u32 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Int32 => {
+            let output: i32 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Uint64 => {
+            let output: u64 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Int64 => {
+            let output: i64 = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::String => {
+            let output: String = from_field(field).unwrap();
+            output.to_string()
+        }
+        FieldType::Optional(_field_type) => {
+            let output: Option<FieldType> = from_field(field.clone()).unwrap();
+            if output.is_some() {
+                let output: FieldType = output.unwrap();
+                print_job_results(&[output], 0, field);
+                "Some".to_string()
+            } else {
+                "None".to_string()
+            }
+        }
+        FieldType::Array(_, _field_type) => {
+            let output: Vec<FieldType> = from_field(field.clone()).unwrap();
+            for (i, inner_type) in output.iter().enumerate() {
+                print_job_results(&[inner_type.clone()], i, field.clone());
+            }
+            "Array".to_string()
+        }
+        FieldType::List(_field_type) => {
+            let output: BoundedVec<FieldType> = from_field(field.clone()).unwrap();
+            for (i, inner_type) in output.0.iter().enumerate() {
+                print_job_results(&[inner_type.clone()], i, field.clone());
+            }
+            "List".to_string()
+        }
+        FieldType::Struct(_bounded_vec) => {
+            let output: BoundedVec<FieldType> = from_field(field.clone()).unwrap();
+            for (i, inner_type) in output.0.iter().enumerate() {
+                print_job_results(&[inner_type.clone()], i, field.clone());
+            }
+            "Struct".to_string()
+        }
+        FieldType::AccountId => {
+            let output: AccountId32 = from_field(field).unwrap();
+            output.to_string()
+        }
+    };
+    println!(
+        "{}: {}",
+        style(format!("Output {}", i + 1)).green().bold(),
+        style(format!("{:?}", print_output)).green()
+    );
 }
