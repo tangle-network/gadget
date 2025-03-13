@@ -148,7 +148,7 @@ pub enum BlueprintCommands {
         protocol: Protocol,
 
         /// The HTTP RPC endpoint URL (required)
-        #[arg(short = 'u', long)]
+        #[arg(short = 'u', long, default_value = "http://127.0.0.1:9944")]
         rpc_url: String,
 
         /// The keystore path (defaults to ./keystore)
@@ -182,7 +182,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "ls")]
     ListRequests {
         /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
     },
 
@@ -190,7 +190,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "reg")]
     Register {
         /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
         /// The blueprint ID to register
         #[arg(long)]
@@ -204,7 +204,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "accept")]
     AcceptRequest {
         /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
         /// The minimum exposure percentage to request
         #[arg(long, default_value = "50")]
@@ -227,7 +227,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "reject")]
     RejectRequest {
         /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
         /// The keystore URI to use
         #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
@@ -241,7 +241,7 @@ pub enum BlueprintCommands {
     #[command(visible_alias = "req")]
     RequestService {
         /// WebSocket RPC URL to use
-        #[arg(long, env = "WS_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
         /// The blueprint ID to request
         #[arg(long)]
@@ -267,7 +267,7 @@ pub enum BlueprintCommands {
     #[command(name = "submit")]
     SubmitJob {
         /// The RPC endpoint to connect to
-        #[arg(long, env = "TANGLE_RPC_URL")]
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
         ws_rpc_url: String,
         /// The service ID to submit the job to
         #[arg(long)]
@@ -276,7 +276,7 @@ pub enum BlueprintCommands {
         #[arg(long)]
         blueprint_id: u64,
         /// The keystore URI to use
-        #[arg(long, env = "TANGLE_KEYSTORE_URI")]
+        #[arg(long, env = "KEYSTORE_URI")]
         keystore_uri: String,
         /// The job ID to submit
         #[arg(long)]
@@ -284,6 +284,23 @@ pub enum BlueprintCommands {
         /// Optional path to a JSON file containing job parameters
         #[arg(long)]
         params_file: Option<String>,
+    },
+
+    /// Wait for the completion of a Tangle job and print the results
+    #[command(name = "check")]
+    CheckJob {
+        /// The RPC endpoint to connect to
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The service ID the job was submitted to
+        #[arg(long)]
+        service_id: u64,
+        /// The call ID of the job to wait for
+        #[arg(long)]
+        call_id: u64,
+        /// Maximum time to wait in seconds (0 for no timeout)
+        #[arg(long, default_value = "0")]
+        timeout: u64,
     },
 }
 
@@ -594,6 +611,14 @@ async fn main() -> color_eyre::Result<()> {
                     params_file,
                 )
                 .await?;
+            }
+            BlueprintCommands::CheckJob {
+                ws_rpc_url,
+                service_id,
+                call_id,
+                timeout,
+            } => {
+                commands::check_job(ws_rpc_url, service_id, call_id, timeout).await?;
             }
         },
         Commands::Key { command } => match command {
