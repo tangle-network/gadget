@@ -1,13 +1,13 @@
 use crate::util::TxProgressExt;
 use alloc::sync::Arc;
-use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
+use gadget_testing_utils::tangle::TangleTestHarness;
 use tangle_subxt::subxt::tx::Signer;
 
 #[tokio::test]
 async fn test_transaction_submission() -> color_eyre::Result<()> {
     // Setup test harness
     let test_dir = tempfile::TempDir::new()?;
-    let harness = TangleTestHarness::setup(test_dir, ()).await?;
+    let harness = TangleTestHarness::setup(test_dir).await?;
 
     // Test basic transaction submission
     let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
@@ -33,7 +33,7 @@ async fn test_transaction_submission() -> color_eyre::Result<()> {
 async fn test_transaction_progress_tracking() -> color_eyre::Result<()> {
     // Setup test harness
     let test_dir = tempfile::TempDir::new()?;
-    let harness = TangleTestHarness::setup(test_dir, ()).await?;
+    let harness = TangleTestHarness::setup(test_dir).await?;
 
     // Submit transaction and track progress
     let tx = tangle_subxt::tangle_testnet_runtime::api::tx()

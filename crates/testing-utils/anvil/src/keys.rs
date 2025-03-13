@@ -1,4 +1,4 @@
-use crate::error::Error;
+use gadget_core_testing_utils::TestRunnerError;
 use gadget_keystore::backends::bn254::Bn254Backend;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
 use gadget_keystore::{Keystore, KeystoreConfig};
@@ -26,10 +26,13 @@ pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
-pub fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> Result<(), Error> {
+pub fn inject_anvil_key<P: AsRef<Path>>(
+    keystore_path: P,
+    seed: &str,
+) -> Result<(), TestRunnerError> {
     let keystore_path = keystore_path.as_ref();
     if !keystore_path.exists() {
-        std::fs::create_dir_all(keystore_path).map_err(|e| Error::Keystore(e.into()))?;
+        std::fs::create_dir_all(keystore_path).map_err(|e| TestRunnerError::Keystore(e.into()))?;
     }
     let config = KeystoreConfig::new().fs_root(keystore_path);
     let keystore = Keystore::new(config)?;
