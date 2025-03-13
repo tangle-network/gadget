@@ -16,6 +16,7 @@ use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceBlueprint;
 use gadget_chain_setup_common::signer::{load_evm_signer_from_env, load_signer_from_env};
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Clone)]
 pub struct Opts {
@@ -104,10 +105,29 @@ pub async fn deploy_to_tangle(
         signer_evm,
     }: Opts,
 ) -> Result<u64> {
+    // Create a progress bar to track deployment
+    let progress_bar = ProgressBar::new(100);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}% {msg}")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+
+    // Helper function to update progress
+    let update_progress = |percent: u64, message: &str| {
+        progress_bar.set_position(percent);
+        progress_bar.set_message(message.to_string());
+    };
+
+    // Start the deployment process
+    update_progress(0, "Generating blueprint");
+
     // Load the manifest file into cargo metadata
     let blueprint =
         generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &ws_rpc_url, signer_evm)
             .await?;
+    update_progress(20, "Blueprint generated");
 
     let signer = if let Some(signer) = signer {
         signer
@@ -116,14 +136,21 @@ pub async fn deploy_to_tangle(
     };
 
     let my_account_id = signer.account_id();
+    update_progress(30, "Connecting");
     let client = subxt::OnlineClient::from_url(ws_rpc_url.clone()).await?;
     tracing::info!("Connected to Tangle Network at: {}", ws_rpc_url);
+
+    update_progress(40, "Creating blueprint transaction");
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
     tracing::info!("Created blueprint...");
+
+    update_progress(50, "Signing and submitting transaction");
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
+
+    update_progress(60, "Waiting for transaction confirmation");
     let result = if cfg!(test) {
         use blueprint_tangle_extra::util::TxProgressExt;
         progress.wait_for_in_block_success().await?
@@ -133,6 +160,8 @@ pub async fn deploy_to_tangle(
         tracing::debug!("Transaction finalized...");
         result
     };
+
+    update_progress(80, "Verifying blueprint creation");
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()
@@ -144,6 +173,10 @@ pub async fn deploy_to_tangle(
                 e
             )
         })?;
+
+    update_progress(100, "Deployment complete");
+    progress_bar.finish_with_message("Blueprint deployed successfully!");
+
     tracing::info!(
         "Blueprint #{} created successfully by {} with extrinsic hash: {}",
         event.blueprint_id,
