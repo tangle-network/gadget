@@ -121,7 +121,7 @@ impl TangleTestHarness<()> {
     /// let tmp_dir = TempDir::new()?;
     /// let harness = TangleTestHarness::setup(tmp_dir).await?;
     ///
-    /// assert_eq!(harness.context(), ());
+    /// assert_eq!(harness.context(), &());
     /// # Ok(()) }
     /// ```
     pub async fn setup(test_dir: TempDir) -> Result<Self, Error> {
