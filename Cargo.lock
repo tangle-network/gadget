@@ -6857,6 +6857,7 @@ dependencies = [
  "alloy-transport",
  "blueprint-core",
  "futures",
+ "gadget-core-testing-utils",
  "gadget-keystore",
  "gadget-std",
  "serde",

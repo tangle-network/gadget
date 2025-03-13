@@ -15,6 +15,7 @@ workspace = true
 blueprint-core = { workspace = true, features = ["tracing"] }
 gadget-std = { workspace = true, features = ["std"] }
 gadget-keystore = { workspace = true, features = ["std", "eigenlayer", "evm"] }
+gadget-core-testing-utils = { workspace = true }
 
 alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
