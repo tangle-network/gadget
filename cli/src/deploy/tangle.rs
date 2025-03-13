@@ -204,16 +204,16 @@ pub async fn deploy_tangle(
         println!("\n{}", style("5. Accept the service request (request ID is 0 if you are following this demo, otherwise it will be from the request you want to accept):").dim());
         println!("   {}", style(format!("cargo tangle blueprint accept --ws-rpc-url {} --request-id 0 --keystore-uri ./test-keystore", ws_endpoint)).yellow());
         println!("\n{}", style("6. Run the blueprint:").dim());
-        println!("   {}", style(format!("cargo tangle blueprint run --ws-rpc-url {} --blueprint-id {} --keystore-uri ./test-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint run --protocol tangle --rpc-url {} --keystore-path ./test-keystore", http_endpoint)).yellow());
         println!(
             "\n{}",
             style("7. Open another terminal window, leaving this one running").dim()
         );
         println!(
-            "   {}",
+            "\n{}",
             style("8. Submit a job for the Running Blueprint to process").dim()
         );
-        println!("   {}", style(format!("cargo tangle blueprint submit --ws-rpc-url {} --blueprint-id {} --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint submit --ws-rpc-url {} --job 0 --blueprint-id {} --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id)).yellow());
 
         println!(
             "\n{}",

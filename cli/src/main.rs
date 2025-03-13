@@ -264,7 +264,7 @@ pub enum BlueprintCommands {
     },
 
     /// Submit a job to a service
-    #[command(name = "submit-job")]
+    #[command(name = "submit")]
     SubmitJob {
         /// The RPC endpoint to connect to
         #[arg(long, env = "TANGLE_RPC_URL")]

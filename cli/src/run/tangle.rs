@@ -3,10 +3,12 @@ use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::run_blueprint_manager;
 use blueprint_runner::config::BlueprintEnvironment;
 use color_eyre::eyre::{Result, eyre};
+use dialoguer::console::style;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
-use gadget_logging::info;
+use indicatif::{ProgressBar, ProgressStyle};
 use sp_core::sr25519;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::signal;
 
 #[derive(Clone)]
@@ -67,23 +69,35 @@ pub async fn run_blueprint(opts: RunOpts) -> Result<()> {
         test_mode: false,
     };
 
-    info!(
-        "Starting blueprint manager for blueprint ID: {}",
-        blueprint_id
-    );
+    println!("{}", style(format!("Starting blueprint manager for blueprint ID: {}", blueprint_id)).cyan().bold());
 
     let shutdown_signal = async move {
         let _ = signal::ctrl_c().await;
-        info!("Received shutdown signal, stopping blueprint manager");
+        println!("{}", style("Received shutdown signal, stopping blueprint manager").yellow().bold());
     };
 
-    let mut handle =
-        run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
+    println!("{}", style("Preparing Blueprint to run, this may take a few minutes...").cyan());
+    
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+            .template("{spinner:.blue} {msg}")
+            .unwrap()
+    );
+    pb.set_message("Initializing Blueprint");
+    pb.enable_steady_tick(Duration::from_millis(100));
+    
+    let mut handle = run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
+    
+    pb.finish_with_message("Blueprint initialized successfully!");
 
+    println!("{}", style("Starting blueprint execution...").green().bold());
     handle.start()?;
 
+    println!("{}", style("Blueprint is running. Press Ctrl+C to stop.").cyan());
     handle.await?;
 
-    info!("Blueprint manager has stopped");
+    println!("{}", style("Blueprint manager has stopped").green());
     Ok(())
 }
