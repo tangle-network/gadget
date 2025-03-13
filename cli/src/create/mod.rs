@@ -40,7 +40,7 @@ pub fn new_blueprint(
 
         cargo_generate::TemplatePath {
             git: Some(template_repo),
-            branch: Some(String::from("serial/new-sdk")),
+            branch: Some(String::from("main")),
             ..Default::default()
         }
     });
