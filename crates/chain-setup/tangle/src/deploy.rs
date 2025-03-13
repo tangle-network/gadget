@@ -1,3 +1,4 @@
+use dialoguer::console::style;
 use gadget_std::env;
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
@@ -153,40 +154,113 @@ pub async fn deploy_to_tangle(
     Ok(event.blueprint_id)
 }
 
-/// Gets either `CARGO_WORKSPACE_DIR` for Tangle blueprints, or the package manifest directory
-/// for anything else.
+/// Gets either `CARGO_WORKSPACE_DIR` for Tangle blueprints, or the workspace root directory
+/// identified by finding a Cargo.toml with a [workspace] section. If no workspace is found,
+/// falls back to the package manifest directory.
 fn workspace_or_package_manifest_path(package: &cargo_metadata::Package) -> PathBuf {
-    env::var("CARGO_WORKSPACE_DIR").map_or_else(
-        |_| {
-            package
-                .manifest_path
-                .parent()
-                .unwrap()
-                .as_std_path()
-                .to_path_buf()
-        },
-        PathBuf::from,
-    )
+    env::var("CARGO_WORKSPACE_DIR").map_or_else(|_| find_workspace_root(package), PathBuf::from)
+}
+
+/// Finds the workspace root directory by walking up the directory tree and looking for a
+/// Cargo.toml with a [workspace] section. If no workspace root is found, returns the package directory.
+fn find_workspace_root(package: &cargo_metadata::Package) -> PathBuf {
+    let package_dir = package
+        .manifest_path
+        .parent()
+        .unwrap()
+        .as_std_path()
+        .to_path_buf();
+    let mut current_dir = package_dir.clone();
+    let mut workspace_root = package_dir;
+
+    // Walk up the directory tree looking for a workspace root
+    while let Some(parent) = current_dir.parent() {
+        let potential_cargo_toml = parent.join("Cargo.toml");
+        if potential_cargo_toml.exists() {
+            // Check if this Cargo.toml has a [workspace] section
+            if let Ok(content) = std::fs::read_to_string(&potential_cargo_toml) {
+                if content.contains("[workspace]") {
+                    workspace_root = parent.to_path_buf();
+                }
+            }
+        }
+        current_dir = parent.to_path_buf();
+
+        // Stop at the filesystem root
+        if current_dir.parent().is_none() {
+            break;
+        }
+    }
+
+    tracing::debug!("Identified workspace root: {:?}", workspace_root);
+    workspace_root
 }
 
 fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
 ) -> Result<blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>> {
-    let manifest_dir = workspace_or_package_manifest_path(package);
-    let blueprint_json_path = manifest_dir.join("blueprint.json");
+    // Find the workspace root
+    let workspace_root = find_workspace_root(package);
+    let package_dir = package
+        .manifest_path
+        .parent()
+        .unwrap()
+        .as_std_path()
+        .to_path_buf();
+
+    // First check in the workspace root directory
+    let mut blueprint_json_path = workspace_root.join("blueprint.json");
+
+    // If not found in workspace root, check in the binary's directory
+    if !blueprint_json_path.exists() {
+        blueprint_json_path = package_dir.join("blueprint.json");
+    }
 
     if !blueprint_json_path.exists() {
-        tracing::warn!("Could not find blueprint.json; running `cargo build`...");
+        tracing::warn!(
+            "Could not find blueprint.json in workspace root or binary directory; running `cargo build`..."
+        );
+        tracing::debug!(
+            "Looked for blueprint.json at workspace root: {:?}",
+            workspace_root.join("blueprint.json")
+        );
+        tracing::debug!(
+            "Looked for blueprint.json at package dir: {:?}",
+            package_dir.join("blueprint.json")
+        );
+
         // Need to run cargo build. We don't know the package name, so unfortunately this will
         // build the entire workspace.
         escargot::CargoBuild::new()
-            .manifest_path(manifest_dir.join("Cargo.toml"))
+            .manifest_path(workspace_root.join("Cargo.toml"))
             .run()
             .context("Failed to build the package")?;
+
+        // After building, check both locations again
+        let mut blueprint_json_path = workspace_root.join("blueprint.json");
+
+        if !blueprint_json_path.exists() {
+            blueprint_json_path = package_dir.join("blueprint.json");
+
+            if !blueprint_json_path.exists() {
+                return Err(eyre::eyre!(
+                    "Could not find blueprint.json after building. Checked:\n\
+                     - Workspace root: {:?}\n\
+                     - Package directory: {:?}",
+                    workspace_root.join("blueprint.json"),
+                    package_dir.join("blueprint.json")
+                ));
+            }
+        }
     }
+
+    tracing::debug!("Found blueprint.json at: {:?}", blueprint_json_path);
+
     // should have the blueprint.json
-    let blueprint_json =
-        std::fs::read_to_string(blueprint_json_path).context("Reading blueprint.json file")?;
+    let blueprint_json = std::fs::read_to_string(&blueprint_json_path).context(format!(
+        "Reading blueprint.json file at {:?}",
+        blueprint_json_path
+    ))?;
     let blueprint = serde_json::from_str(&blueprint_json)?;
     Ok(blueprint)
 }
@@ -273,6 +347,11 @@ async fn deploy_contracts_to_tangle(
             let contract_address =
                 alloy_network::ReceiptResponse::contract_address(&receipt).unwrap();
             tracing::info!("Contract {name} deployed at: {contract_address}");
+            println!(
+                "   {}",
+                style(format!("Contract {name} deployed at: {contract_address}")).yellow()
+            );
+
             match kind {
                 ContractKind::Manager => {
                     blueprint.manager = BlueprintServiceManager::Evm(contract_address.to_string());
@@ -296,28 +375,60 @@ fn build_contracts_if_needed(
         _ => return Err(Error::UnsupportedBlueprintManager.into()),
     };
 
+    tracing::debug!("Checking for contracts to build: {pathes_to_check:?}");
+
     let abs_pathes_to_check: Vec<_> = pathes_to_check
         .into_iter()
         .map(|path| resolve_path_relative_to_package(package, path))
         .collect();
 
+    tracing::debug!("Absolute paths to check: {abs_pathes_to_check:?}");
+
     let needs_build = abs_pathes_to_check.iter().any(|path| !path.exists());
     if !needs_build {
+        tracing::debug!("All contracts are already built");
         return Ok(());
     }
 
-    // Get the contracts directory path
-    let root = package.manifest_path.parent().unwrap();
-    let contracts_dir = root.join("contracts");
+    tracing::debug!("Contracts need to be built");
+
+    // Find the workspace root
+    let workspace_root = find_workspace_root(package);
+    let package_dir = package
+        .manifest_path
+        .parent()
+        .unwrap()
+        .as_std_path()
+        .to_path_buf();
+
+    tracing::debug!("Workspace root directory: {workspace_root:?}");
+
+    // Look for contracts directory in the workspace root
+    let mut contracts_dir = workspace_root.join("contracts");
     if !contracts_dir.exists() {
-        return Err(Error::ContractNotFound(contracts_dir.as_std_path().into()).into());
+        tracing::debug!("Contracts directory not found in workspace root: {contracts_dir:?}");
+
+        // Fall back to package directory if not found in workspace root
+        let package_contracts_dir = package_dir.join("contracts");
+        if !package_contracts_dir.exists() {
+            tracing::debug!(
+                "Contracts directory not found in package directory: {package_contracts_dir:?}"
+            );
+            return Err(Error::ContractNotFound(contracts_dir).into());
+        }
+
+        tracing::debug!("Using contracts directory from package: {package_contracts_dir:?}");
+        contracts_dir = package_contracts_dir;
     }
+
+    tracing::debug!("Contracts directory: {contracts_dir:?}");
 
     let foundry = crate::foundry::FoundryToolchain::new();
     foundry.check_installed_or_exit();
 
-    // Change to contracts directory before building
-    std::env::set_current_dir(root)?;
+    // Change to workspace root directory before building
+    tracing::debug!("Changing to workspace root directory: {workspace_root:?}");
+    std::env::set_current_dir(workspace_root)?;
     foundry.forge.install_dependencies()?;
     foundry.forge.build()?;
 
@@ -331,7 +442,7 @@ fn build_contracts_if_needed(
     Ok(())
 }
 
-// Converts the `ServiceBlueprint` to a format that can be sent to the Tangle Network.
+/// Converts the `ServiceBlueprint` to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
     blueprint: &blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>,
 ) -> Result<ServiceBlueprint> {
@@ -448,12 +559,42 @@ fn find_package<'m>(
             .find(|p| pkg_name.is_some_and(|v| &p.name == v))
             .ok_or(Error::NoPackageFound.into()),
         _otherwise => {
-            eprintln!("Please specify the package to deploy:");
-            for package in &metadata.packages {
-                eprintln!("Found: {}", package.name);
+            // Find all binary packages in the workspace
+            let bin_packages: Vec<&cargo_metadata::Package> = metadata
+                .packages
+                .iter()
+                .filter(|p| {
+                    p.targets
+                        .iter()
+                        .any(|t| t.kind.contains(&"bin".to_string()))
+                })
+                .collect();
+
+            match bin_packages.len() {
+                0 => {
+                    eprintln!("No binary packages found in the workspace.");
+                    Err(Error::NoPackageFound.into())
+                }
+                1 => {
+                    // If there's only one binary package, use it automatically
+                    tracing::info!(
+                        "Automatically selecting the only binary package: {}",
+                        bin_packages[0].name
+                    );
+                    Ok(bin_packages[0])
+                }
+                _ => {
+                    // If there are multiple binary packages, prompt for selection
+                    eprintln!(
+                        "Multiple binary packages found. Please specify the package to deploy:"
+                    );
+                    for package in &bin_packages {
+                        eprintln!("Found: {}", package.name);
+                    }
+                    eprintln!();
+                    Err(Error::ManyPackages.into())
+                }
             }
-            eprintln!();
-            Err(Error::ManyPackages.into())
         }
     }
 }

@@ -422,13 +422,27 @@ async fn main() -> color_eyre::Result<()> {
             } => {
                 let settings_file =
                     settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
-                if !settings_file.exists() {
+                let protocol_settings = if settings_file.exists() {
+                    load_protocol_settings(protocol, &settings_file)?
+                } else if protocol == Protocol::Tangle {
+                    println!("Please enter the Blueprint ID:");
+                    let mut blueprint_id = String::new();
+                    std::io::stdin().read_line(&mut blueprint_id)?;
+                    let blueprint_id: u64 = blueprint_id.trim().parse()?;
+                    println!("Please enter the Service ID:");
+                    let mut service_id = String::new();
+                    std::io::stdin().read_line(&mut service_id)?;
+                    let service_id: u64 = service_id.trim().parse()?;
+                    ProtocolSettings::Tangle(TangleProtocolSettings {
+                        blueprint_id,
+                        service_id: Some(service_id),
+                    })
+                } else {
                     return Err(color_eyre::Report::msg(format!(
                         "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist",
                         settings_file.display()
                     )));
-                }
-                let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
+                };
 
                 let chain = match network.to_lowercase().as_str() {
                     "local" => SupportedChains::LocalTestnet,

@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use blueprint_runner::tangle::config::{decompress_pubkey, PriceTargets};
 use color_eyre::Result;
+use dialoguer::console::style;
 use gadget_chain_setup::tangle::InputValue;
 use gadget_clients::tangle::client::OnlineClient;
 use gadget_crypto::sp_core::SpSr25519;
@@ -49,12 +50,14 @@ use blueprint_tangle_extra::util::TxProgressExt;
 pub async fn list_requests(
     ws_rpc_url: String,
 ) -> Result<Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>> {
+    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     let service_requests_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
         .services()
         .service_requests_iter();
 
+    println!("{}", style("Fetching service requests...").cyan());
     let mut storage_query = client
         .storage()
         .at_latest()
@@ -63,8 +66,6 @@ pub async fn list_requests(
         .await?;
 
     let mut requests = Vec::new();
-
-    gadget_logging::info!("Fetching service requests...");
 
     while let Some(result) = storage_query.next().await {
         let result = result?;
@@ -77,6 +78,10 @@ pub async fn list_requests(
         requests.push((id, request));
     }
 
+    println!(
+        "{}",
+        style(format!("Found {} service requests", requests.len())).green()
+    );
     Ok(requests)
 }
 
@@ -87,23 +92,45 @@ pub async fn list_requests(
 /// * `requests` - A vector of tuples containing request IDs and service requests.
 pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>) {
     if requests.is_empty() {
-        gadget_logging::info!("No service requests found");
+        println!("{}", style("No service requests found").yellow());
         return;
     }
 
-    println!("\nService Requests");
-    println!("=============================================");
+    println!("\n{}", style("Service Requests").cyan().bold());
+    println!(
+        "{}",
+        style("=============================================").dim()
+    );
 
     for (request_id, request) in requests {
-        println!("Request ID: {}", request_id);
-        println!("Blueprint ID: {}", request.blueprint);
-        println!("Owner: {}", request.owner);
-        println!("Permitted Callers: {:?}", request.permitted_callers);
-        println!("Security Requirements: {:?}", request.security_requirements);
-        println!("Membership Model: {:?}", request.membership_model);
-        println!("Request Arguments: {:?}", request.args);
-        println!("TTL: {:?}", request.ttl);
-        println!("=============================================");
+        println!(
+            "{}: {}",
+            style("Request ID").green().bold(),
+            style(request_id).green()
+        );
+        println!("{}: {}", style("Blueprint ID").green(), request.blueprint);
+        println!("{}: {}", style("Owner").green(), request.owner);
+        println!(
+            "{}: {:?}",
+            style("Permitted Callers").green(),
+            request.permitted_callers
+        );
+        println!(
+            "{}: {:?}",
+            style("Security Requirements").green(),
+            request.security_requirements
+        );
+        println!(
+            "{}: {:?}",
+            style("Membership Model").green(),
+            request.membership_model
+        );
+        println!("{}: {:?}", style("Request Arguments").green(), request.args);
+        println!("{}: {:?}", style("TTL").green(), request.ttl);
+        println!(
+            "{}",
+            style("=============================================").dim()
+        );
     }
 }
 
@@ -139,8 +166,10 @@ pub async fn accept_request(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     request_id: u64,
 ) -> Result<()> {
+    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
+    println!("{}", style("Loading keystore...").cyan());
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
@@ -150,16 +179,36 @@ pub async fn accept_request(
     let native_security_commitments =
         vec![get_security_commitment(Asset::Custom(0), restaking_percent)];
 
+    println!(
+        "{}",
+        style(format!("Preparing to accept request ID: {}", request_id)).cyan()
+    );
     let call = tangle_subxt::tangle_testnet_runtime::api::tx()
         .services()
         .approve(request_id, native_security_commitments);
-    info!("Submitting Service Approval for request ID: {}", request_id);
+
+    println!(
+        "{}",
+        style(format!(
+            "Submitting Service Approval for request ID: {}",
+            request_id
+        ))
+        .cyan()
+    );
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, &signer)
         .await?;
     wait_for_in_block_success(res).await;
-    info!("Service Approval submitted successfully");
+
+    println!(
+        "{}",
+        style(format!(
+            "Service Approval for request ID: {} submitted successfully",
+            request_id
+        ))
+        .green()
+    );
     Ok(())
 }
 
@@ -189,22 +238,46 @@ pub async fn reject_request(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     request_id: u64,
 ) -> Result<()> {
+    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
+    println!("{}", style("Loading keystore...").cyan());
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
     let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
     let signer = TanglePairSigner::new(pair.0);
 
+    println!(
+        "{}",
+        style(format!("Preparing to reject request ID: {}", request_id)).cyan()
+    );
     let call = tangle_subxt::tangle_testnet_runtime::api::tx()
         .services()
         .reject(request_id);
+
+    println!(
+        "{}",
+        style(format!(
+            "Submitting Service Rejection for request ID: {}",
+            request_id
+        ))
+        .cyan()
+    );
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, &signer)
         .await?;
     wait_for_in_block_success(res).await;
+
+    println!(
+        "{}",
+        style(format!(
+            "Service Rejection for request ID: {} submitted successfully",
+            request_id
+        ))
+        .green()
+    );
     Ok(())
 }
 
@@ -242,8 +315,10 @@ pub async fn request_service(
     keystore_uri: String,
     // keystore_password: Option<String>, // TODO: Add keystore password support
 ) -> Result<()> {
+    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
+    println!("{}", style("Loading keystore...").cyan());
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
@@ -257,6 +332,33 @@ pub async fn request_service(
         min_exposure_percent: Percent(min_exposure_percent),
         max_exposure_percent: Percent(max_exposure_percent),
     }];
+
+    println!(
+        "{}",
+        style(format!(
+            "Preparing service request for blueprint ID: {}",
+            blueprint_id
+        ))
+        .cyan()
+    );
+    println!(
+        "{}",
+        style(format!(
+            "Target operators: {} (min: {})",
+            target_operators.len(),
+            min_operators
+        ))
+        .dim()
+    );
+    println!(
+        "{}",
+        style(format!(
+            "Exposure range: {}% - {}%",
+            min_exposure_percent, max_exposure_percent
+        ))
+        .dim()
+    );
+
     let call = tangle_subxt::tangle_testnet_runtime::api::tx()
         .services()
         .request(
@@ -271,13 +373,17 @@ pub async fn request_service(
             value,
             MembershipModel::Fixed { min_operators },
         );
-    info!("Submitting Service Request...");
+
+    println!("{}", style("Submitting Service Request...").cyan());
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, &signer)
         .await?;
     wait_for_in_block_success(res).await;
-    info!("Service Request submitted successfully");
+    println!(
+        "{}",
+        style("Service Request submitted successfully").green()
+    );
     Ok(())
 }
 
@@ -312,6 +418,7 @@ pub async fn request_service(
 /// * Failed to create keystore
 /// * Failed to get keys from keystore
 /// * Job was not called successfully
+#[allow(clippy::too_many_lines)]
 pub async fn submit_job(
     ws_rpc_url: String,
     service_id: Option<u64>,
@@ -344,6 +451,11 @@ pub async fn submit_job(
         .ok_or_else(|| color_eyre::eyre::eyre!("Blueprint not found"))?;
 
     let service_blueprint = blueprint_query.1;
+    let blueprint_name = decode_bounded_string(&service_blueprint.metadata.name);
+    println!(
+        "{}",
+        style(format!("Found blueprint: {}", blueprint_name)).green()
+    );
     info!("Blueprint: {:?}", service_blueprint);
 
     // Get job arguments either from file or prompt
@@ -381,7 +493,12 @@ pub async fn submit_job(
             .map(decode_bounded_string)
             .unwrap_or_default();
 
-        println!("Job: {} - {}", job_name, job_description);
+        println!(
+            "{}",
+            style(format!("Job: {} - {}", job_name, job_description))
+                .cyan()
+                .bold()
+        );
 
         // Extract parameter types from the job definition
         let param_types = &job_definition.params.0;
@@ -390,6 +507,16 @@ pub async fn submit_job(
         prompt_for_job_params(param_types)?
     };
 
+    println!(
+        "{}",
+        style(format!(
+            "Submitting job {} to service {} with {} parameters...",
+            job,
+            service_id,
+            job_args.len()
+        ))
+        .cyan()
+    );
     info!(
         "Submitting job {} to service {} with args: {:?}",
         job, service_id, job_args
@@ -409,6 +536,16 @@ pub async fn submit_job(
             && job_called.job == job
             && signer.account_id() == job_called.caller
         {
+            println!(
+                "{}",
+                style(format!(
+                    "Job {} successfully called on service {} with job ID: {}",
+                    job, service_id, job_called.job
+                ))
+                .green()
+                .bold()
+            );
+
             info!("Job {} successfully called on service {}", job, service_id);
             return Ok(job_called);
         }
@@ -706,6 +843,17 @@ pub async fn register(
     let pair = keystore.get_secret::<SpSr25519>(&public).unwrap();
     let signer = TanglePairSigner::new(pair.0);
 
+    // Get the account ID from the signer for display
+    let account_id = signer.account_id();
+    println!(
+        "{}",
+        style(format!(
+            "Starting registration process for Operator ID: {}",
+            account_id
+        ))
+        .cyan()
+    );
+
     let ecdsa_public = keystore
         .first_local::<gadget_crypto::sp_core::SpEcdsa>()
         .map_err(|e| color_eyre::eyre::eyre!("Missing ECDSA key: {}", e))?;
@@ -729,7 +877,10 @@ pub async fn register(
     let events = join_res.wait_for_finalized_success().await?;
     info!("Successfully joined operators with events: {:?}", events);
 
-    info!("Registering for blueprint {}...", blueprint_id);
+    println!(
+        "{}",
+        style(format!("Registering for blueprint ID: {}...", blueprint_id)).cyan()
+    );
     let registration_args = tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::RegistrationArgs::new();
     let register_call =
         api::tx()
@@ -748,7 +899,7 @@ pub async fn register(
     );
 
     // Verify registration by querying the latest block
-    info!("Verifying registration...");
+    println!("{}", style("Verifying registration...").cyan());
     let latest_block = client.blocks().at_latest().await?;
     let latest_block_hash = latest_block.hash();
     info!("Latest block: {:?}", latest_block.number());
@@ -757,8 +908,6 @@ pub async fn register(
     let services_client =
         gadget_clients::tangle::services::TangleServicesClient::new(client.clone());
 
-    // Get the account ID from the signer
-    let account_id = signer.account_id();
     info!("Querying blueprints for account: {:?}", account_id);
 
     // Query operator blueprints at the latest block
@@ -772,6 +921,7 @@ pub async fn register(
         info!("Blueprint {}: {:?}", i, blueprint);
     }
 
+    println!("{}", style("Registration process completed").green());
     Ok(())
 }
 

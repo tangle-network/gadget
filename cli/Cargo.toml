@@ -41,6 +41,8 @@ gadget-logging = { workspace = true, default-features = true }
 blueprint-tangle-extra = { workspace = true, default-features = true }
 gadget-chain-setup = { workspace = true, features = ["tangle", "anvil"] }
 gadget-testing-utils = { workspace = true }
+gadget-contexts = { workspace = true }
+tnt-core-bytecode = { workspace = true }
 gadget-blueprint-serde = { workspace = true, optional = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }

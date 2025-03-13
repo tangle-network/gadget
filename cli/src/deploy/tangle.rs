@@ -2,11 +2,15 @@ use std::path::PathBuf;
 
 use dialoguer::console::style;
 use gadget_chain_setup::tangle::deploy::{Opts, deploy_to_tangle};
+use gadget_chain_setup::tangle::transactions;
+use gadget_contexts::tangle::TangleClientContext;
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
+use gadget_testing_utils::tangle::harness::{ENDOWED_TEST_NAMES, generate_env_from_node_id};
 use gadget_testing_utils::tangle::keys::inject_tangle_key;
+use tangle_subxt::subxt::tx::Signer;
 use tempfile::TempDir;
 use tokio::fs;
 use tokio::signal;
@@ -45,6 +49,103 @@ pub async fn deploy_tangle(
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
+        // Create test keystore for Alice (to act as the user)
+        let test_keystore_path = PathBuf::from("./test-keystore");
+        fs::create_dir_all(&test_keystore_path).await?;
+        inject_tangle_key(&test_keystore_path, "//Alice")
+            .map_err(|e| color_eyre::Report::msg(format!("Failed to inject Alice's key: {}", e)))?;
+
+        // Create deploy keystore for Bob (for deployment)
+        let deploy_keystore_path = PathBuf::from("./deploy-keystore");
+        fs::create_dir_all(&deploy_keystore_path).await?;
+        inject_tangle_key(&deploy_keystore_path, "//Bob")
+            .map_err(|e| color_eyre::Report::msg(format!("Failed to inject Bob's key: {}", e)))?;
+
+        // Set up Alice's environment for MBSM deployment
+        let alice_env = generate_env_from_node_id(
+            ENDOWED_TEST_NAMES[0],
+            http_endpoint.clone(),
+            ws_endpoint.clone(),
+            deploy_dir.as_path(),
+        )
+        .await?;
+
+        let alice_client = alice_env.tangle_client().await?;
+
+        println!(
+            "{}",
+            style("Checking if MBSM needs to be deployed...").cyan()
+        );
+
+        // Set up Alice's signers for MBSM deployment
+        let alice_keystore_config =
+            KeystoreConfig::new().fs_root(test_keystore_path.to_string_lossy().to_string());
+        let alice_keystore = Keystore::new(alice_keystore_config)?;
+
+        let alice_sr25519_public = alice_keystore.first_local::<SpSr25519>()?;
+        let alice_sr25519_pair = alice_keystore.get_secret::<SpSr25519>(&alice_sr25519_public)?;
+        let alice_sr25519_signer = TanglePairSigner::new(alice_sr25519_pair.0);
+
+        let alice_ecdsa_public = alice_keystore.first_local::<SpEcdsa>()?;
+        let alice_ecdsa_pair = alice_keystore.get_secret::<SpEcdsa>(&alice_ecdsa_public)?;
+        let alice_ecdsa_signer = TanglePairSigner::new(alice_ecdsa_pair.0);
+        let alice_alloy_key = alice_ecdsa_signer.alloy_key().map_err(|e| {
+            color_eyre::Report::msg(format!("Failed to get Alice's Alloy key: {}", e))
+        })?;
+
+        // Set up Bob's signers for blueprint deployment
+        let deploy_keystore_uri = deploy_keystore_path.to_string_lossy().to_string();
+        let bob_keystore_config = KeystoreConfig::new().fs_root(deploy_keystore_uri.clone());
+        let bob_keystore = Keystore::new(bob_keystore_config)?;
+
+        let bob_sr25519_public = bob_keystore.first_local::<SpSr25519>()?;
+        let bob_sr25519_pair = bob_keystore.get_secret::<SpSr25519>(&bob_sr25519_public)?;
+        let bob_sr25519_signer = TanglePairSigner::new(bob_sr25519_pair.0);
+
+        let bob_ecdsa_public = bob_keystore.first_local::<SpEcdsa>()?;
+        let bob_ecdsa_pair = bob_keystore.get_secret::<SpEcdsa>(&bob_ecdsa_public)?;
+        let bob_ecdsa_signer = TanglePairSigner::new(bob_ecdsa_pair.0);
+        let bob_alloy_key = bob_ecdsa_signer.alloy_key().map_err(|e| {
+            color_eyre::Report::msg(format!("Failed to get Bob's Alloy key: {}", e))
+        })?;
+
+        // Check if MBSM is already deployed
+        let latest_revision = transactions::get_latest_mbsm_revision(&alice_client)
+            .await
+            .map_err(|e| {
+                color_eyre::Report::msg(format!("Failed to get latest MBSM revision: {}", e))
+            })?;
+
+        if let Some((rev, addr)) = latest_revision {
+            println!(
+                "{}",
+                style(format!(
+                    "MBSM is already deployed at revision #{} at address {}",
+                    rev, addr
+                ))
+                .green()
+            );
+        } else {
+            println!(
+                "{}",
+                style("MBSM is not deployed, deploying now with Alice's account...").cyan()
+            );
+
+            let bytecode = tnt_core_bytecode::bytecode::MASTER_BLUEPRINT_SERVICE_MANAGER;
+            transactions::deploy_new_mbsm_revision(
+                ws_endpoint.as_str(),
+                &alice_client,
+                &alice_sr25519_signer,
+                alice_alloy_key.clone(),
+                bytecode,
+                alloy_primitives::address!("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"),
+            )
+            .await
+            .map_err(|e| color_eyre::Report::msg(format!("Failed to deploy MBSM: {}", e)))?;
+
+            println!("{}", style("MBSM deployed successfully").green());
+        }
+
         println!(
             "{}",
             style(format!(
@@ -54,45 +155,22 @@ pub async fn deploy_tangle(
             .green()
         );
 
-        let keystore_uri = keystore_path
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("./test-keystore"))
-            .to_string_lossy()
-            .to_string();
-
-        let keystore_path_buf = PathBuf::from(&keystore_uri);
-        fs::create_dir_all(&keystore_path_buf).await?;
-
-        inject_tangle_key(&keystore_path_buf, "//Alice")
-            .map_err(|e| color_eyre::Report::msg(format!("Failed to inject Alice's key: {}", e)))?;
-
-        let keystore_config = KeystoreConfig::new().fs_root(keystore_uri.clone());
-        let keystore = Keystore::new(keystore_config)?;
-
-        let sr25519_public = keystore.first_local::<SpSr25519>()?;
-        let sr25519_pair = keystore.get_secret::<SpSr25519>(&sr25519_public)?;
-        let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
-
-        let ecdsa_public = keystore.first_local::<SpEcdsa>()?;
-        let ecdsa_pair = keystore.get_secret::<SpEcdsa>(&ecdsa_public)?;
-        let ecdsa_signer = TanglePairSigner::new(ecdsa_pair.0);
-        let alloy_key = ecdsa_signer
-            .alloy_key()
-            .map_err(|e| color_eyre::Report::msg(format!("Failed to get Alloy key: {}", e)))?;
-
         println!(
             "{}",
-            style("Deploying blueprint to local Tangle testnet...").cyan()
+            style("Deploying blueprint to local Tangle testnet using Bob's account...").cyan()
         );
         let blueprint_id = deploy_to_tangle(Opts {
             pkg_name: package,
             http_rpc_url: http_endpoint.to_string(),
             ws_rpc_url: ws_endpoint.to_string(),
             manifest_path,
-            signer: Some(sr25519_signer),
-            signer_evm: Some(alloy_key),
+            signer: Some(bob_sr25519_signer),
+            signer_evm: Some(bob_alloy_key),
         })
         .await?;
+
+        // Get Alice's account ID for display
+        let alice_account_id = alice_sr25519_signer.account_id();
 
         println!("\n{}", style("Local Tangle Testnet Active").green().bold());
         println!(
@@ -100,30 +178,42 @@ pub async fn deploy_tangle(
             style(format!("Blueprint ID: {}", blueprint_id)).green()
         );
         println!(
-            "\n{}",
-            style("To interact with your blueprint:").cyan().bold()
+            "{}",
+            style(format!("Alice Account ID: {}", alice_account_id)).green()
         );
-        println!("{}", style("1. Open a new terminal window").dim());
+        println!(
+            "\n{}",
+            style("If your blueprint was just generated from the template, you can follow the demo below:").cyan().bold()
+        );
         println!(
             "{}",
-            style("2. Use the following environment variables:").dim()
+            style("1. Open a new terminal window, leaving this one running").dim()
+        );
+        println!(
+            "\n{}",
+            style("2. Register to your blueprint with Alice's account:").dim()
+        );
+        println!("   {}", style(format!("cargo tangle blueprint register --ws-rpc-url {} --blueprint-id {} --keystore-uri ./test-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!("\n{}", style("3. Request service with Bob's account (we will use Alice's account as the target operator):").dim());
+        println!("   {}", style(format!("cargo tangle blueprint request-service --ws-rpc-url {} --blueprint-id {} --target-operators {} --value 0 --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id, alice_account_id)).yellow());
+        println!("\n{}", style("4. List all service requests:").dim());
+        println!(
+            "   {}",
+            style("cargo tangle blueprint ls".to_string()).yellow()
+        );
+        println!("\n{}", style("5. Accept the service request (request ID is 0 if you are following this demo, otherwise it will be from the request you want to accept):").dim());
+        println!("   {}", style(format!("cargo tangle blueprint accept --ws-rpc-url {} --request-id 0 --keystore-uri ./test-keystore", ws_endpoint)).yellow());
+        println!("\n{}", style("6. Run the blueprint:").dim());
+        println!("   {}", style(format!("cargo tangle blueprint run --ws-rpc-url {} --blueprint-id {} --keystore-uri ./test-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!(
+            "\n{}",
+            style("7. Open another terminal window, leaving this one running").dim()
         );
         println!(
             "   {}",
-            style(format!("export WS_RPC_URL={}", ws_endpoint)).yellow()
+            style("8. Submit a job for the Running Blueprint to process").dim()
         );
-        println!(
-            "   {}",
-            style(format!("export HTTP_RPC_URL={}", http_endpoint)).yellow()
-        );
-        println!(
-            "   {}",
-            style(format!("export KEYSTORE_URI={}", keystore_uri)).yellow()
-        );
-        println!("\n{}", style("3. Register your blueprint:").dim());
-        println!("   {}", style(format!("cargo tangle blueprint register --ws-rpc-url $WS_RPC_URL --blueprint-id {} --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
-        println!("\n{}", style("4. Request a service:").dim());
-        println!("   {}", style(format!("cargo tangle blueprint request-service --ws-rpc-url $WS_RPC_URL --blueprint-id {} --min-exposure-percent 10 --max-exposure-percent 20 --target-operators <OPERATOR_ID> --value 0 --keystore-uri $KEYSTORE_URI", blueprint_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint submit --ws-rpc-url {} --blueprint-id {} --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id)).yellow());
 
         println!(
             "\n{}",
@@ -143,6 +233,15 @@ pub async fn deploy_tangle(
         // Wait for Ctrl+C to keep the testnet running
         signal::ctrl_c().await?;
         println!("{}", style("\nShutting down devnet...").yellow());
+
+        // Clean up keystores
+        println!("{}", style("Cleaning up keystores...").dim());
+        if let Err(e) = fs::remove_dir_all(&test_keystore_path).await {
+            println!("Warning: Failed to remove test keystore: {}", e);
+        }
+        if let Err(e) = fs::remove_dir_all(&deploy_keystore_path).await {
+            println!("Warning: Failed to remove deploy keystore: {}", e);
+        }
     } else {
         let keystore_path = if let Some(keystore_uri) = keystore_path {
             Some(keystore_uri)
