@@ -284,23 +284,9 @@ pub enum BlueprintCommands {
         /// Optional path to a JSON file containing job parameters
         #[arg(long)]
         params_file: Option<String>,
-    },
-
-    /// Wait for the completion of a Tangle job and print the results
-    #[command(name = "check")]
-    CheckJob {
-        /// The RPC endpoint to connect to
-        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
-        ws_rpc_url: String,
-        /// The service ID the job was submitted to
+        /// Whether to wait for the job to complete
         #[arg(long)]
-        service_id: u64,
-        /// The call ID of the job to wait for
-        #[arg(long)]
-        call_id: u64,
-        /// Maximum time to wait in seconds (0 for no timeout)
-        #[arg(long, default_value = "0")]
-        timeout: u64,
+        watcher: bool,
     },
 }
 
@@ -601,6 +587,7 @@ async fn main() -> color_eyre::Result<()> {
                 keystore_uri,
                 job,
                 params_file,
+                watcher,
             } => {
                 commands::submit_job(
                     ws_rpc_url,
@@ -609,16 +596,9 @@ async fn main() -> color_eyre::Result<()> {
                     keystore_uri,
                     job,
                     params_file,
+                    watcher,
                 )
                 .await?;
-            }
-            BlueprintCommands::CheckJob {
-                ws_rpc_url,
-                service_id,
-                call_id,
-                timeout,
-            } => {
-                commands::check_job(ws_rpc_url, service_id, call_id, timeout).await?;
             }
         },
         Commands::Key { command } => match command {

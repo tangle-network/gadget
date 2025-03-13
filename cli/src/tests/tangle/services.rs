@@ -387,6 +387,7 @@ async fn test_submit_job() -> Result<()> {
         deployment_env.keystore_uri.clone(),
         0,
         Some(job_args_file.to_string_lossy().to_string()),
+        false,
     )
     .await;
 

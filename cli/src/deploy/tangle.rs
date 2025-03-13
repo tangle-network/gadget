@@ -193,18 +193,36 @@ pub async fn deploy_tangle(
             "\n{}",
             style("2. Register to your blueprint with Alice's account:").dim()
         );
-        println!("   {}", style(format!("cargo tangle blueprint register --ws-rpc-url {} --blueprint-id {} --keystore-uri ./test-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!(
+            "   {}",
+            style(format!(
+                "cargo tangle blueprint register --blueprint-id {} --keystore-uri ./test-keystore",
+                blueprint_id
+            ))
+            .yellow()
+        );
         println!("\n{}", style("3. Request service with Bob's account (we will use Alice's account as the target operator):").dim());
-        println!("   {}", style(format!("cargo tangle blueprint request-service --ws-rpc-url {} --blueprint-id {} --target-operators {} --value 0 --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id, alice_account_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint request-service --blueprint-id {} --target-operators {} --value 0 --keystore-uri ./deploy-keystore", blueprint_id, alice_account_id)).yellow());
         println!("\n{}", style("4. List all service requests:").dim());
         println!(
             "   {}",
             style("cargo tangle blueprint ls".to_string()).yellow()
         );
         println!("\n{}", style("5. Accept the service request (request ID is 0 if you are following this demo, otherwise it will be from the request you want to accept):").dim());
-        println!("   {}", style(format!("cargo tangle blueprint accept --ws-rpc-url {} --request-id 0 --keystore-uri ./test-keystore", ws_endpoint)).yellow());
+        println!(
+            "   {}",
+            style("cargo tangle blueprint accept --request-id 0 --keystore-uri ./test-keystore")
+                .yellow()
+        );
         println!("\n{}", style("6. Run the blueprint:").dim());
-        println!("   {}", style(format!("cargo tangle blueprint run --protocol tangle --rpc-url {} --keystore-path ./test-keystore", http_endpoint)).yellow());
+        println!(
+            "   {}",
+            style(
+                "cargo tangle blueprint run --protocol tangle --keystore-path ./test-keystore"
+                    .to_string()
+            )
+            .yellow()
+        );
         println!(
             "\n{}",
             style("7. Open another terminal window, leaving this one running").dim()
@@ -213,7 +231,7 @@ pub async fn deploy_tangle(
             "\n{}",
             style("8. Submit a job for the Running Blueprint to process").dim()
         );
-        println!("   {}", style(format!("cargo tangle blueprint submit --ws-rpc-url {} --job 0 --blueprint-id {} --service-id 0 --keystore-uri ./deploy-keystore", ws_endpoint, blueprint_id)).yellow());
+        println!("   {}", style(format!("cargo tangle blueprint submit --job 0 --blueprint-id {} --service-id 0 --keystore-uri ./deploy-keystore", blueprint_id)).yellow());
 
         println!(
             "\n{}",

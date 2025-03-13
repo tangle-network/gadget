@@ -41,6 +41,7 @@ pub struct RunOpts {
 /// * Blueprint ID is not provided
 /// * Failed to create or configure the blueprint manager
 /// * Failed to run the blueprint
+#[allow(clippy::missing_panics_doc)]
 pub async fn run_blueprint(opts: RunOpts) -> Result<()> {
     let blueprint_id = opts
         .blueprint_id
@@ -69,33 +70,56 @@ pub async fn run_blueprint(opts: RunOpts) -> Result<()> {
         test_mode: false,
     };
 
-    println!("{}", style(format!("Starting blueprint manager for blueprint ID: {}", blueprint_id)).cyan().bold());
+    println!(
+        "{}",
+        style(format!(
+            "Starting blueprint manager for blueprint ID: {}",
+            blueprint_id
+        ))
+        .cyan()
+        .bold()
+    );
 
     let shutdown_signal = async move {
         let _ = signal::ctrl_c().await;
-        println!("{}", style("Received shutdown signal, stopping blueprint manager").yellow().bold());
+        println!(
+            "{}",
+            style("Received shutdown signal, stopping blueprint manager")
+                .yellow()
+                .bold()
+        );
     };
 
-    println!("{}", style("Preparing Blueprint to run, this may take a few minutes...").cyan());
-    
+    println!(
+        "{}",
+        style("Preparing Blueprint to run, this may take a few minutes...").cyan()
+    );
+
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
             .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
             .template("{spinner:.blue} {msg}")
-            .unwrap()
+            .unwrap(),
     );
     pb.set_message("Initializing Blueprint");
     pb.enable_steady_tick(Duration::from_millis(100));
-    
-    let mut handle = run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
-    
+
+    let mut handle =
+        run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
+
     pb.finish_with_message("Blueprint initialized successfully!");
 
-    println!("{}", style("Starting blueprint execution...").green().bold());
+    println!(
+        "{}",
+        style("Starting blueprint execution...").green().bold()
+    );
     handle.start()?;
 
-    println!("{}", style("Blueprint is running. Press Ctrl+C to stop.").cyan());
+    println!(
+        "{}",
+        style("Blueprint is running. Press Ctrl+C to stop.").cyan()
+    );
     handle.await?;
 
     println!("{}", style("Blueprint manager has stopped").green());

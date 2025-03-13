@@ -428,6 +428,7 @@ pub async fn submit_job(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     job: u8,
     params_file: Option<String>,
+    watcher: bool,
 ) -> Result<JobCalled> {
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
@@ -540,14 +541,17 @@ pub async fn submit_job(
             println!(
                 "{}",
                 style(format!(
-                    "Job {} successfully called on service {} with job ID: {}",
-                    job, service_id, job_called.job
+                    "Job {} successfully called on service {} with job ID: {} and call ID: {}",
+                    job, service_id, job_called.job, job_called.call_id
                 ))
                 .green()
                 .bold()
             );
 
             info!("Job {} successfully called on service {}", job, service_id);
+            if watcher {
+                check_job(ws_rpc_url, service_id, job_called.call_id, 0).await?;
+            }
             return Ok(job_called);
         }
     }
@@ -988,18 +992,25 @@ pub async fn check_job(
     // Subscribe to new blocks
     let mut count = 0;
     let mut blocks = client.blocks().subscribe_best().await?;
-    
+
     let start_time = std::time::Instant::now();
-    
+
     while let Some(Ok(block)) = blocks.next().await {
         // Check for timeout
         if let Some(timeout_duration) = timeout {
             if start_time.elapsed() > timeout_duration {
-                println!("{}", style("Timeout reached while waiting for job results").yellow().bold());
-                return Err(color_eyre::eyre::eyre!("Timeout reached while waiting for job completion"));
+                println!(
+                    "{}",
+                    style("Timeout reached while waiting for job results")
+                        .yellow()
+                        .bold()
+                );
+                return Err(color_eyre::eyre::eyre!(
+                    "Timeout reached while waiting for job completion"
+                ));
             }
         }
-        
+
         // Print progress periodically
         if count % 10 == 0 {
             println!(
@@ -1013,11 +1024,11 @@ pub async fn check_job(
             );
         }
         count += 1;
-        
+
         // Check for job result events in this block
         let events = block.events().await?;
         let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
-        
+
         for result in results {
             match result {
                 Ok(result) => {
@@ -1031,10 +1042,13 @@ pub async fn check_job(
                             .green()
                             .bold()
                         );
-                        
+
                         println!("\n{}", style("Job Results:").cyan().bold());
-                        println!("{}", style("=============================================").dim());
-                        
+                        println!(
+                            "{}",
+                            style("=============================================").dim()
+                        );
+
                         if result.result.is_empty() {
                             println!("{}", style("No output values returned").yellow());
                         } else {
@@ -1046,18 +1060,29 @@ pub async fn check_job(
                                 );
                             }
                         }
-                        
-                        println!("{}", style("=============================================").dim());
+
+                        println!(
+                            "{}",
+                            style("=============================================").dim()
+                        );
                         return Ok(());
                     }
                 }
                 Err(err) => {
-                    println!("{}", style(format!("Error processing event: {}", err)).red());
+                    println!(
+                        "{}",
+                        style(format!("Error processing event: {}", err)).red()
+                    );
                 }
             }
         }
     }
-    
-    println!("{}", style("Block subscription ended without finding job results").yellow().bold());
+
+    println!(
+        "{}",
+        style("Block subscription ended without finding job results")
+            .yellow()
+            .bold()
+    );
     Err(color_eyre::eyre::eyre!("Failed to find job results"))
 }
