@@ -1,5 +1,5 @@
 use dialoguer::console::style;
-use gadget_std::env;
+use gadget_std::{env, rand};
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
@@ -17,6 +17,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceBlueprint;
 use gadget_chain_setup_common::signer::{load_evm_signer_from_env, load_signer_from_env};
 use indicatif::{ProgressBar, ProgressStyle};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 #[derive(Clone)]
 pub struct Opts {
@@ -123,11 +124,43 @@ pub async fn deploy_to_tangle(
     // Start the deployment process
     update_progress(0, "Generating blueprint");
 
+    // Create a flag to signal the thread to stop
+    let should_stop = Arc::new(AtomicBool::new(false));
+    let should_stop_clone = should_stop.clone();
+
+    // Create a background thread to update the progress bar during the long-running operation
+    let progress_clone = progress_bar.clone();
+    let _progress_handle = std::thread::spawn(move || {
+        let mut current = 0;
+        let target = 80;
+        let increment = rand::random::<u64>() % 2 + 1;
+        let sleep_duration = std::time::Duration::from_millis(1000);
+
+        while current < target && !should_stop_clone.load(Ordering::Relaxed) {
+            std::thread::sleep(sleep_duration);
+            current += increment;
+            progress_clone.set_position(current);
+            progress_clone.set_message(format!("Generating blueprint... ({}%)", current));
+        }
+    });
+
     // Load the manifest file into cargo metadata
     let blueprint =
         generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &ws_rpc_url, signer_evm)
             .await?;
-    update_progress(20, "Blueprint generated");
+
+    // Signal the thread to stop
+    should_stop.store(true, Ordering::Relaxed);
+
+    // Blueprint generation is complete, update to 80% if not already there
+    if progress_bar.position() < 80 {
+        update_progress(80, "Blueprint generated");
+    } else {
+        update_progress(progress_bar.position(), "Blueprint generated");
+    }
+
+    // Give the thread a moment to notice the stop signal
+    std::thread::sleep(std::time::Duration::from_millis(100));
 
     let signer = if let Some(signer) = signer {
         signer
@@ -136,21 +169,21 @@ pub async fn deploy_to_tangle(
     };
 
     let my_account_id = signer.account_id();
-    update_progress(30, "Connecting");
+    update_progress(85, "Connecting");
     let client = subxt::OnlineClient::from_url(ws_rpc_url.clone()).await?;
     tracing::info!("Connected to Tangle Network at: {}", ws_rpc_url);
 
-    update_progress(40, "Creating blueprint transaction");
+    update_progress(90, "Creating blueprint transaction");
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
     tracing::info!("Created blueprint...");
 
-    update_progress(50, "Signing and submitting transaction");
+    update_progress(93, "Signing and submitting transaction");
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
 
-    update_progress(60, "Waiting for transaction confirmation");
+    update_progress(95, "Waiting for transaction confirmation");
     let result = if cfg!(test) {
         use blueprint_tangle_extra::util::TxProgressExt;
         progress.wait_for_in_block_success().await?
@@ -161,7 +194,7 @@ pub async fn deploy_to_tangle(
         result
     };
 
-    update_progress(80, "Verifying blueprint creation");
+    update_progress(98, "Verifying blueprint creation");
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()
