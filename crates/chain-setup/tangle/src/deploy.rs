@@ -237,7 +237,7 @@ fn load_blueprint_metadata(
             .context("Failed to build the package")?;
 
         // After building, check both locations again
-        let mut blueprint_json_path = workspace_root.join("blueprint.json");
+        blueprint_json_path = workspace_root.join("blueprint.json");
 
         if !blueprint_json_path.exists() {
             blueprint_json_path = package_dir.join("blueprint.json");
