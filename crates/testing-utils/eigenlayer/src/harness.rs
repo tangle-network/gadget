@@ -5,9 +5,9 @@ use alloy_provider::RootProvider;
 use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
+use std::marker::PhantomData;
 use gadget_chain_setup::anvil::keys::{ANVIL_PRIVATE_KEYS, inject_anvil_key};
 use gadget_chain_setup::anvil::{Container, start_default_anvil_testnet};
-use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
 use tempfile::TempDir;
 use url::Url;
 
@@ -21,25 +21,43 @@ pub struct EigenlayerTestConfig {
 
 /// Test harness for Eigenlayer network tests
 pub struct EigenlayerTestHarness<Ctx> {
-    base: BaseTestHarness<EigenlayerTestConfig>,
+    env: BlueprintEnvironment,
+    config: EigenlayerTestConfig,
     pub http_endpoint: Url,
     pub ws_endpoint: Url,
     pub accounts: Vec<Address>,
     pub eigenlayer_contract_addresses: EigenlayerProtocolSettings,
-    _temp_dir: tempfile::TempDir,
+    _temp_dir: TempDir,
     _container: Container,
-    _phantom: core::marker::PhantomData<Ctx>,
+    _phantom: PhantomData<Ctx>,
 }
 
-impl<Ctx> TestHarness for EigenlayerTestHarness<Ctx>
+impl EigenlayerTestHarness<()> {
+    /// Create a new `EigenlayerTestHarness`
+    ///
+    /// NOTE: The resulting harness will have a context of `()`. This is not valid for jobs that require
+    ///       a context. See [`Self::setup_with_context()`] and [`Self::set_context()`].
+    ///
+    /// # Errors
+    ///
+    /// * See [`Self::setup_with_context()`]
+    pub async fn setup(test_dir: TempDir) -> Result<Self, Error> {
+        Self::setup_with_context(test_dir, ()).await
+    }
+}
+
+impl<Ctx> EigenlayerTestHarness<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    type Config = EigenlayerTestConfig;
-    type Context = Ctx;
-    type Error = Error;
-
-    async fn setup(test_dir: TempDir, _context: Self::Context) -> Result<Self, Self::Error> {
+    /// Create a new `EigenlayerTestHarness` with a predefined context
+    ///
+    /// NOTE: If your context type depends on [`Self::env()`], see [`Self::setup()`]
+    ///
+    /// # Errors
+    ///
+    /// * TODO
+    pub async fn setup_with_context(test_dir: TempDir, _context: Ctx) -> Result<Self, Error> {
         // Start local Anvil testnet
         let (container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
 
@@ -53,7 +71,7 @@ where
 
         // Setup temporary testing keystore
         let test_dir_path = test_dir.path().to_string_lossy().into_owned();
-        inject_anvil_key(&test_dir, ANVIL_PRIVATE_KEYS[0]).unwrap();
+        inject_anvil_key(&test_dir, ANVIL_PRIVATE_KEYS[0])?;
 
         // Create context config
         let context_config = ContextConfig::create_eigenlayer_config(
@@ -76,10 +94,9 @@ where
             eigenlayer_contract_addresses: Some(eigenlayer_contract_addresses),
         };
 
-        let base = BaseTestHarness::new(env, config);
-
         Ok(Self {
-            base,
+            env,
+            config,
             http_endpoint: Url::parse(&http_endpoint)?,
             ws_endpoint: Url::parse(&ws_endpoint)?,
             accounts,
@@ -90,8 +107,28 @@ where
         })
     }
 
-    fn env(&self) -> &BlueprintEnvironment {
-        &self.base.env
+    #[must_use]
+    #[allow(clippy::used_underscore_binding)]
+    pub fn set_context<Ctx2: Clone + Send + Sync + 'static>(
+        self,
+        _context: Ctx2,
+    ) -> EigenlayerTestHarness<Ctx2> {
+        EigenlayerTestHarness {
+            env: self.env,
+            config: self.config,
+            http_endpoint: self.http_endpoint,
+            ws_endpoint: self.ws_endpoint,
+            accounts: self.accounts,
+            eigenlayer_contract_addresses: self.eigenlayer_contract_addresses,
+            _temp_dir: self._temp_dir,
+            _container: self._container,
+            _phantom: PhantomData::<Ctx2>,
+        }
+    }
+
+    #[must_use]
+    pub fn env(&self) -> &BlueprintEnvironment {
+        &self.env
     }
 }
 

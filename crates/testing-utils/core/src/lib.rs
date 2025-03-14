@@ -6,7 +6,6 @@ use std::path::Path;
 mod error;
 pub use error::TestRunnerError as Error;
 
-pub mod harness;
 pub mod runner;
 
 /// Reads the manifest at `path`
