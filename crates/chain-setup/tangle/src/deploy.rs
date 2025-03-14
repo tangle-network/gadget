@@ -257,7 +257,6 @@ fn find_workspace_root(package: &cargo_metadata::Package) -> PathBuf {
                     workspace_root = parent.to_path_buf();
                     break;
                 }
-            } else {
             }
         }
         current_dir = parent.to_path_buf();

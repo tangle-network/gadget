@@ -186,6 +186,14 @@ pub enum BlueprintCommands {
         ws_rpc_url: String,
     },
 
+    /// List Blueprints on target Tangle network
+    #[command(visible_alias = "ls")]
+    ListBlueprints {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+    },
+
     /// Register for a Tangle blueprint
     #[command(visible_alias = "reg")]
     Register {
@@ -529,6 +537,10 @@ async fn main() -> color_eyre::Result<()> {
             BlueprintCommands::ListRequests { ws_rpc_url } => {
                 let requests = commands::list_requests(ws_rpc_url).await?;
                 commands::print_requests(requests);
+            }
+            BlueprintCommands::ListBlueprints { ws_rpc_url } => {
+                let blueprints = commands::list_blueprints(ws_rpc_url).await?;
+                commands::print_blueprints(blueprints);
             }
             BlueprintCommands::Register {
                 ws_rpc_url,

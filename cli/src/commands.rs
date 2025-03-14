@@ -11,7 +11,7 @@ use blueprint_core::info;
 use gadget_blueprint_serde::{from_field, new_bounded_string, BoundedVec, Field};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::ServiceRequest;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::{ServiceBlueprint, ServiceRequest};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{
     Asset, AssetSecurityCommitment, AssetSecurityRequirement, MembershipModel,
 };
@@ -128,6 +128,114 @@ pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>
         );
         println!("{}: {:?}", style("Request Arguments").green(), request.args);
         println!("{}: {:?}", style("TTL").green(), request.ttl);
+        println!(
+            "{}",
+            style("=============================================").dim()
+        );
+    }
+}
+
+/// Lists all blueprints from the Tangle Network.
+///
+/// # Arguments
+///
+/// * `ws_rpc_url` - WebSocket RPC URL for the Tangle Network
+///
+/// # Returns
+///
+/// A vector of tuples containing blueprint IDs and blueprints.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to the Tangle Network
+/// * Failed to query storage
+/// * Failed to parse storage data
+pub async fn list_blueprints(ws_rpc_url: String) -> Result<Vec<(AccountId32, ServiceBlueprint)>> {
+    let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
+
+    let blueprints_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
+        .services()
+        .blueprints_iter();
+
+    println!("{}", style("Fetching blueprints...").cyan());
+    let mut storage_query = client
+        .storage()
+        .at_latest()
+        .await?
+        .iter(blueprints_addr)
+        .await?;
+
+    let mut blueprints = Vec::new();
+
+    while let Some(result) = storage_query.next().await {
+        let result = result?;
+        let blueprint_entry = result.value;
+        let id = blueprint_entry.0;
+        let blueprint = blueprint_entry.1;
+        blueprints.push((id, blueprint));
+        info!("Key bytes: {:?}", result.key_bytes);
+        // let id = u64::from_le_bytes(
+        //     result.key_bytes[32..]
+        //         .try_into()
+        //         .expect("Invalid key bytes format"),
+        // );
+        // blueprints.push((id, blueprint));
+    }
+
+    println!(
+        "{}",
+        style(format!("Found {} blueprints", blueprints.len())).green()
+    );
+    Ok(blueprints)
+}
+
+/// Prints the given list of blueprints with their details.
+///
+/// # Arguments
+///
+/// * `blueprints` - A vector of tuples containing blueprint IDs and blueprints.
+pub fn print_blueprints(blueprints: Vec<(AccountId32, ServiceBlueprint)>) {
+    if blueprints.is_empty() {
+        println!("{}", style("No blueprints found").yellow());
+        return;
+    }
+
+    println!("\n{}", style("Service Blueprints").cyan().bold());
+    println!(
+        "{}",
+        style("=============================================").dim()
+    );
+
+    for (blueprint_id, blueprint) in blueprints {
+        println!(
+            "{}: {}",
+            style("Blueprint ID").green().bold(),
+            style(blueprint_id).green()
+        );
+        println!("{}", style("Jobs").green().bold());
+        for (job_id, job) in blueprint.jobs.0.iter().enumerate() {
+            println!("\n{}:", style(format!("Job {}", job_id)).green());
+            println!("\t{}: {:?}", style("Metadata").green(), job.metadata);
+            println!("\t{}: {:?}", style("Parameters").green(), job.params);
+            println!("\t{}: {:?}", style("Result").green(), job.result);
+        }
+        println!(
+            "{}: {:?}",
+            style("Supported Membership Models").green(),
+            blueprint.supported_membership_models
+        );
+
+        println!(
+            "{}: {:?}",
+            style("Registration Parameters").green(),
+            blueprint.registration_params
+        );
+        println!(
+            "{}: {:?}",
+            style("Request Parameters").green(),
+            blueprint.request_params
+        );
         println!(
             "{}",
             style("=============================================").dim()
