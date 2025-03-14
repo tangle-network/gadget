@@ -3096,7 +3096,6 @@ dependencies = [
  "color-eyre",
  "dialoguer",
  "dotenv",
- "escargot",
  "gadget-clients",
  "gadget-crypto",
  "gadget-crypto-core",
@@ -5175,18 +5174,6 @@ checksum = "33d852cb9b869c2a9b3df2f71a3074817f01e1844f839a144f5fcef059a4eb5d"
 dependencies = [
  "libc",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "escargot"
-version = "0.5.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05a3ac187a16b5382fef8c69fd1bad123c67b7cf3932240a2d43dcdd32cded88"
-dependencies = [
- "log",
- "once_cell",
- "serde",
- "serde_json",
 ]
 
 [[package]]

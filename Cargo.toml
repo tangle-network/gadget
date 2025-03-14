@@ -200,7 +200,6 @@ chrono = { version = "0.4.40", default-features = false }
 # Development & Testing
 auto_impl = { version = "1.2.1", default-features = false }
 cargo_toml = { version = "0.21.0", default-features = false }
-escargot = { version = "0.5.12", default-features = false }
 itertools = { version = "0.14.0", default-features = false }
 paste = { version = "1.0.15", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
