@@ -1,5 +1,3 @@
-use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
-use crate::run::eigenlayer::run_eigenlayer_avs;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::SupportedChains;
 use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
@@ -11,6 +9,10 @@ use gadget_std::fs;
 use gadget_std::process::Command;
 use gadget_testing_utils::setup_log;
 use tempfile::TempDir;
+
+use crate::command::deploy::eigenlayer::EigenlayerDeployOpts;
+use crate::command::deploy::eigenlayer::deploy_avs_contracts;
+use crate::command::run::run_eigenlayer_avs;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]

@@ -1,4 +1,4 @@
-use crate::keys::{generate_key, import_key};
+use crate::command::keys::{generate_key, import_key};
 use crate::utils::{print_info, print_section_header, print_success};
 use alloy_primitives::Address;
 use blueprint_core::debug;
@@ -97,12 +97,12 @@ impl EigenlayerDeployOpts {
                     "No ECDSA key found at {}. Let's set one up.",
                     self.keystore_path
                 );
-                let keys = crate::keys::prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
+                let keys = crate::command::keys::prompt_for_keys(vec![KeyTypeId::Ecdsa])?;
                 let (key_type, secret) = keys
                     .first()
                     .ok_or(color_eyre::eyre::eyre!("No ECDSA key found in keystore."))?;
                 let private_key = secret.clone();
-                let _public = crate::keys::import_key(
+                let _public = crate::command::keys::import_key(
                     Protocol::Eigenlayer,
                     *key_type,
                     secret,

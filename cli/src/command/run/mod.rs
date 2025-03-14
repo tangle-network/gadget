@@ -1,4 +1,3 @@
 pub mod eigenlayer;
-pub mod keys;
-pub mod signers;
+pub use eigenlayer::*;
 pub mod tangle;

@@ -13,7 +13,12 @@ use gadget_testing_utils::tangle::harness::generate_env_from_node_id;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::fs;
 
-use crate::run::tangle::{RunOpts, run_blueprint};
+use crate::command::jobs::submit::submit_job;
+use crate::command::list::requests::list_requests;
+use crate::command::register::register;
+use crate::command::run::tangle::{RunOpts, run_blueprint};
+use crate::command::service::accept::accept_request;
+use crate::command::service::request::request_service;
 use crate::tests::tangle::blueprint::create_test_blueprint;
 use gadget_chain_setup::tangle::deploy::{Opts as DeployOpts, deploy_to_tangle};
 
@@ -82,14 +87,14 @@ async fn test_run_blueprint() -> Result<()> {
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
 
-    crate::commands::register(
+    register(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         env.keystore_uri.clone(),
     )
     .await?;
 
-    crate::commands::request_service(
+    request_service(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         10,
@@ -100,12 +105,12 @@ async fn test_run_blueprint() -> Result<()> {
     )
     .await?;
 
-    let requests = crate::commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let requests = list_requests(env.ws_rpc_endpoint.clone()).await?;
     let request = requests.first().unwrap();
     let request_id = request.0;
     let blueprint_id = request.1.blueprint;
 
-    crate::commands::accept_request(
+    accept_request(
         env.ws_rpc_endpoint.clone(),
         10,
         20,
@@ -140,7 +145,7 @@ async fn test_run_blueprint() -> Result<()> {
     // TODO: This is a hack, we should have a way to wait for the Binary to start up
     tokio::time::sleep(Duration::from_secs(80)).await;
 
-    let job_called = crate::commands::submit_job(
+    let job_called = submit_job(
         env.ws_rpc_endpoint.clone(),
         Some(0),
         blueprint_id,

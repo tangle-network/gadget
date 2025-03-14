@@ -1,4 +1,3 @@
-use crate::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 use alloy_provider::RootProvider;
 use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::SupportedChains;
@@ -10,6 +9,8 @@ use gadget_std::process::Command;
 use gadget_testing_utils::setup_log;
 use serde_json::Value;
 use tempfile::TempDir;
+
+use crate::command::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_avs_contracts};
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]

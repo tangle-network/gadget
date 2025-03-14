@@ -12,7 +12,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-# Core CLI dependencies - always included
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { workspace = true, features = ["clap"] }
@@ -30,22 +29,18 @@ dotenv = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }
 indicatif = { workspace = true }
-
-# Blueprint dependencies
 blueprint-core = { workspace = true, features = ["tracing"] }
-blueprint-runner = { workspace = true, features = ["networking"] }
-gadget-std = { workspace = true }
-blueprint-tangle-extra = { workspace = true, default-features = true }
-gadget-chain-setup = { workspace = true, features = ["tangle", "anvil"] }
-gadget-testing-utils = { workspace = true }
+blueprint-runner = { workspace = true, features = ["networking", "tangle", "eigenlayer"] }
+gadget-std = { workspace = true, features = ["std"] }
+blueprint-tangle-extra = { workspace = true, features = ["std"] }
+gadget-chain-setup = { workspace = true, features = ["tangle", "anvil", "std"] }
+gadget-testing-utils = { workspace = true, features = ["tangle", "anvil", "eigenlayer"] }
 gadget-contexts = { workspace = true }
 tnt-core-bytecode = { workspace = true }
-gadget-blueprint-serde = { workspace = true, optional = true }
+gadget-blueprint-serde = { workspace = true }
 blueprint-manager = { workspace = true }
 dialoguer = { workspace = true, default-features = true }
-
-# Optional client dependencies
-gadget-clients = { workspace = true, optional = false }
+gadget-clients = { workspace = true, features = ["tangle", "eigenlayer", "evm", "std"] }
 gadget-crypto = { workspace = true, features = [
     "k256",
     "sr25519-schnorrkel",
@@ -57,27 +52,21 @@ gadget-crypto = { workspace = true, features = [
     "tangle-pair-signer",
 ] }
 gadget-crypto-core = { workspace = true, features = ["clap"] }
-gadget-keystore = { workspace = true }
-
-# Optional dependencies based on features
-tangle-subxt = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true }
-eigensdk = { workspace = true, optional = true }
-blueprint-evm-extra = { workspace = true, optional = true }
-
-# Anvil dependencies
-testcontainers = { workspace = true, optional = true }
+gadget-keystore = { workspace = true, features = ["tangle-full", "eigenlayer-full", "evm", "std"] }
+tangle-subxt = { workspace = true }
+sp-core = { workspace = true }
+eigensdk = { workspace = true }
+blueprint-evm-extra = { workspace = true }
+testcontainers = { workspace = true }
 tempfile = { workspace = true }
-
-# EVM dependencies
-alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
-alloy-network = { workspace = true, optional = true }
-alloy-signer-local = { workspace = true, optional = true }
-alloy-primitives = { workspace = true, optional = true }
-alloy-contract = { workspace = true, optional = true }
-alloy-provider = { workspace = true, optional = true }
-alloy-transport = { workspace = true, optional = true }
-alloy-rpc-types-eth = { workspace = true, optional = true }
+alloy-json-abi = { workspace = true, features = ["serde_json"] }
+alloy-network = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-contract = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport = { workspace = true }
+alloy-rpc-types-eth = { workspace = true }
 
 [dev-dependencies]
 gadget-keystore = { workspace = true, features = ["bn254"] }
@@ -85,53 +74,3 @@ tempfile = { workspace = true }
 gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer", "tangle"] }
 alloy-contract = { workspace = true }
 alloy-dyn-abi = { workspace = true }
-
-[features]
-default = ["std", "tangle", "eigenlayer"]
-std = [
-    "gadget-std/std",
-    "gadget-chain-setup/std",
-    "gadget-clients/std",
-    "gadget-keystore/std",
-    "gadget-std/std",
-    "blueprint-tangle-extra/std",
-    "tangle-subxt/std",
-    "blueprint-runner/std",
-]
-
-# Main features
-tangle = [
-    "dep:tangle-subxt",
-    "dep:sp-core",
-    "gadget-clients/tangle",
-    "gadget-keystore/tangle-full",
-    "gadget-testing-utils/tangle",
-    "gadget-blueprint-serde",
-    "blueprint-runner/tangle",
-    "evm",
-]
-
-# Protocol features
-eigenlayer = [
-    "gadget-clients/eigenlayer",
-    "gadget-keystore/eigenlayer-full",
-    "blueprint-runner/eigenlayer",
-    "eigensdk",
-    "evm",
-]
-
-# Core functionality features
-evm = [
-    "dep:alloy-json-abi",
-    "dep:alloy-primitives",
-    "dep:alloy-contract",
-    "dep:alloy-network",
-    "dep:alloy-signer-local",
-    "dep:alloy-provider",
-    "dep:alloy-transport",
-    "dep:alloy-rpc-types-eth",
-    "dep:testcontainers",
-    "dep:blueprint-evm-extra",
-    "gadget-keystore/evm",
-    "gadget-clients/evm",
-]

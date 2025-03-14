@@ -12,7 +12,12 @@ use gadget_testing_utils::tangle::harness::generate_env_from_node_id;
 use tangle_subxt::subxt::tx::Signer;
 use tokio::fs;
 
-use crate::commands;
+use crate::command::jobs::submit::submit_job;
+use crate::command::list::requests::list_requests;
+use crate::command::register::register;
+use crate::command::service::accept::accept_request;
+use crate::command::service::reject::reject_request;
+use crate::command::service::request::request_service;
 use crate::tests::tangle::blueprint::create_test_blueprint;
 
 #[tokio::test]
@@ -65,14 +70,14 @@ async fn test_register_request_and_list() -> Result<()> {
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
 
-    commands::register(
+    register(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         env.keystore_uri.clone(),
     )
     .await?;
 
-    let request_result = commands::request_service(
+    let request_result = request_service(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         10,
@@ -84,7 +89,7 @@ async fn test_register_request_and_list() -> Result<()> {
     .await;
     assert!(request_result.is_ok());
 
-    let result = commands::list_requests(env.ws_rpc_endpoint.clone()).await;
+    let result = list_requests(env.ws_rpc_endpoint.clone()).await;
     assert!(result.is_ok());
 
     let requests = result.unwrap();
@@ -152,14 +157,14 @@ async fn test_accept_request() -> Result<()> {
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
 
-    commands::register(
+    register(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         env.keystore_uri.clone(),
     )
     .await?;
 
-    let request_result = commands::request_service(
+    let request_result = request_service(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         10,
@@ -171,14 +176,14 @@ async fn test_accept_request() -> Result<()> {
     .await;
     assert!(request_result.is_ok());
 
-    let requests = commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let requests = list_requests(env.ws_rpc_endpoint.clone()).await?;
     assert!(
         !requests.is_empty(),
         "Expected at least one request to be created"
     );
     let request_id = requests[0].0;
 
-    let result = commands::accept_request(
+    let result = accept_request(
         env.ws_rpc_endpoint.clone(),
         10,
         20,
@@ -192,7 +197,7 @@ async fn test_accept_request() -> Result<()> {
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    let updated_requests = commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let updated_requests = list_requests(env.ws_rpc_endpoint.clone()).await?;
     let request_still_exists = updated_requests.iter().any(|(id, _)| *id == request_id);
     assert!(
         !request_still_exists,
@@ -252,14 +257,14 @@ async fn test_reject_request() -> Result<()> {
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
 
-    commands::register(
+    register(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         env.keystore_uri.clone(),
     )
     .await?;
 
-    let request_result = commands::request_service(
+    let request_result = request_service(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         10,
@@ -271,14 +276,14 @@ async fn test_reject_request() -> Result<()> {
     .await;
     assert!(request_result.is_ok());
 
-    let requests = commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let requests = list_requests(env.ws_rpc_endpoint.clone()).await?;
     assert!(
         !requests.is_empty(),
         "Expected at least one request to be created"
     );
     let request_id = requests[0].0;
 
-    let result = commands::reject_request(
+    let result = reject_request(
         env.ws_rpc_endpoint.clone(),
         env.keystore_uri.clone(),
         request_id,
@@ -341,14 +346,14 @@ async fn test_submit_job() -> Result<()> {
 
     let blueprint_id = deploy_to_tangle(deploy_opts).await?;
 
-    commands::register(
+    register(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         env.keystore_uri.clone(),
     )
     .await?;
 
-    commands::request_service(
+    request_service(
         env.ws_rpc_endpoint.clone(),
         blueprint_id,
         10,
@@ -359,11 +364,11 @@ async fn test_submit_job() -> Result<()> {
     )
     .await?;
 
-    let requests = commands::list_requests(env.ws_rpc_endpoint.clone()).await?;
+    let requests = list_requests(env.ws_rpc_endpoint.clone()).await?;
     let request = requests.first().unwrap();
     let request_id = request.0;
 
-    commands::accept_request(
+    accept_request(
         env.ws_rpc_endpoint.clone(),
         10,
         20,
@@ -381,7 +386,7 @@ async fn test_submit_job() -> Result<()> {
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    let result = commands::submit_job(
+    let result = submit_job(
         env.ws_rpc_endpoint.clone(),
         Some(0),
         blueprint_id,

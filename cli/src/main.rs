@@ -1,12 +1,22 @@
 use std::path::PathBuf;
-use crate::keys::prompt_for_keys;
+use cargo_tangle::command::create;
 use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use blueprint_runner::error::ConfigError;
 use blueprint_runner::tangle::config::TangleProtocolSettings;
-use cargo_tangle::create::BlueprintType;
-use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
-use cargo_tangle::{commands, create, deploy, keys};
+use cargo_tangle::command::create::{new_blueprint, BlueprintType};
+use cargo_tangle::command::deploy::eigenlayer::deploy_eigenlayer;
+use cargo_tangle::command::deploy::tangle::deploy_tangle;
+use cargo_tangle::command::jobs::submit::submit_job;
+use cargo_tangle::command::list::blueprints::{list_blueprints, print_blueprints};
+use cargo_tangle::command::list::requests::{list_requests, print_requests};
+use cargo_tangle::command::register::register;
+use cargo_tangle::command::run::run_eigenlayer_avs;
+use cargo_tangle::command::run::tangle::{run_blueprint, RunOpts};
+use cargo_tangle::command::service::accept::accept_request;
+use cargo_tangle::command::service::reject::reject_request;
+use cargo_tangle::command::service::request::request_service;
+use cargo_tangle::command::keys::{export_key, generate_key, generate_mnemonic, import_key, list_keys, prompt_for_keys};
 use clap::{Parser, Subcommand};
 use dotenv::from_path;
 use tangle_subxt::subxt::blocks::ExtrinsicEvents;
@@ -46,7 +56,7 @@ enum Commands {
         command: BlueprintCommands,
     },
 
-    /// Key management commands
+    /// Key management
     #[command(visible_alias = "k")]
     Key {
         #[command(subcommand)]
@@ -331,7 +341,6 @@ pub enum DeployTarget {
         keystore_path: Option<PathBuf>,
     },
     /// Deploy to Eigenlayer
-    #[cfg(feature = "eigenlayer")]
     Eigenlayer {
         /// HTTP RPC URL to use
         #[arg(long, value_name = "URL", env, required_unless_present = "devnet")]
@@ -377,7 +386,7 @@ async fn main() -> color_eyre::Result<()> {
                 source,
                 blueprint_type,
             } => {
-                create::new_blueprint(&name, source, blueprint_type)?;
+                new_blueprint(&name, source, blueprint_type)?;
             }
             BlueprintCommands::Deploy { target } => match target {
                 DeployTarget::Tangle {
@@ -391,7 +400,7 @@ async fn main() -> color_eyre::Result<()> {
                         .manifest
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                    Box::pin(crate::deploy::tangle::deploy_tangle(
+                    Box::pin(deploy_tangle(
                         http_rpc_url,
                         ws_rpc_url,
                         package,
@@ -401,7 +410,6 @@ async fn main() -> color_eyre::Result<()> {
                     ))
                     .await?;
                 }
-                #[cfg(feature = "eigenlayer")]
                 DeployTarget::Eigenlayer {
                     rpc_url,
                     contracts_path,
@@ -410,7 +418,7 @@ async fn main() -> color_eyre::Result<()> {
                     devnet,
                     keystore_path,
                 } => {
-                    crate::deploy::eigenlayer::deploy_eigenlayer(
+                    deploy_eigenlayer(
                         rpc_url,
                         contracts_path,
                         ordered_deployment,
@@ -512,7 +520,7 @@ async fn main() -> color_eyre::Result<()> {
                     }
                     Protocol::Tangle => {
                         // Create the run options for the Tangle blueprint
-                        let run_opts = cargo_tangle::run::tangle::RunOpts {
+                        let run_opts = RunOpts {
                             http_rpc_url: config.http_rpc_endpoint.clone(),
                             ws_rpc_url: config.ws_rpc_endpoint.clone(),
                             signer: None, // We'll get the signer from the keystore
@@ -527,7 +535,7 @@ async fn main() -> color_eyre::Result<()> {
                         };
 
                         // Run the blueprint
-                        cargo_tangle::run::tangle::run_blueprint(run_opts).await?;
+                        run_blueprint(run_opts).await?;
                     }
                     _ => {
                         return Err(ConfigError::UnsupportedProtocol(protocol.to_string()).into());
@@ -535,18 +543,18 @@ async fn main() -> color_eyre::Result<()> {
                 }
             }
             BlueprintCommands::ListRequests { ws_rpc_url } => {
-                let requests = commands::list_requests(ws_rpc_url).await?;
-                commands::print_requests(requests);
+                let requests = list_requests(ws_rpc_url).await?;
+                print_requests(requests);
             }
             BlueprintCommands::ListBlueprints { ws_rpc_url } => {
-                let blueprints = commands::list_blueprints(ws_rpc_url).await?;
-                commands::print_blueprints(blueprints);
+                let blueprints = list_blueprints(ws_rpc_url).await?;
+                print_blueprints(blueprints);
             }
             BlueprintCommands::Register {
                 ws_rpc_url,
                 blueprint_id,
                 keystore_uri,
-            } => commands::register(ws_rpc_url, blueprint_id, keystore_uri).await?,
+            } => register(ws_rpc_url, blueprint_id, keystore_uri).await?,
             BlueprintCommands::AcceptRequest {
                 ws_rpc_url,
                 min_exposure_percent,
@@ -555,7 +563,7 @@ async fn main() -> color_eyre::Result<()> {
                 keystore_uri,
                 request_id,
             } => {
-                commands::accept_request(
+                accept_request(
                     ws_rpc_url,
                     min_exposure_percent,
                     max_exposure_percent,
@@ -570,7 +578,7 @@ async fn main() -> color_eyre::Result<()> {
                 keystore_uri,
                 request_id,
             } => {
-                commands::reject_request(ws_rpc_url, keystore_uri, request_id).await?;
+                reject_request(ws_rpc_url, keystore_uri, request_id).await?;
             }
             BlueprintCommands::RequestService {
                 ws_rpc_url,
@@ -581,7 +589,7 @@ async fn main() -> color_eyre::Result<()> {
                 value,
                 keystore_uri,
             } => {
-                commands::request_service(
+                request_service(
                     ws_rpc_url,
                     blueprint_id,
                     min_exposure_percent,
@@ -601,7 +609,7 @@ async fn main() -> color_eyre::Result<()> {
                 params_file,
                 watcher,
             } => {
-                commands::submit_job(
+                submit_job(
                     ws_rpc_url,
                     service_id,
                     blueprint_id,
@@ -622,7 +630,7 @@ async fn main() -> color_eyre::Result<()> {
             } => {
                 let seed = seed.map(hex::decode).transpose()?;
                 let (public, secret) =
-                    keys::generate_key(key_type, output.as_ref(), seed.as_deref(), show_secret)?;
+                    generate_key(key_type, output.as_ref(), seed.as_deref(), show_secret)?;
 
                 eprintln!("Generated {:?} key:", key_type);
                 eprintln!("Public key: {}", public);
@@ -641,14 +649,14 @@ async fn main() -> color_eyre::Result<()> {
                     let secret = secret.ok_or_else(|| {
                         color_eyre::eyre::eyre!("Secret key is required when key type is specified")
                     })?;
-                    let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
+                    let public = import_key(protocol, key_type, &secret, &keystore_path)?;
                     eprintln!("Imported {:?} key:", key_type);
                     eprintln!("Public key: {}", public);
                 } else {
                     // If no key_type provided, use interactive prompt
-                    let key_pairs = keys::prompt_for_keys(vec![])?;
+                    let key_pairs = prompt_for_keys(vec![])?;
                     for (key_type, secret) in key_pairs {
-                        let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
+                        let public = import_key(protocol, key_type, &secret, &keystore_path)?;
                         eprintln!("Imported {:?} key:", key_type);
                         eprintln!("Public key: {}", public);
                     }
@@ -659,20 +667,20 @@ async fn main() -> color_eyre::Result<()> {
                 public,
                 keystore_path,
             } => {
-                let secret = keys::export_key(key_type, &public, &keystore_path)?;
+                let secret = export_key(key_type, &public, &keystore_path)?;
                 eprintln!("Exported {:?} key:", key_type);
                 eprintln!("Public key: {}", public);
                 eprintln!("Private key: {}", secret);
             }
             KeyCommands::List { keystore_path } => {
-                let keys = keys::list_keys(&keystore_path)?;
+                let keys = list_keys(&keystore_path)?;
                 eprintln!("Keys in keystore:");
                 for (key_type, public) in keys {
                     eprintln!("{:?}: {}", key_type, public);
                 }
             }
             KeyCommands::GenerateMnemonic { word_count } => {
-                let mnemonic = keys::generate_mnemonic(word_count)?;
+                let mnemonic = generate_mnemonic(word_count)?;
                 eprintln!("Generated mnemonic phrase:");
                 eprintln!("{}", mnemonic);
                 eprintln!(
