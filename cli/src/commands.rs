@@ -51,7 +51,6 @@ use std::time::Duration;
 pub async fn list_requests(
     ws_rpc_url: String,
 ) -> Result<Vec<(u64, ServiceRequest<AccountId32, u64, u128>)>> {
-    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     let service_requests_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
@@ -310,10 +309,8 @@ pub async fn accept_request(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     request_id: u64,
 ) -> Result<()> {
-    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
-    println!("{}", style("Loading keystore...").cyan());
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
@@ -382,10 +379,8 @@ pub async fn reject_request(
     // keystore_password: Option<String>, // TODO: Add keystore password support
     request_id: u64,
 ) -> Result<()> {
-    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
-    println!("{}", style("Loading keystore...").cyan());
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
@@ -459,10 +454,19 @@ pub async fn request_service(
     keystore_uri: String,
     // keystore_password: Option<String>, // TODO: Add keystore password support
 ) -> Result<()> {
-    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
-    println!("{}", style("Loading keystore...").cyan());
+    // Get the next service ID before submitting the request
+    let next_service_id_storage = tangle_subxt::tangle_testnet_runtime::api::storage()
+        .services()
+        .next_instance_id();
+    let next_service_id = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&next_service_id_storage)
+        .await?;
+
     let config = KeystoreConfig::new().fs_root(keystore_uri.clone());
     let keystore = Keystore::new(config).expect("Failed to create keystore");
     let public = keystore.first_local::<SpSr25519>().unwrap();
@@ -524,10 +528,19 @@ pub async fn request_service(
         .sign_and_submit_then_watch_default(&call, &signer)
         .await?;
     wait_for_in_block_success(res).await;
+
     println!(
         "{}",
         style("Service Request submitted successfully").green()
     );
+
+    println!(
+        "{}",
+        style(format!("Service ID: {}", next_service_id))
+            .green()
+            .bold()
+    );
+
     Ok(())
 }
 
@@ -1116,7 +1129,6 @@ pub async fn check_job(
     result_types: Vec<FieldType>,
     timeout_seconds: u64,
 ) -> Result<()> {
-    println!("{}", style("Connecting to Tangle Network...").cyan());
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     println!(
