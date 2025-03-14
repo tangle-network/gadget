@@ -41,6 +41,8 @@ url = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
+gadget-chain-setup-anvil = { workspace = true }
+gadget-eigenlayer-testing-utils = { workspace = true }
 blueprint-evm-extra = { workspace = true }
 alloy-primitives = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
