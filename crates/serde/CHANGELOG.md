@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/tangle-network/blueprint/compare/gadget-blueprint-serde-v0.3.1...gadget-blueprint-serde-v0.3.2) - 2025-03-14
+
+### Added
+
+- *(tangle-extra)* add `List` and `Optional` extractors ([#726](https://github.com/tangle-network/blueprint/pull/726))
+
+### Other
+
+- flatten crates/blueprint subdirectory ([#715](https://github.com/tangle-network/blueprint/pull/715))
+
 ## [0.3.1](https://github.com/tangle-network/gadget/compare/gadget-blueprint-serde-v0.3.0...gadget-blueprint-serde-v0.3.1) - 2024-12-11
 
 ### Other
