@@ -186,14 +186,14 @@ fn do_cargo_build(manifest_path: &Path) -> Result<()> {
 
     let stdout_thread = thread::spawn(move || {
         let reader = BufReader::new(stdout);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             tracing::debug!(target: "build-output", "{}", line);
         }
     });
 
     let stderr_thread = thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             tracing::debug!(target: "build-output", "{}", line);
         }
     });

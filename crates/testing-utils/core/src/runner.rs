@@ -9,7 +9,6 @@ use std::future::Pending;
 
 pub struct TestRunner<Ctx> {
     router: Option<Router<Ctx>>,
-    context: Option<Ctx>,
     job_index: usize,
     #[doc(hidden)]
     pub builder: Option<BlueprintRunnerBuilder<Pending<()>>>,
@@ -20,15 +19,14 @@ impl<Ctx> TestRunner<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    pub fn new<C>(config: C, env: BlueprintEnvironment, context: Ctx) -> Self
+    pub fn new<C>(config: C, env: BlueprintEnvironment) -> Self
     where
         C: BlueprintConfig + 'static,
     {
         let builder =
             BlueprintRunner::builder(config, env).with_shutdown_handler(future::pending());
         TestRunner {
-            router: Some(Router::new()),
-            context: Some(context),
+            router: Some(Router::<Ctx>::new()),
             job_index: 0,
             builder: Some(builder),
             _phantom: core::marker::PhantomData,
@@ -71,12 +69,10 @@ where
     ///
     /// See [`BlueprintRunnerBuilder::run()`]
     #[expect(clippy::missing_panics_doc)]
-    pub async fn run(self) -> Result<(), Error> {
-        self.builder
-            .unwrap()
-            .router(self.router.unwrap().with_context(self.context.unwrap()))
-            .run()
-            .await
+    pub async fn run(self, context: Ctx) -> Result<(), Error> {
+        let router: Router = self.router.unwrap().with_context(context);
+
+        self.builder.unwrap().router(router).run().await
     }
 }
 
@@ -89,11 +85,7 @@ pub trait TestEnv: Sized {
     /// # Errors
     ///
     /// Errors depend on the implementation.
-    fn new(
-        config: Self::Config,
-        env: BlueprintEnvironment,
-        context: Self::Context,
-    ) -> Result<Self, Error>;
+    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error>;
     fn add_job<J, T>(&mut self, job: J)
     where
         J: Job<T, Self::Context> + Send + Sync + 'static,
@@ -108,5 +100,8 @@ pub trait TestEnv: Sized {
     /// # Panics
     ///
     /// Will panic if the runner is already started
-    fn run_runner(&mut self) -> impl std::future::Future<Output = Result<(), Error>> + Send;
+    fn run_runner(
+        &mut self,
+        context: Self::Context,
+    ) -> impl std::future::Future<Output = Result<(), Error>> + Send;
 }

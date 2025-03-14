@@ -23,12 +23,8 @@ where
     type Config = EigenlayerBLSConfig;
     type Context = Ctx;
 
-    fn new(
-        config: Self::Config,
-        env: BlueprintEnvironment,
-        context: Self::Context,
-    ) -> Result<Self, Error> {
-        let runner = TestRunner::new(config, env.clone(), context);
+    fn new(config: Self::Config, env: BlueprintEnvironment) -> Result<Self, Error> {
+        let runner = TestRunner::new(config, env.clone());
 
         Ok(Self {
             runner: Some(runner),
@@ -63,10 +59,10 @@ where
         self.env.clone()
     }
 
-    async fn run_runner(&mut self) -> Result<(), Error> {
+    async fn run_runner(&mut self, context: Self::Context) -> Result<(), Error> {
         // Spawn the runner in a background task
         let runner = self.runner.take().expect("Runner already running");
-        let handle = tokio::spawn(async move { runner.run().await });
+        let handle = tokio::spawn(async move { runner.run(context).await });
 
         let mut guard = self.runner_handle.lock().await;
         *guard = Some(handle);

@@ -31,9 +31,12 @@ pub enum NodeSlot<Ctx> {
 }
 
 /// Improved multi-node test environment with better control and observability
-pub struct MultiNodeTestEnv<Ctx> {
+pub struct MultiNodeTestEnv<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     pub nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
-    pub command_tx: mpsc::Sender<EnvironmentCommand>,
+    pub command_tx: mpsc::Sender<EnvironmentCommand<Ctx>>,
     pub event_tx: broadcast::Sender<TestEvent>,
     pub config: Arc<TangleTestConfig>,
     pub initialized_tx: Option<oneshot::Sender<()>>,
@@ -41,7 +44,10 @@ pub struct MultiNodeTestEnv<Ctx> {
 }
 
 #[derive(Debug)]
-pub enum EnvironmentCommand {
+pub enum EnvironmentCommand<Ctx>
+where
+    Ctx: Clone + Send + Sync + 'static,
+{
     AddNode {
         node_id: usize,
         result_tx: oneshot::Sender<Result<(), Error>>,
@@ -52,6 +58,7 @@ pub enum EnvironmentCommand {
     },
     Start {
         result_tx: oneshot::Sender<Result<(), Error>>,
+        contexts: Vec<Ctx>,
     },
     Shutdown,
 }
@@ -70,7 +77,7 @@ where
 {
     /// Creates a new multi-node test environment
     #[must_use]
-    pub fn new<const N: usize>(config: TangleTestConfig, context: Ctx) -> Self {
+    pub fn new<const N: usize>(config: TangleTestConfig) -> Self {
         const { assert!(N > 0, "Must have at least 1 initial node") };
 
         let (command_tx, command_rx) = mpsc::channel(32);
@@ -88,7 +95,6 @@ where
 
         Self::spawn_command_handler(
             env.nodes.clone(),
-            context,
             env.config.clone(),
             env.running_nodes.clone(),
             command_rx,
@@ -164,14 +170,127 @@ where
 
     /// Send a start command to all nodes
     ///
+    /// This will clone `context` to all nodes. If your context is node-specific (for example, in a
+    /// networking blueprint), then see [`Self::start_with_contexts()`] for providing per-node contexts.
+    ///
+    /// # Panics
+    ///
+    /// See [`Self::start_with_contexts()`]
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::start_with_contexts()`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use blueprint_core::extract::Context;
+    /// use gadget_tangle_testing_utils::TangleTestHarness;
+    /// use tempfile::TempDir;
+    ///
+    /// // This context isn't node specific, it can safely be cloned to all nodes.
+    /// #[derive(Clone)]
+    /// struct MyContext {
+    ///     foo: u64,
+    /// }
+    ///
+    /// async fn some_job(Context(_context): Context<MyContext>) {}
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tmp_dir = TempDir::new()?;
+    ///
+    /// // Initialize the harness with the type, this is an indication that it will need the
+    /// // context later.
+    /// let harness = TangleTestHarness::<MyContext>::setup(tmp_dir).await?;
+    ///
+    /// let (mut test_env, _service_id, _blueprint_id) = harness.setup_services::<1>(false).await?;
+    ///
+    /// // Setup the test environment
+    /// test_env.initialize().await?;
+    /// test_env.add_job(some_job).await;
+    ///
+    /// // Ready to start now, provide the context
+    /// let context = MyContext { foo: 0 };
+    /// test_env.start(context).await?;
+    /// # Ok(()) }
+    /// ```
+    pub async fn start(&mut self, context: Ctx) -> Result<(), Error> {
+        let nodes_len = self.nodes.read().await.len();
+        self.start_with_contexts(vec![context; nodes_len]).await
+    }
+
+    /// Send a start command to all nodes
+    ///
+    /// This takes a list of contexts, that will be applied in the same order as the nodes appear in
+    /// [`Self::node_handles()`].
+    ///
+    /// # Panics
+    ///
+    /// This will panic if `contexts.len()` != `nodes.len()`
+    ///
     /// # Errors
     ///
     /// Returns an error if the command channel closed prematurely
-    pub async fn start(&mut self) -> Result<(), Error> {
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use blueprint_core::extract::Context;
+    /// use gadget_tangle_testing_utils::TangleTestHarness;
+    /// use tempfile::TempDir;
+    ///
+    /// // This context is node specific. Each node needs its own copy.
+    /// #[derive(Clone)]
+    /// struct MyContext {
+    ///     foo: u64,
+    /// }
+    ///
+    /// async fn some_job(Context(_context): Context<MyContext>) {}
+    ///
+    /// // Start up a test with 2 nodes
+    /// const N: usize = 2;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tmp_dir = TempDir::new()?;
+    ///
+    /// // Initialize the harness with the type, this is an indication that it will need the
+    /// // context later.
+    /// let harness = TangleTestHarness::<MyContext>::setup(tmp_dir).await?;
+    ///
+    /// let (mut test_env, _service_id, _blueprint_id) = harness.setup_services::<N>(false).await?;
+    ///
+    /// // Setup the test environment
+    /// test_env.initialize().await?;
+    /// test_env.add_job(some_job).await;
+    ///
+    /// // Ready to start now, provide the contexts
+    /// let mut contexts = Vec::new();
+    /// let handles = test_env.node_handles().await;
+    /// for (index, handle) in handles.iter().enumerate() {
+    ///     let context = MyContext { foo: index as u64 };
+    ///     contexts.push(context);
+    /// }
+    ///
+    /// test_env.start_with_contexts(contexts).await?;
+    /// # Ok(()) }
+    /// ```
+    pub async fn start_with_contexts(&mut self, contexts: Vec<Ctx>) -> Result<(), Error> {
+        let nodes_len = self.nodes.read().await.len();
+        assert_eq!(
+            nodes_len,
+            contexts.len(),
+            "wrong number of contexts provided"
+        );
+
         // Start all nodes' runners
         let (result_tx, result_rx) = oneshot::channel();
         self.command_tx
-            .send(EnvironmentCommand::Start { result_tx })
+            .send(EnvironmentCommand::Start {
+                result_tx,
+                contexts,
+            })
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
 
@@ -225,10 +344,9 @@ where
 
     fn spawn_command_handler(
         nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
-        context: Ctx,
         config: Arc<TangleTestConfig>,
         running_nodes: Arc<AtomicUsize>,
-        mut command_rx: mpsc::Receiver<EnvironmentCommand>,
+        mut command_rx: mpsc::Receiver<EnvironmentCommand<Ctx>>,
         event_tx: broadcast::Sender<TestEvent>,
     ) {
         tokio::task::spawn(async move {
@@ -238,7 +356,6 @@ where
                     EnvironmentCommand::AddNode { node_id, result_tx } => {
                         let result = Self::handle_add_node(
                             nodes.clone(),
-                            context.clone(),
                             node_id,
                             config.clone(),
                             &event_tx,
@@ -251,10 +368,17 @@ where
                             Self::handle_remove_node(nodes.clone(), node_id, &event_tx).await;
                         let _ = result_tx.send(result);
                     }
-                    EnvironmentCommand::Start { result_tx } => {
-                        let result =
-                            Self::handle_start(nodes.clone(), &event_tx, running_nodes.clone())
-                                .await;
+                    EnvironmentCommand::Start {
+                        result_tx,
+                        contexts,
+                    } => {
+                        let result = Self::handle_start(
+                            nodes.clone(),
+                            &event_tx,
+                            running_nodes.clone(),
+                            contexts,
+                        )
+                        .await;
                         let _ = result_tx.send(result);
                     }
                     EnvironmentCommand::Shutdown => {
@@ -280,12 +404,11 @@ where
 
     async fn handle_add_node(
         nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
-        context: Ctx,
         node_id: usize,
         config: Arc<TangleTestConfig>,
         event_tx: &broadcast::Sender<TestEvent>,
     ) -> Result<(), Error> {
-        let node = NodeHandle::new(node_id, &config, context).await?;
+        let node = NodeHandle::new(node_id, &config).await?;
         nodes.write().await[node_id] = NodeSlot::Occupied(node);
         let _ = event_tx.send(TestEvent::NodeAdded(node_id));
         Ok(())
@@ -317,6 +440,7 @@ where
         nodes: Arc<RwLock<Vec<NodeSlot<Ctx>>>>,
         event_tx: &broadcast::Sender<TestEvent>,
         running_nodes: Arc<AtomicUsize>,
+        contexts: Vec<Ctx>,
     ) -> Result<(), Error> {
         let nodes = nodes.read().await;
 
@@ -328,13 +452,14 @@ where
         // Start all node runners concurrently
         let futures = nodes.iter().enumerate().map(|(node_id, node)| {
             let running_nodes = running_nodes.clone();
+            let context = contexts[node_id].clone();
 
             async move {
                 let NodeSlot::Occupied(node) = node else {
                     unreachable!()
                 };
 
-                if let Err(e) = node.start_runner().await {
+                if let Err(e) = node.start_runner(context).await {
                     let _ = event_tx.send(TestEvent::Error(format!(
                         "Failed to start node {}: {}",
                         node_id, e
@@ -451,11 +576,7 @@ impl<Ctx> NodeHandle<Ctx>
 where
     Ctx: Clone + Send + Sync + 'static,
 {
-    async fn new(
-        node_id: usize,
-        config: &TangleTestConfig,
-        context: Ctx,
-    ) -> Result<Arc<Self>, Error> {
+    async fn new(node_id: usize, config: &TangleTestConfig) -> Result<Arc<Self>, Error> {
         let (command_tx, command_rx) = mpsc::channel(32);
         let state = Arc::new(RwLock::new(NodeState { is_running: true }));
 
@@ -479,7 +600,7 @@ where
         let sr25519_signer = TanglePairSigner::new(sr25519_pair.0);
 
         // Create TangleTestEnv for this node
-        let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone(), context)?;
+        let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone())?;
 
         let port = find_open_tcp_bind_port();
         blueprint_core::info!("Binding node {node_id} to port {port}");
@@ -531,10 +652,10 @@ where
     /// # Errors
     ///
     /// Any errors will be from the runner itself, likely caused by job failure.
-    pub async fn start_runner(&self) -> Result<(), Error> {
+    pub async fn start_runner(&self, context: Ctx) -> Result<(), Error> {
         let result = {
             let mut test_env_guard = self.test_env.write().await;
-            test_env_guard.run_runner().await
+            test_env_guard.run_runner(context).await
         };
         result.map_err(|e| Error::Setup(e.to_string()))
     }
