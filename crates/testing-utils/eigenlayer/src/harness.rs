@@ -5,9 +5,9 @@ use alloy_provider::RootProvider;
 use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::{BlueprintEnvironment, ContextConfig, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
-use std::marker::PhantomData;
 use gadget_chain_setup::anvil::keys::{ANVIL_PRIVATE_KEYS, inject_anvil_key};
 use gadget_chain_setup::anvil::{Container, start_default_anvil_testnet};
+use std::marker::PhantomData;
 use tempfile::TempDir;
 use url::Url;
 

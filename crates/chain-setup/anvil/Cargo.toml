@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 gadget-std = { workspace = true }
 gadget-keystore = { workspace = true, features = ["eigenlayer", "evm"] }
+gadget-core-testing-utils = { workspace = true }
 blueprint-core = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-provider = { workspace = true }

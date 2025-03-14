@@ -26,6 +26,7 @@ pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
 /// # Errors
 /// - Fails if the given index is out of bounds
 /// - May fail if the keystore path cannot be created or accessed
+#[allow(clippy::result_large_err)]
 pub fn inject_anvil_key<P: AsRef<Path>>(
     keystore_path: P,
     seed: &str,

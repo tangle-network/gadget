@@ -6914,6 +6914,7 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-rpc-types-eth",
  "blueprint-core",
+ "gadget-core-testing-utils",
  "gadget-keystore",
  "gadget-std",
  "serde",

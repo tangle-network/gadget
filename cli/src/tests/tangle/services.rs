@@ -7,8 +7,8 @@ use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_std::time::Duration;
 use gadget_testing_utils::setup_log;
+use gadget_testing_utils::tangle::TangleTestHarness;
 use gadget_testing_utils::tangle::harness::generate_env_from_node_id;
-use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
 use tangle_subxt::subxt::tx::Signer;
 use tokio::fs;
 
@@ -28,7 +28,7 @@ async fn test_register_request_and_list() -> Result<()> {
 
     std::env::set_current_dir(&blueprint_dir)?;
 
-    let harness = TangleTestHarness::setup(temp_dir, ()).await?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
 
     let deployment_env = generate_env_from_node_id(
         "Bob",
@@ -115,7 +115,7 @@ async fn test_accept_request() -> Result<()> {
 
     std::env::set_current_dir(&blueprint_dir)?;
 
-    let harness = TangleTestHarness::setup(temp_dir, ()).await?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
 
     let deployment_env = generate_env_from_node_id(
         "Bob",
@@ -215,7 +215,7 @@ async fn test_reject_request() -> Result<()> {
 
     std::env::set_current_dir(&blueprint_dir)?;
 
-    let harness = TangleTestHarness::setup(temp_dir, ()).await?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
 
     let deployment_env = generate_env_from_node_id(
         "Bob",
@@ -304,7 +304,7 @@ async fn test_submit_job() -> Result<()> {
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(&blueprint_dir)?;
 
-    let harness = TangleTestHarness::setup(temp_dir, ()).await?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
 
     let deployment_env = generate_env_from_node_id(
         "Bob",
