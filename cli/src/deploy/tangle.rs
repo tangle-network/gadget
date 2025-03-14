@@ -175,7 +175,7 @@ fn do_cargo_build(manifest_path: &Path) -> Result<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build")
         .arg("--manifest-path")
-        .arg(&manifest_path)
+        .arg(manifest_path)
         .arg("--all")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -186,19 +186,15 @@ fn do_cargo_build(manifest_path: &Path) -> Result<()> {
 
     let stdout_thread = thread::spawn(move || {
         let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                tracing::debug!(target: "build-output", "{}", line);
-            }
+        for line in reader.lines().flatten() {
+            tracing::debug!(target: "build-output", "{}", line);
         }
     });
 
     let stderr_thread = thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                tracing::debug!(target: "build-output", "{}", line);
-            }
+        for line in reader.lines().flatten() {
+            tracing::debug!(target: "build-output", "{}", line);
         }
     });
 
