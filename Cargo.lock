@@ -2861,6 +2861,7 @@ dependencies = [
  "document-features",
  "eigensdk",
  "gadget-blueprint-serde",
+ "gadget-chain-setup",
  "gadget-clients",
  "gadget-context-derive",
  "gadget-contexts",
@@ -3426,6 +3427,7 @@ dependencies = [
  "bip39",
  "blueprint-core",
  "blueprint-evm-extra",
+ "blueprint-manager",
  "blueprint-runner",
  "blueprint-tangle-extra",
  "cargo-generate",
@@ -3437,7 +3439,10 @@ dependencies = [
  "dotenv",
  "eigensdk",
  "escargot",
+ "gadget-blueprint-serde",
+ "gadget-chain-setup",
  "gadget-clients",
+ "gadget-contexts",
  "gadget-crypto",
  "gadget-crypto-core",
  "gadget-keystore",
@@ -3454,10 +3459,12 @@ dependencies = [
  "testcontainers",
  "thiserror 2.0.12",
  "tnt-bls",
+ "tnt-core-bytecode",
  "tokio",
  "toml 0.8.20",
  "tracing",
  "tracing-subscriber 0.3.19",
+ "url",
 ]
 
 [[package]]
@@ -6889,6 +6896,91 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-chain-setup"
+version = "0.1.0"
+dependencies = [
+ "gadget-chain-setup-anvil",
+ "gadget-chain-setup-common",
+ "gadget-chain-setup-tangle",
+]
+
+[[package]]
+name = "gadget-chain-setup-anvil"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "blueprint-core",
+ "gadget-keystore",
+ "gadget-std",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "testcontainers",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-chain-setup-common"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "color-eyre",
+ "gadget-blueprint-serde",
+ "gadget-clients",
+ "gadget-contexts",
+ "gadget-crypto",
+ "gadget-crypto-tangle-pair-signer",
+ "gadget-keystore",
+ "gadget-networking",
+ "gadget-std",
+ "sp-core",
+ "tangle-subxt",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "gadget-chain-setup-tangle"
+version = "0.1.0"
+dependencies = [
+ "alloy-json-abi",
+ "alloy-network",
+ "alloy-primitives 0.8.22",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "alloy-signer-local",
+ "alloy-sol-types 0.8.22",
+ "alloy-transport",
+ "blueprint-core",
+ "blueprint-tangle-extra",
+ "cargo_metadata 0.18.1",
+ "color-eyre",
+ "dialoguer",
+ "dirs 6.0.0",
+ "escargot",
+ "gadget-blueprint-serde",
+ "gadget-chain-setup-common",
+ "gadget-clients",
+ "gadget-contexts",
+ "gadget-crypto",
+ "gadget-crypto-tangle-pair-signer",
+ "gadget-keystore",
+ "gadget-networking",
+ "gadget-std",
+ "indicatif",
+ "reqwest 0.12.12",
+ "serde_json",
+ "sp-core",
+ "tangle-subxt",
+ "thiserror 2.0.12",
+ "tracing",
+]
+
+[[package]]
 name = "gadget-client-core"
 version = "0.1.0"
 dependencies = [
@@ -6911,6 +7003,7 @@ dependencies = [
  "blueprint-runner",
  "eigensdk",
  "gadget-anvil-testing-utils",
+ "gadget-chain-setup-anvil",
  "gadget-client-core",
  "gadget-eigenlayer-testing-utils",
  "gadget-std",
@@ -6942,6 +7035,7 @@ dependencies = [
  "blueprint-core",
  "blueprint-evm-extra",
  "gadget-anvil-testing-utils",
+ "gadget-chain-setup-anvil",
  "gadget-client-core",
  "gadget-rpc-calls",
  "gadget-std",
@@ -7204,6 +7298,7 @@ dependencies = [
  "eigensdk",
  "futures",
  "gadget-anvil-testing-utils",
+ "gadget-chain-setup",
  "gadget-core-testing-utils",
  "gadget-std",
  "serde",
@@ -7391,10 +7486,10 @@ dependencies = [
  "blueprint-core",
  "blueprint-runner",
  "blueprint-tangle-extra",
- "cargo-tangle",
  "dirs 6.0.0",
  "futures",
  "gadget-blueprint-serde",
+ "gadget-chain-setup",
  "gadget-client-tangle",
  "gadget-clients",
  "gadget-contexts",

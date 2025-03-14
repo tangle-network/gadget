@@ -1,12 +1,13 @@
 use std::time::Duration;
 
+use blueprint_core::info;
 use color_eyre::eyre::Result;
 use gadget_chain_setup::tangle::OutputValue;
 use gadget_crypto::sp_core::{SpEcdsa, SpSr25519};
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::{info, setup_log};
+use gadget_testing_utils::setup_log;
 use gadget_testing_utils::tangle::harness::generate_env_from_node_id;
 use gadget_testing_utils::{harness::TestHarness, tangle::TangleTestHarness};
 use tangle_subxt::subxt::tx::Signer;

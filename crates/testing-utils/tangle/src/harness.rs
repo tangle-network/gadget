@@ -1,6 +1,7 @@
 use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
 use crate::{InputValue, OutputValue, keys::inject_tangle_key};
+use blueprint_core::debug;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::ContextConfig;
 use blueprint_runner::config::SupportedChains;
@@ -15,7 +16,6 @@ use gadget_core_testing_utils::harness::TestHarness;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use blueprint_core::debug;
 use gadget_std::io;
 use gadget_std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;

@@ -15,7 +15,7 @@ use crate::job_call::Parts as JobCallParts;
 ///
 /// Any type that is stored in the [`Extensions`] of the current [`JobCall`] can be extracted using this extractor.
 ///
-/// For Optional extraction, you can use this extractor with with `Option<Extension<T>>` where `T` is the type you want to extract.
+/// For Optional extraction, you can use this extractor with `Option<Extension<T>>` where `T` is the type you want to extract.
 ///
 /// [`JobCall`]: crate::JobCall
 /// [`Extensions`]: crate::extensions::Extensions

@@ -9,6 +9,7 @@ use gadget_chain_setup::anvil::start_default_anvil_testnet;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
+use gadget_testing_utils::setup_log;
 use tempfile::TempDir;
 
 #[tokio::test]

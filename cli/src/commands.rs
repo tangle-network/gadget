@@ -7,7 +7,7 @@ use gadget_clients::tangle::client::OnlineClient;
 use gadget_crypto::sp_core::SpSr25519;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::{Keystore, KeystoreConfig};
-use gadget_logging::info;
+use blueprint_core::info;
 use gadget_blueprint_serde::{from_field, new_bounded_string, BoundedVec, Field};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::{BoundedString, FieldType};

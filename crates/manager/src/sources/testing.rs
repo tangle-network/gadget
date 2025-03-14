@@ -57,7 +57,7 @@ impl BinarySourceFetcher for TestSourceFetcher {
         let output = command.current_dir(&base_path).output().await.unwrap();
         trace!("Build command run");
         if !output.status.success() {
-            gadget_logging::warn!("Failed to build binary");
+            blueprint_core::warn!("Failed to build binary");
             return Err(Error::BuildBinary(output));
         }
         trace!("Successfully built binary");

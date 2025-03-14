@@ -43,7 +43,7 @@ pub fn process_arguments_and_env(
     }
 
     if manager_opts.test_mode {
-        gadget_logging::warn!("Test mode is enabled");
+        blueprint_core::warn!("Test mode is enabled");
     }
 
     let chain = match gadget_config.http_rpc_endpoint.as_str() {

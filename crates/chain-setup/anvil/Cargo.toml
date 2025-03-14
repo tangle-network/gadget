@@ -10,8 +10,8 @@ repository.workspace = true
 
 [dependencies]
 gadget-std = { workspace = true }
-gadget-logging = { workspace = true }
 gadget-keystore = { workspace = true, features = ["eigenlayer", "evm"] }
+blueprint-core = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }

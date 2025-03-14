@@ -9,7 +9,7 @@ use blueprint_runner::eigenlayer::bls::EigenlayerBLSConfig;
 use blueprint_runner::{config::BlueprintEnvironment, BlueprintRunner};
 use blueprint_sdk::utils::evm::get_provider_http;
 use blueprint_sdk::*;
-use gadget_logging::setup_log;
+use blueprint_core::setup_log;
 use incredible_squaring_eigenlayer::{create_contract_router, ExampleContext};
 use tracing_subscriber::filter::LevelFilter;
 
