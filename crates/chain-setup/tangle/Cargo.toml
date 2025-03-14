@@ -22,7 +22,7 @@ escargot = { workspace = true }
 gadget-networking = { workspace = true }
 gadget-contexts = { workspace = true, features = ["tangle"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
-blueprint-tangle-extra = { workspace = true }
+blueprint-tangle-extra = { workspace = true, features = ["metadata-types"] }
 blueprint-core = { workspace = true }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-keystore = { workspace = true }

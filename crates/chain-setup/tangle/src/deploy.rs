@@ -242,12 +242,22 @@ fn find_workspace_root(package: &cargo_metadata::Package) -> PathBuf {
     // Walk up the directory tree looking for a workspace root
     while let Some(parent) = current_dir.parent() {
         let potential_cargo_toml = parent.join("Cargo.toml");
+        tracing::debug!(
+            "Looking for Cargo.toml at: {}",
+            potential_cargo_toml.display()
+        );
         if potential_cargo_toml.exists() {
+            tracing::debug!("Found Cargo.toml");
             // Check if this Cargo.toml has a [workspace] section
             if let Ok(content) = std::fs::read_to_string(&potential_cargo_toml) {
                 if content.contains("[workspace]") {
+                    tracing::debug!(
+                        "Found [workspace] section, using this directory as workspace root"
+                    );
                     workspace_root = parent.to_path_buf();
+                    break;
                 }
+            } else {
             }
         }
         current_dir = parent.to_path_buf();
