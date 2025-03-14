@@ -4,7 +4,6 @@ use blueprint_evm_extra::util::get_provider_http;
 use blueprint_runner::config::SupportedChains;
 use color_eyre::eyre::Result;
 use gadget_chain_setup::anvil::start_default_anvil_testnet;
-use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;

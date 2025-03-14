@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 # Internal deps
-gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 
 # Core dependencies
@@ -81,7 +80,6 @@ fastrand = "2.0"
 default = ["std"]
 std = [
 	"gadget-crypto/std",
-	"gadget-logging/std",
 	"gadget-std/std",
 	"k256/std",
 	"tokio/full",

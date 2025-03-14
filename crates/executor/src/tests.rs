@@ -1,6 +1,5 @@
 use crate::manager::GadgetProcessManager;
 use crate::types::{GadgetProcess, ProcessOutput, Status};
-use gadget_logging::setup_log;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -29,7 +28,7 @@ async fn test_process_kill() {
 
     let process = manager.children.get_mut(&id).unwrap();
 
-    gadget_logging::info!("Process status: {:?}", process);
+    blueprint_core::info!("Process status: {:?}", process);
 
     process.kill().unwrap();
     assert_eq!(process.status, Status::Dead);
@@ -52,7 +51,6 @@ async fn test_process_status() {
 
 #[tokio::test]
 async fn test_invalid_command() {
-    setup_log();
     let mut manager = GadgetProcessManager::new();
     let result = manager
         .run("nonexistent_command".to_string(), "nonexistent command")

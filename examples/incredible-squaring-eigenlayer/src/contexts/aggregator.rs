@@ -16,7 +16,7 @@ use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
 use blueprint_sdk::contexts::eigenlayer::EigenlayerContext;
-use blueprint_sdk::logging::{debug, error, info};
+use blueprint_sdk::{debug, error, info};
 use blueprint_sdk::macros::context::{EigenlayerContext, KeystoreContext};
 use blueprint_sdk::runner::config::BlueprintEnvironment;
 use blueprint_sdk::runner::error::RunnerError;

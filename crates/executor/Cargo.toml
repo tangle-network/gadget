@@ -12,6 +12,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+blueprint-core = { workspace = true }
+
 tokio = { workspace = true, features = ["sync", "process", "rt-multi-thread", "time", "io-util", "fs", "macros", "signal"] }
 serde = { workspace = true, features = ["std", "derive"] }
 serde_with = { version = "3.4", features = ["std"] }
@@ -20,5 +22,8 @@ nix = { workspace = true, features = ["signal"] }
 futures = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
-gadget-logging = { workspace = true, features = ["std"] }
 log = { workspace = true }
+
+[features]
+default = ["tracing"]
+tracing = ["blueprint-core/tracing"]

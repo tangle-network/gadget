@@ -150,7 +150,10 @@ where
     ///
     /// The job is added to the end of the list of jobs and can be stopped using the `stop_job`
     /// method.
-    pub async fn add_job<J: Job<T, ()> + Clone + Send + Sync + 'static, T: 'static>(&self, job: J) {
+    pub async fn add_job<J: Job<T, Ctx> + Clone + Send + Sync + 'static, T: 'static>(
+        &self,
+        job: J,
+    ) {
         let mut nodes = self.nodes.write().await;
         for node in nodes.iter_mut() {
             if let NodeSlot::Occupied(node) = node {
@@ -418,7 +421,7 @@ where
     /// method.
     pub async fn add_job<J, T>(&self, job: J)
     where
-        J: Job<T, ()> + Send + Sync + 'static,
+        J: Job<T, Ctx> + Send + Sync + 'static,
         T: 'static,
     {
         self.test_env.write().await.add_job(job);
@@ -479,7 +482,7 @@ where
         let test_env = TangleTestEnv::new(TangleConfig::default(), env.clone(), context)?;
 
         let port = find_open_tcp_bind_port();
-        gadget_logging::info!("Binding node {node_id} to port {port}");
+        blueprint_core::info!("Binding node {node_id} to port {port}");
 
         let addr = Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/{port}"))
             .expect("Should parse MultiAddr");

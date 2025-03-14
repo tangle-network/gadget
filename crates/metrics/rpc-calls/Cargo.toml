@@ -12,11 +12,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-gadget-logging = { workspace = true }
 metrics = { workspace = true }
 
 [features]
 default = ["std"]
-std = [
-    "gadget-logging/std",
-]
+std = []

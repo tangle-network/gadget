@@ -12,8 +12,10 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+blueprint-core = { workspace = true }
 gadget-std = { workspace = true }
 gadget-client-core = { workspace = true }
+
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
@@ -36,7 +38,6 @@ alloy-transport-http = { workspace = true }
 tokio = { workspace = true }
 
 # Metrics
-gadget-logging = { workspace = true }
 gadget-rpc-calls = { workspace = true }
 
 [dev-dependencies]
@@ -47,9 +48,8 @@ alloy-signer-local = { workspace = true }
 testcontainers = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["std", "tracing"]
 std = [
-    "gadget-logging/std",
     "gadget-rpc-calls/std",
     "gadget-client-core/std",
     "gadget-std/std",
@@ -60,3 +60,4 @@ std = [
     # Alloy features
     "alloy-primitives/std",
 ]
+tracing = ["blueprint-core/tracing"]

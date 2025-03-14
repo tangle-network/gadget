@@ -171,6 +171,17 @@ mod tests {
         foo: u64,
     }
 
+    #[derive(Debug)]
+    struct MyError;
+
+    impl std::fmt::Display for MyError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MyError")
+        }
+    }
+
+    impl std::error::Error for MyError {}
+
     macro_rules! definition_tests {
         ($($func:ident($args_ty:ident($($args:ident),*): $ty:ty));* $(;)?) => {
             $(
@@ -183,6 +194,21 @@ mod tests {
                     #[allow(unused_variables)]
                     #[allow(clippy::type_complexity)]
                     async fn [<$func _with_context>](Context(ctx): Context<MyContext>, $args_ty($($args),*): $ty) -> TangleResult<u64> {
+                        eprintln!("ctx: {:?}", ctx.foo);
+                        todo!()
+                    }
+
+                    #[allow(unused_variables)]
+                    #[allow(clippy::type_complexity)]
+                    async fn [<$func _with_context_ret_res>](Context(ctx): Context<MyContext>, $args_ty($($args),*): $ty) -> Result<TangleResult<u64>, MyError> {
+                        eprintln!("ctx: {:?}", ctx.foo);
+                        todo!()
+                    }
+
+
+                    #[allow(unused_variables)]
+                    #[allow(clippy::type_complexity)]
+                    async fn [<$func _with_context_ret_opt>](Context(ctx): Context<MyContext>, $args_ty($($args),*): $ty) -> Option<TangleResult<u64>> {
                         eprintln!("ctx: {:?}", ctx.foo);
                         todo!()
                     }
@@ -208,6 +234,28 @@ mod tests {
                         assert_eq!(def2.result.0.len(), 1);
                         assert!(def2.params.0.iter().all(|ty| ty.clone() == FieldType::Uint64));
                         assert_eq!(def2.result.0[0], FieldType::Uint64);
+
+
+                        let def3 = [<$func _with_context_ret_res>].into_job_definition();
+                        assert_eq!(
+                            def3.metadata.name.0.0,
+                            format!("blueprint_tangle_extra::metadata::job_definition::tests::{}", stringify!([<$func _with_context_ret_res>])).as_bytes(),
+                        );
+                        assert_eq!(def3.params.0.len(), count!($($args),*));
+                        assert_eq!(def3.result.0.len(), 1);
+                        assert!(def3.params.0.iter().all(|ty| ty.clone() == FieldType::Uint64));
+                        assert_eq!(def3.result.0[0], FieldType::Uint64);
+
+                        let def4 = [<$func _with_context_ret_opt>].into_job_definition();
+                        assert_eq!(
+                            def4.metadata.name.0.0,
+                            format!("blueprint_tangle_extra::metadata::job_definition::tests::{}", stringify!([<$func _with_context_ret_opt>])).as_bytes(),
+                        );
+                        assert_eq!(def4.params.0.len(), count!($($args),*));
+                        assert_eq!(def4.result.0.len(), 1);
+                        assert!(def4.params.0.iter().all(|ty| ty.clone() == FieldType::Uint64));
+                        assert_eq!(def4.result.0[0], FieldType::Uint64);
+
                     }
                 }
             )*

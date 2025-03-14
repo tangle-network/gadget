@@ -20,7 +20,6 @@ blueprint-producers-extra = { workspace = true }
 gadget-keystore = { workspace = true }
 gadget-clients = { workspace = true }
 gadget-crypto = { workspace = true }
-gadget-logging = { workspace = true }
 gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
@@ -35,6 +34,7 @@ gadget-context-derive = { workspace = true, optional = true }
 blueprint-tangle-extra = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, optional = true }
 gadget-crypto-tangle-pair-signer = { workspace = true, optional = true }
+gadget-blueprint-serde = { workspace = true, optional = true }
 
 # Eigenlayer and EVM-specific extras
 blueprint-evm-extra = { workspace = true, optional = true }
@@ -80,7 +80,6 @@ std = [
     "gadget-keystore/std",
     "gadget-clients/std",
     "gadget-crypto/std",
-    "gadget-logging/std",
     # Tangle
     "tangle-subxt/std",
     # Extras
@@ -111,6 +110,7 @@ networking = [
     "gadget-contexts/networking",
     "gadget-keystore/std",
     "gadget-context-derive?/networking",
+    "blueprint-runner/networking"
 ]
 
 ## Enable local KV stores
@@ -135,6 +135,7 @@ tangle = [
     "dep:blueprint-tangle-extra",
     "dep:tangle-subxt",
     "dep:gadget-crypto-tangle-pair-signer",
+    "dep:gadget-blueprint-serde",
     "gadget-clients/tangle",
     "gadget-contexts/tangle",
     "gadget-context-derive?/tangle",

@@ -166,7 +166,7 @@ impl TangleClient {
             .first_local::<SpSr25519>()
             .map_err(Error::Keystore)?;
 
-        gadget_logging::trace!(
+        blueprint_core::trace!(
             "Looking for {my_id} in parties: {:?}",
             parties.keys().collect::<Vec<_>>()
         );

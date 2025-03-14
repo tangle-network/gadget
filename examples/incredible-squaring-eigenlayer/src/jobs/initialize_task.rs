@@ -3,7 +3,7 @@ use crate::{
     contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
-use blueprint_sdk::logging::info;
+use blueprint_sdk::info;
 use eigensdk::services_blsaggregation::bls_agg::TaskMetadata;
 use eigensdk::types::operator::QuorumThresholdPercentage;
 use std::convert::Infallible;

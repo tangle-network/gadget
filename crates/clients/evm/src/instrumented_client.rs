@@ -62,7 +62,7 @@ impl BackendClient for InstrumentedClient {
         self.instrument_function("eth_blockNumber", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get block number {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get block number {:?}", err.to_string().as_str());
             })
             .map_err(|_err| InstrumentedClientError::CommandError)
             .map(|result: U64| result.to())
@@ -88,7 +88,7 @@ impl BackendClient for InstrumentedClient {
         self.instrument_function("eth_getBlockByNumber", (number, true))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get block by number {:?}",
                     err.to_string().as_str()
                 );
@@ -207,7 +207,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_chainId", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get chain id {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get chain id {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -230,7 +230,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBalance", (account, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get balance {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get balance {:?}", err.to_string().as_str());
             })
     }
 
@@ -247,7 +247,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockByHash", (hash, true))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get block by hash {:?}",
                     err.to_string().as_str()
                 );
@@ -272,7 +272,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_call", (call, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to call contract {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to call contract {:?}", err.to_string().as_str());
             })
     }
 
@@ -294,7 +294,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getCode", (address, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get code {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get code {:?}", err.to_string().as_str());
             })
     }
 
@@ -311,7 +311,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_estimateGas", (tx,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to estimate gas {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to estimate gas {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -337,7 +337,7 @@ impl InstrumentedClient {
         )
         .await
         .inspect_err(|err| {
-            gadget_logging::error!("Failed to get fee history {:?}", err.to_string().as_str());
+            blueprint_core::error!("Failed to get fee history {:?}", err.to_string().as_str());
         })
     }
 
@@ -354,7 +354,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getLogs", (filter,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get filter logs {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get filter logs {:?}", err.to_string().as_str());
             })
     }
 
@@ -372,7 +372,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockByHash", (hash, transaction_detail))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get header by hash {:?}",
                     err.to_string().as_str()
                 );
@@ -396,7 +396,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockByNumber", (block_number, transaction_detail))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get header by number {:?}",
                     err.to_string().as_str()
                 );
@@ -421,7 +421,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionCount", (account, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get nonce {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get nonce {:?}", err.to_string().as_str());
             })
             .map(|result: U64| result.to())
     }
@@ -439,7 +439,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBalance", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get pending balance {:?}",
                     err.to_string().as_str()
                 );
@@ -474,7 +474,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getCode", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get pending code {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get pending code {:?}", err.to_string().as_str());
             })
     }
 
@@ -493,7 +493,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionCount", (account, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get pending nonce {:?}",
                     err.to_string().as_str()
                 );
@@ -515,7 +515,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getStorageAt", (account, key, PENDING_TAG))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get pending storage {:?}",
                     err.to_string().as_str()
                 );
@@ -531,7 +531,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockTransactionCountByNumber", (PENDING_TAG,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get transaction count {:?}",
                     err.to_string().as_str()
                 );
@@ -554,7 +554,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_sendRawTransaction", (hex::encode(encoded_tx),))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to send transaction {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to send transaction {:?}", err.to_string().as_str());
             })
     }
 
@@ -578,7 +578,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getStorageAt", (account, key, block_number))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get storage {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get storage {:?}", err.to_string().as_str());
             })
     }
 
@@ -603,7 +603,7 @@ impl InstrumentedClient {
             .instrument_function("eth_subscribe", ("logs", filter))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get logs subscription id {:?}",
                     err.to_string().as_str(),
                 );
@@ -631,7 +631,7 @@ impl InstrumentedClient {
             .instrument_function("eth_subscribe", ("newHeads",))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to subscribe new head {:?}",
                     err.to_string().as_str()
                 );
@@ -654,7 +654,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_gasPrice", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to suggest gas price {:?}",
                     err.to_string().as_str()
                 );
@@ -671,7 +671,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_maxPriorityFeePerGas", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to suggest gas tip cap {:?}",
                     err.to_string().as_str()
                 );
@@ -690,7 +690,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_syncing", ())
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get sync progress {:?}",
                     err.to_string().as_str()
                 );
@@ -710,7 +710,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionByHash", (tx_hash,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get transaction by hash {:?}",
                     err.to_string().as_str(),
                 );
@@ -730,7 +730,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getBlockTransactionCountByHash", (block_hash,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!(
+                blueprint_core::error!(
                     "Failed to get transaction count {:?}",
                     err.to_string().as_str()
                 );
@@ -756,7 +756,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionByBlockHashAndIndex", (block_hash, index))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get transaction {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get transaction {:?}", err.to_string().as_str());
             })
     }
 
@@ -775,7 +775,7 @@ impl InstrumentedClient {
         self.instrument_function("eth_getTransactionReceipt", (tx_hash,))
             .await
             .inspect_err(|err| {
-                gadget_logging::error!("Failed to get receipt {:?}", err.to_string().as_str());
+                blueprint_core::error!("Failed to get receipt {:?}", err.to_string().as_str());
             })
     }
 

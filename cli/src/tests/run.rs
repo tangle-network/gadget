@@ -6,7 +6,6 @@ use blueprint_runner::config::{ContextConfig, Protocol, ProtocolSettings};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use color_eyre::eyre::Result;
 use gadget_chain_setup::anvil::start_default_anvil_testnet;
-use gadget_logging::setup_log;
 use gadget_std::collections::HashMap;
 use gadget_std::fs;
 use gadget_std::process::Command;
@@ -148,7 +147,7 @@ serde_json = "1.0"
     // Create the binary that will interact with the contract
     let main_rs = format!(
         r#"use blueprint_sdk::alloy::primitives::Address;
-use blueprint_sdk::logging::info;
+use blueprint_sdk::info;
 use blueprint_sdk::std::{{string::ToString, fs, path::PathBuf}};
 use alloy_sol_types::sol;
 use alloy_transport::BoxTransport;
@@ -231,7 +230,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
         .output()
         .expect("Failed to build binary");
     if !build_output.status.success() {
-        gadget_logging::debug!("Cargo build output: {:?}", build_output);
+        blueprint_core::debug!("Cargo build output: {:?}", build_output);
         panic!("Failed to build binary")
     }
 
@@ -268,14 +267,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {{
     const MAX_ATTEMPTS: u32 = 30; // 60 seconds total timeout
 
     loop {
-        gadget_logging::info!(
+        blueprint_core::info!(
             "Waiting for run to succeed (attempt {}/{})",
             attempts + 1,
             MAX_ATTEMPTS
         );
 
         if success_file.exists() {
-            gadget_logging::info!("Run succeeded!");
+            blueprint_core::info!("Run succeeded!");
             break;
         }
 

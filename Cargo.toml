@@ -97,7 +97,6 @@ gadget-store-local-database = { version = "0.1.0", path = "./crates/stores/local
 
 # SDK
 gadget-keystore = { version = "0.1.0", path = "./crates/keystore", default-features = false }
-gadget-logging = { version = "0.1.0", path = "./crates/logging", default-features = false }
 gadget-std = { version = "0.1.0", path = "./crates/std", default-features = false }
 
 # P2P
@@ -120,7 +119,7 @@ cargo_metadata = { version = "0.18.1" }
 tnt-core-bytecode = { version = "0.4.0", default-features = false }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.13.0", default-features = false }
+tangle-subxt = { version = "0.14.0", default-features = false }
 round-based = { version = "0.4.1", default-features = false }
 
 # Substrate dependencies

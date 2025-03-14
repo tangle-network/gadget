@@ -74,9 +74,9 @@ pub fn new_blueprint(
 
     let foundry = FoundryToolchain::new();
     if !foundry.forge.is_installed() {
-        gadget_logging::warn!("Forge not installed, skipping dependencies");
-        gadget_logging::warn!("NOTE: See <https://getfoundry.sh>");
-        gadget_logging::warn!(
+        blueprint_core::warn!("Forge not installed, skipping dependencies");
+        blueprint_core::warn!("NOTE: See <https://getfoundry.sh>");
+        blueprint_core::warn!(
             "NOTE: After installing Forge, you can run `forge soldeer update -d` to install dependencies"
         );
         return Ok(());
@@ -84,7 +84,7 @@ pub fn new_blueprint(
 
     std::env::set_current_dir(path)?;
     if let Err(e) = foundry.forge.install_dependencies() {
-        gadget_logging::error!("{e}");
+        blueprint_core::error!("{e}");
     }
 
     Ok(())

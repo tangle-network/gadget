@@ -88,6 +88,32 @@ macro_rules! impl_tangle_field_types {
                 ]
             }
         }
+
+       impl<$($ty,)* E> crate::metadata::IntoTangleFieldTypes for Result<$name<$($ty,)*>, E>
+        where
+            $($ty: Default + serde::Serialize,)*
+        {
+            fn into_tangle_fields() -> Vec<FieldType> {
+                vec![
+                    $(
+                        gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type()
+                    ),*
+                ]
+            }
+        }
+
+       impl<$($ty,)*> crate::metadata::IntoTangleFieldTypes for Option<$name<$($ty,)*>>
+        where
+            $($ty: Default + serde::Serialize,)*
+        {
+            fn into_tangle_fields() -> Vec<FieldType> {
+                vec![
+                    $(
+                        gadget_blueprint_serde::to_field(<$ty as core::default::Default>::default()).expect("type should serialize").field_type()
+                    ),*
+                ]
+            }
+        }
     }
 }
 

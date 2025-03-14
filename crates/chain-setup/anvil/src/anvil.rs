@@ -4,7 +4,7 @@ use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_provider::Provider;
 use alloy_provider::network::Ethereum;
 use alloy_rpc_types_eth::TransactionReceipt;
-use gadget_logging::{error, info};
+use blueprint_core::{error, info};
 use std::fs;
 use tempfile::TempDir;
 use testcontainers::{
