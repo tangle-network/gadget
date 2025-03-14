@@ -1,3 +1,4 @@
+use gadget_std::boxed::Box;
 /// Keystore Errors
 use gadget_std::string::String;
 

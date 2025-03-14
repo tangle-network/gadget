@@ -27,10 +27,6 @@ tangle-subxt = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
-[dev-dependencies]
-gadget-tangle-testing-utils = { workspace = true }
-color-eyre = { workspace = true, features = ["capture-spantrace", "track-caller"] }
-
 [features]
 default = ["std", "tracing"]
 std = [

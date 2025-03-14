@@ -21,9 +21,5 @@ gadget-keystore = { workspace = true, features = ["std"] }
 cargo_toml = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-futures = { workspace = true }
-tempfile = { workspace = true }
 tracing = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

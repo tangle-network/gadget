@@ -17,8 +17,6 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { workspace = true, features = ["clap"] }
 cargo-generate = { workspace = true, features = ["vendored-libgit2"] }
-cargo_metadata = { workspace = true }
-escargot = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
 color-eyre = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -30,7 +28,6 @@ thiserror = { workspace = true }
 bip39 = { workspace = true, features = ["rand_core", "rand"] }
 dotenv = { workspace = true }
 url = { workspace = true }
-reqwest = { workspace = true }
 toml = { workspace = true }
 indicatif = { workspace = true }
 
@@ -61,9 +58,6 @@ gadget-crypto = { workspace = true, features = [
 ] }
 gadget-crypto-core = { workspace = true, features = ["clap"] }
 gadget-keystore = { workspace = true }
-
-# Optional crypto dependencies
-tnt-bls = { workspace = true, optional = true }
 
 # Optional dependencies based on features
 tangle-subxt = { workspace = true, optional = true }
