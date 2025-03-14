@@ -151,7 +151,9 @@ pub fn print_requests(requests: Vec<(u64, ServiceRequest<AccountId32, u64, u128>
 /// * Failed to connect to the Tangle Network
 /// * Failed to query storage
 /// * Failed to parse storage data
-pub async fn list_blueprints(ws_rpc_url: String) -> Result<Vec<(AccountId32, ServiceBlueprint)>> {
+pub async fn list_blueprints(
+    ws_rpc_url: String,
+) -> Result<Vec<(u64, AccountId32, ServiceBlueprint)>> {
     let client = OnlineClient::from_url(ws_rpc_url.clone()).await?;
 
     let blueprints_addr = tangle_subxt::tangle_testnet_runtime::api::storage()
@@ -171,16 +173,14 @@ pub async fn list_blueprints(ws_rpc_url: String) -> Result<Vec<(AccountId32, Ser
     while let Some(result) = storage_query.next().await {
         let result = result?;
         let blueprint_entry = result.value;
-        let id = blueprint_entry.0;
+        let owner = blueprint_entry.0;
+        let id = u64::from_le_bytes(
+            result.key_bytes[32..]
+                .try_into()
+                .expect("Failed to parse blueprint ID"),
+        );
         let blueprint = blueprint_entry.1;
-        blueprints.push((id, blueprint));
-        info!("Key bytes: {:?}", result.key_bytes);
-        // let id = u64::from_le_bytes(
-        //     result.key_bytes[32..]
-        //         .try_into()
-        //         .expect("Invalid key bytes format"),
-        // );
-        // blueprints.push((id, blueprint));
+        blueprints.push((id, owner, blueprint));
     }
 
     println!(
@@ -195,47 +195,82 @@ pub async fn list_blueprints(ws_rpc_url: String) -> Result<Vec<(AccountId32, Ser
 /// # Arguments
 ///
 /// * `blueprints` - A vector of tuples containing blueprint IDs and blueprints.
-pub fn print_blueprints(blueprints: Vec<(AccountId32, ServiceBlueprint)>) {
+pub fn print_blueprints(blueprints: Vec<(u64, AccountId32, ServiceBlueprint)>) {
     if blueprints.is_empty() {
         println!("{}", style("No blueprints found").yellow());
         return;
     }
 
-    println!("\n{}", style("Service Blueprints").cyan().bold());
+    println!("\n{}", style("Blueprints").cyan().bold());
     println!(
         "{}",
         style("=============================================").dim()
     );
 
-    for (blueprint_id, blueprint) in blueprints {
+    for (blueprint_id, owner, blueprint) in blueprints {
         println!(
             "{}: {}",
             style("Blueprint ID").green().bold(),
             style(blueprint_id).green()
         );
-        println!("{}", style("Jobs").green().bold());
-        for (job_id, job) in blueprint.jobs.0.iter().enumerate() {
-            println!("\n{}:", style(format!("Job {}", job_id)).green());
-            println!("\t{}: {:?}", style("Metadata").green(), job.metadata);
-            println!("\t{}: {:?}", style("Parameters").green(), job.params);
-            println!("\t{}: {:?}", style("Result").green(), job.result);
-        }
         println!(
-            "{}: {:?}",
-            style("Supported Membership Models").green(),
-            blueprint.supported_membership_models
+            "{}: {}",
+            style("Blueprint Owner").green().bold(),
+            style(owner).green()
         );
 
         println!(
-            "{}: {:?}",
-            style("Registration Parameters").green(),
-            blueprint.registration_params
+            "\n{}",
+            style("Blueprint Configuration Information").green().bold()
         );
-        println!(
-            "{}: {:?}",
-            style("Request Parameters").green(),
-            blueprint.request_params
-        );
+
+        println!("\t{}: [", style("Supported Membership Models").green());
+        for model in blueprint.supported_membership_models.0.iter() {
+            println!("\t\t{}", style(format!("{:?}", model)).yellow());
+        }
+        println!("\t]");
+
+        println!("\t{}: [", style("Registration Parameters").green());
+        for param in blueprint.registration_params.0.iter() {
+            println!("\t\t{}", style(format!("{:?}", param)).yellow());
+        }
+        println!("\t]");
+
+        println!("\t{}: [", style("Request Parameters").green());
+        for param in blueprint.request_params.0.iter() {
+            println!("\t\t{}", style(format!("{:?}", param)).yellow());
+        }
+        println!("\t]");
+
+        println!("{}", style("\n======== Jobs ========").green().bold());
+        for (job_id, job) in blueprint.jobs.0.iter().enumerate() {
+            println!("\n{}:", style(format!("Job ID: {}", job_id)).green().bold());
+
+            let name = decode_bounded_string(&job.metadata.name);
+            println!("\t{}: {}", style("Name").green(), style(name).yellow());
+
+            if let Some(desc) = &job.metadata.description {
+                let description = decode_bounded_string(desc);
+                println!(
+                    "\t{}: {}",
+                    style("Description").green(),
+                    style(description).yellow()
+                );
+            }
+
+            println!("\t{}: [", style("Parameters").green());
+            for param in job.params.0.iter() {
+                println!("\t\t{}", style(format!("{:?}", param)).yellow());
+            }
+            println!("\t]");
+
+            println!("\t{}: [", style("Result").green());
+            for result in job.result.0.iter() {
+                println!("\t\t{}", style(format!("{:?}", result)).yellow());
+            }
+            println!("\t]");
+        }
+
         println!(
             "{}",
             style("=============================================").dim()

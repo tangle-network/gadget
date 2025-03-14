@@ -187,7 +187,7 @@ pub enum BlueprintCommands {
     },
 
     /// List Blueprints on target Tangle network
-    #[command(visible_alias = "ls")]
+    #[command(visible_alias = "lb")]
     ListBlueprints {
         /// WebSocket RPC URL to use
         #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
