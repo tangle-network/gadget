@@ -26,7 +26,7 @@ syn = { workspace = true, features = [
 serde_json = { workspace = true, features = ["alloc"], optional = true }
 
 [dev-dependencies]
-blueprint-sdk = { workspace = true, features = ["macros"] }
+blueprint-sdk = { workspace = true, features = ["macros", "std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["full"] }

@@ -834,7 +834,8 @@ mod tests {
     };
     use alloy_signer_local::PrivateKeySigner;
     use blueprint_evm_extra::util::get_provider_http;
-    use gadget_anvil_testing_utils::{start_default_anvil_testnet, wait_transaction};
+    use gadget_anvil_testing_utils::wait_transaction;
+    use gadget_chain_setup_anvil::start_default_anvil_testnet;
     use tokio;
 
     #[tokio::test]

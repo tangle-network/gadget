@@ -13,24 +13,13 @@ workspace = true
 
 [dependencies]
 blueprint-core = { workspace = true, features = ["tracing"] }
-gadget-std = { workspace = true, features = ["std"] }
-gadget-keystore = { workspace = true, features = ["std", "eigenlayer", "evm"] }
-gadget-core-testing-utils = { workspace = true }
 
-alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-transport = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
-testcontainers = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
-futures = { workspace = true }
-tempfile = { workspace = true}
 
 [features]
 default = ["tracing"]

@@ -17,18 +17,11 @@ blueprint-evm-extra.workspace = true
 blueprint-core = { workspace = true }
 
 futures = { workspace = true }
-gadget-std = { workspace = true, features = ["std"] }
-gadget-anvil-testing-utils = { workspace = true }
 gadget-core-testing-utils = { workspace = true }
+gadget-chain-setup = { workspace = true, features = ["std", "anvil"] }
 tempfile = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
-alloy-rpc-types = { workspace = true }
-alloy-rpc-types-eth = { workspace = true }
-alloy-transport = { workspace = true }
 eigensdk = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["alloc"] }
-testcontainers = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }

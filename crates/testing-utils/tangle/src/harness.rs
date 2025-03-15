@@ -1,24 +1,22 @@
 use crate::Error;
 use crate::multi_node::MultiNodeTestEnv;
-use crate::node::transactions::setup_operator_and_service_multiple;
-use crate::{
-    InputValue, OutputValue,
-    keys::inject_tangle_key,
-    node::{NodeConfig, run, transactions},
-};
+use crate::{InputValue, OutputValue, keys::inject_tangle_key};
 use blueprint_core::debug;
 use blueprint_runner::config::BlueprintEnvironment;
 use blueprint_runner::config::ContextConfig;
 use blueprint_runner::config::SupportedChains;
 use blueprint_runner::error::RunnerError;
 use blueprint_runner::tangle::config::PriceTargets;
+use gadget_chain_setup::tangle::testnet::SubstrateNode;
+use gadget_chain_setup::tangle::transactions;
+use gadget_chain_setup::tangle::transactions::setup_operator_and_service_multiple;
 use gadget_client_tangle::client::TangleClient;
 use gadget_contexts::tangle::TangleClientContext;
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use std::io;
-use std::path::{Path, PathBuf};
+use gadget_std::io;
+use gadget_std::path::{Path, PathBuf};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
@@ -59,10 +57,19 @@ pub struct TangleTestHarness<Ctx = ()> {
     config: TangleTestConfig,
     context: Ctx,
     temp_dir: tempfile::TempDir,
-    _node: crate::node::testnet::SubstrateNode,
+    _node: SubstrateNode,
 }
 
-pub(crate) async fn generate_env_from_node_id(
+/// Create a new Tangle test harness
+///
+/// # Returns
+///
+/// The [`BlueprintEnvironment`] for the relevant node
+///
+/// # Errors
+///
+/// Returns an error if the keystore fails to be created
+pub async fn generate_env_from_node_id(
     identity: &str,
     http_endpoint: Url,
     ws_endpoint: Url,
@@ -166,9 +173,11 @@ where
         Self: Sized,
     {
         // Start Local Tangle Node
-        let node = run(NodeConfig::new(false))
-            .await
-            .map_err(|e| Error::Setup(e.to_string()))?;
+        let node = gadget_chain_setup::tangle::run(
+            gadget_chain_setup::tangle::NodeConfig::new(false).with_log_target("evm", "trace"),
+        )
+        .await
+        .map_err(|e| Error::Setup(e.to_string()))?;
         let http_endpoint = Url::parse(&format!("http://127.0.0.1:{}", node.ws_port()))?;
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
@@ -381,9 +390,9 @@ where
     /// [`read_cargo_toml_file()`]: gadget_core_testing_utils::read_cargo_toml_file
     pub fn create_deploy_opts(
         &self,
-        manifest_path: std::path::PathBuf,
-    ) -> io::Result<cargo_tangle::deploy::tangle::Opts> {
-        Ok(cargo_tangle::deploy::tangle::Opts {
+        manifest_path: PathBuf,
+    ) -> io::Result<gadget_chain_setup::tangle::deploy::Opts> {
+        Ok(gadget_chain_setup::tangle::deploy::Opts {
             pkg_name: Some(self.get_blueprint_name(&manifest_path)?),
             http_rpc_url: self.http_endpoint.to_string(),
             ws_rpc_url: self.ws_endpoint.to_string(),
@@ -409,7 +418,7 @@ where
     pub async fn deploy_blueprint(&self) -> Result<u64, Error> {
         let manifest_path = std::env::current_dir()?.join("Cargo.toml");
         let opts = self.create_deploy_opts(manifest_path)?;
-        let blueprint_id = cargo_tangle::deploy::tangle::deploy_to_tangle(opts)
+        let blueprint_id = gadget_chain_setup::tangle::deploy::deploy_to_tangle(opts)
             .await
             .map_err(|e| Error::Setup(e.to_string()))?;
         Ok(blueprint_id)

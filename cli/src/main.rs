@@ -1,23 +1,34 @@
 use std::path::PathBuf;
-
-use crate::deploy::tangle::{Opts, deploy_to_tangle};
-use crate::keys::prompt_for_keys;
+use cargo_tangle::command::create;
 use blueprint_runner::config::{BlueprintEnvironment, Protocol, ProtocolSettings, SupportedChains};
 use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use blueprint_runner::error::ConfigError;
 use blueprint_runner::tangle::config::TangleProtocolSettings;
-use cargo_tangle::anvil::start_default_anvil_testnet;
-use cargo_tangle::create::BlueprintType;
-#[cfg(feature = "eigenlayer")]
-use cargo_tangle::deploy::eigenlayer::{EigenlayerDeployOpts, deploy_to_eigenlayer};
-use cargo_tangle::run::eigenlayer::run_eigenlayer_avs;
-use cargo_tangle::{create, deploy, keys};
+use cargo_tangle::command::create::{new_blueprint, BlueprintType};
+use cargo_tangle::command::deploy::eigenlayer::deploy_eigenlayer;
+use cargo_tangle::command::deploy::tangle::deploy_tangle;
+use cargo_tangle::command::jobs::submit::submit_job;
+use cargo_tangle::command::list::blueprints::{list_blueprints, print_blueprints};
+use cargo_tangle::command::list::requests::{list_requests, print_requests};
+use cargo_tangle::command::register::register;
+use cargo_tangle::command::run::run_eigenlayer_avs;
+use cargo_tangle::command::run::tangle::{run_blueprint, RunOpts};
+use cargo_tangle::command::service::accept::accept_request;
+use cargo_tangle::command::service::reject::reject_request;
+use cargo_tangle::command::service::request::request_service;
+use cargo_tangle::command::keys::{export_key, generate_key, generate_mnemonic, import_key, list_keys, prompt_for_keys};
 use clap::{Parser, Subcommand};
-use dialoguer::console::style;
 use dotenv::from_path;
+use tangle_subxt::subxt::blocks::ExtrinsicEvents;
+use tangle_subxt::subxt::client::OnlineClientT;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::subxt::tx::TxProgress;
+use tangle_subxt::subxt_core::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api::assets::events::created::AssetId;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::types::{Asset, AssetSecurityCommitment};
 use gadget_crypto::KeyTypeId;
 use gadget_std::env;
-use tokio::signal;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -45,7 +56,7 @@ enum Commands {
         command: BlueprintCommands,
     },
 
-    /// Key management commands
+    /// Key management
     #[command(visible_alias = "k")]
     Key {
         #[command(subcommand)]
@@ -147,7 +158,7 @@ pub enum BlueprintCommands {
         protocol: Protocol,
 
         /// The HTTP RPC endpoint URL (required)
-        #[arg(short = 'u', long)]
+        #[arg(short = 'u', long, default_value = "http://127.0.0.1:9944")]
         rpc_url: String,
 
         /// The keystore path (defaults to ./keystore)
@@ -176,6 +187,125 @@ pub enum BlueprintCommands {
         #[arg(short = 'f', long, default_value = "./settings.env")]
         settings_file: Option<PathBuf>,
     },
+
+    /// List service requests for a Tangle blueprint
+    #[command(visible_alias = "ls")]
+    ListRequests {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+    },
+
+    /// List Blueprints on target Tangle network
+    #[command(visible_alias = "lb")]
+    ListBlueprints {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+    },
+
+    /// Register for a Tangle blueprint
+    #[command(visible_alias = "reg")]
+    Register {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The blueprint ID to register
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+    },
+
+    /// Accept a Tangle service request
+    #[command(visible_alias = "accept")]
+    AcceptRequest {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The restaking percentage to use
+        #[arg(long, default_value = "50")]
+        restaking_percent: u8,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+    },
+
+    /// Reject a Tangle service request
+    #[command(visible_alias = "reject")]
+    RejectRequest {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+        /// The request ID to respond to
+        #[arg(long)]
+        request_id: u64,
+    },
+
+    /// Request a Tangle service
+    #[command(visible_alias = "req")]
+    RequestService {
+        /// WebSocket RPC URL to use
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The blueprint ID to request
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The minimum exposure percentage to request
+        #[arg(long, default_value = "50")]
+        min_exposure_percent: u8,
+        /// The maximum exposure percentage to request
+        #[arg(long, default_value = "80")]
+        max_exposure_percent: u8,
+        /// The target operators to request
+        #[arg(long)]
+        target_operators: Vec<AccountId32>,
+        /// The value to request
+        #[arg(long)]
+        value: u128,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI", default_value = "./keystore")]
+        keystore_uri: String,
+    },
+
+    /// Submit a job to a service
+    #[command(name = "submit")]
+    SubmitJob {
+        /// The RPC endpoint to connect to
+        #[arg(long, env = "WS_RPC_URL", default_value = "ws://127.0.0.1:9944")]
+        ws_rpc_url: String,
+        /// The service ID to submit the job to
+        #[arg(long)]
+        service_id: Option<u64>,
+        /// The blueprint ID to submit the job to
+        #[arg(long)]
+        blueprint_id: u64,
+        /// The keystore URI to use
+        #[arg(long, env = "KEYSTORE_URI")]
+        keystore_uri: String,
+        /// The job ID to submit
+        #[arg(long)]
+        job: u8,
+        /// Optional path to a JSON file containing job parameters
+        #[arg(long)]
+        params_file: Option<String>,
+        /// Whether to wait for the job to complete
+        #[arg(long)]
+        watcher: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -187,7 +317,8 @@ pub enum DeployTarget {
             long,
             value_name = "URL",
             default_value = "https://rpc.tangle.tools",
-            env
+            env,
+            required_unless_present = "devnet"
         )]
         http_rpc_url: String,
         /// Tangle RPC URL to use
@@ -195,15 +326,21 @@ pub enum DeployTarget {
             long,
             value_name = "URL",
             default_value = "wss://rpc.tangle.tools",
-            env
+            env,
+            required_unless_present = "devnet"
         )]
         ws_rpc_url: String,
         /// The package to deploy (if the workspace has multiple packages).
         #[arg(short = 'p', long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
         package: Option<String>,
+        /// Start a local devnet using a Tangle test node
+        #[arg(long)]
+        devnet: bool,
+        /// The keystore path (defaults to ./keystore)
+        #[arg(short = 'k', long)]
+        keystore_path: Option<PathBuf>,
     },
     /// Deploy to Eigenlayer
-    #[cfg(feature = "eigenlayer")]
     Eigenlayer {
         /// HTTP RPC URL to use
         #[arg(long, value_name = "URL", env, required_unless_present = "devnet")]
@@ -249,29 +386,30 @@ async fn main() -> color_eyre::Result<()> {
                 source,
                 blueprint_type,
             } => {
-                create::new_blueprint(&name, source, blueprint_type)?;
+                new_blueprint(&name, source, blueprint_type)?;
             }
             BlueprintCommands::Deploy { target } => match target {
                 DeployTarget::Tangle {
                     http_rpc_url,
                     ws_rpc_url,
                     package,
+                    devnet,
+                    keystore_path,
                 } => {
                     let manifest_path = cli
                         .manifest
                         .manifest_path
                         .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                    let _ = deploy_to_tangle(Opts {
+                    Box::pin(deploy_tangle(
                         http_rpc_url,
                         ws_rpc_url,
+                        package,
+                        devnet,
+                        keystore_path,
                         manifest_path,
-                        pkg_name: package,
-                        signer: None,
-                        signer_evm: None,
-                    })
+                    ))
                     .await?;
                 }
-                #[cfg(feature = "eigenlayer")]
                 DeployTarget::Eigenlayer {
                     rpc_url,
                     contracts_path,
@@ -280,106 +418,15 @@ async fn main() -> color_eyre::Result<()> {
                     devnet,
                     keystore_path,
                 } => {
-                    let build_status = gadget_std::process::Command::new("cargo")
-                        .args(["build", "--release"])
-                        .status()?;
-
-                    if !build_status.success() {
-                        return Err(color_eyre::Report::msg("Cargo build failed"));
-                    }
-
-                    // Validate that devnet is only used with local network
-                    if devnet && network.to_lowercase() != "local" {
-                        return Err(color_eyre::Report::msg(
-                            "The --devnet flag can only be used with --network local",
-                        ));
-                    }
-
-                    let chain = match network.to_lowercase().as_str() {
-                        "local" => SupportedChains::LocalTestnet,
-                        "testnet" => SupportedChains::Testnet,
-                        "mainnet" => {
-                            if rpc_url.as_ref().is_some_and(|url| {
-                                url.contains("127.0.0.1") || url.contains("localhost")
-                            }) {
-                                SupportedChains::LocalMainnet
-                            } else {
-                                SupportedChains::Mainnet
-                            }
-                        }
-                        _ => {
-                            return Err(color_eyre::Report::msg(format!(
-                                "Invalid network: {}",
-                                network
-                            )));
-                        }
-                    };
-
-                    if chain == SupportedChains::LocalTestnet && devnet {
-                        // Start local Anvil testnet
-                        let (_container, http_endpoint, _ws_endpoint) =
-                            start_default_anvil_testnet(true).await;
-
-                        deploy::eigenlayer::initialize_test_keystore()?;
-
-                        // Deploy to local devnet
-                        let opts = EigenlayerDeployOpts::new(
-                            http_endpoint.clone(),
-                            contracts_path,
-                            ordered_deployment,
-                            chain,
-                            keystore_path,
-                        );
-                        deploy_to_eigenlayer(&opts)?;
-
-                        // Keep the process running and show helpful instructions
-                        println!("\n{}", style("Local Testnet Active").green().bold());
-                        println!("\n{}", style("To run your AVS:").cyan().bold());
-                        println!("{}", style("1. Open a new terminal window").dim());
-                        println!(
-                            "{}",
-                            style("2. Set your AVS-specific environment variables:").dim()
-                        );
-                        println!(
-                            "   {}",
-                            style("# Your AVS may require specific environment variables from the deployment output above").dim()
-                        );
-                        println!(
-                            "   {}",
-                            style("# For example: TASK_MANAGER_ADDRESS=<address> or other contract addresses").dim()
-                        );
-                        println!("\n{}", style("3. Run your AVS with:").dim());
-                        println!(
-                            "   {}\n   {}\n   {}\n   {}",
-                            style("cargo tangle blueprint run \\").yellow(),
-                            style("  -p eigenlayer \\").yellow(),
-                            style(format!("  -u {} \\", http_endpoint)).yellow(),
-                            style("  --keystore-path ./test-keystore").yellow()
-                        );
-                        println!(
-                            "\n{}",
-                            style("The deployment variables above show all contract addresses you may need.").dim()
-                        );
-                        println!("{}", style("Press Ctrl+C to stop the testnet...").dim());
-                        signal::ctrl_c().await?;
-                        println!("{}", style("\nShutting down devnet...").yellow());
-                    } else {
-                        let opts = EigenlayerDeployOpts::new(
-                            rpc_url
-                                .as_ref()
-                                .map(ToString::to_string)
-                                .ok_or_else(|| {
-                                    color_eyre::Report::msg(
-                                        "The --rpc-url flag is required when deploying to a non-local network",
-                                    )
-                                })?,
-                            contracts_path,
-                            ordered_deployment,
-                            chain,
-                            keystore_path,
-                        );
-                        deploy_to_eigenlayer(&opts)?;
-                    }
+                    deploy_eigenlayer(
+                        rpc_url,
+                        contracts_path,
+                        ordered_deployment,
+                        network,
+                        devnet,
+                        keystore_path,
+                    )
+                    .await?;
                 }
             },
             BlueprintCommands::Run {
@@ -394,13 +441,27 @@ async fn main() -> color_eyre::Result<()> {
             } => {
                 let settings_file =
                     settings_file.unwrap_or_else(|| PathBuf::from("./settings.env"));
-                if !settings_file.exists() {
+                let protocol_settings = if settings_file.exists() {
+                    load_protocol_settings(protocol, &settings_file)?
+                } else if protocol == Protocol::Tangle {
+                    println!("Please enter the Blueprint ID:");
+                    let mut blueprint_id = String::new();
+                    std::io::stdin().read_line(&mut blueprint_id)?;
+                    let blueprint_id: u64 = blueprint_id.trim().parse()?;
+                    println!("Please enter the Service ID:");
+                    let mut service_id = String::new();
+                    std::io::stdin().read_line(&mut service_id)?;
+                    let service_id: u64 = service_id.trim().parse()?;
+                    ProtocolSettings::Tangle(TangleProtocolSettings {
+                        blueprint_id,
+                        service_id: Some(service_id),
+                    })
+                } else {
                     return Err(color_eyre::Report::msg(format!(
                         "The --settings-file flag needs to be provided with a valid path, or the file `{}` needs to exist",
                         settings_file.display()
                     )));
-                }
-                let protocol_settings = load_protocol_settings(protocol, &settings_file)?;
+                };
 
                 let chain = match network.to_lowercase().as_str() {
                     "local" => SupportedChains::LocalTestnet,
@@ -458,13 +519,106 @@ async fn main() -> color_eyre::Result<()> {
                         run_eigenlayer_avs(config, chain, binary_path).await?;
                     }
                     Protocol::Tangle => {
-                        // Tangle implementation will go here
-                        unimplemented!("Tangle protocol implementation not yet available");
+                        // Create the run options for the Tangle blueprint
+                        let run_opts = RunOpts {
+                            http_rpc_url: config.http_rpc_endpoint.clone(),
+                            ws_rpc_url: config.ws_rpc_endpoint.clone(),
+                            signer: None, // We'll get the signer from the keystore
+                            signer_evm: None, // We'll get the signer from the keystore
+                            blueprint_id: Some(
+                                protocol_settings
+                                    .tangle().map(|t| t.blueprint_id)
+                                    .map_err(|e| color_eyre::Report::msg(format!("Blueprint ID is required in the protocol settings: {e:?}")))?,
+                            ),
+                            keystore_path: Some(config.keystore_uri.clone()),
+                            data_dir: config.data_dir.clone(),
+                        };
+
+                        // Run the blueprint
+                        run_blueprint(run_opts).await?;
                     }
                     _ => {
                         return Err(ConfigError::UnsupportedProtocol(protocol.to_string()).into());
                     }
                 }
+            }
+            BlueprintCommands::ListRequests { ws_rpc_url } => {
+                let requests = list_requests(ws_rpc_url).await?;
+                print_requests(requests);
+            }
+            BlueprintCommands::ListBlueprints { ws_rpc_url } => {
+                let blueprints = list_blueprints(ws_rpc_url).await?;
+                print_blueprints(blueprints);
+            }
+            BlueprintCommands::Register {
+                ws_rpc_url,
+                blueprint_id,
+                keystore_uri,
+            } => register(ws_rpc_url, blueprint_id, keystore_uri).await?,
+            BlueprintCommands::AcceptRequest {
+                ws_rpc_url,
+                min_exposure_percent,
+                max_exposure_percent,
+                restaking_percent,
+                keystore_uri,
+                request_id,
+            } => {
+                accept_request(
+                    ws_rpc_url,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    restaking_percent,
+                    keystore_uri,
+                    request_id,
+                )
+                .await?;
+            }
+            BlueprintCommands::RejectRequest {
+                ws_rpc_url,
+                keystore_uri,
+                request_id,
+            } => {
+                reject_request(ws_rpc_url, keystore_uri, request_id).await?;
+            }
+            BlueprintCommands::RequestService {
+                ws_rpc_url,
+                blueprint_id,
+                min_exposure_percent,
+                max_exposure_percent,
+                target_operators,
+                value,
+                keystore_uri,
+            } => {
+                request_service(
+                    ws_rpc_url,
+                    blueprint_id,
+                    min_exposure_percent,
+                    max_exposure_percent,
+                    target_operators,
+                    value,
+                    keystore_uri,
+                )
+                .await?;
+            }
+            BlueprintCommands::SubmitJob {
+                ws_rpc_url,
+                service_id,
+                blueprint_id,
+                keystore_uri,
+                job,
+                params_file,
+                watcher,
+            } => {
+                submit_job(
+                    ws_rpc_url,
+                    service_id,
+                    blueprint_id,
+                    keystore_uri,
+                    job,
+                    params_file,
+                    watcher,
+                )
+                .await?;
             }
         },
         Commands::Key { command } => match command {
@@ -476,7 +630,7 @@ async fn main() -> color_eyre::Result<()> {
             } => {
                 let seed = seed.map(hex::decode).transpose()?;
                 let (public, secret) =
-                    keys::generate_key(key_type, output.as_ref(), seed.as_deref(), show_secret)?;
+                    generate_key(key_type, output.as_ref(), seed.as_deref(), show_secret)?;
 
                 eprintln!("Generated {:?} key:", key_type);
                 eprintln!("Public key: {}", public);
@@ -495,14 +649,14 @@ async fn main() -> color_eyre::Result<()> {
                     let secret = secret.ok_or_else(|| {
                         color_eyre::eyre::eyre!("Secret key is required when key type is specified")
                     })?;
-                    let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
+                    let public = import_key(protocol, key_type, &secret, &keystore_path)?;
                     eprintln!("Imported {:?} key:", key_type);
                     eprintln!("Public key: {}", public);
                 } else {
                     // If no key_type provided, use interactive prompt
-                    let key_pairs = keys::prompt_for_keys(vec![])?;
+                    let key_pairs = prompt_for_keys(vec![])?;
                     for (key_type, secret) in key_pairs {
-                        let public = keys::import_key(protocol, key_type, &secret, &keystore_path)?;
+                        let public = import_key(protocol, key_type, &secret, &keystore_path)?;
                         eprintln!("Imported {:?} key:", key_type);
                         eprintln!("Public key: {}", public);
                     }
@@ -513,20 +667,20 @@ async fn main() -> color_eyre::Result<()> {
                 public,
                 keystore_path,
             } => {
-                let secret = keys::export_key(key_type, &public, &keystore_path)?;
+                let secret = export_key(key_type, &public, &keystore_path)?;
                 eprintln!("Exported {:?} key:", key_type);
                 eprintln!("Public key: {}", public);
                 eprintln!("Private key: {}", secret);
             }
             KeyCommands::List { keystore_path } => {
-                let keys = keys::list_keys(&keystore_path)?;
+                let keys = list_keys(&keystore_path)?;
                 eprintln!("Keys in keystore:");
                 for (key_type, public) in keys {
                     eprintln!("{:?}: {}", key_type, public);
                 }
             }
             KeyCommands::GenerateMnemonic { word_count } => {
-                let mnemonic = keys::generate_mnemonic(word_count)?;
+                let mnemonic = generate_mnemonic(word_count)?;
                 eprintln!("Generated mnemonic phrase:");
                 eprintln!("{}", mnemonic);
                 eprintln!(
@@ -633,6 +787,41 @@ fn init_tracing_subscriber() {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(fmt_layer)
         .init();
+}
+
+#[must_use]
+pub fn get_security_commitment(a: Asset<AssetId>, p: u8) -> AssetSecurityCommitment<AssetId> {
+    AssetSecurityCommitment {
+        asset: a,
+        exposure_percent: Percent(p),
+    }
+}
+
+/// Waits for a transaction to be included in a block and returns the success event.
+///
+/// # Arguments
+///
+/// * `res` - A `TxProgress` object representing the progress of a transaction.
+///
+/// # Returns
+///
+/// A `Result` containing the success event or an error.
+///
+/// # Panics
+///
+/// Panics if the transaction fails to be included in a block.
+pub async fn wait_for_in_block_success<T: Config, C: OnlineClientT<T>>(
+    mut res: TxProgress<T, C>,
+) -> ExtrinsicEvents<T> {
+    let mut val = Err("Failed to get in block success".into());
+    while let Some(Ok(event)) = res.next().await {
+        let Some(block) = event.as_in_block() else {
+            continue;
+        };
+        val = block.wait_for_success().await;
+    }
+
+    val.unwrap()
 }
 
 #[cfg(test)]

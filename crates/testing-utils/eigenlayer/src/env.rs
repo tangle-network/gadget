@@ -7,7 +7,7 @@ use blueprint_runner::eigenlayer::config::EigenlayerProtocolSettings;
 use eigensdk::utils::slashing::middleware::registrycoordinator::ISlashingRegistryCoordinatorTypes::OperatorSetParam;
 use eigensdk::utils::slashing::middleware::registrycoordinator::IStakeRegistryTypes::StrategyParams;
 use eigensdk::utils::slashing::middleware::registrycoordinator::RegistryCoordinator;
-use gadget_anvil_testing_utils::get_receipt;
+use gadget_chain_setup::anvil::get_receipt;
 
 /// The default Allocation Manager address on our testnet
 pub const ALLOCATION_MANAGER_ADDR: Address = address!("8A791620dd6260079BF849Dc5567aDC3F2FDC318");

@@ -53,6 +53,8 @@ default = ["std", "networking"]
 
 ## Enable standard library support
 std = [
+    "blueprint-tangle-extra?/std",
+    "blueprint-evm-extra?/std",
     "gadget-keystore/std",
     "gadget-std/std",
 ]

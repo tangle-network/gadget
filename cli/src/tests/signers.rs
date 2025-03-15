@@ -1,4 +1,6 @@
-use crate::signer::{EVM_SIGNER_ENV, SIGNER_ENV, load_evm_signer_from_env, load_signer_from_env};
+use crate::command::signer::{
+    EVM_SIGNER_ENV, SIGNER_ENV, load_evm_signer_from_env, load_signer_from_env,
+};
 use color_eyre::eyre::Result;
 use std::env;
 use tangle_subxt::subxt_signer::bip39;

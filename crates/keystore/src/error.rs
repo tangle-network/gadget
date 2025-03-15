@@ -1,4 +1,5 @@
-//! Keystore Errors
+use gadget_std::boxed::Box;
+/// Keystore Errors
 use gadget_std::string::String;
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -106,6 +107,41 @@ pub enum Error {
     #[cfg(feature = "evm")]
     LocalSignerError(#[from] alloy_signer_local::LocalSignerError),
 }
+
+#[macro_export]
+macro_rules! impl_from_for_boxed_error {
+    ($error_type:ty, $variant:ident) => {
+        impl From<$error_type> for Box<Error> {
+            fn from(e: $error_type) -> Self {
+                Box::new(Error::$variant(e))
+            }
+        }
+    };
+}
+
+impl_from_for_boxed_error!(gadget_std::io::Error, Io);
+impl_from_for_boxed_error!(serde::de::value::Error, KeyDeserialization);
+impl_from_for_boxed_error!(gadget_crypto::CryptoCoreError, Crypto);
+#[cfg(feature = "aws-signer")]
+impl_from_for_boxed_error!(alloy_signer_aws::AwsSignerError, AwsSigner);
+#[cfg(feature = "gcp-signer")]
+impl_from_for_boxed_error!(gcloud_sdk::error::Error, GCloud);
+#[cfg(feature = "gcp-signer")]
+impl_from_for_boxed_error!(alloy_signer_gcp::GcpSignerError, GcpSigner);
+#[cfg(any(feature = "ledger-node", feature = "ledger-browser"))]
+impl_from_for_boxed_error!(alloy_signer_ledger::LedgerError, Ledger);
+#[cfg(feature = "tangle")]
+impl_from_for_boxed_error!(sp_core::crypto::SecretStringError, SecretStringError);
+#[cfg(feature = "std")]
+impl_from_for_boxed_error!(serde_json::Error, SerdeJsonError);
+#[cfg(feature = "ecdsa")]
+impl_from_for_boxed_error!(k256::ecdsa::Error, Ecdsa);
+#[cfg(feature = "zebra")]
+impl_from_for_boxed_error!(ed25519_zebra::Error, Ed25519);
+#[cfg(feature = "evm")]
+impl_from_for_boxed_error!(alloy_signer::Error, AlloySigner);
+#[cfg(feature = "evm")]
+impl_from_for_boxed_error!(alloy_signer_local::LocalSignerError, LocalSignerError);
 
 #[cfg(feature = "sr25519-schnorrkel")]
 impl From<schnorrkel::errors::SignatureError> for Error {

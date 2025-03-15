@@ -24,6 +24,7 @@ gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
 document-features = { workspace = true }
+gadget-chain-setup = { workspace = true, optional = true }
 
 # Macros
 blueprint-macros = { workspace = true, optional = true }
@@ -79,11 +80,14 @@ std = [
     "gadget-keystore/std",
     "gadget-clients/std",
     "gadget-crypto/std",
+    "dep:gadget-chain-setup",
+    "gadget-chain-setup/std",
     # Tangle
     "tangle-subxt/std",
     # Extras
     "blueprint-tangle-extra?/std",
-    "blueprint-evm-extra?/std"
+    "blueprint-evm-extra?/std",
+    "gadget-chain-setup/std",
 ]
 
 ## Enable support for web targets
@@ -139,6 +143,7 @@ tangle = [
     "gadget-context-derive?/tangle",
     "gadget-testing-utils?/tangle",
     "blueprint-runner/tangle",
+    "gadget-chain-setup/tangle",
 ]
 
 ## Enable EVM support
@@ -152,6 +157,7 @@ evm = [
     "gadget-crypto-tangle-pair-signer?/evm",
     "blueprint-macros?/evm",
     "gadget-testing-utils?/anvil",
+    "gadget-chain-setup/anvil",
 ]
 
 ## Enable [Eigenlayer] support

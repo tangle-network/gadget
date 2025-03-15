@@ -21,7 +21,6 @@ alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
-alloy-pubsub = { workspace = true }
 alloy-transport = { workspace = true }
 eigensdk = { workspace = true, features = [
 	"common",
@@ -42,8 +41,8 @@ url = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
-gadget-eigenlayer-testing-utils.workspace = true
-gadget-anvil-testing-utils = { workspace = true }
+gadget-chain-setup-anvil = { workspace = true }
+gadget-eigenlayer-testing-utils = { workspace = true }
 blueprint-evm-extra = { workspace = true }
 alloy-primitives = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

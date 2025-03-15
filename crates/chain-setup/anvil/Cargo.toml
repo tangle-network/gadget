@@ -1,0 +1,34 @@
+[package]
+name = "gadget-chain-setup-anvil"
+version = "0.1.0"
+description = "Anvil-specific chain setup utilities"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-std = { workspace = true }
+gadget-keystore = { workspace = true, features = ["eigenlayer", "evm"] }
+gadget-core-testing-utils = { workspace = true }
+blueprint-core = { workspace = true }
+alloy-contract = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-eth = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+testcontainers = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tempfile = { workspace = true}
+
+
+[features]
+default = ["std"]
+std = [
+    "gadget-std/std",
+    "gadget-keystore/std",
+    "tokio/full",
+]

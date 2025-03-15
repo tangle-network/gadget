@@ -1,7 +1,7 @@
 use crate::config::BlueprintManagerConfig;
 use crate::error::Result;
 use crate::gadget::native::FilteredBlueprint;
-use blueprint_sdk::runner::config::BlueprintEnvironment;
+use blueprint_sdk::runner::config::{BlueprintEnvironment, SupportedChains};
 use std::path::PathBuf;
 
 pub mod github;
@@ -42,18 +42,25 @@ pub fn process_arguments_and_env(
         arguments.push(format!("--bootnodes={}", bootnode));
     }
 
+    if manager_opts.test_mode {
+        blueprint_core::warn!("Test mode is enabled");
+    }
+
+    let chain = match gadget_config.http_rpc_endpoint.as_str() {
+        url if url.contains("127.0.0.1") || url.contains("localhost") => {
+            SupportedChains::LocalTestnet
+        }
+        _ => SupportedChains::Testnet,
+    };
+
     arguments.extend([
         format!("--http-rpc-url={}", gadget_config.http_rpc_endpoint),
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_endpoint),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--protocol={}", blueprint.protocol),
-        format!(
-            "--log-id=Blueprint-{blueprint_id}-Service-{service_id}{}",
-            manager_opts
-                .instance_id
-                .clone()
-                .map_or(String::new(), |id| format!("-{}", id))
-        ),
+        format!("--chain={}", chain),
+        format!("--blueprint-id={}", blueprint_id),
+        format!("--service-id={}", service_id),
     ]);
 
     // TODO: Add support for keystore password

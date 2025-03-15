@@ -30,11 +30,9 @@ alloy-network = { workspace = true }
 alloy-json-rpc = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-rlp = { workspace = true }
-alloy-rpc-client = { workspace = true }
 alloy-rpc-types = { workspace = true, features = ["eth"] }
 alloy-rpc-types-eth = { workspace = true }
 alloy-pubsub = { workspace = true }
-alloy-transport-http = { workspace = true }
 tokio = { workspace = true }
 
 # Metrics
@@ -43,6 +41,7 @@ gadget-rpc-calls = { workspace = true }
 [dev-dependencies]
 blueprint-evm-extra = { workspace = true }
 gadget-anvil-testing-utils = { workspace = true }
+gadget-chain-setup-anvil = { workspace = true }
 alloy-signer-local = { workspace = true }
 testcontainers = { workspace = true }
 
@@ -50,6 +49,7 @@ testcontainers = { workspace = true }
 default = ["std", "tracing"]
 std = [
     "gadget-rpc-calls/std",
+    "gadget-client-core/std",
     "gadget-client-core/std",
     "gadget-std/std",
     "hex/std",

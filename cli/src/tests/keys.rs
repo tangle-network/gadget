@@ -1,4 +1,4 @@
-use crate::keys::generate_key;
+use crate::command::keys::generate_key;
 use blueprint_runner::config::Protocol;
 use color_eyre::eyre::Result;
 use gadget_crypto::bn254::ArkBlsBn254;
@@ -69,7 +69,7 @@ fn test_cli_mem_key_generation() -> Result<()> {
 
 #[test]
 fn test_generate_mnemonic() -> Result<()> {
-    use crate::keys::generate_mnemonic;
+    use crate::command::keys::generate_mnemonic;
 
     // Test default word count
     let mnemonic = generate_mnemonic(None)?;
@@ -89,7 +89,7 @@ fn test_generate_mnemonic() -> Result<()> {
 
 #[test]
 fn test_key_import_export() -> Result<()> {
-    use crate::keys::{export_key, import_key};
+    use crate::command::keys::{export_key, import_key};
     let temp_dir = tempdir()?;
     let keystore_path = temp_dir.path();
 
@@ -122,7 +122,7 @@ fn test_key_import_export() -> Result<()> {
 
 #[test]
 fn test_list_keys() -> Result<()> {
-    use crate::keys::list_keys;
+    use crate::command::keys::list_keys;
     let temp_dir = tempdir()?;
     let keystore_path = temp_dir.path();
 

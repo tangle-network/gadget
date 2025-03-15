@@ -18,8 +18,6 @@ futures = { workspace = true, features = ["alloc"] }
 [dev-dependencies]
 blueprint-sdk = { workspace = true, features = ["macros"]}
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower = { workspace = true, features = ["util", "timeout", "limit", "load-shed", "steer", "filter"] }
 

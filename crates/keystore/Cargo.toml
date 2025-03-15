@@ -15,7 +15,6 @@ workspace = true
 # Core dependencies (always included)
 gadget-crypto.workspace = true
 gadget-std.workspace = true
-lock_api.workspace = true
 parking_lot.workspace = true
 thiserror.workspace = true
 zeroize.workspace = true

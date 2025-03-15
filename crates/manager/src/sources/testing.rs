@@ -12,7 +12,6 @@ pub struct TestSourceFetcher {
 
 impl BinarySourceFetcher for TestSourceFetcher {
     async fn get_binary(&self) -> Result<PathBuf> {
-        // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
             cargo_package,
             base_path,
@@ -54,10 +53,14 @@ impl BinarySourceFetcher for TestSourceFetcher {
             command.arg("--release");
         }
 
-        let output = command.current_dir(&base_path).output().await?;
+        trace!("Running build command in {}", base_path.display());
+        let output = command.current_dir(&base_path).output().await.unwrap();
+        trace!("Build command run");
         if !output.status.success() {
+            blueprint_core::warn!("Failed to build binary");
             return Err(Error::BuildBinary(output));
         }
+        trace!("Successfully built binary");
 
         Ok(binary_path)
     }
