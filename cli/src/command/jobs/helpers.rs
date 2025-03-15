@@ -3,6 +3,7 @@ use dialoguer::console::style;
 use gadget_blueprint_serde::{BoundedVec, Field, from_field, new_bounded_string};
 use gadget_chain_setup::tangle::InputValue;
 use serde_json;
+use std::str::FromStr;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::FieldType;
 
@@ -262,6 +263,7 @@ pub(crate) fn load_job_args_from_file(
 }
 
 /// Prompt the user for job parameters based on the parameter types
+#[allow(clippy::too_many_lines)]
 pub(crate) fn prompt_for_job_params(param_types: &[FieldType]) -> Result<Vec<InputValue>> {
     use dialoguer::Input;
 
@@ -334,11 +336,82 @@ pub(crate) fn prompt_for_job_params(param_types: &[FieldType]) -> Result<Vec<Inp
                     .interact()?;
                 args.push(InputValue::String(new_bounded_string(value)));
             }
-            _ => {
-                return Err(color_eyre::eyre::eyre!(
-                    "Unsupported parameter type: {:?}",
-                    param_type
-                ));
+            FieldType::Void => {
+                println!("Void parameter, no input required");
+            }
+            FieldType::Optional(field_type) => {
+                use dialoguer::Confirm;
+
+                let include_value = Confirm::new()
+                    .with_prompt(format!("Include a value for optional parameter {}?", i + 1))
+                    .default(false)
+                    .interact()?;
+
+                if include_value {
+                    // Recursively prompt for the inner type
+                    let inner_values = prompt_for_job_params(&[*field_type.clone()])?;
+                    if let Some(inner_value) = inner_values.first() {
+                        args.push(InputValue::Optional(
+                            FieldType::String,
+                            Box::new(Some(inner_value.clone())),
+                        ));
+                    }
+                } else {
+                    args.push(InputValue::Optional(FieldType::String, Box::new(None)));
+                }
+            }
+            FieldType::Array(size, field_type) => {
+                println!("Enter {} values for array parameter {}", size, i + 1);
+                let mut array_values = Vec::new();
+
+                for j in 0..*size {
+                    println!("Array element {} of {}", j + 1, size);
+                    let inner_values = prompt_for_job_params(&[*field_type.clone()])?;
+                    if let Some(inner_value) = inner_values.first() {
+                        array_values.push(inner_value.clone());
+                    }
+                }
+
+                let values = BoundedVec(array_values);
+                args.push(InputValue::Array(*field_type.clone(), values));
+            }
+            FieldType::List(field_type) => {
+                use dialoguer::Input;
+
+                let count: usize = Input::new()
+                    .with_prompt(format!("How many elements for list parameter {}?", i + 1))
+                    .default(0)
+                    .interact()?;
+
+                let mut list_values = Vec::new();
+
+                for j in 0..count {
+                    println!("List element {} of {}", j + 1, count);
+                    let inner_values = prompt_for_job_params(&[*field_type.clone()])?;
+                    if let Some(inner_value) = inner_values.first() {
+                        list_values.push(inner_value.clone());
+                    }
+                }
+
+                let values = BoundedVec(list_values);
+                args.push(InputValue::List(*field_type.clone(), values));
+            }
+            FieldType::Struct(_bounded_vec) => {
+                todo!();
+            }
+            FieldType::AccountId => {
+                let value: String = Input::new()
+                    .with_prompt(format!(
+                        "Enter AccountId for parameter {} (SS58 format)",
+                        i + 1
+                    ))
+                    .interact()?;
+
+                // Parse the account ID from the string
+                match AccountId32::from_str(&value) {
+                    Ok(account_id) => args.push(InputValue::AccountId(account_id)),
+                    Err(_) => return Err(color_eyre::eyre::eyre!("Invalid AccountId format")),
+                }
             }
         }
     }
