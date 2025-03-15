@@ -1,10 +1,14 @@
 use dialoguer::console::style;
 use gadget_std::{env, rand};
+use std::{env, thread};
+use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::process::{Command, Stdio};
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::eyre::{self, Context, ContextCompat, Result};
+use color_eyre::eyre::{self, eyre, Context, ContextCompat, Result};
 use blueprint_tangle_extra::metadata::types::blueprint::BlueprintServiceManager;
 use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use gadget_std::fmt::Debug;
@@ -271,6 +275,47 @@ fn find_workspace_root(package: &cargo_metadata::Package) -> PathBuf {
     workspace_root
 }
 
+fn do_cargo_build(manifest_path: &Path) -> Result<()> {
+    let mut cmd = Command::new("cargo");
+    cmd.arg("build")
+        .arg("--manifest-path")
+        .arg(manifest_path)
+        .arg("--all")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().expect("Failed to start cargo build");
+    let stdout = child.stdout.take().expect("Failed to capture stdout");
+    let stderr = child.stderr.take().expect("Failed to capture stderr");
+
+    let stdout_thread = thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines().flatten() {
+            tracing::debug!(target: "build-output", "{}", line);
+        }
+    });
+
+    let stderr_thread = thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines().flatten() {
+            tracing::debug!(target: "build-output", "{}", line);
+        }
+    });
+
+    let status = child.wait().expect("Failed to wait on cargo build");
+
+    stdout_thread.join().expect("Stdout thread panicked");
+    stderr_thread.join().expect("Stderr thread panicked");
+
+    if !status.success() {
+        tracing::error!("Cargo build failed");
+        tracing::error!("NOTE: Use `RUST_LOG=build-output=debug` to see more details");
+        return Err(eyre!("Cargo build failed"));
+    }
+
+    Ok(())
+}
+
 fn load_blueprint_metadata(
     package: &cargo_metadata::Package,
 ) -> Result<blueprint_tangle_extra::metadata::types::blueprint::ServiceBlueprint<'static>> {
@@ -306,27 +351,7 @@ fn load_blueprint_metadata(
 
         // Need to run cargo build. We don't know the package name, so unfortunately this will
         // build the entire workspace.
-        escargot::CargoBuild::new()
-            .manifest_path(workspace_root.join("Cargo.toml"))
-            .run()
-            .context("Failed to build the package")?;
-
-        // After building, check both locations again
-        blueprint_json_path = workspace_root.join("blueprint.json");
-
-        if !blueprint_json_path.exists() {
-            blueprint_json_path = package_dir.join("blueprint.json");
-
-            if !blueprint_json_path.exists() {
-                return Err(eyre::eyre!(
-                    "Could not find blueprint.json after building. Checked:\n\
-                     - Workspace root: {:?}\n\
-                     - Package directory: {:?}",
-                    workspace_root.join("blueprint.json"),
-                    package_dir.join("blueprint.json")
-                ));
-            }
-        }
+        do_cargo_build(&manifest_dir.join("Cargo.toml"))?;
     }
 
     tracing::debug!("Found blueprint.json at: {:?}", blueprint_json_path);
