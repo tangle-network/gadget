@@ -1,9 +1,8 @@
 use dialoguer::console::style;
-use gadget_std::{env, rand};
-use std::{env, thread};
-use std::io::{BufRead, BufReader};
-use std::path::Path;
-use std::process::{Command, Stdio};
+use gadget_std::{env, thread, rand};
+use gadget_std::io::{BufRead, BufReader};
+use gadget_std::path::Path;
+use gadget_std::process::{Command, Stdio};
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types_eth::TransactionRequest;
@@ -290,14 +289,14 @@ fn do_cargo_build(manifest_path: &Path) -> Result<()> {
 
     let stdout_thread = thread::spawn(move || {
         let reader = BufReader::new(stdout);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             tracing::debug!(target: "build-output", "{}", line);
         }
     });
 
     let stderr_thread = thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             tracing::debug!(target: "build-output", "{}", line);
         }
     });
@@ -351,7 +350,7 @@ fn load_blueprint_metadata(
 
         // Need to run cargo build. We don't know the package name, so unfortunately this will
         // build the entire workspace.
-        do_cargo_build(&manifest_dir.join("Cargo.toml"))?;
+        do_cargo_build(&workspace_root.join("Cargo.toml"))?;
     }
 
     tracing::debug!("Found blueprint.json at: {:?}", blueprint_json_path);

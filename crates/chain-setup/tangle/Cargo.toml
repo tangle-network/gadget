@@ -17,7 +17,6 @@ serde_json = { workspace = true }
 color-eyre = { workspace = true }
 indicatif = { workspace = true }
 dialoguer = { workspace = true }
-escargot = { workspace = true }
 
 gadget-networking = { workspace = true }
 gadget-contexts = { workspace = true, features = ["tangle"] }
