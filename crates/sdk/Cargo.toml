@@ -24,7 +24,7 @@ gadget-std = { workspace = true }
 # The keystore context is the only one that doesn't bring in extra dependencies, so we can always include it
 gadget-contexts = { workspace = true, features = ["keystore"] }
 document-features = { workspace = true }
-gadget-chain-setup = { workspace = true }
+gadget-chain-setup = { workspace = true, optional = true }
 
 # Macros
 blueprint-macros = { workspace = true, optional = true }
@@ -80,6 +80,8 @@ std = [
     "gadget-keystore/std",
     "gadget-clients/std",
     "gadget-crypto/std",
+    "dep:gadget-chain-setup",
+    "gadget-chain-setup/std",
     # Tangle
     "tangle-subxt/std",
     # Extras

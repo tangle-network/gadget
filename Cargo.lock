@@ -2801,8 +2801,6 @@ dependencies = [
  "futures",
  "hashbrown 0.15.2",
  "pin-project-lite",
- "serde",
- "serde_json",
  "tokio",
  "tower 0.5.2",
  "tracing-subscriber 0.3.19",

@@ -16,7 +16,7 @@ name = "blueprint-manager"
 path = "src/main.rs"
 
 [dependencies]
-blueprint-sdk = { workspace = true, features = ["std"] }
+blueprint-sdk = { workspace = true, features = ["std", "networking"] }
 blueprint-core = { workspace = true, features = ["tracing"] }
 gadget-clients = { workspace = true, features = ["std", "tangle"] }
 gadget-crypto = { workspace = true, features = ["std", "tangle-pair-signer"] }
