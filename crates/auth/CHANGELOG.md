@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.16](https://github.com/tangle-network/blueprint/compare/blueprint-auth-v0.2.0-alpha.15...blueprint-auth-v0.2.0-alpha.16) - 2026-10-10
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.2.0-alpha.15](https://github.com/tangle-network/blueprint/compare/blueprint-auth-v0.2.0-alpha.14...blueprint-auth-v0.2.0-alpha.15) - 2026-10-02
 
 ### Other

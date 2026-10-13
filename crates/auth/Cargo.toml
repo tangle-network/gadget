@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-auth"
-version = "0.2.0-alpha.15"
+version = "0.2.0-alpha.16"
 description = "Blueprint HTTP/WS Authentication"
 authors.workspace = true
 edition.workspace = true

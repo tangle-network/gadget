@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-store-local-database"
-version = "0.2.0-alpha.7"
+version = "0.2.0-alpha.8"
 description = "Local database storage provider for the Blueprint SDK"
 authors.workspace = true
 edition.workspace = true

@@ -150,7 +150,7 @@ blueprint-tangle-aggregation-svc = { version = "0.2.0-alpha.17", path = "crates/
 
 # Blueprint utils
 blueprint-manager = { version = "0.4.0-alpha.20", path = "./crates/manager", default-features = false }
-blueprint-manager-bridge = { version = "0.2.0-alpha.16", path = "./crates/manager/bridge", default-features = false }
+blueprint-manager-bridge = { version = "0.2.0-alpha.17", path = "./crates/manager/bridge", default-features = false }
 blueprint-remote-providers = { version = "0.2.0-alpha.20", path = "./crates/blueprint-remote-providers", default-features = false }
 blueprint-faas = { version = "0.2.0-alpha.8", path = "./crates/blueprint-faas", default-features = false }
 blueprint-profiling = { version = "0.2.0-alpha.6", path = "./crates/blueprint-profiling", default-features = false }
@@ -158,7 +158,7 @@ blueprint-profiling = { version = "0.2.0-alpha.6", path = "./crates/blueprint-pr
 # Example blueprints
 incredible-squaring-blueprint-lib = { version = "0.2.0-alpha.9", path = "./examples/incredible-squaring/incredible-squaring-lib", default-features = false }
 blueprint-build-utils = { version = "0.2.0-alpha.7", path = "./crates/build-utils", default-features = false }
-blueprint-auth = { version = "0.2.0-alpha.15", path = "./crates/auth", default-features = false }
+blueprint-auth = { version = "0.2.0-alpha.16", path = "./crates/auth", default-features = false }
 
 # Chain Setup
 blueprint-chain-setup = { version = "0.2.0-alpha.20", path = "./crates/chain-setup", default-features = false }
@@ -201,8 +201,8 @@ blueprint-context-derive = { version = "0.2.0-alpha.8", path = "./crates/macros/
 blueprint-qos = { version = "0.2.0-alpha.21", path = "./crates/qos", default-features = false }
 
 # Stores
-blueprint-stores = { version = "0.2.0-alpha.7", path = "./crates/stores", default-features = false }
-blueprint-store-local-database = { version = "0.2.0-alpha.7", path = "./crates/stores/local-database", default-features = false }
+blueprint-stores = { version = "0.2.0-alpha.8", path = "./crates/stores", default-features = false }
+blueprint-store-local-database = { version = "0.2.0-alpha.8", path = "./crates/stores/local-database", default-features = false }
 rocksdb = { version = "0.21.0", default-features = false }
 
 # SDK

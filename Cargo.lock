@@ -2919,7 +2919,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-auth"
-version = "0.2.0-alpha.15"
+version = "0.2.0-alpha.16"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -3562,7 +3562,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-manager-bridge"
-version = "0.2.0-alpha.16"
+version = "0.2.0-alpha.17"
 dependencies = [
  "blueprint-auth",
  "blueprint-core",
@@ -3994,7 +3994,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-store-local-database"
-version = "0.2.0-alpha.7"
+version = "0.2.0-alpha.8"
 dependencies = [
  "blueprint-std",
  "serde",
@@ -4005,7 +4005,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-stores"
-version = "0.2.0-alpha.7"
+version = "0.2.0-alpha.8"
 dependencies = [
  "blueprint-store-local-database",
  "document-features",
