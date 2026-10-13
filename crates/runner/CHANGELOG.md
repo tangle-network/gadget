@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.21](https://github.com/tangle-network/blueprint/compare/blueprint-runner-v0.2.0-alpha.20...blueprint-runner-v0.2.0-alpha.21) - 2026-10-13
+
+### Other
+
+- updated the following local packages: blueprint-qos
+
 ## [0.2.0-alpha.20](https://github.com/tangle-network/blueprint/compare/blueprint-runner-v0.2.0-alpha.19...blueprint-runner-v0.2.0-alpha.20) - 2026-10-07
 
 ### Other
