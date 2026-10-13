@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0-alpha.20](https://github.com/tangle-network/blueprint/compare/blueprint-contexts-v0.2.0-alpha.19...blueprint-contexts-v0.2.0-alpha.20) - 2026-10-10
+## [0.2.0-alpha.20](https://github.com/tangle-network/blueprint/compare/blueprint-contexts-v0.2.0-alpha.19...blueprint-contexts-v0.2.0-alpha.20) - 2026-10-07
 
 ### Other
 

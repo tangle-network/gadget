@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0-alpha.19](https://github.com/tangle-network/blueprint/compare/blueprint-pricing-engine-v0.3.0-alpha.18...blueprint-pricing-engine-v0.3.0-alpha.19) - 2026-10-10
+## [0.3.0-alpha.19](https://github.com/tangle-network/blueprint/compare/blueprint-pricing-engine-v0.3.0-alpha.18...blueprint-pricing-engine-v0.3.0-alpha.19) - 2026-10-07
 
 ### Other
 
