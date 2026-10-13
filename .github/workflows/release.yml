@@ -113,29 +113,6 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
-      - name: "Verify Forge installation"
-        run: |
-          forge --version
-          echo "Forge version check completed"
-      - name: "Install Solidity Dependencies"
-        run: |
-          attempts=5
-          delay=10
-          for attempt in $(seq 1 $attempts); do
-            if forge soldeer update -d; then
-              echo "Solidity dependencies installed on attempt $attempt"
-              exit 0
-            fi
-            if [ "$attempt" -lt "$attempts" ]; then
-              echo "soldeer attempt $attempt/$attempts failed; sleeping ${delay}s"
-              sleep "$delay"
-              delay=$((delay * 2))
-            fi
-          done
-          echo "::warning::soldeer failed after $attempts attempts; continuing without solidity deps (release build does not require them)" >&2
-          exit 0
       - name: "install protobuf and gmp (Linux)"
         if: "runner.os == 'Linux'"
         run: |
