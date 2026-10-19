@@ -3,6 +3,7 @@
 //! This module provides [`MessageStore`] for storing and retrieving messages
 //! with multiple index types (by hash, sender, timestamp).
 
+use crate::clock::Instant;
 use crate::dedup::MessageHash;
 use crate::network::PeerId;
 use alloc::collections::BTreeMap;
@@ -10,11 +11,6 @@ use alloc::vec::Vec;
 use core::time::Duration;
 use hashbrown::HashMap;
 use parking_lot::RwLock;
-
-#[cfg(not(feature = "std"))]
-use blueprint_std::time::Instant;
-#[cfg(feature = "std")]
-use std::time::Instant;
 
 /// Entry in the message store
 #[derive(Debug, Clone)]
