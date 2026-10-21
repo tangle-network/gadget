@@ -38,6 +38,8 @@ Do not treat every resolution failure as a cycle or remove production version co
 
 ## Pull requests
 
+Dependency PRs merge only through `beelink-gate --merge <pr> auto <repo-url> <head-sha> -- cargo check --locked --workspace --all-targets`; the gate must pass on that exact head before merging.
+
 Use [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) and the current [quality policy](.github/pr-quality-gate.toml).
 The [validation script](.github/scripts/validate_pr_body.py) owns required sections, change classes, and documentation-only classification.
 Read the [workflow](.github/workflows/pr-quality-gate.yml) when diagnosing how the PR body reaches validation.

@@ -71,13 +71,11 @@ alloy-primitives = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-transport = { workspace = true }
-# Published blueprint dependencies allow newer Alloy v2 releases that exceed our Rust 1.93 MSRV.
-# Keep their shared v2 graph on the source-tested release for fresh registry installs.
-alloy-eips-v2 = { package = "alloy-eips", version = "=2.0.5", default-features = false }
-alloy-json-rpc-v2 = { package = "alloy-json-rpc", version = "=2.0.5", default-features = false }
-alloy-rpc-client-v2 = { package = "alloy-rpc-client", version = "=2.0.5", default-features = false }
-alloy-transport-v2 = { package = "alloy-transport", version = "=2.0.5", default-features = false }
-alloy-transport-http-v2 = { package = "alloy-transport-http", version = "=2.0.5", default-features = false }
+# Keep registry installs on the workspace's Rust 1.93-compatible Alloy family.
+alloy-eips = { workspace = true }
+alloy-json-rpc = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-transport-http = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-dyn-abi = { workspace = true }
 reqwest = { workspace = true, features = ["multipart", "json", "rustls-tls"] }
