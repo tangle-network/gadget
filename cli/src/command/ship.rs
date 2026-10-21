@@ -40,42 +40,51 @@ use crate::command::upgrade::{
 /// Inputs to the ship wizard. Every field except `network` may be either
 /// resolved interactively or passed via flag — interactive mode is opt-in
 /// via `--yes` being absent.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, clap::Args)]
 pub struct ShipArgs {
+    #[command(flatten)]
     pub network: TangleClientArgs,
-    /// Skip all prompts; accept defaults derived from flags + auto-detection.
+    /// Accept all prompts. Implies `--json` for CI-friendly output.
+    #[arg(long)]
     pub yes: bool,
-    /// Don't run `cargo build --release` — caller will provide `--binary`.
+    /// Don't run `cargo build --release` — caller supplies `--binary`.
+    #[arg(long)]
     pub no_build: bool,
-    /// Cargo package whose `--release` artifact should be built+shipped. When
-    /// omitted, the wizard tries to read the current workspace's default
-    /// binary.
+    /// Cargo package to build (`-p <pkg>`).
+    #[arg(long, short = 'p', value_name = "NAME")]
     pub package: Option<String>,
-    /// Path to a pre-built binary. Skips the build step.
+    /// Path to a pre-built release binary.
+    #[arg(long, value_name = "PATH")]
     pub binary: Option<PathBuf>,
-    /// Pre-existing artifact URI (`ipfs://...`, `https://...`). Skips IPFS
-    /// pin.
+    /// Pre-existing artifact URI (`ipfs://...`, `https://...`). Skips pinning.
+    #[arg(long, value_name = "URI", conflicts_with = "pin_ipfs")]
     pub binary_uri: Option<String>,
-    /// Pin the binary to IPFS via the same credentials `upgrade::pin_file_to_ipfs` reads.
+    /// Pin the binary to IPFS using `IPFS_API_URL` + `IPFS_API_TOKEN`, or `PINATA_JWT`.
+    #[arg(long)]
     pub pin_ipfs: bool,
-    /// sigstore/SLSA attestation bundle whose sha256 lands on-chain as
-    /// `attestationHash`.
+    /// sigstore/SLSA bundle whose sha256 lands on-chain as `attestationHash`.
+    #[arg(long, value_name = "PATH")]
     pub attestation_bundle: Option<PathBuf>,
-    /// Explicit `attestationHash` override (32-byte hex). Conflicts with
-    /// `--attestation-bundle`.
+    /// Explicit `attestationHash` (32-byte hex). Conflicts with `--attestation-bundle`.
+    #[arg(long, value_name = "HEX", conflicts_with = "attestation_bundle")]
     pub attestation_hash: Option<String>,
     /// Promote the new version to active (`setActiveBinaryVersion`).
+    #[arg(long, conflicts_with = "no_promote")]
     pub promote: bool,
-    /// Explicitly do NOT promote, even if interactive default is yes.
+    /// Explicitly skip promotion even if interactive default is yes.
+    #[arg(long)]
     pub no_promote: bool,
-    /// Optional comma-separated service IDs to bulk-flip into AUTO policy
-    /// alongside the publish.
+    /// Comma-separated service IDs to bulk-flip into AUTO policy.
+    #[arg(long, value_name = "LIST")]
     pub policy_services: Option<String>,
-    /// Validate everything end-to-end without submitting any transactions.
+    /// Validate everything end-to-end without submitting transactions.
+    #[arg(long)]
     pub dry_run: bool,
-    /// Caller-provided blueprint id. Wins over auto-detection.
+    /// Override blueprint id (skips auto-detection from settings.env / metadata).
+    #[arg(long)]
     pub blueprint_id: Option<u64>,
-    /// JSON output instead of pretty banners. Implied by `--yes` for CI.
+    /// JSON output for machine readers (also implied by `--yes`).
+    #[arg(long)]
     pub json: bool,
 }
 
