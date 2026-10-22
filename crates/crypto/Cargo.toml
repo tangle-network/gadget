@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-crypto"
-version = "0.2.0-alpha.11"
+version = "0.2.0-alpha.12"
 description = "Crypto metapackage for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

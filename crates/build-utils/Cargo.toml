@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-build-utils"
-version = "0.2.0-alpha.7"
+version = "0.2.0-alpha.8"
 description = "Tangle Blueprint build utils"
 authors.workspace = true
 edition.workspace = true

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.15](https://github.com/tangle-network/blueprint/compare/blueprint-keystore-v0.2.0-alpha.14...blueprint-keystore-v0.2.0-alpha.15) - 2026-10-22
+
+### Fixed
+
+- preserve gossip clocks and current RNG APIs
+
 ## [0.2.0-alpha.14](https://github.com/tangle-network/blueprint/compare/blueprint-keystore-v0.2.0-alpha.13...blueprint-keystore-v0.2.0-alpha.14) - 2026-10-01
 
 ### Fixed

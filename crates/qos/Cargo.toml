@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-qos"
-version = "0.2.0-alpha.22"
+version = "0.2.0-alpha.23"
 description = "Quality of Service (QoS) module for Blueprint SDK"
 authors.workspace = true
 edition.workspace = true

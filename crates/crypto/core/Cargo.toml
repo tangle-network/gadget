@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-crypto-core"
-version = "0.2.0-alpha.7"
+version = "0.2.0-alpha.8"
 description = "Core crypto primitives for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

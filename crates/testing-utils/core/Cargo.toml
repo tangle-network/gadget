@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-core-testing-utils"
-version = "0.2.0-alpha.21"
+version = "0.2.0-alpha.22"
 description = "Core primitives for testing Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

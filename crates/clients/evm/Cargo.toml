@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-client-evm"
-version = "0.2.0-alpha.9"
+version = "0.2.0-alpha.10"
 description = "EVM client for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

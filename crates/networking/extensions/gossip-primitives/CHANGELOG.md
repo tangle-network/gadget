@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.13](https://github.com/tangle-network/blueprint/compare/blueprint-gossip-primitives-v0.2.0-alpha.12...blueprint-gossip-primitives-v0.2.0-alpha.13) - 2026-10-22
+
+### Fixed
+
+- preserve gossip clocks and current RNG APIs
+
 ## [0.2.0-alpha.12](https://github.com/tangle-network/blueprint/compare/blueprint-gossip-primitives-v0.2.0-alpha.11...blueprint-gossip-primitives-v0.2.0-alpha.12) - 2026-10-01
 
 ### Other

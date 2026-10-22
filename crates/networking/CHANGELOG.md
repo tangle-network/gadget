@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.13](https://github.com/tangle-network/blueprint/compare/blueprint-networking-v0.2.0-alpha.12...blueprint-networking-v0.2.0-alpha.13) - 2026-10-22
+
+### Other
+
+- updated the following local packages: blueprint-std, blueprint-crypto
+
 ## [0.2.0-alpha.12](https://github.com/tangle-network/blueprint/compare/blueprint-networking-v0.2.0-alpha.11...blueprint-networking-v0.2.0-alpha.12) - 2026-10-01
 
 ### Other

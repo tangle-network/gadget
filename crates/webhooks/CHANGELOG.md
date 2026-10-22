@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.19](https://github.com/tangle-network/blueprint/compare/blueprint-webhooks-v0.2.0-alpha.18...blueprint-webhooks-v0.2.0-alpha.19) - 2026-10-22
+
+### Other
+
+- update Cargo.toml dependencies
+
 ## [0.2.0-alpha.18](https://github.com/tangle-network/blueprint/compare/blueprint-webhooks-v0.2.0-alpha.17...blueprint-webhooks-v0.2.0-alpha.18) - 2026-10-13
 
 ### Other

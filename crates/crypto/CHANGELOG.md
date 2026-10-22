@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.12](https://github.com/tangle-network/blueprint/compare/blueprint-crypto-v0.2.0-alpha.11...blueprint-crypto-v0.2.0-alpha.12) - 2026-10-22
+
+### Other
+
+- updated the following local packages: blueprint-crypto-core, blueprint-crypto-bls, blueprint-crypto-bn254, blueprint-crypto-ed25519, blueprint-crypto-k256, blueprint-crypto-sr25519, blueprint-crypto-hashing
+
 ## [0.2.0-alpha.11](https://github.com/tangle-network/blueprint/compare/blueprint-crypto-v0.2.0-alpha.10...blueprint-crypto-v0.2.0-alpha.11) - 2026-10-01
 
 ### Other

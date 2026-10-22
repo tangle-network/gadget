@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha.19](https://github.com/tangle-network/blueprint/compare/blueprint-sdk-v0.2.0-alpha.18...blueprint-sdk-v0.2.0-alpha.19) - 2026-10-22
+
+### Other
+
+- updated the following local packages: blueprint-std, blueprint-auth, blueprint-keystore, blueprint-gossip-primitives, blueprint-networking-agg-sig-gossip-extension, blueprint-tangle-extra, blueprint-tee, blueprint-remote-providers, blueprint-qos, blueprint-evm-extra, blueprint-runner, blueprint-networking-round-based-extension, blueprint-webhooks, blueprint-crypto, blueprint-clients, blueprint-manager-bridge, blueprint-networking, blueprint-chain-setup, blueprint-contexts, blueprint-testing-utils, blueprint-build-utils, blueprint-stores, blueprint-x402
+
 ## [0.2.0-alpha.18](https://github.com/tangle-network/blueprint/compare/blueprint-sdk-v0.2.0-alpha.17...blueprint-sdk-v0.2.0-alpha.18) - 2026-10-13
 
 ### Other

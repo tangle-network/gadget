@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-tee"
-version = "0.2.0-alpha.10"
+version = "0.2.0-alpha.11"
 description = "First-class TEE (Trusted Execution Environment) support for the Blueprint SDK"
 authors.workspace = true
 edition.workspace = true

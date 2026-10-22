@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-networking-round-based-extension"
-version = "0.2.0-alpha.12"
+version = "0.2.0-alpha.13"
 description = "round-based integration for Blueprint SDK networking"
 authors.workspace = true
 edition.workspace = true

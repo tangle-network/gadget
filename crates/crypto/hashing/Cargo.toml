@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-crypto-hashing"
-version = "0.2.0-alpha.8"
+version = "0.2.0-alpha.9"
 description = "Hashing and key derivation primitives for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-webhooks"
-version = "0.2.0-alpha.18"
+version = "0.2.0-alpha.19"
 description = "Webhook producer for Blueprint SDK — trigger jobs from external HTTP events"
 authors.workspace = true
 edition.workspace = true

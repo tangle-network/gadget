@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-keystore"
-version = "0.2.0-alpha.14"
+version = "0.2.0-alpha.15"
 description = "Keystore for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

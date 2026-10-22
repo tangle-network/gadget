@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-sdk"
-version = "0.2.0-alpha.18"
+version = "0.2.0-alpha.19"
 description = "Blueprint SDK for building decentralized and distributed services."
 authors.workspace = true
 edition.workspace = true

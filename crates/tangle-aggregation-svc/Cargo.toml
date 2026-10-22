@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-tangle-aggregation-svc"
-version = "0.2.0-alpha.17"
+version = "0.2.0-alpha.18"
 edition = "2021"
 description = "BLS signature aggregation service for Tangle v2"
 license = "MIT OR Apache-2.0"

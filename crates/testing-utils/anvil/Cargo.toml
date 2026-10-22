@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-anvil-testing-utils"
-version = "0.2.0-alpha.21"
+version = "0.2.0-alpha.22"
 description = "Anvil testing utilities for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

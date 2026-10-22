@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-crypto-bn254"
-version = "0.2.0-alpha.10"
+version = "0.2.0-alpha.11"
 description = "Ark BN254 crypto primitives for Tangle Blueprints"
 authors.workspace = true
 edition.workspace = true

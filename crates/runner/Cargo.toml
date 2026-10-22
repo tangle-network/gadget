@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-runner"
-version = "0.2.0-alpha.21"
+version = "0.2.0-alpha.22"
 description = "Runner for the Blueprint SDK"
 authors.workspace = true
 edition.workspace = true

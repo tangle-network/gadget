@@ -1,6 +1,6 @@
 [package]
 name = "blueprint-x402"
-version = "0.2.0-alpha.18"
+version = "0.2.0-alpha.19"
 description = "x402 payment gateway for Blueprint SDK — cross-chain EVM settlement for job execution"
 authors.workspace = true
 edition.workspace = true
