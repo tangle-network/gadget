@@ -3451,7 +3451,7 @@ dependencies = [
 name = "blueprint-keystore"
 version = "0.2.0-alpha.14"
 dependencies = [
- "alloy-network 1.8.3",
+ "alloy-network 2.0.5",
  "alloy-primitives",
  "alloy-signer 1.8.3",
  "alloy-signer-aws",

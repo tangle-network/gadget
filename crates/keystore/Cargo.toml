@@ -37,7 +37,7 @@ tnt-bls = { workspace = true, optional = true }
 rust-bls-bn254 = { workspace = true, optional = true }
 
 # EVM dependencies (optional)
-alloy-network = { workspace = true, optional = true }
+alloy-network = { version = "2.0", default-features = false, optional = true }
 alloy-primitives = { workspace = true, optional = true }
 alloy-signer = { workspace = true, optional = true }
 alloy-signer-local = { workspace = true, optional = true, features = ["mnemonic"] }
