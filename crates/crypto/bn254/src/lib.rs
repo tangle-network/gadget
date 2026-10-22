@@ -288,7 +288,7 @@ impl KeyType for ArkBlsBn254 {
         } else {
             #[cfg(feature = "std")]
             {
-                let mut rng = Self::get_rng();
+                let mut rng = blueprint_std::RandCore06::new();
                 Fr::rand(&mut rng)
             }
             #[cfg(not(feature = "std"))]

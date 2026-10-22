@@ -10,11 +10,10 @@ use alloc::vec::Vec;
 use core::time::Duration;
 use hashbrown::HashMap;
 use parking_lot::RwLock;
-
-#[cfg(not(feature = "std"))]
-use blueprint_std::time::Instant;
 #[cfg(feature = "std")]
 use std::time::Instant;
+#[cfg(not(feature = "std"))]
+use tokio::time::Instant;
 
 /// Entry in the message store
 #[derive(Debug, Clone)]

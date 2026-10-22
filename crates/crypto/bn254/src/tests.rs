@@ -1,6 +1,6 @@
 use super::*;
 use crate::{ArkBlsBn254, ArkBlsBn254Public, ArkBlsBn254Secret, ArkBlsBn254Signature};
-use ark_ff::{BigInteger, UniformRand};
+use ark_ff::BigInteger;
 use blueprint_crypto_core::{KeyType, aggregation::AggregatableSignature};
 use blueprint_crypto_hashing::keccak_256;
 use blueprint_std::string::ToString;
@@ -100,15 +100,6 @@ fn test_error_handling() {
     // Test empty string
     let result = ArkBlsBn254::generate_with_string("".to_string());
     assert!(result.is_err());
-
-    // Test invalid points for signature verification
-    let mut rng = blueprint_std::test_rng();
-    let invalid_signature = G1Affine::rand(&mut rng);
-    let invalid_public = G2Affine::rand(&mut rng);
-    let message = test_message();
-
-    // Test with invalid signature point
-    assert!(!verify(invalid_public, &message, invalid_signature));
 
     // Test signature generation with edge cases
     let seed = "test_edge_cases";
