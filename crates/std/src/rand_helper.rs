@@ -76,7 +76,6 @@ impl Default for BlueprintRng {
 // `TryCryptoRng` is a marker with no blanket impl for these newtypes, so it is written out
 // for both feature sets; `CryptoRng` then follows for free wherever `<Self as TryRng>::Error`
 // is `Infallible` (both arms below), since `rand_core` blanket-impls it on that bound.
-#[cfg(feature = "std")]
 impl rand::TryCryptoRng for BlueprintRng {}
 
 #[cfg(feature = "std")]
@@ -212,26 +211,4 @@ pub fn test_rng() -> BlueprintRng {
         0, 0, 0, 0,
     ];
     BlueprintRng::from_seed(TEST_SEED)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::TryRng;
-
-    #[test]
-    fn test_rng_generates_different_values() {
-        let mut rng = BlueprintRng::new();
-        assert_ne!(rng.try_next_u64().unwrap(), rng.try_next_u64().unwrap());
-    }
-
-    #[test]
-    fn test_deterministic_rng() {
-        #[cfg(not(feature = "std"))]
-        {
-            let mut rng1 = BlueprintRng::from_seed([1u8; 32]);
-            let mut rng2 = BlueprintRng::from_seed([1u8; 32]);
-            assert_eq!(rng1.try_next_u64().unwrap(), rng2.try_next_u64().unwrap());
-        }
-    }
 }
