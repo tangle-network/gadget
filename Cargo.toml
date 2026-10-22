@@ -412,7 +412,7 @@ alloy-dyn-abi = { version = "1.6", default-features = false, features = ["eip712
 alloy-sol-types = { version = "1.5", default-features = false }
 alloy-rlp = { version = "0.3.12", default-features = false }
 alloy-rpc-client = { version = "2.0", default-features = false }
-alloy-rpc-types = { version = "1.8", default-features = false }
+alloy-rpc-types = { version = "2.0", default-features = false }
 alloy-rpc-types-eth = { version = "1.8", default-features = false }
 alloy-provider = { version = "1.8", default-features = false, features = ["reqwest", "ws"] }
 alloy-pubsub = { version = "1.8", default-features = false }
