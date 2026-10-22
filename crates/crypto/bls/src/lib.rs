@@ -182,7 +182,7 @@ macro_rules! define_bls_key {
 
                     #[cfg(feature = "std")]
                     fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
-                        let mut rng = Self::get_rng();
+                        let mut rng = blueprint_std::RandCore06::new();
                         let message: Message = Message::new(super::CONTEXT, msg);
                         Ok([<W3f $ty Signature>](secret.0.sign(&message, &mut rng)))
                     }
@@ -197,7 +197,7 @@ macro_rules! define_bls_key {
                         secret: &mut Self::Secret,
                         msg: &[u8; 32],
                     ) -> Result<Self::Signature> {
-                        let mut rng = Self::get_rng();
+                        let mut rng = blueprint_std::RandCore06::new();
                         let message: Message = Message::new(super::CONTEXT, msg);
                         Ok([<W3f $ty Signature>](secret.0.sign(&message, &mut rng)))
                     }

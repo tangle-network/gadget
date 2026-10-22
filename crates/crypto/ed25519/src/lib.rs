@@ -173,7 +173,9 @@ impl KeyType for Ed25519Zebra {
         } else {
             #[cfg(feature = "std")]
             {
-                let mut rng = Self::get_rng();
+                // `ed25519-zebra` 4.x still takes a `rand_core` 0.6 RNG, so bridge the
+                // workspace's rand 0.10 source through the shim instead of `get_rng()`.
+                let mut rng = blueprint_std::RandCore06::new();
                 Ok(Ed25519SigningKey(ed25519_zebra::SigningKey::new(&mut rng)))
             }
             #[cfg(not(feature = "std"))]

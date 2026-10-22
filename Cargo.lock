@@ -4016,6 +4016,7 @@ dependencies = [
  "colored",
  "num-traits",
  "rand 0.10.1",
+ "rand_core 0.6.4",
  "rayon",
  "thiserror 2.0.18",
 ]
