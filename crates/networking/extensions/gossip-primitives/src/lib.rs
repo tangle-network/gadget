@@ -35,7 +35,6 @@
 
 extern crate alloc;
 
-pub mod clock;
 pub mod dedup;
 pub mod error;
 pub mod network;

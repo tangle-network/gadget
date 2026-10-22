@@ -11,7 +11,10 @@ use core::time::Duration;
 use lru::LruCache;
 use parking_lot::Mutex;
 
-use crate::clock::Instant;
+#[cfg(feature = "std")]
+use std::time::Instant;
+#[cfg(not(feature = "std"))]
+use tokio::time::Instant;
 
 /// Hash type for message deduplication (32 bytes, typically blake3)
 pub type MessageHash = [u8; 32];
