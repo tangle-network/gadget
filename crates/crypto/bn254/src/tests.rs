@@ -102,7 +102,7 @@ fn test_error_handling() {
     assert!(result.is_err());
 
     // Test invalid points for signature verification
-    let mut rng = blueprint_std::test_rng();
+    let mut rng = blueprint_std::RandCore06::new();
     let invalid_signature = G1Affine::rand(&mut rng);
     let invalid_public = G2Affine::rand(&mut rng);
     let message = test_message();

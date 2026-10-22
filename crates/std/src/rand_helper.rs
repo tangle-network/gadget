@@ -1,12 +1,15 @@
-use rand::RngCore;
+use rand::RngExt;
 
 #[cfg(not(feature = "std"))]
 use rand::prelude::StdRng;
 
 pub use rand::{
-    self, CryptoRng, Rng,
-    distributions::{Distribution, Standard},
+    self, CryptoRng, Rng, TryCryptoRng, TryRng,
+    distr::{Distribution, StandardUniform},
 };
+
+#[cfg(feature = "std")]
+pub use rand::rngs::SysRng;
 
 /// Trait for generating uniform random values
 pub trait UniformRand: Sized {
@@ -15,19 +18,20 @@ pub trait UniformRand: Sized {
 
 impl<T> UniformRand for T
 where
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     #[inline]
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        rng.sample(Standard)
+        rng.sample(StandardUniform)
     }
 }
 
 /// A random number generator that works in both std and `no_std` environments
+#[derive(Debug)]
 pub struct BlueprintRng(RngImpl);
 
 #[cfg(feature = "std")]
-type RngImpl = rand::rngs::OsRng;
+type RngImpl = rand::rngs::SysRng;
 
 #[cfg(not(feature = "std"))]
 type RngImpl = StdRng;
@@ -38,7 +42,7 @@ impl BlueprintRng {
     pub fn new() -> Self {
         #[cfg(feature = "std")]
         {
-            Self(rand::rngs::OsRng)
+            Self(SysRng)
         }
         #[cfg(not(feature = "std"))]
         {
@@ -51,9 +55,9 @@ impl BlueprintRng {
     pub fn from_seed(seed: [u8; 32]) -> Self {
         #[cfg(feature = "std")]
         {
-            // In std mode, always use OsRng regardless of seed for security
+            // In std mode, always use the OS RNG regardless of seed for security
             let _ = seed;
-            Self(rand::rngs::OsRng)
+            Self(SysRng)
         }
         #[cfg(not(feature = "std"))]
         {
@@ -69,40 +73,136 @@ impl Default for BlueprintRng {
     }
 }
 
-impl CryptoRng for BlueprintRng {}
+// `TryCryptoRng` is a marker with no blanket impl for these newtypes, so it is written out
+// for both feature sets; `CryptoRng` then follows for free wherever `<Self as TryRng>::Error`
+// is `Infallible` (both arms below), since `rand_core` blanket-impls it on that bound.
+#[cfg(feature = "std")]
+impl rand::TryCryptoRng for BlueprintRng {}
 
 #[cfg(feature = "std")]
-impl RngCore for BlueprintRng {
-    fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
+impl rand::TryRng for BlueprintRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self
+            .0
+            .try_next_u32()
+            .unwrap_or_else(|_| unreachable!("OS RNG is available")))
     }
-    fn next_u64(&mut self) -> u64 {
-        self.0.next_u64()
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self
+            .0
+            .try_next_u64()
+            .unwrap_or_else(|_| unreachable!("OS RNG is available")))
     }
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest);
-    }
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-        self.0.try_fill_bytes(dest)
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.0
+            .try_fill_bytes(dest)
+            .unwrap_or_else(|_| unreachable!("OS RNG is available"));
+        Ok(())
     }
 }
 
 #[cfg(not(feature = "std"))]
-impl RngCore for BlueprintRng {
-    fn next_u32(&mut self) -> u32 {
-        self.0.r#gen()
+impl rand::TryRng for BlueprintRng {
+    type Error = rand::rand_core::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self.0.next_u32())
     }
-    fn next_u64(&mut self) -> u64 {
-        self.0.r#gen()
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.0.next_u64())
     }
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest);
-    }
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         self.0.fill_bytes(dest);
         Ok(())
     }
 }
+
+/// An infallible view over [`rand::rngs::SysRng`]: the platform's OS entropy source with the
+/// fallibility erased, so it satisfies `CryptoRng + Rng`. `SysRng` itself is a fallible
+/// `TryRng`, which `rand` 0.10 no longer aliases to an infallible `OsRng`.
+#[cfg(feature = "std")]
+#[derive(Debug, Default)]
+pub struct SystemRng(SysRng);
+
+#[cfg(feature = "std")]
+impl SystemRng {
+    /// Wrap the OS entropy source.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(SysRng)
+    }
+}
+
+#[cfg(feature = "std")]
+impl rand::TryCryptoRng for SystemRng {}
+
+#[cfg(feature = "std")]
+impl rand::TryRng for SystemRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self.0.try_next_u32().expect("OS RNG is available"))
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.0.try_next_u64().expect("OS RNG is available"))
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.try_fill_bytes(dest).expect("OS RNG is available");
+        Ok(())
+    }
+}
+
+/// `rand_core` 0.6 compatibility shim for a [`SystemRng`], so crates still on the 0.6/0.8
+/// `rand` API (e.g. `ed25519-zebra`) can use the same OS entropy source.
+#[cfg(feature = "std")]
+pub struct RandCore06(SystemRng);
+
+#[cfg(feature = "std")]
+impl RandCore06 {
+    /// Wrap a [`SystemRng`].
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(SystemRng::new())
+    }
+}
+
+#[cfg(feature = "std")]
+impl Default for RandCore06 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "std")]
+impl rand_core06::RngCore for RandCore06 {
+    fn next_u32(&mut self) -> u32 {
+        rand::Rng::next_u32(&mut self.0)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        rand::Rng::next_u64(&mut self.0)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        rand::Rng::fill_bytes(&mut self.0, dest);
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core06::Error> {
+        rand::Rng::fill_bytes(&mut self.0, dest);
+        Ok(())
+    }
+}
+
+#[cfg(feature = "std")]
+impl rand_core06::CryptoRng for RandCore06 {}
 
 /// Create a deterministic RNG for testing
 #[must_use]
@@ -117,11 +217,12 @@ pub fn test_rng() -> BlueprintRng {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::TryRng;
 
     #[test]
     fn test_rng_generates_different_values() {
         let mut rng = BlueprintRng::new();
-        assert_ne!(rng.next_u64(), rng.next_u64());
+        assert_ne!(rng.try_next_u64().unwrap(), rng.try_next_u64().unwrap());
     }
 
     #[test]
@@ -130,7 +231,7 @@ mod tests {
         {
             let mut rng1 = BlueprintRng::from_seed([1u8; 32]);
             let mut rng2 = BlueprintRng::from_seed([1u8; 32]);
-            assert_eq!(rng1.next_u64(), rng2.next_u64());
+            assert_eq!(rng1.try_next_u64().unwrap(), rng2.try_next_u64().unwrap());
         }
     }
 }

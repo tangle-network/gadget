@@ -126,12 +126,12 @@ pub trait KeyType:
     /// Get a cryptographically secure random number generator.
     /// Only available with the `std` feature — no_std callers must provide their own RNG.
     #[cfg(feature = "std")]
-    fn get_rng() -> impl blueprint_std::CryptoRng + blueprint_std::Rng {
-        blueprint_std::rand::thread_rng()
+    fn get_rng() -> impl blueprint_std::CryptoRng {
+        blueprint_std::SystemRng::new()
     }
 
     /// Get a deterministic random number generator for testing
-    fn get_test_rng() -> impl blueprint_std::CryptoRng + blueprint_std::Rng {
+    fn get_test_rng() -> impl blueprint_std::CryptoRng {
         blueprint_std::test_rng()
     }
 

@@ -123,7 +123,7 @@ impl KeyType for SchnorrkelSr25519 {
         } else {
             #[cfg(feature = "std")]
             {
-                let mut rng = Self::get_rng();
+                let mut rng = blueprint_std::RandCore06::new();
                 let mini_secret_key = MiniSecretKey::generate_with(&mut rng);
                 Ok(mini_secret_key.expand(MiniSecretKey::UNIFORM_MODE))
             }

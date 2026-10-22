@@ -13,7 +13,9 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-rand = { workspace = true, features = ["std_rng"] }
+rand = { workspace = true, features = ["std_rng", "sys_rng"] }
+# Bridges consumers still on the rand 0.6/0.8-era API (rand_core 0.6) to the OS RNG above.
+rand_core06 = { package = "rand_core", version = "0.6", optional = true }
 rayon = { workspace = true, optional = true }
 num-traits.workspace = true
 thiserror.workspace = true
@@ -28,7 +30,6 @@ rand = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
-std = ["thiserror/std", "getrandom"]
+std = ["thiserror/std", "dep:rand_core06"]
 parallel = ["dep:rayon", "std"]
 print-trace = ["std", "dep:colored"]
-getrandom = ["rand/std"]
