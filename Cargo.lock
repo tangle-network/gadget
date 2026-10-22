@@ -116,7 +116,7 @@ dependencies = [
  "alloy-provider",
  "alloy-pubsub",
  "alloy-rpc-client 1.8.3",
- "alloy-rpc-types",
+ "alloy-rpc-types 1.8.3",
  "alloy-serde 1.8.3",
  "alloy-signer 1.8.3",
  "alloy-signer-local 1.8.3",
@@ -157,7 +157,7 @@ dependencies = [
  "either",
  "k256",
  "once_cell",
- "rand 0.8.6",
+ "rand 0.8.8",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
@@ -184,7 +184,7 @@ dependencies = [
  "either",
  "k256",
  "once_cell",
- "rand 0.8.6",
+ "rand 0.8.8",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
@@ -689,6 +689,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloy-rpc-types"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "052c031d1f7c5611997056bbcb8814e5cbf20f7efeee8c3de690555172038cf2"
+dependencies = [
+ "alloy-primitives",
+ "alloy-rpc-types-eth 2.0.5",
+ "alloy-serde 2.0.5",
+ "serde",
+]
+
+[[package]]
 name = "alloy-rpc-types-anvil"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -750,7 +762,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 1.8.3",
  "derive_more",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "strum",
 ]
@@ -946,7 +958,7 @@ dependencies = [
  "alloy-signer 1.8.3",
  "async-trait",
  "k256",
- "rand 0.8.6",
+ "rand 0.8.8",
  "thiserror 2.0.18",
 ]
 
@@ -964,7 +976,7 @@ dependencies = [
  "coins-bip32",
  "coins-bip39",
  "k256",
- "rand 0.8.6",
+ "rand 0.8.8",
  "thiserror 2.0.18",
  "zeroize",
 ]
@@ -1287,7 +1299,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "anyhow",
@@ -1742,7 +1754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1df2c09229cbc5a028b1d70e00fdb2acee28b1055dfb5ca73eea49c5a25c4e7c"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -1752,7 +1764,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -1762,7 +1774,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -1772,7 +1784,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "367c9c827ed431bff6868b7aa926e05b16eb46603cc8b6e768e4a5553fa1d155"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -2377,7 +2389,7 @@ dependencies = [
  "http-body 0.4.6",
  "http-body 1.0.1",
  "hyper 0.14.32",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "indexmap 2.14.2",
@@ -2552,7 +2564,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "itoa",
  "matchit",
@@ -2648,7 +2660,7 @@ checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
 dependencies = [
  "getrandom 0.2.17",
  "instant",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -2765,7 +2777,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90dbd31c98227229239363921e60fcf5e558e43ec69094d46fc4996f08d1d5bc"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rand_core 0.6.4",
 ]
 
@@ -2905,7 +2917,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-rpc-types-eth 1.8.3",
  "alloy-signer-local 2.0.5",
  "alloy-transport 1.8.3",
@@ -2949,7 +2961,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "hex",
  "http 1.4.0",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "jsonwebtoken",
@@ -3045,7 +3057,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "time",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "url",
  "walkdir",
 ]
@@ -3063,7 +3075,7 @@ version = "0.2.0-alpha.21"
 dependencies = [
  "alloy-contract",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-rpc-types-eth 1.8.3",
  "blueprint-core",
  "blueprint-core-testing-utils",
@@ -3098,7 +3110,7 @@ dependencies = [
  "alloy-provider",
  "alloy-pubsub",
  "alloy-rlp",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-rpc-types-eth 1.8.3",
  "alloy-signer-local 2.0.5",
  "alloy-transport 1.8.3",
@@ -3126,7 +3138,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer 1.8.3",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
@@ -3364,7 +3376,7 @@ dependencies = [
  "alloy-provider",
  "alloy-rlp",
  "alloy-rpc-client 2.0.5",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "alloy-transport 1.8.3",
@@ -3428,7 +3440,7 @@ dependencies = [
  "libp2p",
  "lru",
  "parking_lot",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "thiserror 2.0.18",
  "tokio",
@@ -3497,7 +3509,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "alloy-transport-http 2.0.5",
@@ -3542,7 +3554,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "hyperlocal",
  "ipnet",
@@ -3553,7 +3565,7 @@ dependencies = [
  "nftables",
  "nix 0.31.2",
  "prometheus",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "rtnetlink",
  "rustls",
@@ -3565,7 +3577,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tower 0.5.3",
  "tracing",
  "tracing-subscriber 0.3.23",
@@ -3652,7 +3664,7 @@ dependencies = [
  "generic-array",
  "hex",
  "libp2p",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rand_dev",
  "serde",
  "serde_json",
@@ -3678,7 +3690,7 @@ dependencies = [
  "generic-array",
  "hex",
  "libp2p",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rand_dev",
  "round-based",
  "serde",
@@ -3698,7 +3710,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "anyhow",
@@ -3726,7 +3738,7 @@ dependencies = [
  "num_cpus",
  "prost 0.13.5",
  "protobuf-src",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "rust_decimal",
  "serde",
@@ -3740,7 +3752,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tonic 0.13.1",
  "tonic-build",
  "tonic-web",
@@ -3771,7 +3783,7 @@ dependencies = [
  "chrono",
  "flate2",
  "libc",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -3786,7 +3798,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "alloy-transport 1.8.3",
@@ -3812,7 +3824,7 @@ dependencies = [
  "opentelemetry_sdk",
  "prometheus",
  "prost 0.13.5",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -3870,7 +3882,7 @@ dependencies = [
  "mockito",
  "p384",
  "proptest",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rcgen 0.13.2",
  "regex",
  "reqwest 0.12.28",
@@ -3888,7 +3900,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-test",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tracing-subscriber 0.3.23",
  "url",
  "urlencoding",
@@ -4003,7 +4015,7 @@ version = "0.2.0-alpha.7"
 dependencies = [
  "colored",
  "num-traits",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rayon",
  "thiserror 2.0.18",
 ]
@@ -4067,7 +4079,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "anyhow",
@@ -4126,7 +4138,7 @@ dependencies = [
  "jsonwebtoken",
  "p384",
  "pin-project-lite",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4162,7 +4174,7 @@ dependencies = [
  "hex",
  "hmac",
  "http 1.4.0",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4171,7 +4183,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tower 0.5.3",
  "tracing",
 ]
@@ -4201,7 +4213,7 @@ dependencies = [
  "time",
  "tnt-core-bindings",
  "tokio",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tower 0.5.3",
  "tower-http 0.7.0",
  "tracing",
@@ -4229,7 +4241,7 @@ dependencies = [
  "home",
  "http 1.4.0",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-named-pipe",
  "hyper-rustls",
  "hyper-util",
@@ -4497,7 +4509,7 @@ dependencies = [
  "hex",
  "indicatif",
  "nix 0.31.2",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "rustls",
  "serde",
@@ -4508,7 +4520,7 @@ dependencies = [
  "testcontainers",
  "thiserror 2.0.18",
  "tokio",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tracing",
  "tracing-subscriber 0.3.23",
  "url",
@@ -4768,7 +4780,7 @@ dependencies = [
  "futures",
  "http 1.4.0",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "hyperlocal",
  "serde",
@@ -4815,7 +4827,7 @@ dependencies = [
  "hmac",
  "once_cell",
  "pbkdf2",
- "rand 0.8.6",
+ "rand 0.8.8",
  "sha2 0.10.9",
  "thiserror 1.0.69",
 ]
@@ -4901,7 +4913,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5621,7 +5633,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5977,7 +5989,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6137,7 +6149,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
 dependencies = [
  "byteorder",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rustc-hex",
  "static_assertions",
 ]
@@ -6291,9 +6303,9 @@ dependencies = [
 
 [[package]]
 name = "futures-core"
-version = "0.3.32"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
 
 [[package]]
 name = "futures-executor"
@@ -6399,7 +6411,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "jsonwebtoken",
  "once_cell",
  "prost 0.14.3",
@@ -6429,7 +6441,7 @@ dependencies = [
  "chrono",
  "http 1.4.0",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "ring",
@@ -6504,7 +6516,7 @@ version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ea1015b5a70616b688dc230cfe50c8af89d972cb132d5a622814d29773b10b9"
 dependencies = [
- "rand 0.8.6",
+ "rand 0.8.8",
  "rand_core 0.6.4",
 ]
 
@@ -7062,9 +7074,9 @@ checksum = "b07f60793ff0a4d9cef0f18e63b5357e06209987153a64648c972c1e5aff336f"
 
 [[package]]
 name = "hickory-net"
-version = "0.26.1"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2295ed2f9c31e471e1428a8f88a3f0e1f4b27c15049592138d1eebe9c35b183"
+checksum = "c480823ed7c2c5d0f09c41020cb6b7c28029ce60ec42dc942158dcf22f8e0a4d"
 dependencies = [
  "async-trait",
  "cfg-if",
@@ -7086,9 +7098,9 @@ dependencies = [
 
 [[package]]
 name = "hickory-proto"
-version = "0.26.1"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bab31817bfb44672a252e97fe81cd0c18d1b2cf892108922f6818820df8c643"
+checksum = "12b92608f679a6fa515dd1d15c1ff89443026e391200a2c840c7afcba482893d"
 dependencies = [
  "data-encoding",
  "idna",
@@ -7106,9 +7118,9 @@ dependencies = [
 
 [[package]]
 name = "hickory-resolver"
-version = "0.26.1"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d58d28879ceecde6607729660c2667a081ccdc082e082675042793960f178c"
+checksum = "3f3da5255c95d5a716857d54b5b8f4e8d67c3484d3beaaaae2ce25063b3ba981"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -7271,9 +7283,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "1.9.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6299f016b246a94207e63da54dbe807655bf9e00044f73ded42c3ac5305fbcca"
+checksum = "27b501faa50e7a26c3d3560ca625132f4078a17771f4810baf70475ae48cbe43"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -7301,7 +7313,7 @@ dependencies = [
  "futures-util",
  "headers",
  "http 1.4.0",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "pin-project-lite",
@@ -7318,7 +7330,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73b7d8abf35697b81a825e386fc151e0d503e8cb5fcb93cc8669c376dfd6f278"
 dependencies = [
  "hex",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "pin-project-lite",
  "tokio",
@@ -7333,7 +7345,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ca68d021ef39cf6463ab54c1d0f5daf03377b70561305bb89a8f83aab66e0f"
 dependencies = [
  "http 1.4.0",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "log",
  "rustls",
@@ -7350,7 +7362,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0"
 dependencies = [
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "pin-project-lite",
  "tokio",
@@ -7369,12 +7381,12 @@ dependencies = [
  "futures-util",
  "http 1.4.0",
  "http-body 1.0.1",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "ipnet",
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.5",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -7390,7 +7402,7 @@ checksum = "986c5ce3b994526b3cd75578e62554abd09f0899d6206de48b3e96ab34ccc8c7"
 dependencies = [
  "hex",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "pin-project-lite",
  "tokio",
@@ -7580,7 +7592,7 @@ dependencies = [
  "futures",
  "http 1.4.0",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "log",
  "rand 0.10.1",
@@ -7663,7 +7675,7 @@ dependencies = [
  "bytes",
  "color-eyre",
  "hex",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest 0.12.28",
  "serde",
  "serde_bytes",
@@ -8154,7 +8166,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-timeout",
  "hyper-util",
@@ -8191,7 +8203,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-http-proxy",
  "hyper-rustls",
  "hyper-timeout",
@@ -8406,7 +8418,7 @@ dependencies = [
  "libp2p-swarm",
  "prost 0.14.3",
  "prost-codec",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rand_core 0.6.4",
  "thiserror 2.0.18",
  "tracing",
@@ -8439,7 +8451,7 @@ dependencies = [
  "parking_lot",
  "pin-project",
  "prost 0.14.3",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rw-stream-sink",
  "thiserror 2.0.18",
  "tracing",
@@ -8504,7 +8516,7 @@ dependencies = [
  "libp2p-swarm",
  "prost 0.14.3",
  "prost-codec",
- "rand 0.8.6",
+ "rand 0.8.8",
  "regex",
  "serde",
  "sha2 0.10.9",
@@ -8543,7 +8555,7 @@ dependencies = [
  "hkdf",
  "multihash",
  "prost 0.14.3",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "sha2 0.10.9",
  "thiserror 2.0.18",
@@ -8568,7 +8580,7 @@ dependencies = [
  "libp2p-swarm",
  "prost 0.14.3",
  "prost-codec",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "sha2 0.10.9",
  "smallvec",
@@ -8589,7 +8601,7 @@ dependencies = [
  "libp2p-core",
  "libp2p-identity",
  "libp2p-swarm",
- "rand 0.8.6",
+ "rand 0.8.8",
  "smallvec",
  "socket2 0.6.5",
  "tokio",
@@ -8629,7 +8641,7 @@ dependencies = [
  "multiaddr",
  "multihash",
  "prost 0.14.3",
- "rand 0.8.6",
+ "rand 0.8.8",
  "snow",
  "static_assertions",
  "thiserror 2.0.18",
@@ -8648,7 +8660,7 @@ dependencies = [
  "libp2p-core",
  "libp2p-identity",
  "libp2p-swarm",
- "rand 0.8.6",
+ "rand 0.8.8",
  "tracing",
  "web-time",
 ]
@@ -8665,7 +8677,7 @@ dependencies = [
  "libp2p-identity",
  "libp2p-tls",
  "quinn",
- "rand 0.8.6",
+ "rand 0.8.8",
  "ring",
  "rustls",
  "socket2 0.6.5",
@@ -8690,7 +8702,7 @@ dependencies = [
  "libp2p-swarm",
  "prost 0.14.3",
  "prost-codec",
- "rand 0.8.6",
+ "rand 0.8.8",
  "static_assertions",
  "thiserror 2.0.18",
  "tracing",
@@ -8708,7 +8720,7 @@ dependencies = [
  "libp2p-core",
  "libp2p-identity",
  "libp2p-swarm",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "smallvec",
  "tracing",
@@ -8729,7 +8741,7 @@ dependencies = [
  "libp2p-identity",
  "libp2p-swarm-derive",
  "multistream-select",
- "rand 0.8.6",
+ "rand 0.8.8",
  "smallvec",
  "tokio",
  "tracing",
@@ -8845,7 +8857,7 @@ dependencies = [
  "libsecp256k1-core",
  "libsecp256k1-gen-ecmult",
  "libsecp256k1-gen-genmult",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "sha2 0.9.9",
 ]
@@ -9246,7 +9258,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "log",
  "pin-project-lite",
@@ -9379,7 +9391,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bddcd3bf5144b6392de80e04c347cd7fab2508f6df16a85fc496ecd5cec39bc"
 dependencies = [
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -9616,7 +9628,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9655,7 +9667,7 @@ dependencies = [
  "num-integer",
  "num-iter",
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
  "smallvec",
  "zeroize",
 ]
@@ -9790,7 +9802,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "anyhow",
@@ -10928,7 +10940,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.2",
  "rustls",
- "socket2 0.6.5",
+ "socket2 0.5.10",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -10967,7 +10979,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.5",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -11001,9 +11013,9 @@ checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
-version = "0.8.6"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
+checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
@@ -11299,7 +11311,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "js-sys",
@@ -11342,7 +11354,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-rustls",
  "hyper-util",
  "js-sys",
@@ -11591,7 +11603,7 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types",
  "proptest",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rand 0.9.4",
  "rlp",
  "ruint-macro",
@@ -11634,7 +11646,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "pbkdf2",
- "rand 0.8.6",
+ "rand 0.8.8",
  "scrypt",
  "serde",
  "serde_json",
@@ -11654,7 +11666,7 @@ dependencies = [
  "borsh",
  "bytes",
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rkyv",
  "serde",
  "serde_json",
@@ -11735,7 +11747,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11816,7 +11828,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12060,7 +12072,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b50c5943d326858130af85e049f2661ba3c78b26589b8ab98e65e80ae44a1252"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.8.6",
+ "rand 0.8.8",
  "secp256k1-sys 0.10.1",
  "serde",
 ]
@@ -12919,7 +12931,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12948,7 +12960,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -13162,7 +13174,7 @@ dependencies = [
  "arrayref",
  "constcat",
  "digest 0.10.7",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
  "sha2 0.10.9",
@@ -13327,9 +13339,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.1.2+spec-1.1.0"
+version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81f3d15e84cbcd896376e6730314d59fb5a87f31e4b038454184435cd57defee"
+checksum = "53c96ecdfa941c8fc4fcaed14f99ada8ebed502eef533015095a07e3301d4c3c"
 dependencies = [
  "indexmap 2.14.2",
  "serde_core",
@@ -13410,9 +13422,9 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "toml_writer"
-version = "1.1.1+spec-1.1.0"
+version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "756daf9b1013ebe47a8776667b466417e2d4c5679d441c26230efd9ef78692db"
+checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
 name = "tonic"
@@ -13428,7 +13440,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-timeout",
  "hyper-util",
  "percent-encoding",
@@ -13459,7 +13471,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-timeout",
  "hyper-util",
  "percent-encoding",
@@ -13803,7 +13815,7 @@ dependencies = [
  "serde_json",
  "target-triple",
  "termcolor",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
 ]
 
 [[package]]
@@ -14177,7 +14189,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "log",
  "mime",
@@ -14414,7 +14426,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -14820,7 +14832,7 @@ dependencies = [
  "futures",
  "http 1.4.0",
  "http-body-util",
- "hyper 1.9.0",
+ "hyper 1.11.1",
  "hyper-util",
  "log",
  "once_cell",
@@ -15001,7 +15013,7 @@ dependencies = [
  "alloy-network 1.8.3",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types 2.0.5",
  "alloy-signer-local 2.0.5",
  "alloy-sol-types",
  "alloy-transport 1.8.3",
@@ -15020,7 +15032,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "toml 1.1.2+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "tower 0.5.3",
  "wiremock",
  "x402-chain-eip155",
