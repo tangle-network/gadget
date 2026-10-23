@@ -68,7 +68,7 @@ on:
   release: { types: [published] }
 jobs:
   ship:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-rust@v1

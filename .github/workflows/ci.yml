@@ -18,12 +18,17 @@ env:
   TNT_CORE_PATH: ${{ github.workspace }}/../tnt-core
   RUSTFMT_NIGHTLY: nightly-2026-02-24
 
+permissions:
+  contents: read
+
 jobs:
   formatting:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/setup-build-env
         with:
@@ -39,21 +44,24 @@ jobs:
   linting:
     timeout-minutes: 120
     name: cargo clippy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
 
       - name: Run Clippy
         run: cargo clippy --workspace --tests --examples -- -D warnings
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           cache: "false"
@@ -142,14 +150,15 @@ jobs:
     # fan-out (which is what was happening on main: only 6 jobs ran
     # instead of the 6 + ~15 test bundles intended by the rewrite).
     name: cargo test (${{ join(matrix.bundle.packages, ', ') }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     strategy:
       fail-fast: false
       matrix:
         bundle: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           nextest: "true"
@@ -195,7 +204,7 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     timeout-minutes: 60
     env:
       RUST_LOG: info
@@ -203,7 +212,8 @@ jobs:
       BLUEPRINT_ANVIL_LOGS: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
 
       - name: Warm up Foundry image
@@ -236,13 +246,18 @@ jobs:
 
   testnet-smoke-test:
     name: Testnet Smoke Test
-    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
     timeout-minutes: 30
     env:
       RUST_LOG: info
       TANGLE_RPC_URL: ${{ secrets.TANGLE_TESTNET_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         if: env.TANGLE_RPC_URL != '' && github.event_name == 'workflow_dispatch'
         with:
@@ -259,10 +274,11 @@ jobs:
 
   clippy-all-features:
     name: cargo clippy (--all-features)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           tnt-core: "false"

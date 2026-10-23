@@ -41,8 +41,8 @@ pr-run-mode = "plan"
 cargo-dist-version = "0.28.7-prerelease.1"
 
 [dist.github-custom-runners]
-global = "ubuntu-latest"
+global = { runner = "public-app-production", host = "x86_64-unknown-linux-gnu" }
 # Custom runners to use for each target platform
 aarch64-apple-darwin = "macos-15"
-x86_64-unknown-linux-gnu = "ubuntu-latest"
+x86_64-unknown-linux-gnu = { runner = "public-app-production", host = "x86_64-unknown-linux-gnu" }
 aarch64-unknown-linux-gnu = "ubuntu-24.04-arm"

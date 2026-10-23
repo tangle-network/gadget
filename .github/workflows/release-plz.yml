@@ -18,11 +18,18 @@ env:
 jobs:
   check-release-enabled:
     name: Check if releases are enabled
-    runs-on: ubuntu-22.04
+    if: github.repository == 'tangle-network/blueprint' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
+    permissions:
+      contents: read
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Check release-plz.toml
         id: check
         run: |
@@ -40,8 +47,10 @@ jobs:
   release-plz:
     name: Release-plz
     needs: check-release-enabled
-    if: needs.check-release-enabled.outputs.enabled == 'true'
-    runs-on: ubuntu-22.04
+    if: needs.check-release-enabled.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
     # Bound a stalled publish run while leaving room for registry rate limits.
     timeout-minutes: 90
     steps:
@@ -71,7 +80,6 @@ jobs:
           cargo hakari disable
           cargo hakari remove-deps -y
 
-      - uses: ./.github/actions/free-disk-space
       - name: Run release-plz (creates tags & releases, but doesn't publish)
         id: release-plz
         uses: release-plz/action@v0.5
@@ -81,8 +89,10 @@ jobs:
 
       - name: Save release output for batch publishing
         if: steps.release-plz.outputs.releases_created == 'true'
+        env:
+          RELEASE_OUTPUT: ${{ steps.release-plz.outputs.releases }}
         run: |
-          echo '${{ steps.release-plz.outputs.releases }}' > release-output.json
+          printf '%s\n' "$RELEASE_OUTPUT" > release-output.json
           cat release-output.json
 
       - name: Batch publish to crates.io (with rate limiting)
