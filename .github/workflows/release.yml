@@ -1,4 +1,4 @@
-# Native release execution is owned by release-trusted.yml on main.
+# Native release execution is owned by an immutable reviewed release-trusted.yml.
 name: Release
 
 on:
@@ -29,7 +29,7 @@ jobs:
 
   release:
     if: github.event_name == 'push'
-    uses: tangle-network/blueprint/.github/workflows/release-trusted.yml@main
+    uses: tangle-network/blueprint/.github/workflows/release-trusted.yml@26a953819f0fbd29ec25430df010bb540a95bd28
     permissions:
       contents: write
     with:
