@@ -18,7 +18,7 @@ env:
 jobs:
   check-release-enabled:
     name: Check if releases are enabled
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ci-public]
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
@@ -40,8 +40,10 @@ jobs:
   release-plz:
     name: Release-plz
     needs: check-release-enabled
-    if: needs.check-release-enabled.outputs.enabled == 'true'
-    runs-on: ubuntu-22.04
+    if: needs.check-release-enabled.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
     # Bound a stalled publish run while leaving room for registry rate limits.
     timeout-minutes: 90
     steps:
@@ -71,7 +73,6 @@ jobs:
           cargo hakari disable
           cargo hakari remove-deps -y
 
-      - uses: ./.github/actions/free-disk-space
       - name: Run release-plz (creates tags & releases, but doesn't publish)
         id: release-plz
         uses: release-plz/action@v0.5

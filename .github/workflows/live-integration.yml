@@ -9,7 +9,10 @@ on:
 
 jobs:
   live-test:
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

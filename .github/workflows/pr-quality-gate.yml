@@ -9,7 +9,7 @@ jobs:
   validate-pr-description:
     name: Validate PR Description
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

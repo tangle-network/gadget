@@ -21,7 +21,7 @@ env:
 jobs:
   formatting:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
 
@@ -39,17 +39,16 @@ jobs:
   linting:
     timeout-minutes: 120
     name: cargo clippy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/setup-build-env
 
       - name: Run Clippy
         run: cargo clippy --workspace --tests --examples -- -D warnings
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -142,14 +141,13 @@ jobs:
     # fan-out (which is what was happening on main: only 6 jobs ran
     # instead of the 6 + ~15 test bundles intended by the rewrite).
     name: cargo test (${{ join(matrix.bundle.packages, ', ') }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     strategy:
       fail-fast: false
       matrix:
         bundle: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/setup-build-env
         with:
           nextest: "true"
@@ -195,7 +193,7 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     timeout-minutes: 60
     env:
       RUST_LOG: info
@@ -203,7 +201,6 @@ jobs:
       BLUEPRINT_ANVIL_LOGS: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/setup-build-env
 
       - name: Warm up Foundry image
@@ -236,7 +233,7 @@ jobs:
 
   testnet-smoke-test:
     name: Testnet Smoke Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     timeout-minutes: 30
     env:
       RUST_LOG: info
@@ -259,10 +256,9 @@ jobs:
 
   clippy-all-features:
     name: cargo clippy (--all-features)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/setup-build-env
         with:
           tnt-core: "false"
