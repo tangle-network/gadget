@@ -7,6 +7,9 @@ on:
         description: 'Providers to test (comma-separated: lambda_labs,runpod,tensordock)'
         default: 'lambda_labs'
 
+permissions:
+  contents: read
+
 jobs:
   live-test:
     if: github.ref == 'refs/heads/main'
@@ -16,6 +19,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

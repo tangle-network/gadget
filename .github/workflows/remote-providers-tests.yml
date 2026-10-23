@@ -14,12 +14,17 @@ on:
       - 'crates/blueprint-remote-providers/**'
       - '.github/workflows/remote-providers-tests.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test-remote-providers-attestation:
     name: cargo test (blueprint-remote-providers-tee-attestation)
     runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -48,6 +53,8 @@ jobs:
     runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

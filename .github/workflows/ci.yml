@@ -18,12 +18,17 @@ env:
   TNT_CORE_PATH: ${{ github.workspace }}/../tnt-core
   RUSTFMT_NIGHTLY: nightly-2026-02-24
 
+permissions:
+  contents: read
+
 jobs:
   formatting:
     name: Rustfmt
     runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/setup-build-env
         with:
@@ -42,6 +47,8 @@ jobs:
     runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
 
       - name: Run Clippy
@@ -53,6 +60,8 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           cache: "false"
@@ -148,6 +157,8 @@ jobs:
         bundle: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           nextest: "true"
@@ -201,6 +212,8 @@ jobs:
       BLUEPRINT_ANVIL_LOGS: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
 
       - name: Warm up Foundry image
@@ -233,13 +246,18 @@ jobs:
 
   testnet-smoke-test:
     name: Testnet Smoke Test
-    runs-on: [self-hosted, ci-public]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on:
+      group: public-app-production
+      labels: [self-hosted, ci-deploy]
     timeout-minutes: 30
     env:
       RUST_LOG: info
       TANGLE_RPC_URL: ${{ secrets.TANGLE_TESTNET_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         if: env.TANGLE_RPC_URL != '' && github.event_name == 'workflow_dispatch'
         with:
@@ -259,6 +277,8 @@ jobs:
     runs-on: [self-hosted, ci-public]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-build-env
         with:
           tnt-core: "false"
